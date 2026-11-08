@@ -1,0 +1,389 @@
+name: Build 8T (web + Android)
+
+# Private build of the Happier web UI and an arm64 Android APK for the OnePlus 8T.
+# Both clients default to the self-hosted relay in HAPPIER_8T_SERVER_URL.
+# Each run publishes one prerelease (8t-<short sha>-<run number>) and keeps the newest 3.
+
+on:
+  push:
+    branches:
+      - sharken/8t
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to build"
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - web
+          - app
+
+concurrency:
+  group: build-8t-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  HAPPIER_8T_SERVER_URL: https://happy.sharken.duckdns.org
+  # The app reads this at bundle time and seeds it as the primary server profile.
+  EXPO_PUBLIC_HAPPIER_SERVER_URL: https://happy.sharken.duckdns.org
+  APP_ENV: preview
+  HAPPIER_EMBEDDED_POLICY_ENV: preview
+  EXPO_UNSTABLE_WEB_MODAL: "1"
+  YARN_PRODUCTION: "false"
+  npm_config_production: "false"
+  CI: "1"
+
+jobs:
+  web:
+    name: Web export
+    # A push has no inputs, so an empty target means "all".
+    if: ${{ inputs.target != 'app' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # One token less than the app scope, so the two jobs keep separate node_modules caches.
+      HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+
+      - name: Enable Corepack (Yarn)
+        uses: ./.github/actions/enable-corepack-yarn
+
+      - name: Probe node_modules cache
+        id: probe
+        uses: ./.github/build-8t/probe-modules-cache
+
+      - name: Restore Yarn download cache
+        if: ${{ steps.probe.outputs.cache-hit != 'true' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.probe.outputs.yarn-cache-dir }}
+          key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-cache-v1-${{ runner.os }}-
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-yarn-dependencies
+        with:
+          args: --frozen-lockfile --ignore-engines
+
+      - name: Restore Metro cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /tmp/metro-cache
+          key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-${{ github.run_id }}
+          restore-keys: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-
+
+      - name: Export web bundle
+        id: web
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/ui/package.json').version")-8t.${GITHUB_RUN_NUMBER}"
+          node scripts/pipeline/release/build-ui-web-bundle.mjs --channel preview --version "$version"
+          archive="$(find dist/release-assets/ui-web -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$archive"
+          mkdir -p dist/8t
+          cp "$archive" dist/8t/
+          ls -l dist/8t
+          du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-8t-web
+          path: dist/8t
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  app:
+    name: Android APK (arm64-v8a)
+    if: ${{ inputs.target != 'web' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      signing: ${{ steps.signing.outputs.mode }}
+      cert_sha256: ${{ steps.verify.outputs.cert_sha256 }}
+    env:
+      HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor,audio-stream-native,sherpa-native
+      # Native builds do not need the web-only vendored assets (same as upstream mobile builds).
+      HAPPIER_UI_VENDOR_WEB_ASSETS: "0"
+      EXPO_APP_NAME: Happier 8T
+      EXPO_ANDROID_PACKAGE: dev.happier.app.sharken
+      EXPO_APP_LOCAL_CONFIG_PATH: ${{ github.workspace }}/.github/build-8t/app.local.cjs
+      HAPPIER_8T_VERSION_CODE: ${{ github.run_number }}
+      HAPPIER_ANDROID_BUILD_ARCHS: arm64-v8a
+      HAPPIER_ANDROID_ENABLE_MINIFY: "1"
+      HAPPIER_ANDROID_ENABLE_SHRINK_RESOURCES: "1"
+      HAPPIER_ANDROID_GRADLE_JVMARGS: -Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8
+      # No Sentry auth token here: the Sentry Gradle step must not try to upload source maps.
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+    steps:
+      - name: Report runner resources and free disk if low
+        run: |
+          set -euo pipefail
+          echo "CPUs: $(nproc)"; free -h; df -h /
+          avail_gb="$(df -BG --output=avail / | tail -1 | tr -dc '0-9')"
+          if [ "$avail_gb" -lt 30 ]; then
+            echo "Only ${avail_gb} GB free; removing preinstalled toolchains this build does not use"
+            sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/powershell
+            df -h /
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Java 17
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Enable Corepack (Yarn)
+        uses: ./.github/actions/enable-corepack-yarn
+
+      - name: Probe node_modules cache
+        id: probe
+        uses: ./.github/build-8t/probe-modules-cache
+
+      - name: Restore Yarn download cache
+        id: yarn_cache
+        if: ${{ steps.probe.outputs.cache-hit != 'true' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.probe.outputs.yarn-cache-dir }}
+          key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-cache-v1-${{ runner.os }}-
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-yarn-dependencies
+        with:
+          args: --frozen-lockfile --ignore-engines
+
+      # Only this job saves the Yarn cache, and only after a real install, so the two jobs
+      # do not race for one key and a node_modules hit does not upload it again.
+      - name: Save Yarn download cache
+        if: ${{ steps.probe.outputs.cache-hit != 'true' && steps.yarn_cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.probe.outputs.yarn-cache-dir }}
+          key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Setup Gradle (with cache)
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          # The MIT provider on actions/cache; its key hashes all *.gradle files, node_modules included.
+          cache-provider: basic
+          # The build branch is not the default branch; without this the cache is never written.
+          cache-read-only: false
+
+      - name: Restore Metro cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /tmp/metro-cache
+          key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-${{ github.run_id }}
+          restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-
+
+      - name: Build workspace packages used by the UI
+        run: node apps/ui/scripts/ensureWorkspacePackagesBuilt.mjs
+
+      - name: Add a google-services.json client for the 8T package
+        run: |
+          set -euo pipefail
+          # The Google Services Gradle plugin fails when no client matches the applicationId.
+          # Copy the preview client under the 8T package name. Push through FCM is not expected to work.
+          out="$RUNNER_TEMP/google-services.json"
+          jq --arg pkg "$EXPO_ANDROID_PACKAGE" '
+            .client += [
+              .client[]
+              | select(.client_info.android_client_info.package_name == "dev.happier.app.preview")
+              | .client_info.android_client_info.package_name = $pkg
+            ]' apps/ui/google-services.json > "$out"
+          test "$(jq --arg pkg "$EXPO_ANDROID_PACKAGE" '[.client[] | select(.client_info.android_client_info.package_name == $pkg)] | length' "$out")" = 1
+          echo "HAPPIER_8T_GOOGLE_SERVICES_FILE=$out" >> "$GITHUB_ENV"
+
+      - name: Expo prebuild (android)
+        working-directory: apps/ui
+        run: |
+          set -euo pipefail
+          yarn -s expo prebuild --platform android --no-install
+          {
+            echo "org.gradle.caching=true"
+            # One JVM instead of a separate Kotlin daemon keeps memory within the runner.
+            echo "kotlin.compiler.execution.strategy=in-process"
+          } >> android/gradle.properties
+          grep -E '^(org\.gradle\.jvmargs|reactNativeArchitectures|android\.enable|org\.gradle\.caching|kotlin\.compiler)' android/gradle.properties
+
+      - name: Configure release signing
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ]; then
+            echo "::warning title=Debug signing::Repository secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS (and optionally ANDROID_KEY_PASSWORD) are not set. The APK is signed with the Expo template debug keystore."
+            echo "mode=debug" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          echo "HAPPIER_8T_KEYSTORE_FILE=$keystore" >> "$GITHUB_ENV"
+          # A second android {} block overrides the template's debug signing for release.
+          cat >> apps/ui/android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  sharken8t {
+                      storeFile file(System.getenv("HAPPIER_8T_KEYSTORE_FILE"))
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword(System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD"))
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.sharken8t
+                  }
+              }
+          }
+          GRADLE
+          echo "mode=release-keystore" >> "$GITHUB_OUTPUT"
+
+      - name: Gradle assembleRelease
+        working-directory: apps/ui/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleRelease \
+            -x lintVitalRelease -x lintVitalAnalyzeRelease \
+            -PreactNativeArchitectures=arm64-v8a \
+            --build-cache
+          du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
+
+      - name: Verify and stage APK
+        id: verify
+        run: |
+          set -euo pipefail
+          apk="$(find apps/ui/android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$apk"
+          build_tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$build_tools/aapt2" dump badging "$apk" | grep -E "^(package|application-label|native-code):"
+          "$build_tools/aapt2" dump badging "$apk" | grep -q "^package: name='$EXPO_ANDROID_PACKAGE'"
+          "$build_tools/aapt2" dump badging "$apk" | grep -q "^native-code: 'arm64-v8a'$"
+          certs="$("$build_tools/apksigner" verify --print-certs "$apk")"
+          echo "$certs"
+          echo "cert_sha256=$(echo "$certs" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)" >> "$GITHUB_OUTPUT"
+          mkdir -p dist/8t
+          cp "$apk" "dist/8t/happier-8t-${GITHUB_SHA::7}-arm64-v8a.apk"
+          ls -l dist/8t
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-8t-app
+          path: dist/8t
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  release:
+    name: Publish prerelease
+    needs: [web, app]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && contains(needs.*.result, 'success') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: build-8t-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create prerelease
+        env:
+          WEB_RESULT: ${{ needs.web.result }}
+          APP_RESULT: ${{ needs.app.result }}
+          SIGNING: ${{ needs.app.outputs.signing }}
+          CERT_SHA256: ${{ needs.app.outputs.cert_sha256 }}
+        run: |
+          set -euo pipefail
+          tag="8t-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+          cd dist
+          for f in *; do sha256sum "$f" > "$f.sha256"; done
+          ls -l
+          {
+            echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
+            echo
+            echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
+            echo "- Web export: ${WEB_RESULT}"
+            echo "- Android APK (arm64-v8a, dev.happier.app.sharken, \"Happier 8T\"): ${APP_RESULT}"
+            if [ "$APP_RESULT" = success ]; then
+              echo "- APK signing: ${SIGNING} (certificate SHA-256 ${CERT_SHA256})"
+            fi
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" ./* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Happier 8T ${GITHUB_SHA::7} (#${GITHUB_RUN_NUMBER})" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the newest 3 8t releases
+        run: |
+          set -euo pipefail
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("8t-"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' |
+            while read -r old; do
+              echo "Deleting release $old"
+              gh release delete "$old" --cleanup-tag --yes
+            done
+
+      - name: Keep the newest Metro cache per job
+        run: |
+          set -euo pipefail
+          for prefix in metro-web-v1- metro-app-v1-; do
+            gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
+              while read -r id; do gh cache delete "$id"; done
+          done
