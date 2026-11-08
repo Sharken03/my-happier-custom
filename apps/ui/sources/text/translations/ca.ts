@@ -4614,6 +4614,8 @@ export const ca: TranslationStructure = {
         expChannelBridgesSubtitle: 'Connecta Telegram i altres canals de xat a sessions de Happier (experimental)',
         expMemorySearch: 'Cerca de memòria',
         expMemorySearchSubtitle: 'Activa pantalles i ajustos de cerca de memòria local',
+        expMcpServers: 'Servidors MCP',
+        expMcpServersSubtitle: 'Mostra el xip MCP i els ajustos dels servidors MCP',
         expSessionsDirect: 'Sessions directes',
         expSessionsDirectSubtitle: 'Mostra i obre sessions directes del proveïdor a la barra lateral',
         expSessionsFolders: 'Carpetes de sessions',

@@ -4859,6 +4859,8 @@ export const es: TranslationStructure = {
       expMemorySearch: "Búsqueda de memoria",
       expMemorySearchSubtitle:
         "Habilitar pantallas y ajustes de búsqueda de memoria local",
+      expMcpServers: "Servidores MCP",
+      expMcpServersSubtitle: "Muestra el chip MCP y los ajustes de servidores MCP",
     expSessionsDirect: "Sesiones directas",
     expSessionsDirectSubtitle: "Muestra y abre en la barra lateral sesiones directas respaldadas por el proveedor",
     expSessionsFolders: "Carpetas de sesiones",

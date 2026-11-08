@@ -4728,6 +4728,8 @@ export const zhHans: TranslationStructure = {
     expChannelBridgesSubtitle: "将 Telegram 等聊天渠道连接到 Happier 会话（实验性）",
     expMemorySearch: "记忆搜索",
     expMemorySearchSubtitle: "启用本地记忆搜索页面与设置",
+    expMcpServers: "MCP 服务器",
+    expMcpServersSubtitle: "显示 MCP 标签和 MCP 服务器设置",
     expSessionsDirect: "直连会话",
     expSessionsDirectSubtitle: "在侧边栏中列出并打开由提供方支撑的直连会话",
     expSessionsFolders: "会话文件夹",

@@ -4562,6 +4562,8 @@ export const en = {
         expChannelBridgesSubtitle: 'Connect Telegram and other chat channels to Happier sessions (experimental)',
         expMemorySearch: 'Memory search',
         expMemorySearchSubtitle: 'Enable local memory search screens and settings',
+        expMcpServers: 'MCP servers',
+        expMcpServersSubtitle: 'Show the MCP chip and the MCP server settings',
         expSessionsDirect: 'Direct sessions',
         expSessionsDirectSubtitle: 'List and open provider-backed direct sessions in the sidebar',
         expSessionsFolders: 'Session folders',

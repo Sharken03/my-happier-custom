@@ -4434,6 +4434,8 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         expChannelBridgesSubtitle: '將 Telegram 等聊天頻道連接到 Happier 工作階段（實驗性）',
         expMemorySearch: '記憶搜尋',
         expMemorySearchSubtitle: '啟用本機記憶搜尋頁面與設定',
+        expMcpServers: 'MCP 伺服器',
+        expMcpServersSubtitle: '顯示 MCP 標籤與 MCP 伺服器設定',
         expSessionsDirect: '直接工作階段',
         expSessionsDirectSubtitle: '在側邊欄列出並開啟由供應商支援的直接工作階段',
         expSessionsFolders: '工作階段資料夾',

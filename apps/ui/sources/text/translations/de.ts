@@ -4542,6 +4542,8 @@ export const de: TranslationStructure = {
         expChannelBridgesSubtitle: 'Telegram und andere Chat-Kanäle mit Happier-Sessions verbinden (experimentell)',
         expMemorySearch: 'Memory-Suche',
         expMemorySearchSubtitle: 'Bildschirme und Einstellungen für die lokale Memory-Suche aktivieren',
+        expMcpServers: 'MCP-Server',
+        expMcpServersSubtitle: 'MCP-Chip und MCP-Server-Einstellungen anzeigen',
         expSessionsDirect: 'Direkte Sessions',
         expSessionsDirectSubtitle: 'Provider-eigene direkte Sessions in der Seitenleiste auflisten und öffnen',
         expSessionsFolders: 'Session-Ordner',

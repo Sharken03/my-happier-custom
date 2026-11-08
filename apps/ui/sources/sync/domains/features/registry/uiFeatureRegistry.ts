@@ -366,7 +366,14 @@ export const UI_FEATURE_REGISTRY = {
         },
     },
     'mcp.servers': {
-        settingsToggle: undefined,
+        settingsToggle: {
+            showInSettings: true,
+            isExperimental: false,
+            defaultEnabled: true,
+            titleKey: 'settingsFeatures.expMcpServers',
+            subtitleKey: 'settingsFeatures.expMcpServersSubtitle',
+            icon: { ioniconName: 'server-outline', color: '#5856D6' },
+        },
     },
     'files.editor': {
         settingsToggle: {

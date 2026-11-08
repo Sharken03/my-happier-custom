@@ -72,6 +72,19 @@ describe('featureLocalPolicy', () => {
         })).toBe(true);
     });
 
+    it('keeps mcp.servers on by default and lets the user switch it off', () => {
+        expect(resolveLocalFeaturePolicyEnabled('mcp.servers', {
+            ...settingsDefaults,
+            experiments: false,
+            featureToggles: {},
+        })).toBe(true);
+        expect(resolveLocalFeaturePolicyEnabled('mcp.servers', {
+            ...settingsDefaults,
+            experiments: false,
+            featureToggles: { 'mcp.servers': false },
+        })).toBe(false);
+    });
+
     it('enables memory.search when explicitly enabled', () => {
         expect(resolveLocalFeaturePolicyEnabled('memory.search', {
             ...settingsDefaults,

@@ -2,3 +2,4 @@
 # with the UI typecheck before each web export; the phone cannot run them (no dependencies there).
 sources/components/sessions/shell/sessionCost.test.ts
 sources/components/sessions/agentInput/AgentInput.contextUsageBadge.test.tsx
+sources/sync/domains/features/featureLocalPolicy.test.ts

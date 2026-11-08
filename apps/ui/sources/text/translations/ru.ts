@@ -4808,6 +4808,8 @@ export const ru: TranslationStructure = {
     expChannelBridgesSubtitle: "Подключайте Telegram и другие чаты к сессиям Happier (экспериментально)",
     expMemorySearch: "Поиск по памяти",
     expMemorySearchSubtitle: "Включить экраны и настройки локального поиска по памяти",
+    expMcpServers: "MCP-серверы",
+    expMcpServersSubtitle: "Показывать чип MCP и настройки MCP-серверов",
     expSessionsDirect: "Прямые сессии",
     expSessionsDirectSubtitle: "Показывать и открывать в боковой панели прямые сессии провайдера",
     expSessionsFolders: "Папки сессий",
