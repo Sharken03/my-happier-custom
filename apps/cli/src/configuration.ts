@@ -14,6 +14,7 @@ import { isLocalishServerUrl } from '@/server/serverUrlClassification'
 import { readCliProcessArgs } from '@/cli/parseArgs'
 import { applyRuntimeContextPrefixEnv, parseRuntimeContextPrefixArgs } from '@/utils/env/runtimeContextArgv'
 import { expandHomeDirPath } from '@/utils/path/expandHomeDirPath'
+import { resolveChatsDir } from '@/daemon/chatFolders/chatsDir'
 import {
   resolveManagedCliReleaseChannelSync,
 } from '@happier-dev/cli-common/firstPartyRuntime'
@@ -190,6 +191,8 @@ class Configuration {
 
   // Directories and paths (from persistence)
   public readonly happyHomeDir: string
+  /** Where new chats get their own folder (HAPPIER_CHATS_DIR); published as machine metadata `chatsDir`. */
+  public readonly chatsDir: string | null
   public readonly logsDir: string
   public readonly settingsFile: string
   public readonly serversDir: string
@@ -375,6 +378,7 @@ class Configuration {
 
     // Directory configuration - Priority: HAPPIER_HOME_DIR env > default home dir
     this.happyHomeDir = resolveCliHappyHomeDir(process.env)
+    this.chatsDir = resolveChatsDir(process.env)
 
     this.logsDir = join(this.happyHomeDir, 'logs')
     this.settingsFile = join(this.happyHomeDir, 'settings.json')

@@ -32,6 +32,13 @@ describe('initialMachineMetadata', () => {
     expect(refreshMachineMetadataForCurrentDaemon(current, current.host)).toBe(current);
   });
 
+  it('publishes the chats folder and clears it when the daemon starts without one', () => {
+    const withChats = refreshMachineMetadataForCurrentDaemon(initialMachineMetadata, initialMachineMetadata.host, undefined, '/home/u/chats');
+    expect(withChats.chatsDir).toBe('/home/u/chats');
+    expect(refreshMachineMetadataForCurrentDaemon(withChats, withChats.host, undefined, '/home/u/chats')).toBe(withChats);
+    expect(refreshMachineMetadataForCurrentDaemon(withChats, withChats.host, undefined, null)).not.toHaveProperty('chatsDir');
+  });
+
   it('publishes the daemon\'s CLI update facts (K5) and keeps them when nothing changed', () => {
     const cliUpdate = {
       currentVersion: '0.2.13',

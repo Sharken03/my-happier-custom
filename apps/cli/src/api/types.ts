@@ -335,6 +335,8 @@ export const MachineMetadataSchema = lazySchema(() => z.object({
   happyLibDir: z.string(),
   daemonTerminalSessionAttachSupported: z.boolean().optional(),
   daemonSessionGoalControlsSupported: z.boolean().optional(),
+  /** Where new chats on this machine get their own folder (HAPPIER_CHATS_DIR); absent when unset. */
+  chatsDir: z.string().optional(),
   /** K5 — this machine's first-party CLI update facts (plan R13); absent from older daemons. */
   cliUpdate: CliUpdateFactsSchema.optional(),
 }))

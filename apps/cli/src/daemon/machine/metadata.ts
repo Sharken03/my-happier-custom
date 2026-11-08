@@ -44,9 +44,12 @@ export function refreshMachineMetadataForCurrentDaemon(
   current: Partial<MachineMetadata>,
   host: string,
   cliUpdate?: CliUpdateFacts,
+  chatsDir: string | null = configuration.chatsDir,
 ): MachineMetadata {
+  // chatsDir is daemon-owned: a daemon started without HAPPIER_CHATS_DIR clears an old value.
+  const { chatsDir: _previousChatsDir, ...currentWithoutChatsDir } = current;
   const next: MachineMetadata = {
-    ...current,
+    ...currentWithoutChatsDir,
     host,
     platform: os.platform(),
     happyCliVersion: packageJson.version,
@@ -56,6 +59,7 @@ export function refreshMachineMetadataForCurrentDaemon(
     daemonTerminalSessionAttachSupported: true,
     daemonSessionGoalControlsSupported: true,
     ...(cliUpdate ? { cliUpdate } : {}),
+    ...(chatsDir ? { chatsDir } : {}),
   };
   if (
     current.host === next.host
@@ -66,6 +70,7 @@ export function refreshMachineMetadataForCurrentDaemon(
     && current.happyLibDir === next.happyLibDir
     && current.daemonTerminalSessionAttachSupported === next.daemonTerminalSessionAttachSupported
     && current.daemonSessionGoalControlsSupported === next.daemonSessionGoalControlsSupported
+    && current.chatsDir === next.chatsDir
     && JSON.stringify(current.cliUpdate ?? null) === JSON.stringify(next.cliUpdate ?? null)
   ) {
     return current as MachineMetadata;

@@ -12,6 +12,7 @@ on:
     paths:
       - "apps/cli/**"
       - "!**/*.md"
+      - ".github/build-8t/cli-tests.txt"
       - "packages/agents/**"
       - "packages/cli-common/**"
       - "packages/connection-supervisor/**"
@@ -85,6 +86,15 @@ jobs:
         uses: ./.github/actions/install-yarn-dependencies
         with:
           args: --frozen-lockfile --ignore-engines
+
+      # The fork's CLI changes are written on the phone, which has no dependencies to check them.
+      - name: Check the CLI (typecheck and the 8T tests)
+        working-directory: apps/cli
+        run: |
+          set -euo pipefail
+          yarn -s typecheck
+          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d')
+          yarn -s vitest run --config vitest.config.ts "${tests[@]}"
 
       # The steps of scripts/pipeline/npm/release-packages.mjs for the CLI, without the Windows
       # service launcher (built on Windows there; this tarball is for Linux on the 8T).
