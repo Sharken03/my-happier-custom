@@ -375,6 +375,7 @@ import type { SessionParticipantTarget } from '@/sync/domains/session/participan
 import type { PendingMessage } from '@/sync/domains/state/storageTypes';
 import { resolvePendingActivationBanner } from '@/components/sessions/pending/resolvePendingActivationBanner';
 import type { StorageState } from '@/sync/store/types';
+import { formatSessionCostUsd, useSessionCostUsd } from './sessionCost';
 
 /**
  * Where one submitted localId has got to, canonically — the single reader for
@@ -1315,6 +1316,7 @@ const SessionAgentInputWithUsage = React.memo(function SessionAgentInputWithUsag
             inputComposerPersistence.setExpanded((current) => !current);
         },
     }), [collapsedInputMaxHeight, inputComposerPersistence, isInputExpanded]);
+    const statusCostLabel = formatSessionCostUsd(useSessionCostUsd(sessionId, sessionUsage ?? sessionLatestUsage ?? null));
     const agentInputUsageData = React.useMemo(() => {
         const usage = sessionUsage ?? sessionLatestUsage ?? null;
         return usage ? {
@@ -1343,6 +1345,7 @@ const SessionAgentInputWithUsage = React.memo(function SessionAgentInputWithUsag
             onStructuredInputMentionsChange={inputComposerPersistence.structuredInputPersistence.onMentionsChange}
             maxPanelHeight={maxPanelHeight}
             usageData={agentInputUsageData}
+            statusCostLabel={statusCostLabel}
         />
     );
 });

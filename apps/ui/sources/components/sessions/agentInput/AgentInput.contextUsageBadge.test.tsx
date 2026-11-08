@@ -291,6 +291,31 @@ vi.mock('@/sync/domains/sessionControl/configOptionsControl', () => ({
 }));
 
 describe('AgentInput (context usage badge)', () => {
+    it('shows the chat cost last on the status row, and nothing when there is no cost', async () => {
+        const { AgentInput } = await import('./AgentInput');
+        const props = {
+            value: '',
+            placeholder: 'Type',
+            onChangeText: () => {},
+            onSend: () => {},
+            autocompleteKinds: [],
+            autocompleteSuggestions: async () => [],
+            connectionStatus: { text: 'online', color: 'green', dotColor: 'green' },
+        } as const;
+
+        const withCost = await renderScreen(<AgentInput {...props} statusCostLabel="$0.042" />);
+        const trailing = withCost.findByTestId('agent-input-status-trailing');
+        const trailingChildren = React.Children.toArray(trailing?.props.children).filter(Boolean);
+        expect(withCost.findByTestId('agent-input-status-cost')?.props.children).toBe('$0.042');
+        expect((trailingChildren[trailingChildren.length - 1] as React.ReactElement<{ testID?: string }>).props.testID)
+            .toBe('agent-input-status-cost');
+        act(() => withCost.tree.unmount());
+
+        const withoutCost = await renderScreen(<AgentInput {...props} statusCostLabel={null} />);
+        expect(withoutCost.findByTestId('agent-input-status-cost')).toBeNull();
+        act(() => withoutCost.tree.unmount());
+    });
+
     it('renders host-provided trailing status actions even without another status item', async () => {
         const { AgentInput } = await import('./AgentInput');
         const screen = await renderScreen(

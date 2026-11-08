@@ -214,6 +214,7 @@ const AGENT_INPUT_TEST_IDS = {
     newSessionInput: 'new-session-composer-input',
     newSessionSend: 'new-session-composer-send',
     connectionStatusText: 'agent-input-connection-status-text',
+    statusCost: 'agent-input-status-cost',
 } as const;
 
 function normalizeLayoutHeightPx(height: number): number {
@@ -326,6 +327,8 @@ interface AgentInputProps {
     };
     statusBadges?: ReadonlyArray<AgentInputStatusBadgeDescriptor>;
     statusTrailingActions?: React.ReactNode;
+    /** The chat's cost so far, already formatted; shown last on the status row. */
+    statusCostLabel?: string | null;
     /** Hosts with an editable permission chip may omit the repeated status-row label. */
     showStatusPermissionMode?: boolean;
     activeStatusBadgeKey?: string | null;
@@ -830,6 +833,10 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     statusDot: {
         marginRight: 6,
+    },
+    statusCost: {
+        marginLeft: 10,
+        color: theme.colors.text.secondary,
     },
     statusTrailing: {
         flexDirection: 'row',
@@ -3369,7 +3376,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     testID="agent-input-command-menu"
                 />
                 {/* Connection status, context usage, and permission mode */}
-                {(props.connectionStatus || contextUsageState || props.providerUsageGauge || props.statusTrailingActions || showKeepKeyboardToggle || (props.statusBadges && props.statusBadges.length > 0)) && (
+                {(props.connectionStatus || contextUsageState || props.providerUsageGauge || props.statusTrailingActions || props.statusCostLabel || showKeepKeyboardToggle || (props.statusBadges && props.statusBadges.length > 0)) && (
                     <View style={styles.statusContainer}>
                         <View style={styles.statusRow}>
                             {props.connectionStatus && (
@@ -3466,6 +3473,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     </>
                                 );
                             })()}
+                            {props.statusCostLabel ? (
+                                <Text
+                                    testID={AGENT_INPUT_TEST_IDS.statusCost}
+                                    style={[styles.statusText, styles.statusCost]}
+                                >
+                                    {props.statusCostLabel}
+                                </Text>
+                            ) : null}
                         </View>
                     </View>
                 )}
