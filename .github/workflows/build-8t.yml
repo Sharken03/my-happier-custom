@@ -142,6 +142,23 @@ jobs:
       # No Sentry auth token here: the Sentry Gradle step must not try to upload source maps.
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
     steps:
+      # Runs before checkout (the free-disk action lives in the repository). The APK build writes
+      # React Native's CMake trees, node_modules and android/build into the workspace, which filled
+      # / twice ("No space left on device") with Gradle's home already on /mnt. When the second
+      # disk at /mnt has more room, the whole workspace lives there.
+      - name: Put the workspace on /mnt
+        run: |
+          set -euo pipefail
+          df -h / /mnt 2>/dev/null || true
+          root_free=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          mnt_free=$(df -BG --output=avail /mnt 2>/dev/null | tail -1 | tr -dc '0-9' || echo 0)
+          if [ "${mnt_free:-0}" -gt "$root_free" ]; then
+            sudo mkdir -p /mnt/work
+            sudo chown "$(id -u):$(id -g)" /mnt/work
+            sudo mount --bind /mnt/work "$GITHUB_WORKSPACE"
+            echo "Workspace on /mnt (${mnt_free} GB free there, ${root_free} GB on /)"
+          fi
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
