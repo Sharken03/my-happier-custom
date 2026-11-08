@@ -1,0 +1,115 @@
+name: Build 8T CLI
+
+# Private build of the Happier CLI (@happier-dev/cli) from this branch, as the npm tarball that
+# upstream publishes. The 8T installs it with happy/server/update-happier-cli --tarball <url>
+# instead of the npm release, so CLI changes of the fork (chat folders, Android locks) reach the
+# daemon. Each run publishes one prerelease (8t-cli-<short sha>-<run number>) and keeps the newest 3.
+
+on:
+  push:
+    branches:
+      - sharken/8t
+    paths:
+      - "apps/cli/**"
+      - "!**/*.md"
+      - "packages/agents/**"
+      - "packages/cli-common/**"
+      - "packages/connection-supervisor/**"
+      - "packages/protocol/**"
+      - "packages/release-runtime/**"
+      - "packages/transfers/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/workflows/build-8t-cli.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-8t-cli-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  HAPPIER_8T_SERVER_URL: https://happy.sharken.duckdns.org
+  YARN_PRODUCTION: "false"
+  npm_config_production: "false"
+  CI: "1"
+
+jobs:
+  cli:
+    name: CLI tarball
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write # publish the prerelease
+      actions: write # delete old caches (publish action)
+    env:
+      # The CLI and the workspace packages it depends on (apps/cli/package.json).
+      HAPPIER_INSTALL_SCOPE: cli,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free disk
+        uses: ./.github/build-8t/free-disk
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+
+      - name: Enable Corepack (Yarn)
+        uses: ./.github/actions/enable-corepack-yarn
+
+      - name: Probe node_modules cache
+        id: probe
+        uses: ./.github/build-8t/probe-modules-cache
+
+      - name: Restore Yarn download cache
+        if: ${{ steps.probe.outputs.cache-hit != 'true' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.probe.outputs.yarn-cache-dir }}
+          key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-cache-v1-${{ runner.os }}-
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-yarn-dependencies
+        with:
+          args: --frozen-lockfile --ignore-engines
+
+      # The steps of scripts/pipeline/npm/release-packages.mjs for the CLI, without the Windows
+      # service launcher (built on Windows there; this tarball is for Linux on the 8T).
+      - name: Build and pack the CLI
+        working-directory: apps/cli
+        run: |
+          set -euo pipefail
+          yarn -s build
+          node scripts/bundleWorkspaceDeps.mjs
+          out="$RUNNER_TEMP/cli-pack"
+          mkdir -p "$out"
+          node scripts/packTarball.mjs --dest-dir "$out"
+          mkdir -p ../../dist/8t
+          cp "$(find "$out" -maxdepth 1 -name '*.tgz' -print -quit)" "../../dist/8t/happier-cli-8t-${GITHUB_SHA::7}.tgz"
+          tar -tzf ../../dist/8t/*.tgz | grep -c . | xargs echo "files in tarball:"
+          tar -xzOf ../../dist/8t/*.tgz package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log("version",JSON.parse(s).version))'
+          ls -l ../../dist/8t
+
+      - name: Publish
+        uses: ./.github/build-8t/publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          kind: cli
+          path: dist/8t
+          title: Happier 8T CLI
+          notes: "- @happier-dev/cli tarball for happy/server/update-happier-cli --tarball"

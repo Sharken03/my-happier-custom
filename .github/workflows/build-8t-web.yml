@@ -15,6 +15,9 @@ on:
       - "termux/**"
       - ".github/workflows/build-8t-app.yml"
       - ".github/build-8t/app.local.cjs"
+      - ".github/workflows/build-8t-cli.yml"
+      - "apps/cli/**"
+      - "apps/server/**"
   workflow_dispatch:
 
 concurrency:
