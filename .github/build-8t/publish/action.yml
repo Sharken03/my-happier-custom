@@ -1,7 +1,7 @@
 name: Publish 8T prerelease
 description: >
   Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
-  newest 3 prereleases of that kind, and keep only the newest Metro cache of that kind. The web
+  newest 3 prereleases of that kind, and keep only the newest Metro and ccache cache of that kind. The web
   export and the APK publish separately, so a failed or cancelled APK build does not hold back
   the web export. Needs GH_TOKEN with contents: write and actions: write.
 
@@ -57,5 +57,8 @@ runs:
             gh release delete "$old" --cleanup-tag --yes
           done
 
-        gh cache list --key "metro-${KIND}-v1-" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
-          while read -r id; do gh cache delete "$id"; done
+        # One entry per run builds up; the repository's cache limit is 10 GB.
+        for prefix in "metro-${KIND}-v1-" "ccache-${KIND}-v1-"; do
+          gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
+            while read -r id; do gh cache delete "$id"; done
+        done

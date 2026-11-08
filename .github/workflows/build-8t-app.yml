@@ -9,16 +9,29 @@ on:
   push:
     branches:
       - sharken/8t
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "termux/**"
-      - ".github/workflows/build-8t-web.yml"
+    # Only what goes into the APK: an APK build takes 40-55 min on the 2-CPU runner.
+    paths:
+      - "apps/ui/**"
+      - "!apps/ui/public/**"
+      - "!**/*.md"
+      - "packages/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".yarnrc*"
+      - ".node-version"
+      - "patches/**"
+      - "scripts/postinstall/**"
+      - ".github/actions/**"
+      - ".github/build-8t/**"
+      - "!.github/build-8t/ui-tests.txt"
+      - ".github/workflows/build-8t-app.yml"
   workflow_dispatch:
 
+# A newer push waits for the running build instead of cancelling it (a cancelled build loses up to
+# an hour); GitHub keeps only the newest waiting run.
 concurrency:
   group: build-8t-app-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -152,6 +165,29 @@ jobs:
       # disk the native build filled / (run 42499987970: 98 % full in the CMake tasks).
       - name: Drop the Yarn download cache
         run: rm -rf "${{ steps.probe.outputs.yarn-cache-dir }}" && df -h /
+
+      # ccache for the native libraries' C++ (~10 min of CMake per build). CMake 3.17+ takes the
+      # launcher from these variables; base dir and sloppiness let hits survive new checkouts.
+      - name: Set up ccache
+        run: |
+          set -euo pipefail
+          command -v ccache >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ccache >/dev/null; }
+          {
+            echo "CCACHE_DIR=$HOME/.ccache-8t"
+            echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
+            echo "CCACHE_COMPILERCHECK=content"
+            echo "CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime"
+            echo "CCACHE_MAXSIZE=2G"
+            echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
+            echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
+          } >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.ccache-8t
+          key: ccache-app-v1-${{ github.run_id }}
+          restore-keys: ccache-app-v1-
 
       - name: Setup Gradle (with cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -301,6 +337,7 @@ jobs:
             --build-cache --console=plain 2>&1 | tee "$RUNNER_TEMP/gradle.log"
           kill "$guard" "$snapshots" 2>/dev/null || true
           du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
+          ccache --show-stats || true
 
       - name: Verify and stage APK
         id: verify
