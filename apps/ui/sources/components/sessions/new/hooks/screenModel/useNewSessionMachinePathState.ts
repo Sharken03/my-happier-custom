@@ -5,6 +5,7 @@ import { normalizeOptionalParam } from '@/profileRouteParams';
 import type { Machine, Session } from '@/sync/domains/state/storageTypes';
 import { isMachineOnline } from '@/utils/sessions/machineUtils';
 import { useStableRecentPathsResolver } from '@/utils/sessions/useStableRecentPathsForMachine';
+import { newChatFolderPath } from '@/utils/sessions/newChatFolder';
 
 type RecentMachinePathsList = Array<{ machineId: string; path: string }>;
 
@@ -66,9 +67,12 @@ export function useNewSessionMachinePathState(params: Readonly<{
 
     const getBestPathForMachine = React.useCallback((machineId: string | null): string => {
         if (!machineId) return '';
+        const machine = params.machines.find((m) => m.id === machineId);
+        // A machine with a chats folder gives each new chat its own folder there.
+        const chatsDir = machine?.metadata?.chatsDir?.trim();
+        if (chatsDir) return newChatFolderPath(chatsDir, new Date());
         const recent = resolveRecentPathsForMachine(machineId);
         if (recent.length > 0) return recent[0]!;
-        const machine = params.machines.find((m) => m.id === machineId);
         return machine?.metadata?.homeDir ?? '';
     }, [params.machines, resolveRecentPathsForMachine]);
 

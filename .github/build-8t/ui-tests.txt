@@ -3,3 +3,5 @@
 sources/components/sessions/shell/sessionCost.test.ts
 sources/components/sessions/agentInput/AgentInput.contextUsageBadge.test.tsx
 sources/sync/domains/features/featureLocalPolicy.test.ts
+sources/utils/sessions/newChatFolder.test.ts
+sources/components/sessions/new/hooks/screenModel/useNewSessionMachinePathState.test.tsx

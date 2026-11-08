@@ -114,6 +114,22 @@ describe('useNewSessionMachinePathState', () => {
         await hook.unmount();
     });
 
+    it('gives a new chat its own folder in the machine\'s chats folder, ahead of previous paths', async () => {
+        const hook = await renderMachinePathState({
+            machines: toMachines({ id: 'machine-1', metadata: { homeDir: '/Users/test', chatsDir: '/Users/test/chats' } }),
+            recentMachinePaths: [],
+            machineIdParam: null,
+            pathParam: null,
+            sessions: [
+                createSession({ id: 'session-1', machineId: 'machine-1', path: '/Users/test/Development/atlas', updatedAt: 25 }),
+            ],
+        });
+
+        expect(hook.getCurrent().selectedPath).toMatch(/^\/Users\/test\/chats\/\d{4}-\d{2}-\d{2}-[0-9a-z]{4}$/);
+
+        await hook.unmount();
+    });
+
     it('applies the route path param immediately even before the route machine snapshot hydrates', async () => {
         const now = Date.now();
 
