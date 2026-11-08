@@ -1,8 +1,9 @@
-name: Build 8T (web + Android)
+name: Build 8T APK
 
-# Private build of the Happier web UI and an arm64 Android APK for the OnePlus 8T.
-# Both clients default to the self-hosted relay in HAPPIER_8T_SERVER_URL.
-# Each run publishes one prerelease (8t-<short sha>-<run number>) and keeps the newest 3.
+# Private build of an arm64 Android APK of Happier for the OnePlus 8T, with the self-hosted relay in
+# HAPPIER_8T_SERVER_URL as the default server. Each run publishes one prerelease
+# (8t-app-<short sha>-<run number>) and keeps the newest 3. The web export and the APK are
+# separate workflows, so one does not wait for, block or cancel the other.
 
 on:
   push:
@@ -11,20 +12,11 @@ on:
     paths-ignore:
       - "**/*.md"
       - "docs/**"
+      - ".github/workflows/build-8t-web.yml"
   workflow_dispatch:
-    inputs:
-      target:
-        description: "What to build"
-        required: true
-        type: choice
-        default: all
-        options:
-          - all
-          - web
-          - app
 
 concurrency:
-  group: build-8t-${{ github.ref }}
+  group: build-8t-app-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -46,90 +38,13 @@ env:
   CI: "1"
 
 jobs:
-  web:
-    name: Web export
-    # A push has no inputs, so an empty target means "all".
-    if: ${{ inputs.target != 'app' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      # One token less than the app scope, so the two jobs keep separate node_modules caches.
-      HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Free disk
-        uses: ./.github/build-8t/free-disk
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .node-version
-
-      - name: Enable Corepack (Yarn)
-        uses: ./.github/actions/enable-corepack-yarn
-
-      - name: Probe node_modules cache
-        id: probe
-        uses: ./.github/build-8t/probe-modules-cache
-
-      - name: Restore Yarn download cache
-        if: ${{ steps.probe.outputs.cache-hit != 'true' }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: ${{ steps.probe.outputs.yarn-cache-dir }}
-          key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-          restore-keys: yarn-cache-v1-${{ runner.os }}-
-
-      - name: Install dependencies
-        uses: ./.github/actions/install-yarn-dependencies
-        with:
-          args: --frozen-lockfile --ignore-engines
-
-      - name: Restore Metro cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: /tmp/metro-cache
-          key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-${{ github.run_id }}
-          restore-keys: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-
-
-      - name: Export web bundle
-        id: web
-        run: |
-          set -euo pipefail
-          version="$(node -p "require('./apps/ui/package.json').version")-8t.${GITHUB_RUN_NUMBER}"
-          node scripts/pipeline/release/build-ui-web-bundle.mjs --channel preview --version "$version"
-          archive="$(find dist/release-assets/ui-web -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
-          test -n "$archive"
-          mkdir -p dist/8t
-          cp "$archive" dist/8t/
-          ls -l dist/8t
-          du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
-
-      - name: Upload web artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: build-8t-web
-          path: dist/8t
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-
   app:
     name: Android APK (arm64-v8a)
-    if: ${{ inputs.target != 'web' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    # contents: write only for the build-log snapshots (release 8t-buildlog); see assembleRelease.
     permissions:
-      contents: write
-    outputs:
-      signing: ${{ steps.signing.outputs.mode }}
-      cert_sha256: ${{ steps.verify.outputs.cert_sha256 }}
+      contents: write # publish the prerelease and the 8t-buildlog snapshots
+      actions: write # delete old Metro caches
     env:
       HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor,audio-stream-native,sherpa-native
       # Native builds do not need the web-only vendored assets (same as upstream mobile builds).
@@ -216,8 +131,8 @@ jobs:
         with:
           args: --frozen-lockfile --ignore-engines
 
-      # Only this job saves the Yarn cache, and only after a real install, so the two jobs
-      # do not race for one key and a node_modules hit does not upload it again.
+      # Only the APK workflow saves the Yarn cache, and only after a real install, so the two
+      # workflows do not race for one key and a node_modules hit does not upload it again.
       - name: Save Yarn download cache
         if: ${{ steps.probe.outputs.cache-hit != 'true' && steps.yarn_cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -237,8 +152,8 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: /tmp/metro-cache
-          key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-${{ github.run_id }}
-          restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t.yml') }}-
+          key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-${{ github.run_id }}
+          restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-
 
       - name: Build workspace packages used by the UI
         run: node apps/ui/scripts/ensureWorkspacePackagesBuilt.mjs
@@ -328,7 +243,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }} # build-log snapshots only
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -391,79 +306,15 @@ jobs:
           cp "$apk" "dist/8t/happier-8t-${GITHUB_SHA::7}-arm64-v8a.apk"
           ls -l dist/8t
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: build-8t-app
-          path: dist/8t
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-
-  release:
-    name: Publish prerelease
-    needs: [web, app]
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && contains(needs.*.result, 'success') }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      actions: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          pattern: build-8t-*
-          path: dist
-          merge-multiple: true
-
-      - name: Create prerelease
+      - name: Publish
+        uses: ./.github/build-8t/publish
         env:
-          WEB_RESULT: ${{ needs.web.result }}
-          APP_RESULT: ${{ needs.app.result }}
-          SIGNING: ${{ needs.app.outputs.signing }}
-          CERT_SHA256: ${{ needs.app.outputs.cert_sha256 }}
-        run: |
-          set -euo pipefail
-          tag="8t-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
-          cd dist
-          for f in *; do sha256sum "$f" > "$f.sha256"; done
-          ls -l
-          {
-            echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
-            echo
-            echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
-            echo "- Web export: ${WEB_RESULT}"
-            echo "- Android APK (arm64-v8a, dev.happier.app.sharken, \"Happier 8T\"): ${APP_RESULT}"
-            if [ "$APP_RESULT" = success ]; then
-              echo "- APK signing: ${SIGNING} (certificate SHA-256 ${CERT_SHA256})"
-            fi
-            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          } > "$RUNNER_TEMP/notes.md"
-          gh release create "$tag" ./* \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Happier 8T ${GITHUB_SHA::7} (#${GITHUB_RUN_NUMBER})" \
-            --notes-file "$RUNNER_TEMP/notes.md"
-          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Keep the newest 3 8t releases
-        run: |
-          set -euo pipefail
-          gh release list --limit 200 --json tagName,createdAt \
-            --jq '[.[] | select((.tagName | startswith("8t-")) and .tagName != "8t-buildlog")] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' |
-            while read -r old; do
-              echo "Deleting release $old"
-              gh release delete "$old" --cleanup-tag --yes
-            done
-
-      - name: Keep the newest Metro cache per job
-        run: |
-          set -euo pipefail
-          for prefix in metro-web-v1- metro-app-v1-; do
-            gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
-              while read -r id; do gh cache delete "$id"; done
-          done
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          kind: app
+          path: dist/8t
+          title: Happier 8T APK
+          notes: |
+            - Android APK (arm64-v8a, ${{ env.EXPO_ANDROID_PACKAGE }}, "${{ env.EXPO_APP_NAME }}")
+            - APK signing: ${{ steps.signing.outputs.mode }} (certificate SHA-256 ${{ steps.verify.outputs.cert_sha256 }})

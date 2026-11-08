@@ -1,0 +1,61 @@
+name: Publish 8T prerelease
+description: >
+  Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
+  newest 3 prereleases of that kind, and keep only the newest Metro cache of that kind. The web
+  export and the APK publish separately, so a failed or cancelled APK build does not hold back
+  the web export. Needs GH_TOKEN with contents: write and actions: write.
+
+inputs:
+  kind:
+    description: "'web' or 'app'; part of the tag and of the Metro cache key prefix"
+    required: true
+  path:
+    description: Folder with the files to publish
+    required: true
+  title:
+    description: Release title prefix, for example "Happier 8T web"
+    required: true
+  notes:
+    description: Extra Markdown lines for the release notes
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Publish
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+        DIR: ${{ inputs.path }}
+        TITLE: ${{ inputs.title }}
+        NOTES: ${{ inputs.notes }}
+      run: |
+        set -euo pipefail
+        tag="8t-${KIND}-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+        cd "$DIR"
+        for f in *; do sha256sum "$f" > "$f.sha256"; done
+        ls -l
+        {
+          echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
+          echo
+          echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
+          if [ -n "$NOTES" ]; then printf "%s\n" "$NOTES"; fi
+          echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        } > "$RUNNER_TEMP/notes.md"
+        gh release create "$tag" ./* \
+          --prerelease \
+          --target "$GITHUB_SHA" \
+          --title "${TITLE} ${GITHUB_SHA::7} (#${GITHUB_RUN_NUMBER})" \
+          --notes-file "$RUNNER_TEMP/notes.md"
+        echo "Published ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
+
+        gh release list --limit 200 --json tagName,createdAt \
+          --jq "[.[] | select(.tagName | startswith(\"8t-${KIND}-\"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName" |
+          while read -r old; do
+            echo "Deleting release $old"
+            gh release delete "$old" --cleanup-tag --yes
+          done
+
+        gh cache list --key "metro-${KIND}-v1-" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
+          while read -r id; do gh cache delete "$id"; done
