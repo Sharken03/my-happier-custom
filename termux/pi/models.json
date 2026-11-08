@@ -43,7 +43,7 @@
     },
     "openrouter-router": {
       "name": "OpenRouter (8T router)",
-      "baseUrl": "http://127.0.0.1:18080/openai/openrouter/v1",
+      "baseUrl": "http://127.0.0.1:18080/openai/openrouter.ai/v1",
       "api": "openai-completions",
       "apiKey": "added-by-the-image-router",
       "authHeader": true,
