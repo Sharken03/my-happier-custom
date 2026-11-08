@@ -1,0 +1,26 @@
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "deepseek-router": {
+      "name": "DeepSeek (8T router)",
+      "baseUrl": "http://127.0.0.1:18080/openai/deepseek/v1",
+      "api": "openai-completions",
+      "apiKey": "added-by-the-image-router",
+      "authHeader": true,
+      "models": [
+        { "id": "deepseek-flash", "name": "DeepSeek Flash", "input": ["text", "image"], "contextWindow": 1048576, "maxTokens": 16384 },
+        { "id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro", "contextWindow": 1048576, "maxTokens": 16384 }
+      ]
+    },
+    "openrouter-router": {
+      "name": "OpenRouter (8T router)",
+      "baseUrl": "http://127.0.0.1:18080/openai/openrouter/v1",
+      "api": "openai-completions",
+      "apiKey": "added-by-the-image-router",
+      "authHeader": true,
+      "models": [
+        { "id": "nvidia/nemotron-3-ultra-550b-a55b:free", "name": "Nemotron 3 Ultra (free)", "contextWindow": 1000000, "maxTokens": 16384 }
+      ]
+    }
+  }
+}
