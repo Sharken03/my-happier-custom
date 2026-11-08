@@ -2,3 +2,5 @@
 # runs them with the CLI typecheck before it packs.
 src/daemon/chatFolders/chatsDir.test.ts
 src/daemon/machine/metadata.test.ts
+src/daemon/chatFolders/chatFolderTitleLink.test.ts
+src/daemon/chatFolders/removeEmptyChatFolder.test.ts

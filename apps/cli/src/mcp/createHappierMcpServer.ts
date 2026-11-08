@@ -3,6 +3,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { HappyMcpSessionClient } from '@/mcp/startHappyServer';
 import type { Metadata } from '@/api/types';
 import { logger } from '@/ui/logger';
+import { configuration } from '@/configuration';
+import { linkChatFolderTitle } from '@/daemon/chatFolders/chatFolderTitleLink';
 
 import { registerHappierMcpResources } from '@/mcp/resources/registerHappierMcpResources';
 import { createActionToolExecutorBridge } from '@/agent/tools/happierTools/createActionToolExecutorBridge';
@@ -282,6 +284,13 @@ export function createHappierMcpServer(
               updatedAt: Date.now(),
             },
           })));
+          // A chat in its own folder gets a link with its title (daemon/chatFolders).
+          const sessionPath = resolveLiveClientLocation(client)?.path;
+          if (configuration.chatsDir && typeof sessionPath === 'string') {
+            await linkChatFolderTitle({ sessionPath, chatsDir: configuration.chatsDir, title }).catch((error: unknown) => {
+              logger.warnFile('[happierMcp] chat folder title link failed', { error: String(error) });
+            });
+          }
         },
       }),
       startExecutionRun: createStartExecutionRunToolHandler({ executor, surface: toolSurface }),

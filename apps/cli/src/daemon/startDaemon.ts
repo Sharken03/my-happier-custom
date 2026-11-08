@@ -51,6 +51,8 @@ import { buildTrackedSpawnOptions, resolveDaemonTerminalPresentation } from '@/d
 import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import { configuration, reloadConfiguration } from '@/configuration';
+import { isChatFolder } from '@/daemon/chatFolders/chatFolderTitleLink';
+import { removeEmptyChatFolder } from '@/daemon/chatFolders/removeEmptyChatFolder';
 import { startCaffeinate, stopCaffeinate } from '@/integrations/caffeinate';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
@@ -3574,7 +3576,10 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
 
               const ensuredDirectory = await ensureSessionDirectory({
                 directory: resolvedDirectory,
-                approvedNewDirectoryCreation,
+                // A chat's own folder is daemon-owned: a chat that stopped empty lost it
+                // (removeEmptyChatFolder) and gets it back when it resumes.
+                approvedNewDirectoryCreation: approvedNewDirectoryCreation
+                  || (configuration.chatsDir !== null && isChatFolder(resolvedDirectory, configuration.chatsDir)),
               });
               if (!ensuredDirectory.ok) {
                 logger.debug(`[DAEMON RUN] Directory setup failed for ${resolvedDirectory}`, ensuredDirectory.response);
@@ -5639,6 +5644,12 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
           },
           onFinalTrackedSessionExitStaged: async ({ pid, trackedSession }) => {
             if (connectedServicesRestartRequestedPids.has(pid)) return;
+            const chatFolderPath = trackedSession.happySessionMetadataFromLocalWebhook?.path;
+            if (configuration.chatsDir && typeof chatFolderPath === 'string') {
+              await removeEmptyChatFolder({ sessionPath: chatFolderPath, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
+                logger.warnFile('[DAEMON RUN] Could not remove an empty chat folder', { pid, error: String(error) });
+              });
+            }
             const sessionId = typeof trackedSession.happySessionId === 'string'
               ? trackedSession.happySessionId.trim()
               : '';
