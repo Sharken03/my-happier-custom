@@ -12,6 +12,7 @@ on:
     paths-ignore:
       - "**/*.md"
       - "docs/**"
+      - "termux/**"
       - ".github/workflows/build-8t-app.yml"
       - ".github/build-8t/app.local.cjs"
   workflow_dispatch:
