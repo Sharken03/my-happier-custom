@@ -158,6 +158,16 @@ jobs:
             sudo mount --bind /mnt/work "$GITHUB_WORKSPACE"
             echo "Workspace on /mnt (${mnt_free} GB free there, ${root_free} GB on /)"
           fi
+          # Temporary files and the home caches (Yarn, Android, CMake/Kotlin temp) go to /mnt too.
+          if [ "${mnt_free:-0}" -gt 10 ]; then
+            for d in tmp home-cache home-android; do sudo mkdir -p "/mnt/$d"; sudo chown "$(id -u):$(id -g)" "/mnt/$d"; done
+            mkdir -p "$HOME/.cache" "$HOME/.android"
+            sudo mount --bind /mnt/home-cache "$HOME/.cache"
+            sudo mount --bind /mnt/home-android "$HOME/.android"
+            echo "TMPDIR=/mnt/tmp" >> "$GITHUB_ENV"
+            echo "JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=/mnt/tmp" >> "$GITHUB_ENV"
+          fi
+          df -h / /mnt 2>/dev/null || true
 
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -303,7 +313,7 @@ jobs:
           home="${GRADLE_USER_HOME:-$HOME/.gradle}"
           mkdir -p "$home"
           {
-            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
+            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
             echo "kotlin.daemon.jvmargs=-Xmx2g"
             echo "org.gradle.workers.max=3"
           } >> "$home/gradle.properties"
@@ -317,10 +327,30 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          # Disk guard: three runs died with "No space left on device" and no log. Below 3 GB free
+          # on /, show what fills it and stop Gradle, so the step fails with a readable log.
+          (
+            n=0
+            while sleep 20; do
+              n=$((n + 1))
+              free_gb=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+              [ $((n % 15)) -eq 0 ] && echo "disk guard: ${free_gb} GB free on /" && df -h / /mnt
+              if [ "$free_gb" -lt 3 ]; then
+                echo "::error title=Disk full::Only ${free_gb} GB free on /; stopping Gradle to keep the log"
+                df -h / /mnt
+                sudo du -xh --max-depth=4 / 2>/dev/null | sort -h | tail -40
+                ./gradlew --stop || true
+                pkill -f GradleDaemon || true
+                exit 0
+              fi
+            done
+          ) &
+          guard=$!
           ./gradlew :app:assembleRelease \
             -x lintVitalRelease -x lintVitalAnalyzeRelease \
             -PreactNativeArchitectures=arm64-v8a \
             --build-cache
+          kill "$guard" 2>/dev/null || true
           du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
 
       - name: Verify and stage APK
