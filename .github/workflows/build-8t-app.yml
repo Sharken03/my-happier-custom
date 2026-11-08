@@ -24,6 +24,7 @@ on:
       - ".github/actions/**"
       - ".github/build-8t/**"
       - "!.github/build-8t/ui-tests.txt"
+      - "!.github/build-8t/cli-tests.txt"
       - ".github/workflows/build-8t-app.yml"
   workflow_dispatch:
 

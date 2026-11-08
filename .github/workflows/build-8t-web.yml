@@ -17,6 +17,7 @@ on:
       - ".github/build-8t/app.local.cjs"
       - ".github/workflows/build-8t-cli.yml"
       - "apps/cli/**"
+      - ".github/build-8t/cli-tests.txt"
       - "apps/server/**"
   workflow_dispatch:
 
