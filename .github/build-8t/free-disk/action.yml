@@ -1,0 +1,27 @@
+name: Free runner disk
+description: >
+  Report CPU, memory and disk, then remove preinstalled toolchains that the 8T build does not use.
+  A full monorepo install (Yarn cache plus node_modules) does not fit in the default free space.
+
+inputs:
+  keep-android-sdk:
+    description: "'true' keeps /usr/local/lib/android (the APK build needs it)"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Free disk
+      shell: bash
+      env:
+        KEEP_ANDROID_SDK: ${{ inputs.keep-android-sdk }}
+      run: |
+        set -euo pipefail
+        echo "CPUs: $(nproc)"; free -h; df -h /
+        dirs=(/usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+              /usr/local/share/powershell /usr/local/share/chromium /opt/microsoft /opt/google /opt/az)
+        if [ "$KEEP_ANDROID_SDK" != true ]; then dirs+=(/usr/local/lib/android); fi
+        for d in "${dirs[@]}"; do sudo rm -rf "$d" & done
+        wait
+        df -h /

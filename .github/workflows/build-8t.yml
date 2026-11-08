@@ -62,6 +62,9 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Free disk
+        uses: ./.github/build-8t/free-disk
+
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -139,22 +142,16 @@ jobs:
       # No Sentry auth token here: the Sentry Gradle step must not try to upload source maps.
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
     steps:
-      - name: Report runner resources and free disk if low
-        run: |
-          set -euo pipefail
-          echo "CPUs: $(nproc)"; free -h; df -h /
-          avail_gb="$(df -BG --output=avail / | tail -1 | tr -dc '0-9')"
-          if [ "$avail_gb" -lt 30 ]; then
-            echo "Only ${avail_gb} GB free; removing preinstalled toolchains this build does not use"
-            sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/powershell
-            df -h /
-          fi
-
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Free disk
+        uses: ./.github/build-8t/free-disk
+        with:
+          keep-android-sdk: "true"
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
