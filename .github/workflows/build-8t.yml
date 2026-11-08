@@ -124,6 +124,9 @@ jobs:
     if: ${{ inputs.target != 'web' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    # contents: write only for the build-log snapshots (release 8t-buildlog); see assembleRelease.
+    permissions:
+      contents: write
     outputs:
       signing: ${{ steps.signing.outputs.mode }}
       cert_sha256: ${{ steps.verify.outputs.cert_sha256 }}
@@ -315,7 +318,7 @@ jobs:
           {
             echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
             echo "kotlin.daemon.jvmargs=-Xmx2g"
-            echo "org.gradle.workers.max=3"
+            echo "org.gradle.workers.max=2"
           } >> "$home/gradle.properties"
           cat "$home/gradle.properties"
 
@@ -325,6 +328,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # Disk guard: three runs died with "No space left on device" and no log. Below 3 GB free
@@ -346,11 +351,27 @@ jobs:
             done
           ) &
           guard=$!
+          # Log snapshots: the runner has died twice mid-build ("lost communication") and took the
+          # log with it. Every 2 minutes the Gradle log tail and a memory/process snapshot go to
+          # the release 8t-buildlog, which outlives the runner.
+          gh release view 8t-buildlog >/dev/null 2>&1 \
+            || gh release create 8t-buildlog --prerelease --title "8T build log snapshots" --notes "Diagnostics of the APK job." >/dev/null
+          (
+            while sleep 120; do
+              {
+                date -u; uptime; free -m; swapon --show; df -h / /mnt
+                ps -eo rss,pcpu,etime,args --sort=-rss | head -15 | cut -c1-200
+                echo "--- gradle log tail"; tail -n 150 "$RUNNER_TEMP/gradle.log"
+              } > "$RUNNER_TEMP/apk-snapshot.txt" 2>&1
+              gh release upload 8t-buildlog "$RUNNER_TEMP/apk-snapshot.txt" --clobber >/dev/null 2>&1 || true
+            done
+          ) &
+          snapshots=$!
           ./gradlew :app:assembleRelease \
             -x lintVitalRelease -x lintVitalAnalyzeRelease \
             -PreactNativeArchitectures=arm64-v8a \
-            --build-cache
-          kill "$guard" 2>/dev/null || true
+            --build-cache --console=plain 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+          kill "$guard" "$snapshots" 2>/dev/null || true
           du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
 
       - name: Verify and stage APK
@@ -433,7 +454,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release list --limit 200 --json tagName,createdAt \
-            --jq '[.[] | select(.tagName | startswith("8t-"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' |
+            --jq '[.[] | select((.tagName | startswith("8t-")) and .tagName != "8t-buildlog")] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' |
             while read -r old; do
               echo "Deleting release $old"
               gh release delete "$old" --cleanup-tag --yes
