@@ -68,8 +68,14 @@ jobs:
         run: |
           set -euo pipefail
           df -h / /mnt 2>/dev/null || true
+          # Only a second disk helps; on the 2-CPU runners of private repositories /mnt is a folder
+          # on the same disk as /.
+          if [ ! -d /mnt ] || [ "$(df --output=source / | tail -1)" = "$(df --output=source /mnt | tail -1)" ]; then
+            echo "/mnt is on the same disk as /; the workspace stays where it is"
+            exit 0
+          fi
           root_free=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
-          mnt_free=$(df -BG --output=avail /mnt 2>/dev/null | tail -1 | tr -dc '0-9' || echo 0)
+          mnt_free=$(df -BG --output=avail /mnt | tail -1 | tr -dc '0-9')
           if [ "${mnt_free:-0}" -gt "$root_free" ]; then
             sudo mkdir -p /mnt/work
             sudo chown "$(id -u):$(id -g)" /mnt/work
@@ -139,6 +145,11 @@ jobs:
         with:
           path: ${{ steps.probe.outputs.yarn-cache-dir }}
           key: yarn-cache-v1-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      # The download cache is ~12 GB unpacked and nothing after the install reads it; with it on
+      # disk the native build filled / (run 42499987970: 98 % full in the CMake tasks).
+      - name: Drop the Yarn download cache
+        run: rm -rf "${{ steps.probe.outputs.yarn-cache-dir }}" && df -h /
 
       - name: Setup Gradle (with cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -226,8 +237,8 @@ jobs:
       - name: Cap Gradle and Kotlin memory
         run: |
           set -euo pipefail
-          # The runner (16 GB) died mid-build without a log; bounded heaps and three workers keep
-          # Gradle, the Kotlin daemon, CMake and the JS bundling within its memory.
+          # The private-repository runner has 8 GB of RAM (2 CPUs); bounded heaps and two workers
+          # keep Gradle, the Kotlin daemon, CMake and the JS bundling within it.
           home="${GRADLE_USER_HOME:-$HOME/.gradle}"
           mkdir -p "$home"
           {

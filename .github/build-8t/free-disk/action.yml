@@ -4,7 +4,7 @@ description: >
   build does not use. A full monorepo install (Yarn cache plus node_modules) and a Gradle release
   build do not fit in the default free space (the first APK runs stopped with "No space left on
   device" in assembleRelease). With use-mnt, Gradle's home goes to the runner's second disk at
-  /mnt when it has more room than /.
+  /mnt when there is one with more room than /, and 8 GB of swap are added.
 
 inputs:
   keep-android-sdk:
@@ -32,12 +32,23 @@ runs:
               /usr/local/share/boost /usr/share/miniconda /opt/hostedtoolcache/Python
               /opt/hostedtoolcache/PyPy /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby
               /usr/local/julia* /opt/pipx)
-        if [ "$KEEP_ANDROID_SDK" != true ]; then dirs+=(/usr/local/lib/android); fi
+        if [ "$KEEP_ANDROID_SDK" != true ]; then
+          dirs+=(/usr/local/lib/android)
+        else
+          # The preinstalled NDKs are not the versions the APK build asks for; Gradle installs
+          # those itself (27.0.12077973 and 27.1.12297006 in November 2026). Emulator and system
+          # images are for device tests only.
+          sdk=/usr/local/lib/android/sdk
+          dirs+=("$sdk"/ndk/* "$sdk/ndk-bundle" "$sdk/emulator" "$sdk/system-images")
+        fi
         for d in "${dirs[@]}"; do sudo rm -rf $d & done
         # Preloaded Docker images: several GB, and this build runs no container.
         (sudo docker image prune --all --force >/dev/null 2>&1 || true) &
         wait
-        if [ "$USE_MNT" = true ] && [ -d /mnt ]; then
+        # /mnt helps only as a second disk; on the 2-CPU runners of private repositories it is a
+        # folder on the same disk as /.
+        if [ "$USE_MNT" = true ] && [ -d /mnt ] \
+          && [ "$(df --output=source / | tail -1)" != "$(df --output=source /mnt | tail -1)" ]; then
           root_free=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
           mnt_free=$(df -BG --output=avail /mnt | tail -1 | tr -dc '0-9')
           if [ "$mnt_free" -gt "$root_free" ]; then
@@ -46,12 +57,17 @@ runs:
             echo "GRADLE_USER_HOME=/mnt/gradle-home" >> "$GITHUB_ENV"
             echo "Gradle home on /mnt (${mnt_free} GB free there, ${root_free} GB on /)"
           fi
-          # The APK runner died mid-build with no log (likely out of memory); 8 GB of swap turns
-          # a memory peak into a slower build instead of a lost runner.
-          if [ "$mnt_free" -gt 20 ] && ! swapon --show=NAME --noheadings | grep -q /mnt/build-swap; then
-            sudo fallocate -l 8G /mnt/build-swap && sudo chmod 600 /mnt/build-swap \
-              && sudo mkswap /mnt/build-swap >/dev/null && sudo swapon /mnt/build-swap \
-              && echo "8 GB swap on /mnt"
+        fi
+        if [ "$USE_MNT" = true ]; then
+          # The APK runner (8 GB of RAM) died mid-build with no log; 8 GB of extra swap turns a
+          # memory peak into a slower build instead of a lost runner. On the disk with most room.
+          swap_dir=/
+          if [ -d /mnt ] && [ "$(df -BG --output=avail /mnt | tail -1 | tr -dc '0-9')" -gt "$(df -BG --output=avail / | tail -1 | tr -dc '0-9')" ]; then swap_dir=/mnt; fi
+          swap_file="${swap_dir%/}/build-swap"
+          if [ "$(df -BG --output=avail "$swap_dir" | tail -1 | tr -dc '0-9')" -gt 20 ] && ! swapon --show=NAME --noheadings | grep -q build-swap; then
+            sudo fallocate -l 8G "$swap_file" && sudo chmod 600 "$swap_file" \
+              && sudo mkswap "$swap_file" >/dev/null && sudo swapon "$swap_file" \
+              && echo "8 GB swap at $swap_file"
           fi
         fi
         free -h
