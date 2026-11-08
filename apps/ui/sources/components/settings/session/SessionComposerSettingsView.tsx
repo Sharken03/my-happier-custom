@@ -18,6 +18,9 @@ import {
     type SessionInactiveResumePolicy,
 } from '@/sync/domains/session/control/inactiveResumePolicy';
 import { Icon } from '@/components/ui/icons/Icon';
+import { AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS } from '@/components/sessions/agentInput/controls/agentInputControlRegistry';
+
+const NO_HIDDEN_CONTROLS: readonly string[] = [];
 
 type PendingQueueDrainMode = 'one_at_a_time' | 'drain_all';
 type PendingQueueDeliveryTiming = 'after_foreground_ready' | 'after_runtime_idle';
@@ -36,6 +39,8 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [agentInputHistoryScope, setAgentInputHistoryScope] = useSettingMutable('agentInputHistoryScope');
     const [agentInputActionBarLayout, setAgentInputActionBarLayout] = useSettingMutable('agentInputActionBarLayout');
     const [agentInputChipDensity, setAgentInputChipDensity] = useSettingMutable('agentInputChipDensity');
+    const [storedHiddenControls, setHiddenControls] = useSettingMutable('agentInputHiddenControls');
+    const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
@@ -222,6 +227,25 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     onPress={() => setNewSessionAfterSend('startAnother')}
                     showChevron={false}
                 />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.composerButtons.title')} footer={t('settingsSession.composerButtons.footer')}>
+                {AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.map((controlId) => {
+                    const shown = !hiddenControls.includes(controlId);
+                    const toggle = () => setHiddenControls(shown
+                        ? [...hiddenControls, controlId]
+                        : hiddenControls.filter((id) => id !== controlId));
+                    return (
+                        <Item
+                            key={controlId}
+                            testID={`settings-composer-button-${controlId}`}
+                            title={t(`settingsSession.composerButtons.controls.${controlId}`)}
+                            rightElement={<Switch value={shown} onValueChange={toggle} />}
+                            showChevron={false}
+                            onPress={toggle}
+                        />
+                    );
+                })}
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.inputBehavior.title')} footer={t('settingsSession.inputBehavior.footer')}>

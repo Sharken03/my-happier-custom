@@ -5,3 +5,8 @@ sources/components/sessions/agentInput/AgentInput.contextUsageBadge.test.tsx
 sources/sync/domains/features/featureLocalPolicy.test.ts
 sources/utils/sessions/newChatFolder.test.ts
 sources/components/sessions/new/hooks/screenModel/useNewSessionMachinePathState.test.tsx
+sources/components/sessions/agentInput/controls/resolveAgentInputControlLines.test.ts
+sources/__tests__/routes/(app)/settings/session.composerButtons.test.tsx
+sources/__tests__/routes/(app)/settings/session.composerPendingDrainMode.test.tsx
+sources/components/sessions/agentInput/AgentInput.actionBarAutoLayout.test.tsx
+sources/components/sessions/agentInput/controls/useAgentInputActionMenuControls.test.tsx

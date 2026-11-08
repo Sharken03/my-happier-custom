@@ -7906,6 +7906,7 @@ export const de: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Eingabe-Schaltflächen", "footer": "Schalte Schaltflächen aus, die du nicht nutzt. Sie verschwinden auch aus dem eingeklappten Menü.", "controls": {"engine": "Agent und Modell", "mode": "Sitzungsmodus", "goal": "Ziel", "permission": "Berechtigungen", "profile": "Profil", "env": "Umgebungsvariablen", "server": "Server", "connectedServices": "Konten (CLI Auth)", "mcp": "MCP-Server", "checkout": "Branch und Worktree", "automation": "Automatisierung", "attachments": "Dateien anhängen", "linkedFiles": "Dateien verknüpfen (@)", "files": "Dateien", "reviewComments": "Review-Kommentare", "storage": "Transkript-Speicher", "providerOption": "Anbieteroptionen", "shortcuts": "Kurzbefehle", "machine": "Maschine", "path": "Ordner", "resume": "Fortsetzen"}},
     terminalHostTitle: 'Terminal-Host für neue Sitzungen',
     terminalHostNone: 'Kein Terminal-Host',
     newSessionAfterSend: { title: "Nach dem Senden", footer: "Lege fest, was beim Senden aus dem Editor für neue Sitzungen passiert. Halte Senden gedrückt, um für eine Nachricht die andere Option zu wählen.", openTitle: "Sitzung öffnen", openSubtitle: "Zur Sitzung wechseln, sobald sie startet.", startAnotherTitle: "Bleiben und weitere starten", startAnotherSubtitle: "Im Hintergrund weiter starten und einen neuen Entwurf öffnen." },

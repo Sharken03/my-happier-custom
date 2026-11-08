@@ -8689,6 +8689,7 @@ export const it: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Pulsanti dell’editor", "footer": "Disattiva i pulsanti che non usi. Spariscono anche dal menu compresso.", "controls": {"engine": "Agente e modello", "mode": "Modalità sessione", "goal": "Obiettivo", "permission": "Permessi", "profile": "Profilo", "env": "Variabili d’ambiente", "server": "Server", "connectedServices": "Account (CLI Auth)", "mcp": "Server MCP", "checkout": "Branch e worktree", "automation": "Automazione", "attachments": "Allega file", "linkedFiles": "Collega file (@)", "files": "File", "reviewComments": "Commenti di revisione", "storage": "Archiviazione della trascrizione", "providerOption": "Opzioni del provider", "shortcuts": "Scorciatoie", "machine": "Macchina", "path": "Cartella", "resume": "Riprendi"}},
     terminalHostTitle: 'Host terminale per le nuove sessioni',
     terminalHostNone: 'Nessun host terminale',
     newSessionAfterSend: { title: "Dopo l’invio", footer: "Scegli cosa succede quando invii dall’editor di nuova sessione. Tieni premuto Invia per scegliere l’altra opzione per un solo messaggio.", openTitle: "Apri la sessione", openSubtitle: "Vai alla sessione appena si avvia.", startAnotherTitle: "Resta e iniziane un’altra", startAnotherSubtitle: "Continua l’avvio in background e apri una nuova bozza." },

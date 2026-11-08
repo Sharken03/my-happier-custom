@@ -8105,6 +8105,7 @@ export const zhHans: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "输入框按钮", "footer": "关闭你不用的按钮。它们也会从折叠菜单中消失。", "controls": {"engine": "代理与模型", "mode": "会话模式", "goal": "目标", "permission": "权限", "profile": "配置文件", "env": "环境变量", "server": "服务器", "connectedServices": "账户 (CLI Auth)", "mcp": "MCP 服务器", "checkout": "分支与工作树", "automation": "自动化", "attachments": "附加文件", "linkedFiles": "链接文件 (@)", "files": "文件", "reviewComments": "评审评论", "storage": "转录存储", "providerOption": "提供方选项", "shortcuts": "快捷方式", "machine": "机器", "path": "文件夹", "resume": "恢复"}},
     terminalHostTitle: '新会话的终端宿主',
     terminalHostNone: '不使用终端宿主',
     newSessionAfterSend: { title: "发送后", footer: "选择从新会话编辑器发送时的行为。长按发送可为单条消息选择另一种方式。", openTitle: "打开会话", openSubtitle: "会话启动后立即前往。", startAnotherTitle: "留下并开始另一个", startAnotherSubtitle: "在后台继续启动，并打开新的草稿。" },

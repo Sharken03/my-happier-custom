@@ -60,6 +60,20 @@ export const ACCOUNT_COLLECTION_SETTING_DEFINITIONS = defineSettingDefinitions({
             serializeCurrent: arrayCount,
         },
     },
+    agentInputHiddenControls: {
+        schema: z.array(z.string()),
+        default: [],
+        description: 'Composer controls the user switched off (AgentInputControlId values; see agentInputControlRegistry)',
+        storageScope: 'account',
+        analytics: {
+            trackCurrentState: true,
+            trackChanges: true,
+            valueKind: 'count',
+            privacy: 'count_only',
+            identityScope: 'person',
+            serializeCurrent: arrayCount,
+        },
+    },
     favoriteMachines: {
         schema: z.array(z.string()),
         default: [],

@@ -127,4 +127,14 @@ describe('resolveAgentInputControlLines', () => {
             'resume',
         ]);
     });
+
+    it('leaves out the controls the user switched off, in the bar and in the collapsed menu, but never the menu or Stop', () => {
+        const controlIds = ['engine', 'permission', 'connectedServices', 'mcp', 'attachments', 'actionMenu', 'stop'] as const;
+        const hiddenControlIds = ['connectedServices', 'mcp', 'actionMenu', 'stop', 'not-a-control'];
+
+        expect(resolveAgentInputControlLines({ layout: 'wrap', controlIds, hiddenControlIds }).primary)
+            .toEqual(['engine', 'permission', 'actionMenu', 'stop', 'attachments']);
+        expect(resolveAgentInputControlLines({ layout: 'collapsed', controlIds, hiddenControlIds }).collapsed)
+            .toEqual(['engine', 'permission', 'actionMenu', 'stop', 'attachments']);
+    });
 });

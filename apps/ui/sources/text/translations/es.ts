@@ -8340,6 +8340,7 @@ export const es: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Botones del editor", "footer": "Desactiva los botones que no usas. También salen del menú contraído.", "controls": {"engine": "Agente y modelo", "mode": "Modo de sesión", "goal": "Objetivo", "permission": "Permisos", "profile": "Perfil", "env": "Variables de entorno", "server": "Servidor", "connectedServices": "Cuentas (CLI Auth)", "mcp": "Servidores MCP", "checkout": "Rama y worktree", "automation": "Automatización", "attachments": "Adjuntar archivos", "linkedFiles": "Vincular archivos (@)", "files": "Archivos", "reviewComments": "Comentarios de revisión", "storage": "Almacenamiento de la transcripción", "providerOption": "Opciones del proveedor", "shortcuts": "Atajos", "machine": "Máquina", "path": "Carpeta", "resume": "Reanudar"}},
     terminalHostTitle: 'Terminal para nuevas sesiones',
     terminalHostNone: 'Sin terminal',
     newSessionAfterSend: { title: "Después de enviar", footer: "Elige qué ocurre al enviar desde el editor de nueva sesión. Mantén pulsado Enviar para elegir la otra opción en un solo mensaje.", openTitle: "Abrir la sesión", openSubtitle: "Ir a la sesión en cuanto empiece.", startAnotherTitle: "Quedarse y empezar otra", startAnotherSubtitle: "Seguir iniciándola en segundo plano y abrir un borrador nuevo." },

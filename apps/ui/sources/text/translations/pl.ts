@@ -8352,6 +8352,7 @@ export const pl: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Przyciski edytora", "footer": "Wyłącz przyciski, których nie używasz. Znikają też z zwiniętego menu.", "controls": {"engine": "Agent i model", "mode": "Tryb sesji", "goal": "Cel", "permission": "Uprawnienia", "profile": "Profil", "env": "Zmienne środowiskowe", "server": "Serwer", "connectedServices": "Konta (CLI Auth)", "mcp": "Serwery MCP", "checkout": "Gałąź i worktree", "automation": "Automatyzacja", "attachments": "Załącz pliki", "linkedFiles": "Połącz pliki (@)", "files": "Pliki", "reviewComments": "Komentarze do przeglądu", "storage": "Przechowywanie transkrypcji", "providerOption": "Opcje dostawcy", "shortcuts": "Skróty", "machine": "Maszyna", "path": "Folder", "resume": "Wznów"}},
     terminalHostTitle: 'Host terminala dla nowych sesji',
     terminalHostNone: 'Bez hosta terminala',
     newSessionAfterSend: { title: "Po wysłaniu", footer: "Wybierz, co ma się dziać po wysłaniu z edytora nowej sesji. Przytrzymaj Wyślij, aby dla jednej wiadomości wybrać drugą opcję.", openTitle: "Otwórz sesję", openSubtitle: "Przejdź do sesji, gdy tylko się rozpocznie.", startAnotherTitle: "Zostań i rozpocznij kolejną", startAnotherSubtitle: "Kontynuuj uruchamianie w tle i otwórz nowy szkic." },

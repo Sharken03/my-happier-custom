@@ -6,6 +6,7 @@ import type { AgentInputControlId } from './agentInputControlTypes';
 import type { SessionModeChipPresentation } from './resolveSessionModeChipPresentation';
 import { buildCoreAgentInputControlNodes } from './buildCoreAgentInputControlNodes';
 import { resolveRenderedAgentInputControls } from './resolveRenderedAgentInputControls';
+import { useSetting } from '@/sync/store/hooks';
 import { resolveRenderedExtraActionChipNodes } from './resolveRenderedExtraActionChipNodes';
 import type { AgentId } from '@/agents/catalog/catalog';
 import type { PermissionMode } from '@/sync/domains/permissions/permissionTypes';
@@ -87,6 +88,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
     secondaryLeadingControls: ReadonlyArray<React.ReactNode>;
     extraChipAnchorRefsByKey: Readonly<Record<string, React.RefObject<View | null>>>;
 }> {
+    const hiddenControlIds = useSetting('agentInputHiddenControls');
     return React.useMemo(() => {
         const extraControlNodesById = resolveRenderedExtraActionChipNodes({
             chips: params.chips,
@@ -178,6 +180,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
             coreControlNodesById,
             extraControlNodesById: extraControlNodesById.extraControlNodesById,
             extraChips: extraControlNodesById.extraChips,
+            hiddenControlIds,
         });
 
         return {
@@ -186,6 +189,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
             extraChipAnchorRefsByKey: extraControlNodesById.extraChipAnchorRefsByKey as Readonly<Record<string, React.RefObject<View | null>>>,
         };
     }, [
+        hiddenControlIds,
         params.actionBarIsCollapsed,
         params.actionButtonPressedStyle,
         params.actionButtonStyle,

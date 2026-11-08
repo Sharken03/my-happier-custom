@@ -6,6 +6,7 @@ import type { ActionListItem } from '@/components/ui/lists/ActionListSection';
 import { buildAgentInputActionMenuActions } from '../actionMenuActions';
 import type { AgentInputExtraActionChip } from '../agentInputContracts';
 import { buildCollapsedExtraControlActions } from './buildCollapsedExtraControlActions';
+import { useSetting } from '@/sync/store/hooks';
 
 export function useAgentInputActionMenuActions(params: Readonly<{
     actionBarIsCollapsed: boolean;
@@ -38,6 +39,7 @@ export function useAgentInputActionMenuActions(params: Readonly<{
     canStop?: boolean;
     onStop?: () => void;
 }>): ReadonlyArray<ActionListItem> {
+    const hiddenControlIds = useSetting('agentInputHiddenControls');
     return React.useMemo(() => {
         const extraControlActions = buildCollapsedExtraControlActions({
             chips: params.extraActionChips,
@@ -74,10 +76,12 @@ export function useAgentInputActionMenuActions(params: Readonly<{
             canStop: params.canStop,
             onStop: params.onStop,
             extraControlActions,
+            hiddenControlIds,
             dismiss: params.dismissActionMenu,
             blurInput: params.blurInput,
         });
     }, [
+        hiddenControlIds,
         params.actionBarIsCollapsed,
         params.agentId,
         params.agentType,

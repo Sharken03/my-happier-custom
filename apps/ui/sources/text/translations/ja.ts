@@ -8610,6 +8610,7 @@ localTailscale: {
     },
 
 settingsSession: {
+    composerButtons: {"title": "入力欄のボタン", "footer": "使わないボタンをオフにします。折りたたみメニューからも消えます。", "controls": {"engine": "エージェントとモデル", "mode": "セッションモード", "goal": "目標", "permission": "権限", "profile": "プロファイル", "env": "環境変数", "server": "サーバー", "connectedServices": "アカウント (CLI Auth)", "mcp": "MCPサーバー", "checkout": "ブランチとワークツリー", "automation": "自動化", "attachments": "ファイルを添付", "linkedFiles": "ファイルをリンク (@)", "files": "ファイル", "reviewComments": "レビューコメント", "storage": "トランスクリプトの保存", "providerOption": "プロバイダーのオプション", "shortcuts": "ショートカット", "machine": "マシン", "path": "フォルダー", "resume": "再開"}},
     terminalHostTitle: '新しいセッションのターミナルホスト',
     terminalHostNone: 'ターミナルホストなし',
     newSessionAfterSend: { title: "送信後の動作", footer: "新規セッションのコンポーザーから送信したときの動作を選びます。送信を長押しすると、1 件だけもう一方の動作を選べます。", openTitle: "セッションを開く", openSubtitle: "開始したらすぐセッションに移動します。", startAnotherTitle: "このまま次を開始", startAnotherSubtitle: "バックグラウンドで開始を続け、新しい下書きを開きます。" },

@@ -7903,6 +7903,7 @@ deps: {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Botons de l’editor", "footer": "Desactiva els botons que no fas servir. També surten del menú plegat.", "controls": {"engine": "Agent i model", "mode": "Mode de sessió", "goal": "Objectiu", "permission": "Permisos", "profile": "Perfil", "env": "Variables d’entorn", "server": "Servidor", "connectedServices": "Comptes (CLI Auth)", "mcp": "Servidors MCP", "checkout": "Branca i worktree", "automation": "Automatització", "attachments": "Adjunta fitxers", "linkedFiles": "Enllaça fitxers (@)", "files": "Fitxers", "reviewComments": "Comentaris de revisió", "storage": "Emmagatzematge de la transcripció", "providerOption": "Opcions del proveïdor", "shortcuts": "Dreceres", "machine": "Màquina", "path": "Carpeta", "resume": "Reprèn"}},
     terminalHostTitle: 'Amfitrió de terminal per a sessions noves',
     terminalHostNone: 'Sense amfitrió de terminal',
     newSessionAfterSend: { title: "Després d’enviar", footer: "Tria què passa quan envies des del redactor de sessió nova. Mantén premut Envia per triar l’altra opció per a un sol missatge.", openTitle: "Obre la sessió", openSubtitle: "Ves a la sessió tan bon punt comenci.", startAnotherTitle: "Queda’t i comença una altra", startAnotherSubtitle: "Continua iniciant-la en segon pla i obre un esborrany nou." },

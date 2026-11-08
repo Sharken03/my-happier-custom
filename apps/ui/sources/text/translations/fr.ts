@@ -7893,6 +7893,7 @@ export const fr: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Boutons de l’éditeur", "footer": "Désactivez les boutons que vous n’utilisez pas. Ils quittent aussi le menu replié.", "controls": {"engine": "Agent et modèle", "mode": "Mode de session", "goal": "Objectif", "permission": "Autorisations", "profile": "Profil", "env": "Variables d’environnement", "server": "Serveur", "connectedServices": "Comptes (CLI Auth)", "mcp": "Serveurs MCP", "checkout": "Branche et worktree", "automation": "Automatisation", "attachments": "Joindre des fichiers", "linkedFiles": "Lier des fichiers (@)", "files": "Fichiers", "reviewComments": "Commentaires de revue", "storage": "Stockage de la transcription", "providerOption": "Options du fournisseur", "shortcuts": "Raccourcis", "machine": "Machine", "path": "Dossier", "resume": "Reprendre"}},
     terminalHostTitle: 'Hôte de terminal pour les nouvelles sessions',
     terminalHostNone: 'Aucun hôte de terminal',
     newSessionAfterSend: { title: "Après l’envoi", footer: "Choisissez ce qui se passe quand vous envoyez depuis l’éditeur de nouvelle session. Maintenez Envoyer pour choisir l’autre option pour un seul message.", openTitle: "Ouvrir la session", openSubtitle: "Aller à la session dès qu’elle démarre.", startAnotherTitle: "Rester et en démarrer une autre", startAnotherSubtitle: "Continuer le démarrage en arrière-plan et ouvrir un nouveau brouillon." },
