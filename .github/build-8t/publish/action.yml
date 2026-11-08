@@ -40,7 +40,7 @@ runs:
           echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
           echo
           echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
-          if [ -n "$NOTES" ]; then printf "%s\n" "$NOTES"; fi
+          if [ -n "$NOTES" ]; then printf "%s\n" "${NOTES%$'\n'}"; fi
           echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         } > "$RUNNER_TEMP/notes.md"
         gh release create "$tag" ./* \

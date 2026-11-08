@@ -54,8 +54,9 @@ jobs:
       EXPO_APP_LOCAL_CONFIG_PATH: ${{ github.workspace }}/.github/build-8t/app.local.cjs
       HAPPIER_8T_VERSION_CODE: ${{ github.run_number }}
       HAPPIER_ANDROID_BUILD_ARCHS: arm64-v8a
-      HAPPIER_ANDROID_ENABLE_MINIFY: "1"
-      HAPPIER_ANDROID_ENABLE_SHRINK_RESOURCES: "1"
+      # No R8 (HAPPIER_ANDROID_ENABLE_MINIFY, ..._SHRINK_RESOURCES default off in app.config.js):
+      # on the 8 GB runner it was the slowest and most memory-hungry task, for a private APK
+      # where size does not matter.
       HAPPIER_ANDROID_GRADLE_JVMARGS: -Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8
       # No Sentry auth token here: the Sentry Gradle step must not try to upload source maps.
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
