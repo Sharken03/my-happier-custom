@@ -278,6 +278,20 @@ jobs:
           GRADLE
           echo "mode=release-keystore" >> "$GITHUB_OUTPUT"
 
+      - name: Cap Gradle and Kotlin memory
+        run: |
+          set -euo pipefail
+          # The runner (16 GB) died mid-build without a log; bounded heaps and three workers keep
+          # Gradle, the Kotlin daemon, CMake and the JS bundling within its memory.
+          home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+          mkdir -p "$home"
+          {
+            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
+            echo "kotlin.daemon.jvmargs=-Xmx2g"
+            echo "org.gradle.workers.max=3"
+          } >> "$home/gradle.properties"
+          cat "$home/gradle.properties"
+
       - name: Gradle assembleRelease
         working-directory: apps/ui/android
         env:

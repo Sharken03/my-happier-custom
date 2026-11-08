@@ -46,5 +46,13 @@ runs:
             echo "GRADLE_USER_HOME=/mnt/gradle-home" >> "$GITHUB_ENV"
             echo "Gradle home on /mnt (${mnt_free} GB free there, ${root_free} GB on /)"
           fi
+          # The APK runner died mid-build with no log (likely out of memory); 8 GB of swap turns
+          # a memory peak into a slower build instead of a lost runner.
+          if [ "$mnt_free" -gt 20 ] && ! swapon --show=NAME --noheadings | grep -q /mnt/build-swap; then
+            sudo fallocate -l 8G /mnt/build-swap && sudo chmod 600 /mnt/build-swap \
+              && sudo mkswap /mnt/build-swap >/dev/null && sudo swapon /mnt/build-swap \
+              && echo "8 GB swap on /mnt"
+          fi
         fi
+        free -h
         df -h / /mnt 2>/dev/null || df -h /
