@@ -132,6 +132,7 @@ describe('TurnView (thinking expansion controlled)', () => {
       transcriptStreamingSettleDelayMs: 0,
       transcriptStreamingSmoothingEnabled: false,
       transcriptMessageSelectionEnabled: true,
+      transcriptMessageActionsCopyOnly: false,
       transcriptMessageSendToSessionEnabled: false,
       debugInformationEnabled: false,
       workspacePath: null,

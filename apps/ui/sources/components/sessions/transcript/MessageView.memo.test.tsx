@@ -102,6 +102,7 @@ const messageDisplayCommon = {
     transcriptStreamingPartialOutputEnabled: true,
     transcriptStreamingMarkdownRenderingEnabled: false,
     transcriptMessageSelectionEnabled: true,
+    transcriptMessageActionsCopyOnly: false,
     transcriptMessageSendToSessionEnabled: false,
     debugInformationEnabled: false,
     workspacePath: null,

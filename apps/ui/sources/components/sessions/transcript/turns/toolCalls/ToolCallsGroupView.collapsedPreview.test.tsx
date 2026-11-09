@@ -228,6 +228,7 @@ describe('ToolCallsGroupView (collapsed preview)', () => {
             transcriptStreamingSettleDelayMs: 0,
             transcriptStreamingSmoothingEnabled: true,
             transcriptMessageSelectionEnabled: true,
+            transcriptMessageActionsCopyOnly: false,
             transcriptMessageSendToSessionEnabled: false,
             debugInformationEnabled: false,
             workspacePath: null,
