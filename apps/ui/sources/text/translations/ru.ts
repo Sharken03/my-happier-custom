@@ -7729,6 +7729,9 @@ export const ru: TranslationStructure = {
     attributionLegendDirectOnly: "прямая = из операций этой сессии",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count} ${plural({ count, one: "выведенный файл оставлен", few: "выведенных файла оставлены", many: "выведенных файлов оставлены" })} в изменениях только репозитория.`,
+    otherRepositoriesTitle: "Другие репозитории",
+    outsideGitTitle: "Вне git",
+    externalChangeCommitted: "Уже закоммичено: это правка агента.",
     noSessionAttributedChanges:
       "Изменения, привязанные к сессии, не обнаружены.",
     noLatestTurnChanges:

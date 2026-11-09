@@ -8005,6 +8005,9 @@ localTailscale: {
     attributionLegendDirectOnly: "direct = このセッションの操作由来",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count}件の推定ファイルを「リポジトリのみの変更」に残しました。`,
+    otherRepositoriesTitle: "他のリポジトリ",
+    outsideGitTitle: "git の外",
+    externalChangeCommitted: "コミット済み：エージェントによる変更を表示しています。",
     noSessionAttributedChanges:
       "現在、セッションに紐づく変更は検出されていません。",
     noLatestTurnChanges:

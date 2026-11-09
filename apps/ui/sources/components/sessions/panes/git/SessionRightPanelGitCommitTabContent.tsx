@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { SessionRightPanelGitCommitTab } from '@/components/sessions/panes/git/SessionRightPanelGitCommitTab';
+import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
 import { ScmCommitSelectionToggleButton } from '@/components/sessions/sourceControl/commitSelection/ScmCommitSelectionToggleButton';
 import { ScmChangeOverflowMenu } from '@/components/sessions/sourceControl/changes/ScmChangeOverflowMenu';
 import { CopiedPill } from '@/components/ui/copy/CopiedPill';
@@ -226,6 +227,14 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
         );
     }, [copyFeedback, props.scmCommitStrategy, props.scmSnapshot, props.scmWriteEnabled, props.sessionId, props.sessionPath, revealInTree]);
 
+    const externalChangesFooter = React.useMemo(() => (
+        <SessionExternalRepositoryChanges
+            sessionId={props.sessionId}
+            sessionChangeSet={sessionChangeSet}
+            scmSnapshot={props.scmSnapshot}
+        />
+    ), [props.scmSnapshot, props.sessionId, sessionChangeSet]);
+
     const onFilePress = React.useCallback((file: ScmFileStatus) => {
         props.openFileInDetails(file.fullPath);
     }, [props.openFileInDetails]);
@@ -236,6 +245,7 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
 
     return (
         <SessionRightPanelGitCommitTab
+            listFooter={externalChangesFooter}
             theme={props.theme}
             sessionId={props.sessionId}
             sessionPath={props.sessionPath}

@@ -22,3 +22,4 @@ sources/sync/domains/settings/settings.spec.ts
 sources/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary.test.ts
 sources/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow.test.tsx
 sources/sync/domains/session/listing/sessionListViewData.projectGroupingHost.test.ts
+sources/components/sessions/panes/git/externalChanges/externalRepositoryChanges.test.ts

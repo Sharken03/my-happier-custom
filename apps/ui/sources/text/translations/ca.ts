@@ -7281,6 +7281,9 @@ deps: {
         attributionLegendDirectOnly: 'direct = de les operacions d’aquesta sessió',
         inferredSuppressed: ({ count }: { count: number }) =>
             `${count} fitxer${count === 1 ? '' : 's'} inferit${count === 1 ? '' : 's'} mantingut${count === 1 ? '' : 's'} en canvis només del repositori.`,
+        otherRepositoriesTitle: "Altres repositoris",
+        outsideGitTitle: "Fora de git",
+        externalChangeCommitted: "Ja confirmat: aquest és el canvi de l’agent.",
         noSessionAttributedChanges: 'No s’han detectat canvis atribuïts a la sessió.',
         noLatestTurnChanges: 'No s’han detectat canvis de l’últim torn.',
         notRepo: 'No és un repositori de control de versions',

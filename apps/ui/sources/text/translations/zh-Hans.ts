@@ -7509,6 +7509,9 @@ export const zhHans: TranslationStructure = {
     attributionLegendDirectOnly: "direct = 来自本会话操作",
     inferredSuppressed: ({ count }: { count: number }) =>
       `已有 ${count} 个推断文件保留在仅仓库变更中。`,
+    otherRepositoriesTitle: "其他仓库",
+    outsideGitTitle: "不在 git 中",
+    externalChangeCommitted: "已提交：这是代理所做的修改。",
     noSessionAttributedChanges:
       "当前未检测到会话归因的变更。",
     noLatestTurnChanges:

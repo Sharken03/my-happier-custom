@@ -7861,6 +7861,9 @@ export const pt: TranslationStructure = {
     attributionLegendDirectOnly: "direct = das operações desta sessão",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count} arquivo${count === 1 ? "" : "s"} inferido${count === 1 ? "" : "s"} mantido${count === 1 ? "" : "s"} nas alterações apenas do repositório.`,
+    otherRepositoriesTitle: "Outros repositórios",
+    outsideGitTitle: "Fora do git",
+    externalChangeCommitted: "Já confirmado: esta é a alteração do agente.",
     noSessionAttributedChanges:
       "Nenhuma alteração atribuída à sessão foi detectada no momento.",
     noLatestTurnChanges:

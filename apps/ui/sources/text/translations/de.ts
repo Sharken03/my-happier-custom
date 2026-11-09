@@ -7281,6 +7281,9 @@ export const de: TranslationStructure = {
           attributionLegendDirectOnly: 'direkt = aus Operationen dieser Session',
           inferredSuppressed: ({ count }: { count: number }) =>
               `${count} abgeleitete Datei${count === 1 ? '' : 's'} bleibt bei den reinen Repository-Änderungen.`,
+          otherRepositoriesTitle: "Andere Repositorys",
+          outsideGitTitle: "Außerhalb von Git",
+          externalChangeCommitted: "Bereits committet: dies ist die Änderung des Agenten.",
           noSessionAttributedChanges: 'Derzeit sind keine dieser Session zugeordneten Änderungen erkennbar.',
           noLatestTurnChanges: 'Derzeit sind keine Änderungen des letzten Turns erkennbar.',
           notRepo: 'Kein Repository der Versionsverwaltung',

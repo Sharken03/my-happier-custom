@@ -8081,6 +8081,9 @@ export const it: TranslationStructure = {
     attributionLegendDirectOnly: "direct = dalle operazioni di questa sessione",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count} file inferit${count === 1 ? "o" : "i"} mantenut${count === 1 ? "o" : "i"} nelle modifiche solo repository.`,
+    otherRepositoriesTitle: "Altri repository",
+    outsideGitTitle: "Fuori da git",
+    externalChangeCommitted: "Già committato: questa è la modifica dell’agente.",
     noSessionAttributedChanges:
       "Nessuna modifica attribuita alla sessione rilevata.",
     noLatestTurnChanges:

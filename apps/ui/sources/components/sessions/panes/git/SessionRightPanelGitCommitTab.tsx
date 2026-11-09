@@ -61,6 +61,8 @@ export type SessionRightPanelGitCommitTabProps = Readonly<{
     disableSelectNone: boolean;
     onFilePress: (file: ScmFileStatus) => void;
     onFilePressPinned: (file: ScmFileStatus) => void;
+    /** Shown after the changed files, e.g. the chat's changes in other repositories. */
+    listFooter?: React.ReactElement | null;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -141,6 +143,7 @@ export const SessionRightPanelGitCommitTab = React.memo((props: SessionRightPane
                 showBranchSummary={props.showBranchSummary}
                 onOpenReviewAllChanges={props.onOpenReviewAllChanges}
                 onOpenStashDetails={props.onOpenStashDetails}
+                listFooter={props.listFooter}
             />
             {showCommitComposer ? (
                 <View style={footerStyle}>
@@ -283,6 +286,8 @@ type CommitChangesSurfaceProps = Readonly<{
     disableSelectNone: boolean;
     onFilePress: (file: ScmFileStatus) => void;
     onFilePressPinned: (file: ScmFileStatus) => void;
+    /** Shown after the changed files, e.g. the chat's changes in other repositories. */
+    listFooter?: React.ReactElement | null;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -761,6 +766,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
                 keyExtractor={virtualizedKeyExtractor}
                 ListHeaderComponent={headerContent}
                 ListEmptyComponent={emptyChangedFilesContent}
+                ListFooterComponent={props.listFooter ?? null}
                 contentContainerStyle={commitChangedFilesListContentContainerStyle}
                 renderItem={renderVirtualizedRow}
                 extraData={virtualizedRowExtraData}

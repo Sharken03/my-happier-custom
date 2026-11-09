@@ -7268,6 +7268,9 @@ export const fr: TranslationStructure = {
           attributionLegendDirectOnly: 'direct = issu des opérations de cette session',
           inferredSuppressed: ({ count }: { count: number }) =>
               `${count} fichier inféré${count === 1 ? '' : 's'} dans les modifications propres au dépôt uniquement.`,
+          otherRepositoriesTitle: "Autres dépôts",
+          outsideGitTitle: "Hors de git",
+          externalChangeCommitted: "Déjà commité : voici la modification de l’agent.",
           noSessionAttributedChanges: 'Aucune modification attribuée à la session détectée pour l’instant.',
           noLatestTurnChanges: 'Aucune modification du dernier tour détectée pour l’instant.',
           notRepo: 'Pas un dépôt sous gestion de version',

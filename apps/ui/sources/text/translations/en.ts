@@ -7313,6 +7313,9 @@ export const en = {
           attributionLegendDirectOnly: 'direct = from this session operations',
           inferredSuppressed: ({ count }: { count: number }) =>
               `${count} inferred file${count === 1 ? '' : 's'} kept in repository-only changes.`,
+          otherRepositoriesTitle: "Other repositories",
+          outsideGitTitle: "Outside git",
+          externalChangeCommitted: "Committed already: this is the agent's own edit.",
           noSessionAttributedChanges: 'No session-attributed changes currently detected.',
           noLatestTurnChanges: 'No latest-turn changes currently detected.',
           notRepo: 'Not a source-control repository',
