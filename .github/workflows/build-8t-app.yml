@@ -276,14 +276,23 @@ jobs:
       - name: Cap Gradle and Kotlin memory
         run: |
           set -euo pipefail
-          # The private-repository runner has 8 GB of RAM (2 CPUs); bounded heaps and two workers
-          # keep Gradle, the Kotlin daemon, CMake and the JS bundling within it.
+          # Sized by the runner: a public repository gets 4 CPUs and 16 GB, a private one 2 CPUs and
+          # 8 GB, where bounded heaps and two workers keep Gradle, the Kotlin daemon, CMake and the
+          # JS bundling within memory (it died there before).
           home="${GRADLE_USER_HOME:-$HOME/.gradle}"
           mkdir -p "$home"
+          cpus=$(nproc)
+          mem_gb=$(awk '/MemTotal/ { printf "%d", $2 / 1048576 }' /proc/meminfo)
+          if [ "$cpus" -ge 4 ] && [ "$mem_gb" -ge 14 ]; then
+            heap=6g; kotlin_heap=3g; workers=$cpus
+          else
+            heap=4g; kotlin_heap=2g; workers=2
+          fi
+          echo "runner: ${cpus} CPUs, ${mem_gb} GB"
           {
-            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
-            echo "kotlin.daemon.jvmargs=-Xmx2g"
-            echo "org.gradle.workers.max=2"
+            echo "org.gradle.jvmargs=-Xmx${heap} -XX:MaxMetaspaceSize=1g"
+            echo "kotlin.daemon.jvmargs=-Xmx${kotlin_heap}"
+            echo "org.gradle.workers.max=${workers}"
           } >> "$home/gradle.properties"
           cat "$home/gradle.properties"
 
