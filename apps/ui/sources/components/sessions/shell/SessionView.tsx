@@ -376,6 +376,7 @@ import type { PendingMessage } from '@/sync/domains/state/storageTypes';
 import { resolvePendingActivationBanner } from '@/components/sessions/pending/resolvePendingActivationBanner';
 import type { StorageState } from '@/sync/store/types';
 import { formatSessionCostUsd, useSessionCostUsd } from './sessionCost';
+import { resolveSessionRoutePathForSurface } from '@/components/workspaceCockpit/session/sessionCockpitState';
 
 /**
  * Where one submitted localId has got to, canonically — the single reader for
@@ -1591,6 +1592,16 @@ export const SessionView = React.memo((props: SessionViewProps) => {
             fallbackHref: '/',
         });
     }, [router]);
+    // The title opens the chat's changed files (the git surface, as the bottom bar's branch tab),
+    // where the Session and Turn views list what this chat changed.
+    const cockpitRegistration = useSessionCockpitChromeRegistration();
+    const handleTitlePress = React.useCallback(() => {
+        if (cockpitRegistration?.sessionId === sessionId) {
+            cockpitRegistration.switchSurface('git');
+            return;
+        }
+        router.push(resolveSessionRoutePathForSurface(sessionId, 'git', { serverId: currentSessionRouteServerId }) as never);
+    }, [cockpitRegistration, currentSessionRouteServerId, router, sessionId]);
     const safeArea = useSafeAreaInsets();
     const headerSafeAreaTopMode = props.headerSafeAreaTopMode ?? props.safeAreaTopMode ?? 'internal';
     const isLandscape = useIsLandscape();
@@ -1921,6 +1932,7 @@ export const SessionView = React.memo((props: SessionViewProps) => {
                     <ChatHeaderView
                         {...headerProps}
                         onBackPress={handleBackPress}
+                        onTitlePress={session ? handleTitlePress : undefined}
                         showBackButton={!isTablet}
                         constrainWidth={constrainHeaderWidth}
                         contentTrailingInsetPx={actionRailVisible ? PANE_ACTION_RAIL_WIDTH : 0}

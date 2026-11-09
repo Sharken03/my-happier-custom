@@ -15,3 +15,4 @@ sources/components/sessions/agentInput/AgentInput.chipOrdering.test.tsx
 sources/components/sessions/agentInput/controls/resolveModelChipEffortLabel.test.ts
 sources/components/sessions/agentInput/definitions/createAgentSelectionActionChip.test.tsx
 sources/components/sessions/agentInput/AgentInput.agentIdentity.test.tsx
+sources/components/sessions/transcript/ChatHeaderView.test.tsx
