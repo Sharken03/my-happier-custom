@@ -2394,7 +2394,10 @@ export class PiRpcBackend implements AgentBackend {
 
       this.emitMessage({
         type: 'token-count',
-        key: `pi:${rawKey}`,
+        // Pi's stats are the session's running totals, and the relay keeps one usage report per
+        // key: a key per Pi session makes each report replace the last. A key per publish
+        // (rawKey) added every running total to the chat's cost again.
+        key: `pi:${sessionId}`,
         tokens,
         ...(costTotal !== null ? { cost: { total: costTotal } } : {}),
       });
