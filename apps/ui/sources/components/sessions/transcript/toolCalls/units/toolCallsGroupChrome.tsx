@@ -52,7 +52,13 @@ export function resolveToolCallMessageForSession(
 export function resolveToolCallsGroupStatus(params: Readonly<{
     toolMessages: readonly ToolCallMessage[];
     permissionDisabledReason?: TranscriptInteraction['permissionDisabledReason'];
+    /**
+     * The turn still works and this group is its latest activity. Between two calls every tool is
+     * completed, so the tools alone would show a check mark that swaps with the spinner on each call.
+     */
+    turnWorking?: boolean;
 }>): ToolCallsGroupStatus {
+    if (params.turnWorking === true) return 'running';
     let sawError = false;
     for (const message of params.toolMessages) {
         const tool = resolveInactiveSessionToolCallFailure({

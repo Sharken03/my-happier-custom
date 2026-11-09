@@ -840,6 +840,19 @@ export function useSessionMachineId(sessionId: string): string | null {
   return getStorage()((state) => resolveSessionMachineId(state.sessions[sessionId]?.metadata ?? null));
 }
 
+/**
+ * Whether the session's turn works now, as a PRIMITIVE. The grace window covers the gaps between
+ * chunks, where `thinking` drops for a moment; the store clears it on a timer, so no clock is read
+ * here. A caller that passes `enabled: false` always gets `false` and never re-renders.
+ */
+export function useSessionTurnWorking(sessionId: string, enabled: boolean = true): boolean {
+  return getStorage()((state) => {
+    if (!enabled) return false;
+    const session = state.sessions[sessionId];
+    return session != null && (session.thinking === true || session.thinkingGraceUntil != null);
+  });
+}
+
 export type SessionInteractionSource = Readonly<{
   accessLevel: Session['accessLevel'];
   canApprovePermissions: Session['canApprovePermissions'];

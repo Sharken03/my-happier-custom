@@ -23,3 +23,4 @@ sources/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary.tes
 sources/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow.test.tsx
 sources/sync/domains/session/listing/sessionListViewData.projectGroupingHost.test.ts
 sources/components/sessions/panes/git/externalChanges/externalRepositoryChanges.test.ts
+sources/components/sessions/transcript/turnGrouping/buildTranscriptTurnUnits.test.ts

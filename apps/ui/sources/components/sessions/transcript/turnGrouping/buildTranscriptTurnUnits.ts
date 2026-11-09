@@ -26,6 +26,8 @@ export type TranscriptToolGroupUnitItem =
         expanded: boolean;
         hiddenCount: number; // 0 when expanded
         createdAt: number; // first tool message createdAt (0 fallback)
+        /** Set only on the header of the group that ends the transcript: the group a working turn still adds to. */
+        isTranscriptTail?: true;
         originSessionId?: string;
         isReadOnlyContext?: boolean;
     }
@@ -256,7 +258,23 @@ export function buildTranscriptTurnUnits(params: Readonly<{
             continue;
         }
 
+        if (item.kind === 'tool-group-header' && item.isTranscriptTail) {
+            // The tail is decided below, from this build's own last row.
+            const { isTranscriptTail: _stale, ...header } = item;
+            output.push(header);
+            continue;
+        }
         output.push(item);
+    }
+
+    const lastUnit = output[output.length - 1];
+    if (lastUnit?.kind === 'tool-group-footer') {
+        for (let index = output.length - 2; index >= 0; index -= 1) {
+            const unit = output[index]!;
+            if (unit.kind !== 'tool-group-header' || unit.groupId !== lastUnit.groupId) continue;
+            output[index] = { ...unit, isTranscriptTail: true };
+            break;
+        }
     }
 
     return output;

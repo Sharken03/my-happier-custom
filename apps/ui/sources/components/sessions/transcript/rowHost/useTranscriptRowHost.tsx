@@ -17,7 +17,7 @@ import { SessionActionDraftCard } from '@/components/sessions/actions/SessionAct
 import { UserActionPromptCard } from '@/components/tools/shell/userActions/UserActionPromptCard';
 import { TurnViewWithSessionCommon } from '@/components/sessions/transcript/turns/TurnView';
 import { ToolCallsGroupRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/ToolCallsGroupRow';
-import { ToolCallsGroupUnitHeaderRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow';
+import { ToolCallsGroupUnitLiveHeaderRow } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow';
 import { ToolCallsGroupUnitExpandRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitExpandRow';
 import { ToolCallsGroupUnitToolRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitToolRow';
 import { ToolCallsGroupUnitFooterRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitFooterRow';
@@ -264,9 +264,10 @@ export function useTranscriptItemRenderer(deps: TranscriptItemRendererDeps) {
                     onRowMeasured={handleRowShellMeasured}
                 >
                     {(messages) => (
-                        <ToolCallsGroupUnitHeaderRowWithSessionCommon
+                        <ToolCallsGroupUnitLiveHeaderRow
                             sessionId={sessionId}
                             groupId={item.groupId}
+                            isTranscriptTail={item.isTranscriptTail === true}
                             metadata={metadata}
                             interaction={interaction}
                             toolMessages={messages.filter((message): message is ToolCallMessage => message.kind === 'tool-call')}

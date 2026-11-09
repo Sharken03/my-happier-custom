@@ -189,6 +189,24 @@ describe('buildTranscriptTurnUnits', () => {
         ]);
     });
 
+    it('marks only the header of a group that ends the transcript as the transcript tail', () => {
+        const messagesById = indexMessages([
+            userMessage('u1', 1), toolMessage('t1', 2), agentMessage('a1', 3), toolMessage('t2', 4),
+        ]);
+        const build = (content: Parameters<typeof turnItem>[0]['content']) => buildTranscriptTurnUnits({
+            items: [turnItem({ id: 'turn:u1', userMessageId: 'u1', content })],
+            getMessageById: lookupIn(messagesById),
+            isGroupExpanded: collapsedAlways,
+            collapsedPreviewCount: 0,
+        }).filter((item) => item.kind === 'tool-group-header');
+        const first = { kind: 'tool_calls' as const, id: 'toolCalls:turn:u1:t1', toolMessageIds: ['t1'] };
+        const text = { kind: 'message' as const, messageId: 'a1' };
+        const second = { kind: 'tool_calls' as const, id: 'toolCalls:turn:u1:t2', toolMessageIds: ['t2'] };
+
+        expect(build([first, text, second]).map((header) => header.isTranscriptTail === true)).toEqual([false, true]);
+        expect(build([first, text]).map((header) => header.isTranscriptTail === true)).toEqual([false]);
+    });
+
     it('produces the same final units after suffix-window backfill as a full synchronous turn build', () => {
         const messages: Message[] = [
             userMessage('u1', 1, 1),
@@ -314,6 +332,7 @@ describe('buildTranscriptTurnUnits', () => {
             {
                 kind: 'tool-group-header',
                 id: `${groupId}#header`,
+                isTranscriptTail: true,
                 groupId,
                 toolMessageIds: ['t1', 't2', 't3'],
                 expanded: true,

@@ -85,6 +85,20 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
         expect(screen.findByTestId('icon:check-circle')).toBeNull();
     });
 
+    it('keeps the running spinner between calls while the turn still works on this group', async () => {
+        // Between two calls every tool is completed. A check mark there swaps with the spinner on each call.
+        const screen = await renderHeaderRow({
+            turnWorking: true,
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { state: 'completed' } as any }),
+            ],
+        });
+
+        expect(screen.findAllByType(ActivitySpinner).length).toBeGreaterThan(0);
+        expect(screen.findByTestId('icon:check-circle')).toBeNull();
+    });
+
     it('derives an error status when any tool errored and none are running', async () => {
         const screen = await renderHeaderRow({
             toolMessages: [

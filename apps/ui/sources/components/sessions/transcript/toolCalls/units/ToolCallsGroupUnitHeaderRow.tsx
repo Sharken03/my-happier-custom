@@ -2,6 +2,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 
 import type { ToolCallMessage } from '@/sync/domains/messages/messageTypes';
+import { useSessionTurnWorking } from '@/sync/store/hooks';
 
 import { TranscriptEnterWrapper } from '@/components/sessions/transcript/motion/TranscriptEnterWrapper';
 import { TRANSCRIPT_WEB_TOOL_GROUP_PREPEND_ANCHOR_TEST_ID_PREFIX } from '@/components/sessions/transcript/viewport/prepend/webTranscriptPrependAnchor';
@@ -23,6 +24,8 @@ type ToolCallsGroupUnitHeaderRowProps = ToolCallsGroupUnitRowCommonProps & Reado
     toolMessages: ToolCallMessage[];
     expanded: boolean;
     setExpanded: (expanded: boolean) => void;
+    /** The turn still works and this group is its latest activity; see `resolveToolCallsGroupStatus`. */
+    turnWorking?: boolean;
 }>;
 
 export const ToolCallsGroupUnitHeaderRow = React.memo(function ToolCallsGroupUnitHeaderRow(
@@ -52,6 +55,7 @@ export const ToolCallsGroupUnitHeaderRowWithSessionCommon = React.memo(function 
     const status = resolveToolCallsGroupStatus({
         toolMessages: props.toolMessages,
         permissionDisabledReason: props.interaction.permissionDisabledReason,
+        turnWorking: props.turnWorking,
     });
 
     if (props.toolMessages.length === 0) return null;
@@ -78,4 +82,19 @@ export const ToolCallsGroupUnitHeaderRowWithSessionCommon = React.memo(function 
             </TranscriptEnterWrapper>
         </View>
     );
+});
+
+/**
+ * The header row the transcript list mounts. Only the group that ends the transcript reads the
+ * session's turn state, so a turn that starts or stops re-renders that one header.
+ */
+export const ToolCallsGroupUnitLiveHeaderRow = React.memo(function ToolCallsGroupUnitLiveHeaderRow(
+    props: Omit<ToolCallsGroupUnitHeaderRowProps, 'turnWorking'> & TranscriptSessionCommonProps & Readonly<{
+        isTranscriptTail: boolean;
+    }>,
+) {
+    const { isTranscriptTail, ...headerProps } = props;
+    const turnWorking = useSessionTurnWorking(props.sessionId, isTranscriptTail);
+
+    return <ToolCallsGroupUnitHeaderRowWithSessionCommon {...headerProps} turnWorking={turnWorking} />;
 });
