@@ -49,7 +49,8 @@ export function PathAndResumeRow(props: PathAndResumeRowProps) {
                         ref={props.pathChipAnchorRef}
                         testID="agent-input-path-chip"
                         onPress={props.onPathClick}
-                        hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                        // No slop upward: the send button's own slop reaches down over this row.
+                        hitSlop={{ top: 0, bottom: 10, left: 0, right: 0 }}
                         style={(p) => ([
                             props.styles.actionChip,
                             p.pressed ? props.styles.actionChipPressed : null,

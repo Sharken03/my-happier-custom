@@ -104,7 +104,7 @@ import { useTextInputCaretRect } from '@/hooks/ui/textInputCaretRect';
 import { createBackdropNativeStyle, createBackdropWebStyle } from '@/components/ui/overlays/createBackdropLayerStyle';
 import type { PermissionModePickerStyles } from './components/permissionModePickerStyles';
 import { AgentInputAttentionRequests } from './components/AgentInputPermissionRequests';
-import { AgentInputSubmitButton } from './components/AgentInputSubmitButton';
+import { AGENT_INPUT_SUBMIT_COLUMN_WIDTH, AgentInputSubmitButton } from './components/AgentInputSubmitButton';
 import {
     DEFAULT_OPTION_CHIP_CYCLE_MAX_OPTIONS,
     resolveChipOptionInteraction,
@@ -955,6 +955,8 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     pathRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        // The row under the send button stops before it, so a tap on send never opens the path picker.
+        paddingRight: AGENT_INPUT_SUBMIT_COLUMN_WIDTH,
     },
     actionButtonsLeft: {
         flexDirection: 'row',
@@ -969,6 +971,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     actionButtonsSecondaryScroll: {
         alignSelf: 'stretch',
+        marginRight: AGENT_INPUT_SUBMIT_COLUMN_WIDTH,
         flexGrow: 0,
         flexShrink: 0,
         minHeight: 32,
