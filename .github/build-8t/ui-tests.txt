@@ -24,3 +24,5 @@ sources/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderR
 sources/sync/domains/session/listing/sessionListViewData.projectGroupingHost.test.ts
 sources/components/sessions/panes/git/externalChanges/externalRepositoryChanges.test.ts
 sources/components/sessions/transcript/turnGrouping/buildTranscriptTurnUnits.test.ts
+sources/components/markdown/enriched/androidEnrichedMarkdownStyle.test.ts
+sources/components/markdown/enriched/useEnrichedMarkdownStyle.test.ts

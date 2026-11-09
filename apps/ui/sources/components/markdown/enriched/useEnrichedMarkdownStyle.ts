@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type StyleProp, type TextStyle } from 'react-native';
+import { Platform, type StyleProp, type TextStyle } from 'react-native';
 import type { EnrichedMarkdownTextProps, MarkdownStyle } from 'react-native-enriched-markdown';
 import { useUnistyles } from 'react-native-unistyles';
 
@@ -7,6 +7,7 @@ import { Typography } from '@/constants/Typography';
 import { useLocalSetting } from '@/sync/domains/state/storage';
 import { scaleTextStyle } from '@/components/ui/text/uiFontScale';
 import type { MarkdownRenderingProfile } from '../rendering/MarkdownRenderingProfile';
+import { adaptEnrichedMarkdownStyleForAndroid } from './androidEnrichedMarkdownStyle';
 
 type ThemeColors = Readonly<{
     text: Readonly<{
@@ -299,7 +300,7 @@ export function buildEnrichedMarkdownStyle(params: Readonly<{
     };
 
     return {
-        markdownStyle,
+        markdownStyle: Platform.OS === 'android' ? adaptEnrichedMarkdownStyleForAndroid(markdownStyle) : markdownStyle,
         containerStyle: {
             width: '100%',
         },
