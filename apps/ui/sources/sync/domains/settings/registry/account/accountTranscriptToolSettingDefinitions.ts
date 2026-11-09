@@ -101,8 +101,7 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
     },
     transcriptGroupToolCalls: {
         schema: z.boolean(),
-        // 8T fork: one row per tool call, as in Happy and Claude Code.
-        default: false,
+        default: true,
         description: 'Group consecutive tool calls into a Tool calls section in the transcript',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },

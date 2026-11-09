@@ -1074,9 +1074,9 @@ describe('settings', () => {
         it('defaults transcript grouping settings', () => {
             const parsed = settingsParse({});
             expect((parsed as any).transcriptGroupingMode).toBe('turns');
-            expect((parsed as any).transcriptGroupToolCalls).toBe(false);
+            expect((parsed as any).transcriptGroupToolCalls).toBe(true);
             expect((parsed as any).transcriptTurnToolCallsGroupStrategy).toBe('consecutive_tools');
-            expect((parsed as any).transcriptToolCallsCollapsedPreviewCount).toBe(3);
+            expect((parsed as any).transcriptToolCallsCollapsedPreviewCount).toBe(0);
             expect((parsed as any).transcriptToolCallsGroupShowBackground).toBe(false);
             expect((settingsParse({ transcriptToolCallsGroupShowBackground: true }) as any).transcriptToolCallsGroupShowBackground).toBe(true);
             expect((parsed as any).transcriptMessageTimestampDisplayMode).toBe('hover_web_hidden_mobile');
