@@ -6131,6 +6131,16 @@ export const ru: TranslationStructure = {
     },
     toolCalls: "Вызовы инструментов",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} ещё…`,
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `команды: ${count}`,
+        reads: ({ count }: { count: number }) => `прочитано файлов: ${count}`,
+        searches: ({ count }: { count: number }) => `поиски: ${count}`,
+        edits: ({ count }: { count: number }) => `изменено файлов: ${count}`,
+        web: ({ count }: { count: number }) => `веб-страницы: ${count}`,
+        agents: ({ count }: { count: number }) => `агенты: ${count}`,
+        other: ({ count }: { count: number }) => `инструменты: ${count}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Ведёт эту сессию.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Последний раз использовался в этой сессии.`,

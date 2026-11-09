@@ -5930,6 +5930,16 @@ export const it: TranslationStructure = {
     },
     toolCalls: "Chiamate strumento",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} in più…`,
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `${count} ${count === 1 ? 'comando eseguito' : 'comandi eseguiti'}`,
+        reads: ({ count }: { count: number }) => `${count} ${count === 1 ? 'file letto' : 'file letti'}`,
+        searches: ({ count }: { count: number }) => `${count} ${count === 1 ? 'ricerca' : 'ricerche'}`,
+        edits: ({ count }: { count: number }) => `${count} ${count === 1 ? 'file modificato' : 'file modificati'}`,
+        web: ({ count }: { count: number }) => `${count} ${count === 1 ? 'pagina web recuperata' : 'pagine web recuperate'}`,
+        agents: ({ count }: { count: number }) => `${count} ${count === 1 ? 'agente avviato' : 'agenti avviati'}`,
+        other: ({ count }: { count: number }) => `${count} ${count === 1 ? 'strumento usato' : 'strumenti usati'}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Esegue questa sessione.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Ultimo usato da questa sessione.`,

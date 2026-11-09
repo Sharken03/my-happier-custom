@@ -4923,6 +4923,16 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
           },
           toolCalls: '工具呼叫',
           toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 更多…`,
+          toolCallsSummary: {
+              separator: '，',
+              commands: ({ count }: { count: number }) => `執行了 ${count} 個命令`,
+              reads: ({ count }: { count: number }) => `讀取了 ${count} 個檔案`,
+              searches: ({ count }: { count: number }) => `搜尋了 ${count} 次`,
+              edits: ({ count }: { count: number }) => `編輯了 ${count} 個檔案`,
+              web: ({ count }: { count: number }) => `取得了 ${count} 個網頁`,
+              agents: ({ count }: { count: number }) => `執行了 ${count} 個代理`,
+              other: ({ count }: { count: number }) => `使用了 ${count} 個工具`,
+          },
             agentContinuation: {
                 currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。正在執行這個工作階段。`,
                 currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。此工作階段上次使用。`,

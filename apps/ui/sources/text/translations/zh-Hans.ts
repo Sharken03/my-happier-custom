@@ -5397,6 +5397,16 @@ export const zhHans: TranslationStructure = {
     },
     toolCalls: "工具调用",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 更多…`,
+    toolCallsSummary: {
+        separator: '，',
+        commands: ({ count }: { count: number }) => `运行了 ${count} 条命令`,
+        reads: ({ count }: { count: number }) => `读取了 ${count} 个文件`,
+        searches: ({ count }: { count: number }) => `搜索了 ${count} 次`,
+        edits: ({ count }: { count: number }) => `编辑了 ${count} 个文件`,
+        web: ({ count }: { count: number }) => `获取了 ${count} 个网页`,
+        agents: ({ count }: { count: number }) => `运行了 ${count} 个代理`,
+        other: ({ count }: { count: number }) => `使用了 ${count} 个工具`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。正在运行此会话。`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。此会话上次使用。`,

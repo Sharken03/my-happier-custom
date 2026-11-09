@@ -5596,6 +5596,16 @@ export const pl: TranslationStructure = {
     },
     toolCalls: "Wywołania narzędzi",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} więcej…`,
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `polecenia: ${count}`,
+        reads: ({ count }: { count: number }) => `odczytane pliki: ${count}`,
+        searches: ({ count }: { count: number }) => `wyszukiwania: ${count}`,
+        edits: ({ count }: { count: number }) => `zmienione pliki: ${count}`,
+        web: ({ count }: { count: number }) => `strony WWW: ${count}`,
+        agents: ({ count }: { count: number }) => `agenci: ${count}`,
+        other: ({ count }: { count: number }) => `narzędzia: ${count}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Prowadzi tę sesję.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Ostatnio używany przez tę sesję.`,

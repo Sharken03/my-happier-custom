@@ -215,7 +215,7 @@ export const ToolCallsGroupViewWithSessionCommon = React.memo((props: ToolCallsG
             <ToolCallsGroupHeaderChrome
                 chromeMode={normalizedChromeMode}
                 status={props.status}
-                count={count}
+                toolMessages={props.toolMessages}
                 expanded={expanded}
                 onToggle={onToggle}
             />

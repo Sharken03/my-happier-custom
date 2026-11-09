@@ -5248,6 +5248,16 @@ export const en = {
         },
         toolCalls: 'Tool calls',
         toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} more…`,
+        toolCallsSummary: {
+            separator: ', ',
+            commands: ({ count }: { count: number }) => `ran ${count} ${count === 1 ? 'command' : 'commands'}`,
+            reads: ({ count }: { count: number }) => `read ${count} ${count === 1 ? 'file' : 'files'}`,
+            searches: ({ count }: { count: number }) => `searched for ${count} ${count === 1 ? 'pattern' : 'patterns'}`,
+            edits: ({ count }: { count: number }) => `edited ${count} ${count === 1 ? 'file' : 'files'}`,
+            web: ({ count }: { count: number }) => `fetched ${count} web ${count === 1 ? 'page' : 'pages'}`,
+            agents: ({ count }: { count: number }) => `ran ${count} ${count === 1 ? 'agent' : 'agents'}`,
+            other: ({ count }: { count: number }) => `used ${count} ${count === 1 ? 'tool' : 'tools'}`,
+        },
         agentContinuation: {
             currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Running this Session.`,
             currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Last used by this Session.`,

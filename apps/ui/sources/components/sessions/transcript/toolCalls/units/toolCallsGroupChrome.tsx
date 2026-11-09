@@ -17,6 +17,7 @@ import { resolveToolStatusIndicatorKind } from '@/components/tools/shell/present
 
 import type { GroupedToolCallChromeMode } from './groupedToolCallRowRenderDecision';
 import { Icon } from '@/components/ui/icons/Icon';
+import { summarizeToolCallsGroup } from './toolCallsGroupSummary';
 import { ICON_SIZE } from '@/components/ui/icons/Icon';
 
 export type ToolCallsGroupChromeVariant = 'cards' | 'feed' | 'feed_background';
@@ -136,25 +137,31 @@ export function ToolCallsGroupUnitRowScaffold(props: Readonly<{ children: React.
 }
 
 /**
- * The grouped tool-calls header row: icon, title + count, status indicator, and the
+ * The grouped tool-calls header row: icon, a summary of what the calls did ("Ran 2 commands, read
+ * 3 files"; "Tool calls · N" when no call counts), status indicator, and the
  * expansion toggle. Shared between the whole-card
  * ToolCallsGroupView and the per-unit header row.
  */
 export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHeaderChrome(props: Readonly<{
     chromeMode: GroupedToolCallChromeMode;
     status: ToolCallsGroupStatus;
-    count: number;
+    toolMessages: readonly ToolCallMessage[];
     expanded: boolean;
     onToggle: () => void;
 }>) {
     const { theme } = useUnistyles();
+    const count = props.toolMessages.length;
+    const summary = React.useMemo(
+        () => summarizeToolCallsGroup(props.toolMessages.map((message) => message.tool?.name ?? '')),
+        [props.toolMessages],
+    );
 
     return (
         <Pressable
             testID="transcript-tool-calls-header"
             onPress={props.onToggle}
             accessibilityRole="button"
-            accessibilityLabel={`${t('session.toolCalls')}: ${props.count}`}
+            accessibilityLabel={summary ?? `${t('session.toolCalls')}: ${count}`}
             accessibilityState={{ expanded: props.expanded }}
             aria-expanded={props.expanded}
             style={({ pressed }) => [
@@ -166,10 +173,14 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
             <View style={chromeStyles.headerGutter}>
                 <Icon name="stack-simple" size={16} color={theme.colors.text.secondary} />
             </View>
-            <Text style={chromeStyles.title}>
-                {t('session.toolCalls')}
-                <Text style={chromeStyles.subtitle}> · {props.count}</Text>
-            </Text>
+            {summary ? (
+                <Text style={chromeStyles.title} numberOfLines={1}>{summary}</Text>
+            ) : (
+                <Text style={chromeStyles.title}>
+                    {t('session.toolCalls')}
+                    <Text style={chromeStyles.subtitle}> · {count}</Text>
+                </Text>
+            )}
             <View style={chromeStyles.headerRight}>
                 <View style={chromeStyles.statusIconRight}>
                     {props.status === 'running' ? (

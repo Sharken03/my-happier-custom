@@ -5857,6 +5857,16 @@ localTailscale: {
     },
     toolCalls: "ツール呼び出し",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 件…`,
+    toolCallsSummary: {
+        separator: '、',
+        commands: ({ count }: { count: number }) => `${count} 件のコマンドを実行`,
+        reads: ({ count }: { count: number }) => `${count} 件のファイルを読み込み`,
+        searches: ({ count }: { count: number }) => `${count} 回検索`,
+        edits: ({ count }: { count: number }) => `${count} 件のファイルを編集`,
+        web: ({ count }: { count: number }) => `${count} 件のウェブページを取得`,
+        agents: ({ count }: { count: number }) => `${count} 件のエージェントを実行`,
+        other: ({ count }: { count: number }) => `${count} 件のツールを使用`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。このセッションを実行中です。`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。このセッションで最後に使用されました。`,

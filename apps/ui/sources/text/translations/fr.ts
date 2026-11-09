@@ -5227,6 +5227,16 @@ export const fr: TranslationStructure = {
         },
         toolCalls: 'Appels d’outils',
         toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} de plus…`,
+        toolCallsSummary: {
+            separator: ', ',
+            commands: ({ count }: { count: number }) => `${count} ${count === 1 ? 'commande exécutée' : 'commandes exécutées'}`,
+            reads: ({ count }: { count: number }) => `${count} ${count === 1 ? 'fichier lu' : 'fichiers lus'}`,
+            searches: ({ count }: { count: number }) => `${count} ${count === 1 ? 'recherche' : 'recherches'}`,
+            edits: ({ count }: { count: number }) => `${count} ${count === 1 ? 'fichier modifié' : 'fichiers modifiés'}`,
+            web: ({ count }: { count: number }) => `${count} ${count === 1 ? 'page web récupérée' : 'pages web récupérées'}`,
+            agents: ({ count }: { count: number }) => `${count} ${count === 1 ? 'agent lancé' : 'agents lancés'}`,
+            other: ({ count }: { count: number }) => `${count} ${count === 1 ? 'outil utilisé' : 'outils utilisés'}`,
+        },
         agentContinuation: {
             currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Exécute cette session.`,
             currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Dernier Agent utilisé par cette session.`,

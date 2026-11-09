@@ -70,7 +70,7 @@ export const ToolCallsGroupUnitHeaderRowWithSessionCommon = React.memo(function 
                     <ToolCallsGroupHeaderChrome
                         chromeMode={chromeMode}
                         status={status}
-                        count={props.toolMessages.length}
+                        toolMessages={props.toolMessages}
                         expanded={props.expanded}
                         onToggle={onToggle}
                     />

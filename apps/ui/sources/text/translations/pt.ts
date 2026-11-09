@@ -5695,6 +5695,16 @@ export const pt: TranslationStructure = {
     },
     toolCalls: "Chamadas de ferramenta",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} mais…`,
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `${count} ${count === 1 ? 'comando executado' : 'comandos executados'}`,
+        reads: ({ count }: { count: number }) => `${count} ${count === 1 ? 'arquivo lido' : 'arquivos lidos'}`,
+        searches: ({ count }: { count: number }) => `${count} ${count === 1 ? 'busca' : 'buscas'}`,
+        edits: ({ count }: { count: number }) => `${count} ${count === 1 ? 'arquivo editado' : 'arquivos editados'}`,
+        web: ({ count }: { count: number }) => `${count} ${count === 1 ? 'página web obtida' : 'páginas web obtidas'}`,
+        agents: ({ count }: { count: number }) => `${count} ${count === 1 ? 'agente iniciado' : 'agentes iniciados'}`,
+        other: ({ count }: { count: number }) => `${count} ${count === 1 ? 'ferramenta usada' : 'ferramentas usadas'}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. A executar esta sessão.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Usado pela última vez nesta sessão.`,

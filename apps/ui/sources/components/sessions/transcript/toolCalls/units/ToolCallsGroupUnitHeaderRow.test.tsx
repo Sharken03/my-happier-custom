@@ -57,11 +57,12 @@ async function renderHeaderRow(props: Record<string, unknown>) {
 const GROUP_CAP_RADIUS_PX = 12; // theme.borderRadius.xl
 
 describe('ToolCallsGroupUnitHeaderRow', () => {
-    it('shows the tool-calls title with count and a completed status icon when all tools completed', async () => {
+    it('shows the tool-calls title with count and a completed status icon when no call has a summary kind', async () => {
+        // A group of turn Diff calls has nothing to summarize, so the header keeps "Tool calls · N".
         const screen = await renderHeaderRow({
             toolMessages: [
-                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { state: 'completed' } as any }),
-                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { name: 'Diff', state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { name: 'Diff', state: 'completed' } as any }),
             ],
         });
 

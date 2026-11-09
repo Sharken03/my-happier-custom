@@ -19,3 +19,5 @@ sources/components/sessions/transcript/ChatHeaderView.test.tsx
 sources/components/sessions/agentInput/components/AgentInputEngineDetail.favorites.test.ts
 sources/components/sessions/agentInput/AgentInput.modelOptionsOverride.test.tsx
 sources/sync/domains/settings/settings.spec.ts
+sources/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary.test.ts
+sources/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow.test.tsx

@@ -5243,6 +5243,16 @@ deps: {
         },
         toolCalls: 'Crides d’eines',
         toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} més…`,
+        toolCallsSummary: {
+            separator: ', ',
+            commands: ({ count }: { count: number }) => `${count} ${count === 1 ? 'ordre executada' : 'ordres executades'}`,
+            reads: ({ count }: { count: number }) => `${count} ${count === 1 ? 'fitxer llegit' : 'fitxers llegits'}`,
+            searches: ({ count }: { count: number }) => `${count} ${count === 1 ? 'cerca' : 'cerques'}`,
+            edits: ({ count }: { count: number }) => `${count} ${count === 1 ? 'fitxer editat' : 'fitxers editats'}`,
+            web: ({ count }: { count: number }) => `${count} ${count === 1 ? 'pàgina web obtinguda' : 'pàgines web obtingudes'}`,
+            agents: ({ count }: { count: number }) => `${count} ${count === 1 ? 'agent iniciat' : 'agents iniciats'}`,
+            other: ({ count }: { count: number }) => `${count} ${count === 1 ? 'eina usada' : 'eines usades'}`,
+        },
         agentContinuation: {
             currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Executant aquesta sessió.`,
             currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Utilitzat per última vegada en aquesta sessió.`,
