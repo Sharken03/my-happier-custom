@@ -37,6 +37,9 @@ describe('Session composer settings: composer buttons', () => {
         const screen = await renderSettingsView(React.createElement(SessionComposerSettingsScreen));
 
         expect(screen.findGroup('settingsSession.composerButtons.title')).toBeTruthy();
+        // The long list opens on demand.
+        expect(screen.findRowByTitle('settingsSession.composerButtons.controls.connectedServices')).toBeFalsy();
+        screen.pressRowByTitle('settingsSession.composerButtons.title');
 
         screen.pressRowByTitle('settingsSession.composerButtons.controls.connectedServices');
         expect(sessionSettingsEntryState.settingsState.agentInputHiddenControls).toEqual(['mcp', 'connectedServices']);
@@ -44,6 +47,7 @@ describe('Session composer settings: composer buttons', () => {
         // The fixture store does not re-render, so a fresh screen reads the written value.
         standardCleanup();
         const next = await renderSettingsView(React.createElement(SessionComposerSettingsScreen));
+        next.pressRowByTitle('settingsSession.composerButtons.title');
         next.pressRowByTitle('settingsSession.composerButtons.controls.mcp');
         expect(sessionSettingsEntryState.settingsState.agentInputHiddenControls).toEqual(['connectedServices']);
     });

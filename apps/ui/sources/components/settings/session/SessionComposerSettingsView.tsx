@@ -41,6 +41,8 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [agentInputChipDensity, setAgentInputChipDensity] = useSettingMutable('agentInputChipDensity');
     const [storedHiddenControls, setHiddenControls] = useSettingMutable('agentInputHiddenControls');
     const [modelChipStyle, setModelChipStyle] = useSettingMutable('agentInputModelChipStyle');
+    // The list of buttons is long, so it opens on demand.
+    const [composerButtonsExpanded, setComposerButtonsExpanded] = React.useState(false);
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
@@ -228,48 +230,6 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     onPress={() => setNewSessionAfterSend('startAnother')}
                     showChevron={false}
                 />
-            </ItemGroup>
-
-            <ItemGroup title={t('settingsSession.modelChip.title')} footer={t('settingsSession.modelChip.footer')}>
-                <Item
-                    testID="settings-model-chip-agent-and-model"
-                    title={t('settingsSession.modelChip.agentAndModelTitle')}
-                    subtitle={t('settingsSession.modelChip.agentAndModelSubtitle')}
-                    rightElement={modelChipStyle !== 'modelAndEffort'
-                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
-                        : null}
-                    onPress={() => setModelChipStyle('agentAndModel')}
-                    showChevron={false}
-                />
-                <Item
-                    testID="settings-model-chip-model-and-effort"
-                    title={t('settingsSession.modelChip.modelAndEffortTitle')}
-                    subtitle={t('settingsSession.modelChip.modelAndEffortSubtitle')}
-                    rightElement={modelChipStyle === 'modelAndEffort'
-                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
-                        : null}
-                    onPress={() => setModelChipStyle('modelAndEffort')}
-                    showChevron={false}
-                />
-            </ItemGroup>
-
-            <ItemGroup title={t('settingsSession.composerButtons.title')} footer={t('settingsSession.composerButtons.footer')}>
-                {AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.map((controlId) => {
-                    const shown = !hiddenControls.includes(controlId);
-                    const toggle = () => setHiddenControls(shown
-                        ? [...hiddenControls, controlId]
-                        : hiddenControls.filter((id) => id !== controlId));
-                    return (
-                        <Item
-                            key={controlId}
-                            testID={`settings-composer-button-${controlId}`}
-                            title={t(`settingsSession.composerButtons.controls.${controlId}`)}
-                            rightElement={<Switch value={shown} onValueChange={toggle} />}
-                            showChevron={false}
-                            onPress={toggle}
-                        />
-                    );
-                })}
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.inputBehavior.title')} footer={t('settingsSession.inputBehavior.footer')}>
@@ -482,6 +442,56 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     }
                     showChevron={false}
                 />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.modelChip.title')} footer={t('settingsSession.modelChip.footer')}>
+                <Item
+                    testID="settings-model-chip-agent-and-model"
+                    title={t('settingsSession.modelChip.agentAndModelTitle')}
+                    subtitle={t('settingsSession.modelChip.agentAndModelSubtitle')}
+                    rightElement={modelChipStyle !== 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('agentAndModel')}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-model-chip-model-and-effort"
+                    title={t('settingsSession.modelChip.modelAndEffortTitle')}
+                    subtitle={t('settingsSession.modelChip.modelAndEffortSubtitle')}
+                    rightElement={modelChipStyle === 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('modelAndEffort')}
+                    showChevron={false}
+                />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.composerButtons.title')} footer={t('settingsSession.composerButtons.footer')}>
+                <Item
+                    testID="settings-composer-buttons-expander"
+                    title={t('settingsSession.composerButtons.title')}
+                    detail={`${AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.length - hiddenControls.filter((id) => (AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS as readonly string[]).includes(id)).length} / ${AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.length}`}
+                    rightElement={<Icon name={composerButtonsExpanded ? 'caret-up' : 'caret-down'} size={18} color={theme.colors.text.secondary} />}
+                    onPress={() => setComposerButtonsExpanded((expanded) => !expanded)}
+                    showChevron={false}
+                />
+                {composerButtonsExpanded ? AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.map((controlId) => {
+                    const shown = !hiddenControls.includes(controlId);
+                    const toggle = () => setHiddenControls(shown
+                        ? [...hiddenControls, controlId]
+                        : hiddenControls.filter((id) => id !== controlId));
+                    return (
+                        <Item
+                            key={controlId}
+                            testID={`settings-composer-button-${controlId}`}
+                            title={t(`settingsSession.composerButtons.controls.${controlId}`)}
+                            rightElement={<Switch value={shown} onValueChange={toggle} />}
+                            showChevron={false}
+                            onPress={toggle}
+                        />
+                    );
+                }) : null}
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.banners.title')} footer={t('settingsSession.banners.footer')}>
