@@ -2239,6 +2239,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     ...(option.modelOptions ? { modelOptions: option.modelOptions } : {}),
                 }))}
                 selectedModelId={effectiveModelPolicy.selectedModelId}
+                favoriteModelScope={agentId ?? undefined}
                 modelSummary={appliedModelPresentation?.summary
                     ? `${appliedModelPresentation.summary} · ${modelApplyTiming}`
                     : modelApplyTiming}

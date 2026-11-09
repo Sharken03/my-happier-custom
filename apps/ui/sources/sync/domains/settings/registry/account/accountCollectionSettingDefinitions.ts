@@ -60,6 +60,20 @@ export const ACCOUNT_COLLECTION_SETTING_DEFINITIONS = defineSettingDefinitions({
             serializeCurrent: arrayCount,
         },
     },
+    favoriteModels: {
+        schema: z.array(z.string()),
+        default: [],
+        description: 'Favorite models, as "<agentId>:<model value>"; the model picker lists them first',
+        storageScope: 'account',
+        analytics: {
+            trackCurrentState: true,
+            trackChanges: true,
+            valueKind: 'count',
+            privacy: 'count_only',
+            identityScope: 'person',
+            serializeCurrent: arrayCount,
+        },
+    },
     agentInputHiddenControls: {
         schema: z.array(z.string()),
         default: [],

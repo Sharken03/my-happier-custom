@@ -13,6 +13,7 @@ import type {
   SessionConfigOptionControl,
   SessionConfigOptionValueId,
 } from "@/sync/domains/sessionControl/configOptionsControl";
+import { useSetting, useSettingMutable } from "@/sync/domains/state/storage";
 import { t } from "@/text";
 
 import { AgentInputSessionConfigOptionsSection } from "./AgentInputSessionConfigOptionsSection";
@@ -37,6 +38,11 @@ type AgentInputEngineDetailProps = Readonly<{
   modelProbe?: OptionPickerProbeState;
   modelHeaderAccessory?: React.ReactNode;
   favoriteModelValues?: ReadonlySet<string>;
+  /**
+   * The agent whose favorite models (setting favoriteModels, "<scope>:<value>") the picker reads
+   * and toggles when the host does not pass favoriteModelValues itself.
+   */
+  favoriteModelScope?: string;
   isModelFavoritable?: (option: AgentInputEngineModelOption) => boolean;
   onToggleFavoriteModel?: (option: AgentInputEngineModelOption) => void;
   onSelectModel?: (value: string) => void;
@@ -94,7 +100,38 @@ function orderFavoriteModelOptionsFirst(
   return [...favoriteOptions, ...otherOptions];
 }
 
+const NO_FAVORITE_MODELS: readonly string[] = [];
+
+/** The favorite model values of one agent, from the setting's "<scope>:<value>" keys. */
+export function favoriteModelValuesForScope(keys: readonly string[], scope: string): ReadonlySet<string> {
+  const prefix = `${scope}:`;
+  return new Set(keys.filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length)));
+}
+
+/** The setting's keys with one agent's model added or, when it was a favorite, removed. */
+export function toggleFavoriteModelKey(keys: readonly string[], scope: string, value: string): string[] {
+  const key = `${scope}:${value}`;
+  return keys.includes(key) ? keys.filter((entry) => entry !== key) : [...keys, key];
+}
+
 export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
+  const [storedFavoriteModels, setFavoriteModels] = useSettingMutable("favoriteModels");
+  const compact = useSetting("agentInputCompactModelPicker") === true;
+  const favoriteModelKeys = storedFavoriteModels ?? NO_FAVORITE_MODELS;
+  const scope = props.favoriteModelScope;
+  const scopedFavoriteValues = React.useMemo<ReadonlySet<string> | undefined>(() => {
+    if (!scope) return undefined;
+    return favoriteModelValuesForScope(favoriteModelKeys, scope);
+  }, [favoriteModelKeys, scope]);
+  const favoriteModelValues = props.favoriteModelValues ?? scopedFavoriteValues;
+  const onToggleFavoriteModel = props.onToggleFavoriteModel ?? (scope
+    ? (option: AgentInputEngineModelOption) => {
+        setFavoriteModels(toggleFavoriteModelKey(favoriteModelKeys, scope, option.value));
+      }
+    : undefined);
+  // "Use CLI settings" is not a model.
+  const isModelFavoritable = props.isModelFavoritable
+    ?? ((option: AgentInputEngineModelOption) => option.value !== "default");
   const sectionOrder = props.sectionOrder ?? ["model", "config"];
   const surfaceVariant = props.surfaceVariant ?? "carded";
   const hasModelSection =
@@ -106,7 +143,9 @@ export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
   }
 
   const resolvedModelOptions = React.useMemo(() => {
-    const options = props.modelOptions ?? [];
+    const options = compact
+      ? (props.modelOptions ?? []).map((option) => ({ ...option, description: "" }))
+      : props.modelOptions ?? [];
     const shouldShowDescriptions = options.some(
       (option) =>
         option.value !== "default" &&
@@ -122,27 +161,25 @@ export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
       return { ...option, description: t("agentInput.model.configureInCli") };
     }) : options;
 
-    return orderFavoriteModelOptionsFirst(describedOptions, props.favoriteModelValues);
-  }, [props.favoriteModelValues, props.modelOptions]);
+    return orderFavoriteModelOptionsFirst(describedOptions, favoriteModelValues);
+  }, [compact, favoriteModelValues, props.modelOptions]);
 
   const favoriteOptions = React.useMemo<OptionPickerFavoriteOptions | undefined>(() => {
-    if (!props.onToggleFavoriteModel || !props.favoriteModelValues) {
+    if (!onToggleFavoriteModel || !favoriteModelValues) {
       return undefined;
     }
 
     return {
-      values: props.favoriteModelValues,
-      isFavoritable: props.isModelFavoritable
-        ? (option: OptionPickerOption) => props.isModelFavoritable?.(option as AgentInputEngineModelOption) === true
-        : undefined,
+      values: favoriteModelValues,
+      isFavoritable: (option: OptionPickerOption) => isModelFavoritable(option as AgentInputEngineModelOption) === true,
       onToggle: (option: OptionPickerOption) => {
-        props.onToggleFavoriteModel?.(option as AgentInputEngineModelOption);
+        onToggleFavoriteModel(option as AgentInputEngineModelOption);
       },
     };
   }, [
-    props.favoriteModelValues,
-    props.isModelFavoritable,
-    props.onToggleFavoriteModel,
+    favoriteModelValues,
+    isModelFavoritable,
+    onToggleFavoriteModel,
   ]);
 
   const sections: Record<"model" | "config", React.ReactNode | null> =
@@ -153,8 +190,10 @@ export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
             "model",
             <OptionPickerOverlay
               title={t("agentInput.model.title")}
-              summary={props.modelSummary}
-              notes={props.modelProbe?.error ? [...(props.modelNotes ?? []), t("errors.unknownError")] : props.modelNotes ?? []}
+              summary={compact ? undefined : props.modelSummary}
+              notes={props.modelProbe?.error
+                ? [...(compact ? [] : props.modelNotes ?? []), t("errors.unknownError")]
+                : compact ? [] : props.modelNotes ?? []}
               options={resolvedModelOptions}
               selectedValue={props.selectedModelId ?? "default"}
               emptyText={

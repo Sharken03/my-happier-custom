@@ -41,6 +41,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [agentInputChipDensity, setAgentInputChipDensity] = useSettingMutable('agentInputChipDensity');
     const [storedHiddenControls, setHiddenControls] = useSettingMutable('agentInputHiddenControls');
     const [modelChipStyle, setModelChipStyle] = useSettingMutable('agentInputModelChipStyle');
+    const [compactModelPicker, setCompactModelPicker] = useSettingMutable('agentInputCompactModelPicker');
     // The list of buttons is long, so it opens on demand.
     const [composerButtonsExpanded, setComposerButtonsExpanded] = React.useState(false);
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
@@ -464,6 +465,14 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                         : null}
                     onPress={() => setModelChipStyle('modelAndEffort')}
                     showChevron={false}
+                />
+                <Item
+                    testID="settings-model-picker-compact"
+                    title={t('settingsSession.modelChip.compactTitle')}
+                    subtitle={t('settingsSession.modelChip.compactSubtitle')}
+                    rightElement={<Switch value={compactModelPicker === true} onValueChange={setCompactModelPicker} />}
+                    showChevron={false}
+                    onPress={() => setCompactModelPicker(compactModelPicker !== true)}
                 />
             </ItemGroup>
 

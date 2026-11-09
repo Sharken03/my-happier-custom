@@ -65,4 +65,13 @@ describe('Session composer settings: composer buttons', () => {
         screen.pressRowByTitle('settingsSession.modelChip.modelAndEffortTitle');
         expect(sessionSettingsEntryState.settingsState.agentInputModelChipStyle).toBe('modelAndEffort');
     });
+
+    it('turns on the compact model list', async () => {
+        const mod = await import('@/app/(app)/settings/session/composer');
+        const SessionComposerSettingsScreen = mod.default;
+        const screen = await renderSettingsView(React.createElement(SessionComposerSettingsScreen));
+
+        screen.pressRow('settings-model-picker-compact');
+        expect(sessionSettingsEntryState.settingsState.agentInputCompactModelPicker).toBe(true);
+    });
 });

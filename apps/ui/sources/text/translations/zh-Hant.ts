@@ -7077,7 +7077,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
 
 settingsSession: {
     composerButtons: {"title": "輸入框按鈕", "footer": "關閉你不用的按鈕。它們也會從折疊選單中消失。", "controls": {"engine": "代理與模型", "mode": "工作階段模式", "goal": "目標", "permission": "權限", "profile": "設定檔", "env": "環境變數", "server": "伺服器", "connectedServices": "帳戶 (CLI Auth)", "mcp": "MCP 伺服器", "checkout": "分支與工作樹", "automation": "自動化", "attachments": "附加檔案", "linkedFiles": "連結檔案 (@)", "files": "檔案", "reviewComments": "審查評論", "storage": "逐字稿儲存", "providerOption": "提供者選項", "shortcuts": "捷徑", "machine": "機器", "path": "資料夾", "resume": "繼續"}},
-    modelChip: {"title": "模型標籤", "footer": "輸入框如何顯示接下來執行的模型。", "agentAndModelTitle": "代理圖示和模型", "agentAndModelSubtitle": "代理圖示加模型名稱。", "modelAndEffortTitle": "模型和推理強度", "modelAndEffortSubtitle": "模型名稱和推理強度，不顯示圖示（類似 Claude 應用程式）。"},
+    modelChip: {"title": "模型標籤", "footer": "輸入框如何顯示接下來執行的模型。", "agentAndModelTitle": "代理圖示和模型", "agentAndModelSubtitle": "代理圖示加模型名稱。", "modelAndEffortTitle": "模型和推理強度", "modelAndEffortSubtitle": "模型名稱和推理強度，不顯示圖示（類似 Claude 應用程式）。", "compactTitle": "精簡模型清單", "compactSubtitle": "不顯示狀態列和每個模型下的提供者。為模型加上星號可將其排在最前。"},
     terminalHostTitle: '新工作階段的終端機主機',
     terminalHostNone: '不使用終端機主機',
     newSessionAfterSend: { title: "傳送後", footer: "選擇從新工作階段編輯器傳送時的行為。長按傳送可為單則訊息選擇另一種方式。", openTitle: "開啟工作階段", openSubtitle: "工作階段啟動後立即前往。", startAnotherTitle: "留下並開始另一個", startAnotherSubtitle: "在背景繼續啟動，並開啟新的草稿。" },
