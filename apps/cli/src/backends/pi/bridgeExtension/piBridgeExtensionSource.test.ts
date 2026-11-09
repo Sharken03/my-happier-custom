@@ -333,6 +333,126 @@ if (args.input.value === 'fail') {
     }
   });
 
+  it('serves every tool call of a session through one long-lived tools serve process', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-serve-'));
+    try {
+      const launchesPath = join(dir, 'launches.log');
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+const { appendFileSync } = require('node:fs');
+const readline = require('node:readline');
+const argv = process.argv.slice(2);
+appendFileSync(${JSON.stringify(launchesPath)}, argv.slice(0, 2).join(' ') + '\\n');
+if (argv[0] === 'tools' && argv[1] === 'serve') {
+  process.stdout.write('startup noise\\n');
+  process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-ready' }) + '\\n');
+  readline.createInterface({ input: process.stdin }).on('line', (line) => {
+    const request = JSON.parse(line);
+    const envelope = request.args.input.value === 'fail'
+      ? { ok: false, error: { code: 'action_failed', message: 'expected failure' } }
+      : { ok: true, data: { output: { served: request.args, session: argv[argv.indexOf('--session-id') + 1], toolCallId: request.toolCallId } } };
+    process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-result', id: request.id, envelope }) + '\\n');
+  });
+} else {
+  process.stdout.write(JSON.stringify({ ok: true, data: { output: 'spawned per call' } }) + '\\n');
+}
+`, 'utf8');
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-serve',
+        directTools: [{
+          name: 'host_resolved_tool',
+          title: 'Host resolved tool',
+          description: 'Resolved by the canonical catalog',
+          inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+          call: { toolName: 'action_execute', actionId: 'memory.search' },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+      }));
+      const factory = await loadExtensionFactory();
+      const harness = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: configPath });
+      factory(harness.pi);
+      await harness.emit('session_start', {});
+
+      const call = (id: string, value: string) => harness.tools[0]!.execute(
+        id, { value }, new AbortController().signal, undefined, { cwd: dir },
+      ) as Promise<{ content: Array<{ text: string }> }>;
+      const [first, second] = await Promise.all([call('call-1', 'one'), call('call-2', 'two')]);
+      expect(JSON.parse(first.content[0]!.text)).toEqual({
+        served: { actionId: 'memory.search', input: { value: 'one' } },
+        session: 'sess-serve',
+        toolCallId: 'call-1',
+      });
+      expect(JSON.parse(second.content[0]!.text).served.input).toEqual({ value: 'two' });
+      await expect(call('call-3', 'fail')).rejects.toThrow('action_failed');
+
+      expect(readFileSync(launchesPath, 'utf8').trim().split('\n')).toEqual(['tools serve']);
+      await harness.emit('session_shutdown', {});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('starts a new tools serve process after one ends, and falls back when one ends during a call', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-serve-end-'));
+    try {
+      const launchesPath = join(dir, 'launches.log');
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+const { appendFileSync } = require('node:fs');
+const readline = require('node:readline');
+const argv = process.argv.slice(2);
+appendFileSync(${JSON.stringify(launchesPath)}, argv.slice(0, 2).join(' ') + '\\n');
+if (argv[0] === 'tools' && argv[1] === 'serve') {
+  process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-ready' }) + '\\n');
+  readline.createInterface({ input: process.stdin }).on('line', (line) => {
+    const request = JSON.parse(line);
+    if (request.args.input.value === 'die') process.exit(0);
+    const envelope = { ok: true, data: { output: 'served ' + request.args.input.value } };
+    process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-result', id: request.id, envelope }) + '\\n', () => {
+      if (request.args.input.value === 'last') process.exit(0);
+    });
+  });
+} else {
+  process.stdout.write(JSON.stringify({ ok: true, data: { output: 'spawned per call' } }) + '\\n');
+}
+`, 'utf8');
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-serve-end',
+        directTools: [{
+          name: 'host_resolved_tool',
+          title: 'Host resolved tool',
+          description: 'Resolved by the canonical catalog',
+          inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+          call: { toolName: 'action_execute', actionId: 'memory.search' },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+      }));
+      const factory = await loadExtensionFactory();
+      const harness = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: configPath });
+      factory(harness.pi);
+      await harness.emit('session_start', {});
+
+      const call = async (id: string, value: string) => JSON.parse((await harness.tools[0]!.execute(
+        id, { value }, new AbortController().signal, undefined, { cwd: dir },
+      ) as { content: Array<{ text: string }> }).content[0]!.text);
+      expect(await call('call-1', 'last')).toBe('served last');
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(await call('call-2', 'again')).toBe('served again');
+      expect(await call('call-3', 'die')).toBe('spawned per call');
+
+      expect(readFileSync(launchesPath, 'utf8').trim().split('\n')).toEqual(['tools serve', 'tools serve', 'tools call']);
+      await harness.emit('session_shutdown', {});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('registers exactly the host-resolved manifest and appends its prompt addition', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-config-'));
     try {

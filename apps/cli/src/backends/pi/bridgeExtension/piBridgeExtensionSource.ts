@@ -1,6 +1,12 @@
+import {
+  TOOLS_SERVE_READY_TYPE,
+  TOOLS_SERVE_REQUEST_TYPE,
+  TOOLS_SERVE_RESULT_MAX_BYTES,
+  TOOLS_SERVE_RESULT_TYPE,
+} from '@/cli/commands/toolsServe';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE, PI_BRIDGE_USER_INPUT_MARKER_TYPE } from './piBridgeExtensionEnv';
 
-export const PI_BRIDGE_EXTENSION_VERSION = '5';
+export const PI_BRIDGE_EXTENSION_VERSION = '6';
 
 function jsString(value: string): string {
   return JSON.stringify(value);
@@ -20,6 +26,10 @@ const BRIDGE_OUTPUT_MAX_LINES = 4000;
 const TOOL_OUTPUT_MAX_BYTES = 50 * 1024;
 const TOOL_OUTPUT_MAX_LINES = 2000;
 const TOOL_OUTPUT_NOTICE_RESERVE_BYTES = 256;
+const SERVE_READY_TYPE = ${jsString(TOOLS_SERVE_READY_TYPE)};
+const SERVE_REQUEST_TYPE = ${jsString(TOOLS_SERVE_REQUEST_TYPE)};
+const SERVE_RESULT_TYPE = ${jsString(TOOLS_SERVE_RESULT_TYPE)};
+const SERVE_RESULT_MAX_BYTES = ${TOOLS_SERVE_RESULT_MAX_BYTES};
 
 function readFlagString(pi, name) {
   try {
@@ -231,6 +241,112 @@ async function callHappierTool(config, toolName, args, toolCallId, signal, cwd) 
   return parseEnvelope(result.stdout);
 }
 
+// One long-lived "tools serve" process per session pays the CLI start-up once; a
+// process per call pays it on every call (about 4 s on a phone). The serve process ends
+// itself after a time without calls, and the next call starts a new one. call() returns
+// null when no serve process can answer (an older CLI exits without the ready line, or
+// the process ended during the call), and the caller then spawns "tools call" for it.
+function createToolsServeClient(config) {
+  let current = null;
+  let unavailable = false;
+  const start = () => {
+    let child;
+    try {
+      child = spawn(config.launch.filePath, [...config.launch.argPrefix, "tools", "serve", "--session-id", config.sessionId], {
+        env: { ...process.env, ...config.launch.env },
+        shell: false,
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "ignore"],
+      });
+    } catch {
+      unavailable = true;
+      return null;
+    }
+    const server = { child, pending: new Map(), nextId: 1, alive: true, wasReady: false };
+    let markReady = () => {};
+    server.ready = new Promise((resolve) => { markReady = resolve; });
+    let buffer = "";
+    server.stop = () => {
+      if (!server.alive) return;
+      server.alive = false;
+      if (!server.wasReady) unavailable = true;
+      markReady(false);
+      if (current === server) current = null;
+      for (const finish of server.pending.values()) {
+        finish(null);
+      }
+      server.pending.clear();
+      try { child.kill("SIGTERM"); } catch {}
+    };
+    child.stdout.on("data", (data) => {
+      buffer += data.toString("utf8");
+      let index;
+      while ((index = buffer.indexOf("\\n")) !== -1) {
+        const line = buffer.slice(0, index).trim();
+        buffer = buffer.slice(index + 1);
+        if (!line.startsWith("{")) continue;
+        let message;
+        try { message = JSON.parse(line); } catch { continue; }
+        if (message && message.type === SERVE_READY_TYPE) {
+          server.wasReady = true;
+          markReady(true);
+        } else if (message && message.type === SERVE_RESULT_TYPE && server.pending.has(message.id)) {
+          const finish = server.pending.get(message.id);
+          server.pending.delete(message.id);
+          const envelope = message.envelope;
+          finish(envelope && typeof envelope === "object" && typeof envelope.ok === "boolean"
+            ? envelope
+            : { ok: false, error: { code: "bridge_invalid_output", message: "Happier tools serve returned an invalid result" } });
+        }
+      }
+      // A result line is at most SERVE_RESULT_MAX_BYTES; more without a newline is a broken stream.
+      if (Buffer.byteLength(buffer, "utf8") > SERVE_RESULT_MAX_BYTES + 1024) server.stop();
+    });
+    child.stdin.on("error", () => server.stop());
+    child.once("error", () => server.stop());
+    child.once("close", () => server.stop());
+    // Pi must be able to exit while the serve process waits; Pi's exit closes its stdin and stops it.
+    child.unref?.();
+    child.stdin.unref?.();
+    child.stdout.unref?.();
+    return server;
+  };
+  return {
+    warm() {
+      if (!current && !unavailable) current = start();
+    },
+    async call(toolName, args, toolCallId, signal) {
+      if (!current && !unavailable) current = start();
+      const server = current;
+      if (!server || !(await server.ready) || !server.alive) return null;
+      if (signal?.aborted) return { ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } };
+      return await new Promise((resolve) => {
+        const id = server.nextId++;
+        const onAbort = () => {
+          server.pending.delete(id);
+          resolve({ ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } });
+        };
+        server.pending.set(id, (envelope) => {
+          signal?.removeEventListener?.("abort", onAbort);
+          resolve(envelope);
+        });
+        signal?.addEventListener?.("abort", onAbort, { once: true });
+        server.child.stdin.write(JSON.stringify({
+          type: SERVE_REQUEST_TYPE,
+          id,
+          tool: toolName,
+          args: args ?? {},
+          toolCallId: typeof toolCallId === "string" ? toolCallId.trim() : "",
+        }) + "\\n");
+      });
+    },
+    stop() {
+      current?.stop();
+      current = null;
+    },
+  };
+}
+
 function emitContextTelemetryMarker(ctx) {
   let usage = null;
   try { usage = typeof ctx?.getContextUsage === "function" ? ctx.getContextUsage() : null; } catch {}
@@ -253,6 +369,9 @@ export default function HappierPiToolsBridgeExtension(pi) {
     const config = readSessionConfig(pi);
     if (!config) return;
     registered = true;
+    const toolsServe = createToolsServeClient(config);
+    toolsServe.warm();
+    pi.on("session_shutdown", () => toolsServe.stop());
 
     // Observe submitted extension input at Pi's public input boundary, as the host does
     // for its own submissions. Later input handlers may transform or handle it; a handler
@@ -287,7 +406,8 @@ export default function HappierPiToolsBridgeExtension(pi) {
           const callArgs = tool.call.actionId === null
             ? args
             : { actionId: tool.call.actionId, input: args };
-          return envelopeToToolResult(await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
+          const served = await toolsServe.call(tool.call.toolName, callArgs, toolCallId, signal);
+          return envelopeToToolResult(served ?? await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
         },
       });
     }
