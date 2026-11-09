@@ -2043,4 +2043,37 @@ describe('PiRpcBackend pending turn lifecycle', () => {
       await backend.dispose();
     }
   });
+
+  it('reports the files a turn edited as a canonical Diff with absolute paths', async () => {
+    const workDir = makeTempDir('happier-pi-rpc-turn-changes-');
+    tempDirs.push(workDir);
+    const fakeScript = writeFakePiRpcScript(
+      workDir,
+      'fake-pi-rpc-turn-changes.js',
+      `
+      out({ type: 'agent_start' });
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'edit-1', toolName: 'edit', args: { path: 'notes.md', edits: [{ oldText: 'old line', newText: 'new line' }] } }), 5);
+      setTimeout(() => out({ type: 'tool_execution_end', toolCallId: 'edit-1', toolName: 'edit', result: { content: [{ type: 'text', text: 'ok' }] } }), 10);
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'write-1', toolName: 'write', args: { path: '/elsewhere/repo/new.ts', content: 'x' } }), 15);
+      setTimeout(() => out({ type: 'tool_execution_end', toolCallId: 'write-1', toolName: 'write', result: { content: [{ type: 'text', text: 'ok' }] } }), 20);
+      setTimeout(() => out({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'done' }] } }), 25);
+      setTimeout(() => out({ type: 'agent_end' }), 30);
+`,
+    );
+    const backend = createBackend({ workDir, scriptPath: fakeScript });
+    const messages: AgentMessage[] = [];
+    backend.onMessage((message) => messages.push(message));
+
+    try {
+      const session = await backend.startSession();
+      await backend.sendPrompt(session.sessionId, 'edit two files');
+      const diffCalls = messages.filter((message) => message.type === 'tool-call' && message.toolName === 'Diff');
+      expect(diffCalls).toHaveLength(1);
+      const diffCall = diffCalls[0] as Extract<AgentMessage, { type: 'tool-call' }>;
+      const files = (diffCall.args as { files?: Array<{ file_path?: string }> }).files ?? [];
+      expect(files.map((file) => file.file_path).sort()).toEqual([join(workDir, 'notes.md'), '/elsewhere/repo/new.ts'].sort());
+    } finally {
+      await backend.dispose();
+    }
+  });
 });

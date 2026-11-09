@@ -7,3 +7,4 @@ src/daemon/chatFolders/removeEmptyChatFolder.test.ts
 src/daemon/chatFolders/initChatFolderRepo.test.ts
 src/utils/fs/jsonOwnerFileLock.test.ts
 src/daemon/identity/store.test.ts
+src/backends/pi/rpc/PiRpcBackend.pendingTurnLifecycle.test.ts

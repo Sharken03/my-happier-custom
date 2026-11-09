@@ -62,6 +62,8 @@ import {
   type PiContextTelemetry,
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
+import { PiTurnChangeTracker } from './piTurnChangeTracker';
+import { emitCanonicalTurnDiffTool } from '@/agent/runtime/emitCanonicalTurnDiffTool';
 import {
   createPiProviderFailureError,
   normalizePiProviderFailure,
@@ -693,6 +695,7 @@ export class PiRpcBackend implements AgentBackend {
   private readonly activeExtensionUiRequestIds = new Set<string>();
   private readonly permissionHandler: AcpPermissionHandler | null;
   private pendingTurn: PendingTurn | null = null;
+  private readonly turnChangeTracker = new PiTurnChangeTracker();
   private pendingTurnBarrier: Deferred<void> | null = null;
   private sessionId: string | null = null;
   private sessionFile: string | null = null;
@@ -2199,6 +2202,7 @@ export class PiRpcBackend implements AgentBackend {
     });
 
     for (const msg of mappedMessages) {
+      this.observeTurnChange(msg);
       this.emitMessage(msg);
     }
 
@@ -2590,12 +2594,51 @@ export class PiRpcBackend implements AgentBackend {
     return this.pendingTurn === pending;
   }
 
+  private observeTurnChange(message: AgentMessage): void {
+    if (message.type === 'tool-call') {
+      this.turnChangeTracker.observePiToolCall({
+        callId: message.callId,
+        toolName: message.toolName,
+        args: message.args,
+        cwd: this.options.cwd,
+      });
+    } else if (message.type === 'tool-result') {
+      this.turnChangeTracker.observeToolResult({ callId: message.callId, isError: message.isError === true });
+    }
+  }
+
+  /** Sends the files the finished turn changed as the canonical Diff tool call the app reads. */
+  private emitTurnChanges(): void {
+    const turnChangeSet = this.turnChangeTracker.completeTurn({
+      sessionId: this.sessionId ?? 'pi',
+      status: 'completed',
+    });
+    if (!turnChangeSet) return;
+    emitCanonicalTurnDiffTool({
+      turnChangeSet,
+      protocol: 'acp',
+      rawToolName: 'PiTurnDiff',
+      sendToolCall: ({ toolName, input, callId }) => {
+        const resolvedCallId = callId ?? randomUUID();
+        const args = input && typeof input === 'object' && !Array.isArray(input)
+          ? (input as Record<string, unknown>)
+          : {};
+        this.emitMessage({ type: 'tool-call', toolName, callId: resolvedCallId, args });
+        return resolvedCallId;
+      },
+      sendToolResult: ({ callId, output }) => {
+        this.emitMessage({ type: 'tool-result', toolName: 'Diff', callId, result: output });
+      },
+    });
+  }
+
   private resolvePendingTurn(): boolean {
     if (!this.pendingTurn) return false;
     const pending = this.pendingTurn;
     this.pendingTurn = null;
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
+    this.emitTurnChanges();
     this.emitMessage({ type: 'status', status: 'idle', turnFinished: true });
     pending.resolve();
     return true;
@@ -2607,6 +2650,7 @@ export class PiRpcBackend implements AgentBackend {
     this.pendingTurn = null;
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
+    this.turnChangeTracker.resetTurn();
     pending.reject(error);
   }
 
@@ -2658,6 +2702,7 @@ export class PiRpcBackend implements AgentBackend {
     if (this.pendingTurn !== pending) return;
     const error = new Error('Timed out waiting for Pi turn completion');
     this.pendingTurn = null;
+    this.turnChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     this.emitMessage({ type: 'status', status: 'error', detail: error.message });
@@ -2672,6 +2717,7 @@ export class PiRpcBackend implements AgentBackend {
       message: detail,
     });
     this.pendingTurn = null;
+    this.turnChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     const error = this.createPiAssistantFailureError(detail, classification);
