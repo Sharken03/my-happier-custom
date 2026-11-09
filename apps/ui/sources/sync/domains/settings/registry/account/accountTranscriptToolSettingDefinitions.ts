@@ -30,7 +30,8 @@ function buildOverrideCountSummaryProperties(value: unknown): Record<string, num
 export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefinitions({
     toolViewDetailLevelDefault: {
         schema: z.enum(['default', 'title', 'compact', 'summary', 'full']),
-        default: 'default',
+        // 8T fork: each tool call collapsed to one line (tool and main argument), as in Happy and Claude Code.
+        default: 'title',
         description: 'Default tool detail level in the session timeline',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
@@ -58,7 +59,7 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
     },
     toolViewExpandedDetailLevelDefault: {
         schema: z.enum(['default', 'summary', 'full']),
-        default: 'default',
+        default: 'full',
         description: 'Default expanded tool detail level in the session timeline',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
@@ -100,7 +101,8 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
     },
     transcriptGroupToolCalls: {
         schema: z.boolean(),
-        default: true,
+        // 8T fork: one row per tool call, as in Happy and Claude Code.
+        default: false,
         description: 'Group consecutive tool calls into a Tool calls section in the transcript',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },

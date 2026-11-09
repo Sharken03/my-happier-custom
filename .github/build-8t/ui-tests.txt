@@ -18,3 +18,4 @@ sources/components/sessions/agentInput/AgentInput.agentIdentity.test.tsx
 sources/components/sessions/transcript/ChatHeaderView.test.tsx
 sources/components/sessions/agentInput/components/AgentInputEngineDetail.favorites.test.ts
 sources/components/sessions/agentInput/AgentInput.modelOptionsOverride.test.tsx
+sources/sync/domains/settings/settings.spec.ts
