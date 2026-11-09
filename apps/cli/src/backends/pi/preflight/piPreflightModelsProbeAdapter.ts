@@ -87,6 +87,7 @@ async function probePiModels(params: PreflightSessionControlsProbeParams): Promi
           const entry = createPiModelCatalogEntry({
             provider: model.provider, modelId: model.id, name: model.name,
             supportsThinking: model.reasoning === true,
+            thinkingLevelMap: model.thinkingLevelMap,
           });
           return entry ? [entry] : [];
         });
