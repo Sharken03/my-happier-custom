@@ -1005,3 +1005,40 @@ await withJsonOwnerFileLock({
     }
   });
 });
+
+describe('withJsonOwnerFileLock without hard links', () => {
+  it('excludes a contender and releases when the filesystem denies hard links', async () => {
+    // Android app storage refuses link() with EACCES.
+    vi.mocked(linkMock).mockImplementation(async () => {
+      throw Object.assign(new Error('EACCES: permission denied, link'), { code: 'EACCES' });
+    });
+    const root = await mkdtemp(join(tmpdir(), 'happier-owner-lock-nolink-'));
+    const lockPath = join(root, 'owner.lock');
+    let releaseOwner = () => {};
+    let markEntered = () => {};
+    const entered = new Promise<void>((resolve) => { markEntered = resolve; });
+    const released = new Promise<void>((resolve) => { releaseOwner = resolve; });
+    const order: string[] = [];
+    try {
+      const owner = withJsonOwnerFileLock({
+        lockPath, timeoutMs: 5_000, staleAfterMs: 60_000, errorCode: 'lock_timeout',
+      }, async () => { order.push('owner'); markEntered(); await released; });
+      await entered;
+      const onWait = vi.fn();
+      const contender = withJsonOwnerFileLock({
+        lockPath, timeoutMs: 5_000, staleAfterMs: 60_000, errorCode: 'lock_timeout', pollIntervalMs: 2, onWait,
+      }, async () => { order.push('contender'); });
+      await vi.waitFor(() => expect(onWait).toHaveBeenCalledOnce());
+      expect(order).toEqual(['owner']);
+      releaseOwner();
+      await owner;
+      await contender;
+      expect(order).toEqual(['owner', 'contender']);
+      expect(await readdir(root)).toEqual([]);
+    } finally {
+      vi.mocked(linkMock).mockImplementation(async (...args) => await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises').then((actual) => actual.link(...args)));
+      releaseOwner();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});

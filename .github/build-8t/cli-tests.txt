@@ -5,3 +5,4 @@ src/daemon/machine/metadata.test.ts
 src/daemon/chatFolders/chatFolderTitleLink.test.ts
 src/daemon/chatFolders/removeEmptyChatFolder.test.ts
 src/daemon/chatFolders/initChatFolderRepo.test.ts
+src/utils/fs/jsonOwnerFileLock.test.ts
