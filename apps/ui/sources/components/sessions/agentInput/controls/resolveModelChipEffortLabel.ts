@@ -1,4 +1,7 @@
-import type { SessionModelsState } from '@/sync/domains/sessionControl/schema';
+import type { readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
+
+/** The session models state as the metadata reader returns it. */
+type SessionModelsState = ReturnType<typeof readSessionModelsState>;
 
 /** The model-scoped reasoning effort option; the protocol's canonical id (actionSpecs, session spawn). */
 const REASONING_EFFORT_OPTION_ID = 'reasoning_effort';
@@ -10,19 +13,20 @@ const REASONING_EFFORT_OPTION_ID = 'reasoning_effort';
  * session metadata the composer already holds, so a closed chip triggers no probe.
  */
 export function resolveModelChipEffortLabel(params: Readonly<{
-    modelsState: SessionModelsState | null;
+    modelsState: SessionModelsState;
     selectedModelId: string | null;
     overrides: Readonly<Record<string, Readonly<{ value: unknown }>>> | null | undefined;
 }>): string | null {
     const state = params.modelsState;
     if (!state) return null;
-    const model = state.availableModels.find((entry) => entry.id === (params.selectedModelId ?? state.currentModelId))
-        ?? state.availableModels.find((entry) => entry.id === state.currentModelId);
-    const option = model?.modelOptions.find((entry) => entry.id === REASONING_EFFORT_OPTION_ID);
+    const models = state.availableModels ?? [];
+    const model = models.find((entry) => entry.id === (params.selectedModelId ?? state.currentModelId))
+        ?? models.find((entry) => entry.id === state.currentModelId);
+    const option = model?.modelOptions?.find((entry) => entry.id === REASONING_EFFORT_OPTION_ID);
     if (!option) return null;
     const raw = params.overrides?.[REASONING_EFFORT_OPTION_ID]?.value ?? option.currentValue;
     if (raw === null || raw === undefined || raw === '') return null;
     const value = String(raw);
-    const choice = option.options.find((entry) => String(entry.value) === value);
+    const choice = option.options?.find((entry) => String(entry.value) === value);
     return choice?.name ?? `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }

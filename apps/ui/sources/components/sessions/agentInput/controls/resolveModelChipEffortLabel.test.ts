@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SessionModelsState } from '@/sync/domains/sessionControl/schema';
-
 import { resolveModelChipEffortLabel } from './resolveModelChipEffortLabel';
 
 const effortOption = {
@@ -15,7 +13,7 @@ const effortOption = {
     ],
 };
 
-const state: SessionModelsState = {
+const state: NonNullable<Parameters<typeof resolveModelChipEffortLabel>[0]['modelsState']> = {
     v: 1,
     provider: 'pi',
     updatedAt: 1,
