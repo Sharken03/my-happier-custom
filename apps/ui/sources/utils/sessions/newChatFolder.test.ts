@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { newChatFolderName, newChatFolderPath } from './newChatFolder';
+import { chatFolderParent, newChatFolderName, newChatFolderPath } from './newChatFolder';
 
 describe('newChatFolder', () => {
     it('names a chat folder by local date and a short random id', () => {
@@ -13,5 +13,14 @@ describe('newChatFolder', () => {
         const now = new Date(2026, 0, 2);
         expect(newChatFolderPath('/home/u/chats/', now, () => 0)).toBe('/home/u/chats/2026-01-02-0000');
         expect(newChatFolderPath('C:\\Users\\u\\chats', now, () => 0)).toBe('C:\\Users\\u\\chats\\2026-01-02-0000');
+    });
+
+    it('finds the chats folder that holds a chat folder, and nothing for other folders', () => {
+        expect(chatFolderParent('/home/u/projekter/chats/2026-11-09-oj7s')).toBe('/home/u/projekter/chats');
+        expect(chatFolderParent('/home/u/projekter/chats/2026-11-09-oj7s/')).toBe('/home/u/projekter/chats');
+        expect(chatFolderParent('C:\\Users\\u\\chats\\2026-01-02-0000')).toBe('C:\\Users\\u\\chats');
+        expect(chatFolderParent('/home/u/projekter/happier')).toBeNull();
+        expect(chatFolderParent('/home/u/chats/2026-11-09-oj7s/sub')).toBeNull();
+        expect(chatFolderParent('2026-11-09-oj7s')).toBeNull();
     });
 });

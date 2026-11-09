@@ -4921,6 +4921,7 @@ deps: {
             customPathTitle: 'Camí personalitzat',
             truncatedDirectoryInfo: ({ count }: { count: number }) => `Es mostren els primers ${count} elements`,
             recentTitle: 'Recents',
+            newChatOwnFolder: "Xat nou (carpeta pròpia)",
             favoritesTitle: 'Preferits',
             suggestedTitle: 'Suggerits',
             allTitle: 'Totes',

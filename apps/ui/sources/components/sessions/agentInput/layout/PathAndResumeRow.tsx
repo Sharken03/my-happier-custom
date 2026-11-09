@@ -4,8 +4,18 @@ import { ResumeChip } from './ResumeChip';
 import { normalizeNodeForView } from '@/components/ui/rendering/normalizeNodeForView';
 import { Text } from '@/components/ui/text/Text';
 import { Icon } from '@/components/ui/icons/Icon';
+import { t } from '@/text';
+import { formatPathRelativeToHome } from '@/utils/sessions/formatPathRelativeToHome';
+import { chatFolderParent } from '@/utils/sessions/newChatFolder';
 import { AGENT_INPUT_CHIP_ICON_SIZE_PX, AGENT_INPUT_CHIP_ICON_STYLE } from '@/components/sessions/agentInput/definitions/agentInputChipIconMetrics';
 
+
+
+/** A chat's own new folder reads as "New chat (own folder)"; other folders as ~/... when the home is known. */
+function formatComposerPath(path: string, homeDir: string | null | undefined): string {
+    if (chatFolderParent(path) !== null) return t('newSession.pathPicker.newChatOwnFolder');
+    return homeDir ? formatPathRelativeToHome(path, homeDir) : path;
+}
 
 export type PathAndResumeRowStyles = {
     pathRow: any;
@@ -23,6 +33,7 @@ export type PathAndResumeRowProps = {
     showChipLabels: boolean;
     iconColor: string;
     currentPath?: string | null;
+    currentPathHomeDir?: string | null;
     pathChipAnchorRef?: React.RefObject<RNView | null>;
     onPathClick?: () => void;
     emptyPathLabel: string;
@@ -71,7 +82,7 @@ export function PathAndResumeRow(props: PathAndResumeRowProps) {
                             style={[props.styles.actionChipText, { flexShrink: 1 }]}
                         >
                             {typeof props.currentPath === 'string' && props.currentPath.length > 0
-                                ? props.currentPath
+                                ? formatComposerPath(props.currentPath, props.currentPathHomeDir)
                                 : props.emptyPathLabel}
                         </Text>
                     </Pressable>

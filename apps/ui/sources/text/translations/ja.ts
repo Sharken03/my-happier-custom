@@ -5514,6 +5514,7 @@ localTailscale: {
       customPathTitle: "カスタムパス",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `最初の${count}件を表示`,
       recentTitle: "最近",
+      newChatOwnFolder: "新しいチャット（専用フォルダー）",
       favoritesTitle: "お気に入り",
       suggestedTitle: "おすすめ",
       allTitle: "すべて",

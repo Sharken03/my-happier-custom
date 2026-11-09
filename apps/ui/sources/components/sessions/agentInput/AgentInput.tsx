@@ -378,6 +378,8 @@ interface AgentInputProps {
     onMachineClick?: () => void;
     machinePopover?: AgentInputContentPopoverConfig;
     currentPath?: string | null;
+    /** Shortens the shown path to ~/... (the composer's folder line only). */
+    currentPathHomeDir?: string | null;
     onPathClick?: () => void;
     pathPopover?: AgentInputContentPopoverConfig;
     resumeSessionId?: string | null;
@@ -3230,6 +3232,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 showChipLabels={showChipLabels}
                                 iconColor={theme.colors.composer.chipTint}
                                 currentPath={props.currentPath}
+                                currentPathHomeDir={props.currentPathHomeDir}
                                 pathChipAnchorRef={pathChipAnchorRef}
                                 emptyPathLabel={t('newSession.selectPathTitle')}
                                 onPathClick={handlePathPress}
@@ -3259,6 +3262,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             showChipLabels={showChipLabels}
                             iconColor={theme.colors.composer.chipTint}
                             currentPath={props.currentPath}
+                            currentPathHomeDir={props.currentPathHomeDir}
                             pathChipAnchorRef={pathChipAnchorRef}
                             emptyPathLabel={t('newSession.selectPathTitle')}
                             onPathClick={handlePathPress}

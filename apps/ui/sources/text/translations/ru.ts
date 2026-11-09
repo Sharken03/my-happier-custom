@@ -5163,6 +5163,7 @@ export const ru: TranslationStructure = {
       customPathTitle: "Пользовательский путь",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `Показаны первые ${count} элементов`,
       recentTitle: "Недавние",
+      newChatOwnFolder: "Новый чат (своя папка)",
       favoritesTitle: "Избранное",
       suggestedTitle: "Рекомендуемые",
       allTitle: "Все",

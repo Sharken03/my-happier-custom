@@ -1261,6 +1261,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         selectedMachineId: selectedMachine?.id ?? null,
         selectedMachineHomeDir: selectedMachine?.metadata?.homeDir ?? null,
         selectedMachinePlatform: selectedMachine?.metadata?.platform ?? null,
+        selectedMachineChatsDir: selectedMachine?.metadata?.chatsDir ?? null,
         selectedPath,
         targetServerId: targetServerId ?? null,
     }), [
@@ -1269,6 +1270,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         selectedMachine?.id,
         selectedMachine?.metadata?.homeDir,
         selectedMachine?.metadata?.platform,
+        selectedMachine?.metadata?.chatsDir,
         selectedPath,
         targetServerId,
     ]);
@@ -1286,6 +1288,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
                 onChangeDraftSelectedPath={setDraftSelectedPath}
                 recentPaths={recentPaths}
                 favoriteDirectories={favoriteDirectories}
+                chatsDir={selectedMachine?.metadata?.chatsDir ?? null}
                 onToggleFavoriteDirectory={handleToggleFavoriteDirectory}
                 machineId={selectedMachine?.id ?? null}
                 serverId={targetServerId ?? null}

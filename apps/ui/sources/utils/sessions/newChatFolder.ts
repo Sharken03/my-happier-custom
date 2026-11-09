@@ -16,3 +16,16 @@ export function newChatFolderPath(chatsDir: string, now: Date, random?: () => nu
     const base = chatsDir.replace(/[\\/]+$/, '');
     return `${base}${separator}${newChatFolderName(now, random)}`;
 }
+
+const CHAT_FOLDER_NAME = /^\d{4}-\d{2}-\d{2}-[0-9a-z]{4}$/;
+
+/**
+ * The folder that holds a chat's own folder (newChatFolderName), or null when the path is not a
+ * chat folder. Lists group all chats under this folder instead of one group per chat.
+ */
+export function chatFolderParent(path: string): string | null {
+    const trimmed = path.replace(/[\\/]+$/, '');
+    const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+    if (cut <= 0) return null;
+    return CHAT_FOLDER_NAME.test(trimmed.slice(cut + 1)) ? trimmed.slice(0, cut) : null;
+}

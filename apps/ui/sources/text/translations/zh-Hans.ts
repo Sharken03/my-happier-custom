@@ -5064,6 +5064,7 @@ export const zhHans: TranslationStructure = {
       customPathTitle: "自定义路径",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `显示前 ${count} 项`,
       recentTitle: "最近",
+      newChatOwnFolder: "新聊天（独立文件夹）",
       favoritesTitle: "收藏",
       suggestedTitle: "推荐",
       allTitle: "全部",

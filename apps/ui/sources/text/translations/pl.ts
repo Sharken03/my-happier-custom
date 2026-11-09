@@ -5253,6 +5253,7 @@ export const pl: TranslationStructure = {
       customPathTitle: "Niestandardowa ścieżka",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `Pokazano pierwsze ${count} elementy`,
       recentTitle: "Ostatnie",
+      newChatOwnFolder: "Nowy czat (własny folder)",
       favoritesTitle: "Ulubione",
       suggestedTitle: "Sugerowane",
       allTitle: "Wszystkie",

@@ -4851,6 +4851,7 @@ export const de: TranslationStructure = {
             customPathTitle: 'Eigener Pfad',
             truncatedDirectoryInfo: ({ count }: { count: number }) => `Zeigt die ersten ${count} Einträge`,
             recentTitle: 'Zuletzt',
+            newChatOwnFolder: "Neuer Chat (eigener Ordner)",
             favoritesTitle: 'Favoriten',
             suggestedTitle: 'Vorschläge',
             allTitle: 'Alle',

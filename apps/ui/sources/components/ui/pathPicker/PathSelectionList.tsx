@@ -118,6 +118,8 @@ export type PathSelectionListProps = Readonly<{
     initialSuggestionMode?: PathSelectionInitialSuggestionMode;
     favorites: ReadonlyArray<PathSelectionListFavorite>;
     recents: ReadonlyArray<PathSelectionListRecent>;
+    /** A row at the top that starts the chat in this new folder of its own (new-chat folders). */
+    newChatPath?: string | null;
     machineHomeDir: string;
     /**
      * RUX-3: predicate that decides whether a given absolute path is currently
@@ -188,9 +190,7 @@ function buildFavoriteOptions(
             return {
                 id: optionId,
                 label: entry.label ?? formatPathRelativeToHome(absolutePath, machineHomeDir),
-                subtitle: absolutePath,
                 labelEllipsizeMode: 'head',
-                subtitleEllipsizeMode: 'head',
                 onSelect: () => onCommit(absolutePath),
                 autocompleteValue: absolutePath,
                 rightAccessory: favoriteAccessory(absolutePath, accessoryTestIdPrefix),
@@ -214,9 +214,7 @@ function buildRecentOptions(
             return {
                 id: optionId,
                 label: formatPathRelativeToHome(absolutePath, machineHomeDir),
-                subtitle: absolutePath,
                 labelEllipsizeMode: 'head',
-                subtitleEllipsizeMode: 'head',
                 onSelect: () => onCommit(absolutePath),
                 autocompleteValue: absolutePath,
                 rightAccessory: favoriteAccessory(absolutePath, accessoryTestIdPrefix),
@@ -256,6 +254,7 @@ export function PathSelectionList(props: PathSelectionListProps): React.ReactEle
         initialSuggestionMode = 'browse',
         favorites,
         recents,
+        newChatPath,
         machineHomeDir,
         machineId,
         serverId,
@@ -606,6 +605,16 @@ export function PathSelectionList(props: PathSelectionListProps): React.ReactEle
                 // any query — disable the subtitle tier for path rows.
                 disableSubtitleRanking: true,
             },
+            ...(newChatPath ? [{
+                kind: 'static' as const,
+                id: 'newChat',
+                options: [{
+                    id: `newChat:${newChatPath}`,
+                    label: t('newSession.pathPicker.newChatOwnFolder'),
+                    onSelect: () => onCommit(newChatPath),
+                    autocompleteValue: newChatPath,
+                } satisfies SelectionListOption],
+            }] : []),
             {
                 kind: 'static',
                 id: 'favorites',
@@ -643,6 +652,7 @@ export function PathSelectionList(props: PathSelectionListProps): React.ReactEle
         machineHomeDir,
         machineId,
         machinePlatform,
+        newChatPath,
         onCommit,
         visibleFavorites,
         visibleRecents,

@@ -4872,6 +4872,7 @@ export const en = {
             customPathTitle: 'Custom Path',
             truncatedDirectoryInfo: ({ count }: { count: number }) => `Showing first ${count} items`,
             recentTitle: 'Recent',
+            newChatOwnFolder: "New chat (own folder)",
             favoritesTitle: 'Favorites',
             suggestedTitle: 'Suggested',
             allTitle: 'All',

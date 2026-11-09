@@ -623,6 +623,7 @@ export const NewSessionWizard = React.memo(function NewSessionWizard(props: NewS
                                         machinePopover={props.footer.machinePopover}
                                         onMachineClick={props.footer.machinePopover ? undefined : handleAgentInputMachineClick}
                                         currentPath={selectedPath}
+                                        currentPathHomeDir={selectedMachine?.metadata?.homeDir ?? null}
                                         pathPopover={props.footer.pathPopover}
                                         onPathClick={props.footer.pathPopover ? undefined : handleAgentInputPathClick}
                                         resumeSessionId={resumeSessionId}

@@ -5585,6 +5585,7 @@ export const it: TranslationStructure = {
       customPathTitle: "Percorso personalizzato",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `Mostrati i primi ${count} elementi`,
       recentTitle: "Recenti",
+      newChatOwnFolder: "Nuova chat (cartella propria)",
       favoritesTitle: "Preferiti",
       suggestedTitle: "Suggeriti",
       allTitle: "Tutte",

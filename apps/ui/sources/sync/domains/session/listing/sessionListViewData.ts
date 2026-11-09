@@ -1,4 +1,5 @@
 import type { MachineDisplayRenderable } from '@/sync/domains/machines/machineDisplayRenderable';
+import { chatFolderParent } from '@/utils/sessions/newChatFolder';
 import type { SessionAppearanceColor } from '@/sync/domains/session/organization/appearanceColor';
 import type { SessionListRenderableSession } from './sessionListRenderable';
 import type { SessionListAttentionPromotionReason } from './attentionPromotion/sessionListAttentionPromotionTypes';
@@ -201,17 +202,27 @@ function resolveWorkspaceForSession(
         sessionTargetState?: SessionMachineTargetState;
         workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
         groupGitWorktreesByRepository?: boolean;
+        /** List a chat in its own folder (<chats>/<date>-<id>) under the chats folder, so chats share one group. */
+        groupChatFolders?: boolean;
     }>,
 ) {
-    const target = params.sessionTargetState
+    const resolvedTarget = params.sessionTargetState
         ? resolveDisplayIdentityForSessionFromState({
             state: params.sessionTargetState,
             sessionId: session.id,
             metadata: session.metadata ?? null,
         })
         : null;
+    const metadataPath = typeof session.metadata?.path === 'string' ? session.metadata.path : null;
+    const chatsFolder = params.groupChatFolders === true
+        ? chatFolderParent(resolvedTarget?.basePath || metadataPath || '')
+        : null;
+    const target = chatsFolder && resolvedTarget?.basePath ? { ...resolvedTarget, basePath: chatsFolder } : resolvedTarget;
+    const metadata = chatsFolder && session.metadata && metadataPath && chatFolderParent(metadataPath)
+        ? { ...session.metadata, path: chatsFolder }
+        : session.metadata ?? null;
     return resolveSessionWorkspacePresentation({
-        metadata: session.metadata ?? null,
+        metadata,
         machines: params.machines,
         target,
         workspacePathDisplayModeV1: params.workspacePathDisplayModeV1,
@@ -228,9 +239,9 @@ function groupSessionsByProject(params: Readonly<{
 }>): ProjectGroup[] {
     const groups = new Map<string, ProjectGroup>();
     for (const session of params.sessions) {
-        const checkout = resolveWorkspaceForSession(session, { ...params, groupGitWorktreesByRepository: false });
+        const checkout = resolveWorkspaceForSession(session, { ...params, groupGitWorktreesByRepository: false, groupChatFolders: true });
         const workspace = params.groupGitWorktreesByRepository === true && session.metadata?.sessionRepositoryV1
-            ? resolveWorkspaceForSession(session, params)
+            ? resolveWorkspaceForSession(session, { ...params, groupChatFolders: true })
             : checkout;
         const key = workspace.groupKey;
 

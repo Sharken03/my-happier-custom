@@ -4851,6 +4851,7 @@ export const fr: TranslationStructure = {
             customPathTitle: 'Chemin personnalisé',
             truncatedDirectoryInfo: ({ count }: { count: number }) => `Affichage des ${count} premiers éléments`,
             recentTitle: 'Récents',
+            newChatOwnFolder: "Nouvelle discussion (dossier propre)",
             favoritesTitle: 'Favoris',
             suggestedTitle: 'Suggérés',
             allTitle: 'Tout',

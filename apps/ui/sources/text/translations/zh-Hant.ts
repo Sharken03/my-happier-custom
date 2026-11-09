@@ -4641,6 +4641,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
             customPathTitle: '自訂路徑',
             truncatedDirectoryInfo: ({ count }: { count: number }) => `顯示前 ${count} 項`,
             recentTitle: '最近',
+            newChatOwnFolder: "新聊天（獨立資料夾）",
             favoritesTitle: '我的最愛',
             suggestedTitle: '建議',
             allTitle: '全部',

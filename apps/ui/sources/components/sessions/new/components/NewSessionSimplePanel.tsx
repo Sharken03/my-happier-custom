@@ -561,6 +561,7 @@ function NewSessionSimplePanelComposer({
                         machinePopover={props.machinePopover}
                         onMachineClick={undefined}
                         currentPath={props.selectedPath}
+                        currentPathHomeDir={props.selectedMachineHomeDir ?? null}
                         onPathClick={undefined}
                         pathPopover={props.pathPopover}
                         resumeSessionId={props.showResumePicker ? props.resumeSessionId : undefined}
