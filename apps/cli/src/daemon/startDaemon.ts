@@ -53,6 +53,7 @@ import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import { configuration, reloadConfiguration } from '@/configuration';
 import { isChatFolder } from '@/daemon/chatFolders/chatFolderTitleLink';
 import { removeEmptyChatFolder } from '@/daemon/chatFolders/removeEmptyChatFolder';
+import { initChatFolderRepo } from '@/daemon/chatFolders/initChatFolderRepo';
 import { startCaffeinate, stopCaffeinate } from '@/integrations/caffeinate';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
@@ -3586,6 +3587,12 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                 return ensuredDirectory.response;
               }
               directoryCreated = ensuredDirectory.directoryCreated;
+              if (directoryCreated && configuration.chatsDir) {
+                // A new chat folder gets a git repository for the app's changed-files view.
+                await initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
+                  logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
+                });
+              }
 
               try {
 
