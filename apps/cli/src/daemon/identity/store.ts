@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { chmod, link, mkdir, open, readFile, rm, stat } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, rm, stat } from 'node:fs/promises';
 import {
   chmodSync,
   closeSync,
   existsSync,
   fsyncSync,
-  linkSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -15,6 +14,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname } from 'node:path';
+
+import { publishFileExclusive, publishFileExclusiveSync } from '@/utils/fs/publishFileExclusive';
 import tweetnacl from 'tweetnacl';
 import {
   MachineInstallationIdentityV1Schema,
@@ -126,6 +127,9 @@ function fsyncDirectorySync(path: string): void {
   }
 }
 
+// Without hard links (Android) the identity is published as a copy, which is visible before it is
+// complete. The creation lock keeps other creators out; only a reader that races the very first
+// creation can see a partial file and fail once.
 async function publishInstallationIdentity(
   path: string,
   identity: MachineInstallationIdentityV1,
@@ -138,7 +142,7 @@ async function publishInstallationIdentity(
     await handle.sync();
     await handle.close();
     handle = null;
-    await link(tempPath, path);
+    await publishFileExclusive(tempPath, path);
     await rm(tempPath, { force: true }).catch(() => {});
     await chmodPrivate(path).catch(() => {});
     await fsyncDirectory(dirname(path));
@@ -160,7 +164,7 @@ function publishInstallationIdentitySync(path: string, identity: MachineInstalla
     fsyncSync(fd);
     closeSync(fd);
     fd = null;
-    linkSync(tempPath, path);
+    publishFileExclusiveSync(tempPath, path);
     try {
       unlinkSync(tempPath);
     } catch {

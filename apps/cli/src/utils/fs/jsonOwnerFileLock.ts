@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { link, lstat, mkdir, open, readFile, readdir, rename, rmdir, stat, unlink } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, readdir, rename, rmdir, stat, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+
+import { publishFileExclusive } from './publishFileExclusive';
 
 type JsonOwnerFileLockOptions = Readonly<{
   lockPath: string;
@@ -291,7 +293,7 @@ async function unlinkExactFile(path: string, expected: FileSnapshot): Promise<bo
 async function restoreQuarantinedFile(quarantinePath: string, destinationPath: string, moved: FileSnapshot): Promise<boolean> {
   if (!(await snapshotStillMatches(quarantinePath, moved))) return false;
   try {
-    await link(quarantinePath, destinationPath);
+    await publishFileExclusive(quarantinePath, destinationPath);
   } catch {
     return false;
   }
@@ -351,12 +353,12 @@ async function publishReclaimGuard(path: string): Promise<{ snapshot: FileSnapsh
     };
     await handle.close();
     handle = null;
-    await link(privatePath, `${path}.reclaim`);
+    const publishedIdentity = await publishFileExclusive(privatePath, `${path}.reclaim`);
     const linkedPrivate = await readSnapshot(privatePath);
     if (!linkedPrivate || !sameContentVersion(linkedPrivate, snapshot)) return 'ownership_unknown';
     await unlinkExactFile(privatePath, linkedPrivate);
     const published = await readSnapshot(`${path}.reclaim`);
-    if (!published || published.raw !== raw || !sameIdentity(published.identity, snapshot.identity)) return 'ownership_unknown';
+    if (!published || published.raw !== raw || !sameIdentity(published.identity, publishedIdentity)) return 'ownership_unknown';
     return { snapshot: published, privatePath };
   } catch (error) {
     await handle?.close().catch(() => {});
@@ -427,19 +429,23 @@ async function removeExactPredecessorDirectory(
     || !(await snapshotStillMatches(join(quarantinePath, 'owner.json'), ownerSnapshot))) return false;
 
   const cleanupPath = `${path}.cleanup-${identitySuffix}`;
+  let cleanupIdentity: FileIdentity;
   try {
-    await link(join(quarantinePath, 'owner.json'), cleanupPath);
+    cleanupIdentity = await publishFileExclusive(join(quarantinePath, 'owner.json'), cleanupPath);
   } catch {
     return false;
   }
+  // A hard-linked cleanup file is the owner file itself; a copied one has its own identity.
   const cleanupSnapshot = await readSnapshot(cleanupPath);
-  if (!cleanupSnapshot || !sameContentVersion(cleanupSnapshot, ownerSnapshot)) {
+  if (!cleanupSnapshot
+    || cleanupSnapshot.raw !== ownerSnapshot.raw
+    || !sameIdentity(cleanupSnapshot.identity, cleanupIdentity)) {
     return false;
   }
   const linkedOwnerSnapshot = await readSnapshot(join(quarantinePath, 'owner.json'));
   if (!linkedOwnerSnapshot
     || !sameContentVersion(linkedOwnerSnapshot, ownerSnapshot)
-    || !sameContentVersion(linkedOwnerSnapshot, cleanupSnapshot)
+    || linkedOwnerSnapshot.raw !== cleanupSnapshot.raw
     || !(await unlinkExactFile(join(quarantinePath, 'owner.json'), linkedOwnerSnapshot))) {
     await unlinkExactFile(cleanupPath, cleanupSnapshot);
     return false;
@@ -449,7 +455,7 @@ async function removeExactPredecessorDirectory(
     await rmdir(quarantinePath);
   } catch {
     if (await sameDirectoryIdentity(quarantinePath, directoryIdentity)) {
-      await link(cleanupPath, join(quarantinePath, 'owner.json')).catch(() => {});
+      await publishFileExclusive(cleanupPath, join(quarantinePath, 'owner.json')).catch(() => {});
     }
     return false;
   } finally {
@@ -564,34 +570,25 @@ export async function withJsonOwnerFileLock<TResult>(
     await recoverStaleReclaimGuard(options.lockPath, options.staleAfterMs, readQuarantinedRaw);
     const ownerTempPath = `${options.lockPath}.owner-${process.pid}-${Date.now()}-${randomUUID()}`;
     let handle: Awaited<ReturnType<typeof open>> | null = null;
-    let ownerSnapshot: FileSnapshot | null = null;
     let ownerPublished = false;
     try {
       ownRaw = serializeOwner(Date.now());
       handle = await open(ownerTempPath, 'wx', 0o600);
       await handle.writeFile(ownRaw, 'utf8');
       await handle.sync();
-      const info = await handle.stat();
-      ownerSnapshot = {
-        raw: ownRaw,
-        identity: { dev: info.dev, ino: info.ino },
-        size: info.size,
-        mtimeMs: info.mtimeMs,
-        ctimeMs: info.ctimeMs,
-      };
       await handle.close();
       handle = null;
       if (await stat(`${options.lockPath}.reclaim`).then(() => true, () => false)) {
         throw Object.assign(new Error('lock reclaim in progress'), { code: 'EEXIST' });
       }
-      await link(ownerTempPath, options.lockPath);
+      const publishedIdentity = await publishFileExclusive(ownerTempPath, options.lockPath);
       ownerPublished = true;
       if (await stat(`${options.lockPath}.reclaim`).then(() => true, () => false)
         || await inspectAndScavengeLockArtifacts(options.lockPath, options.staleAfterMs)) {
         const canonicalSnapshot = await readSnapshot(options.lockPath);
         const removed = canonicalSnapshot
           && canonicalSnapshot.raw === ownRaw
-          && sameIdentity(canonicalSnapshot.identity, ownerSnapshot.identity)
+          && sameIdentity(canonicalSnapshot.identity, publishedIdentity)
           ? await quarantineExactFile(options.lockPath, canonicalSnapshot, 'publication', readQuarantinedRaw)
           : 'successor_preserved';
         if (removed === 'reclaimed') ownerPublished = false;
