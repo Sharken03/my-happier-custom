@@ -15,7 +15,6 @@ import {
 } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { publishFileExclusive, publishFileExclusiveSync } from '@/utils/fs/publishFileExclusive';
 import tweetnacl from 'tweetnacl';
 import {
   MachineInstallationIdentityV1Schema,
@@ -24,10 +23,16 @@ import {
 
 import { encodeBase64 } from '@/api/encryption';
 import { configuration } from '@/configuration';
+import { logger } from '@/ui/logger';
+import { publishFileExclusive, publishFileExclusiveSync, type PublishedFile } from '@/utils/fs/jsonOwnerFileLock';
 
 const CREATION_LOCK_RETRY_INTERVAL_MS = 25;
 const CREATION_LOCK_MAX_ATTEMPTS = 400;
 const CREATION_LOCK_STALE_MS = 10_000;
+
+function reportCopiedIdentity(published: PublishedFile, path: string): void {
+  if (published.copied) logger.info('[identity] Hard links are unavailable; the identity file was published as a copy', { path });
+}
 
 function createInstallationIdentity(now: number): MachineInstallationIdentityV1 {
   const keyPair = tweetnacl.sign.keyPair();
@@ -142,7 +147,7 @@ async function publishInstallationIdentity(
     await handle.sync();
     await handle.close();
     handle = null;
-    await publishFileExclusive(tempPath, path);
+    reportCopiedIdentity(await publishFileExclusive(tempPath, path), path);
     await rm(tempPath, { force: true }).catch(() => {});
     await chmodPrivate(path).catch(() => {});
     await fsyncDirectory(dirname(path));
@@ -164,7 +169,7 @@ function publishInstallationIdentitySync(path: string, identity: MachineInstalla
     fsyncSync(fd);
     closeSync(fd);
     fd = null;
-    publishFileExclusiveSync(tempPath, path);
+    reportCopiedIdentity(publishFileExclusiveSync(tempPath, path), path);
     try {
       unlinkSync(tempPath);
     } catch {
