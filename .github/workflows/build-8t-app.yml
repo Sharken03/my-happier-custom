@@ -205,6 +205,34 @@ jobs:
           key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-${{ github.run_id }}
           restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-
 
+      # prepareSherpaOnnxAndroid downloads only the files that are missing from this directory.
+      - name: Restore sherpa-onnx download
+        id: sherpa-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: packages/sherpa-native/android/build/sherpa-onnx/v1.12.25
+          key: sherpa-onnx-android-v1.12.25
+
+      # The release download URL for checksum.txt gave HTTP 504 on 2026-11-09; the API route worked.
+      - name: Download sherpa-onnx through the GitHub API
+        if: steps.sherpa-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dir=packages/sherpa-native/android/build/sherpa-onnx/v1.12.25
+          mkdir -p "$dir"
+          for attempt in 1 2 3 4; do
+            if gh release download v1.12.25 -R k2-fsa/sherpa-onnx --clobber -D "$dir" \
+                -p checksum.txt -p sherpa-onnx-v1.12.25-android.tar.bz2; then
+              exit 0
+            fi
+            echo "Download attempt $attempt failed; retrying"
+            sleep $((attempt * 15))
+          done
+          # Gradle tries the release URLs itself when the files are missing.
+          rm -f "$dir"/checksum.txt "$dir"/sherpa-onnx-v1.12.25-android.tar.bz2
+
       - name: Build workspace packages used by the UI
         run: node apps/ui/scripts/ensureWorkspacePackagesBuilt.mjs
 
