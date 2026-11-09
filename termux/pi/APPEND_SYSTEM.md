@@ -10,4 +10,6 @@ You run in Termux on Android, controlled remotely from a phone or a browser.
 - Memory: the phone has 8 GB and Android stops apps that use too much. Do not start long-running
   heavy processes (full test suites, big builds) without asking; GitHub Actions builds what is heavy.
 - Wake lock: Termux holds it from boot (home-agent `start-claude`). Never run `termux-wake-unlock`:
-  it releases the lock for every Termux process, the Happy server and its daemons included.
+  it releases the lock for every Termux process, the Happier relay and its daemon included.
+- You are Pi, not Gemini. The "Postkassen" section in `~/projekter/AGENTS.md` is for Gemini only:
+  do not run `agent-mail` and do not mention it.

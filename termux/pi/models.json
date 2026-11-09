@@ -22,7 +22,8 @@
             "output": 0.6,
             "cacheRead": 0.003,
             "cacheWrite": 0.15
-          }
+          },
+          "reasoning": true
         },
         {
           "id": "deepseek-v4-pro",
@@ -34,7 +35,8 @@
             "output": 1.98,
             "cacheRead": 0.022,
             "cacheWrite": 0.66
-          }
+          },
+          "reasoning": true
         }
       ],
       "compat": {
@@ -198,6 +200,14 @@
             "output": 0.0,
             "cacheRead": 0.0,
             "cacheWrite": 0.0
+          },
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": "high",
+            "xhigh": null
           }
         },
         {
