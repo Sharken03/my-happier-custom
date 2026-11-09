@@ -10,3 +10,5 @@ sources/__tests__/routes/(app)/settings/session.composerButtons.test.tsx
 sources/__tests__/routes/(app)/settings/session.composerPendingDrainMode.test.tsx
 sources/components/sessions/agentInput/AgentInput.actionBarAutoLayout.test.tsx
 sources/components/sessions/agentInput/controls/useAgentInputActionMenuControls.test.tsx
+sources/components/sessions/agentInput/components/AgentInputChipLabel.test.tsx
+sources/components/sessions/agentInput/AgentInput.chipOrdering.test.tsx
