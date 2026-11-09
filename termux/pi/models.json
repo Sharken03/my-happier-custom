@@ -10,7 +10,7 @@
       "models": [
         {
           "id": "deepseek-flash",
-          "name": "DeepSeek Flash",
+          "name": "DS Flash",
           "input": [
             "text",
             "image"
@@ -26,7 +26,7 @@
         },
         {
           "id": "deepseek-v4-pro",
-          "name": "DeepSeek V4 Pro",
+          "name": "DS Pro",
           "contextWindow": 1048576,
           "maxTokens": 16384,
           "cost": {
@@ -50,7 +50,7 @@
       "models": [
         {
           "id": "google/gemini-4-argon",
-          "name": "Gemini 4 Argon",
+          "name": "Gemini Argon",
           "reasoning": true,
           "input": [
             "text",
@@ -67,7 +67,7 @@
         },
         {
           "id": "anthropic/claude-opus-5.5",
-          "name": "Claude Opus 5.5 (OpenRouter)",
+          "name": "Opus 5.5 (OR)",
           "reasoning": true,
           "input": [
             "text",
@@ -84,7 +84,7 @@
         },
         {
           "id": "openai/gpt-6-astra-pro",
-          "name": "GPT-6 Astra Pro",
+          "name": "GPT-6 Astra",
           "reasoning": true,
           "input": [
             "text",
@@ -101,7 +101,7 @@
         },
         {
           "id": "openai/gpt-6-sol-pro",
-          "name": "GPT-6 Sol Pro",
+          "name": "GPT-6 Sol",
           "reasoning": true,
           "input": [
             "text",
@@ -118,7 +118,7 @@
         },
         {
           "id": "openai/gpt-6-luna-pro",
-          "name": "GPT-6 Luna Pro",
+          "name": "GPT-6 Luna",
           "reasoning": true,
           "input": [
             "text",
@@ -152,7 +152,7 @@
         },
         {
           "id": "z-ai/glm-5.3-flash",
-          "name": "GLM 5.3 Flash (cheap)",
+          "name": "GLM Flash",
           "reasoning": true,
           "input": [
             "text",
@@ -169,7 +169,7 @@
         },
         {
           "id": "minimax/minimax-m3.1-flash",
-          "name": "MiniMax M3.1 Flash (cheap)",
+          "name": "MiniMax Flash",
           "reasoning": true,
           "input": [
             "text",
@@ -186,7 +186,7 @@
         },
         {
           "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
-          "name": "Nemotron 3 Ultra 550B (free)",
+          "name": "Nemotron (free)",
           "reasoning": true,
           "input": [
             "text"
@@ -202,7 +202,7 @@
         },
         {
           "id": "cohere/north-mini-code:free",
-          "name": "North Mini Code (free)",
+          "name": "North Mini (free)",
           "reasoning": true,
           "input": [
             "text"
@@ -218,7 +218,7 @@
         },
         {
           "id": "google/gemma-4-31b-it:free",
-          "name": "Gemma 4 31B (free)",
+          "name": "Gemma 4 (free)",
           "reasoning": true,
           "input": [
             "text",
