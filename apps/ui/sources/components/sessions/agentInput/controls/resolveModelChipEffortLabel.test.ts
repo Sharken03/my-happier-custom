@@ -47,4 +47,32 @@ describe('resolveModelChipEffortLabel', () => {
         })).toBeNull();
         expect(resolveModelChipEffortLabel({ modelsState: null, selectedModelId: null, overrides: null })).toBeNull();
     });
+
+    it("reads agy's thinking level, which agy acp sends as the thought_level option", () => {
+        const agyState: NonNullable<Parameters<typeof resolveModelChipEffortLabel>[0]['modelsState']> = {
+            v: 1,
+            provider: 'agy',
+            updatedAt: 1,
+            currentModelId: 'gemini-3.8-flash',
+            availableModels: [{
+                id: 'gemini-3.8-flash',
+                name: 'Gemini 3.8 Flash',
+                modelOptions: [{
+                    id: 'thought_level',
+                    name: 'Thinking Level',
+                    category: 'thought_level',
+                    type: 'select',
+                    currentValue: 'high',
+                    options: [{ value: 'low', name: 'Low' }, { value: 'high', name: 'High' }],
+                }],
+            }],
+        };
+        expect(resolveModelChipEffortLabel({ modelsState: agyState, selectedModelId: null, overrides: null })).toBe('High');
+        expect(resolveModelChipEffortLabel({
+            modelsState: agyState,
+            selectedModelId: null,
+            overrides: { thought_level: { value: 'low' } },
+        })).toBe('Low');
+    });
 });
+
