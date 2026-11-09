@@ -836,6 +836,17 @@ export interface AcpBackendOptions {
   /** Provider-owned projection/application for model metadata not standardized by ACP. */
   sessionModelAdapter?: AcpSessionModelAdapter;
 
+  /**
+   * Provider hook run before each prompt goes to the agent, for example to move a prompt off a
+   * model whose quota is used up. It may set the session model and post a status line to the
+   * chat. A failure is logged and the prompt is sent as it is.
+   */
+  beforePrompt?: (context: Readonly<{
+    modelState: Readonly<SessionModelState> | null;
+    setModel: (modelId: string) => Promise<void>;
+    notify: (message: string) => void;
+  }>) => Promise<void>;
+
   /** False hides and rejects mode controls when the provider's semantics are not supported. */
   sessionModesEnabled?: boolean;
 
@@ -3513,6 +3524,19 @@ export class AcpBackend implements AgentBackend {
           ? 'ACP session cancellation is still settling'
           : 'Previous ACP prompt RPC is still settling'),
       );
+    }
+
+    if (this.options.beforePrompt) {
+      const acpSessionId = this.acpSessionId;
+      try {
+        await this.options.beforePrompt({
+          modelState: this.sessionModelState,
+          setModel: (modelId) => this.setSessionModel(acpSessionId, modelId),
+          notify: (message) => this.emit({ type: 'event', name: 'message', payload: { message } }),
+        });
+      } catch (error) {
+        logger.warnFile('[AcpBackend] beforePrompt hook failed; sending the prompt unchanged', error);
+      }
     }
 
     // Check if prompt contains change_title instruction (via optional callback)
