@@ -8527,6 +8527,8 @@ settingsSession: {
       messageActions: {
         groupTitle: '消息操作',
         groupFooter: '配置转录中的消息选择和转发操作。',
+        copyOnly: { title: "仅复制", subtitle: "你的消息：长按可“复制消息”和“选择文本”。回复：仅一个复制图标。隐藏置顶、分支和选择。" },
+        messageMenu: { copy: "复制消息", selectText: "选择文本" },
         selectionEnabled: {
           title: '启用消息选择',
           subtitle: '在消息下方显示选择图标，以便批量复制或转发',

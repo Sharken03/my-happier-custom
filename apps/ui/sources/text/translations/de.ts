@@ -8298,6 +8298,8 @@ settingsSession: {
             messageActions: {
             groupTitle: 'Nachrichtenaktionen',
             groupFooter: 'Die Aktionen zum Auswählen und Weiterleiten von Nachrichten im Transkript einstellen.',
+            copyOnly: { title: "Nur Kopieren", subtitle: "Eigene Nachrichten: lange drücken für „Nachricht kopieren“ und „Text auswählen“. Antworten: ein Kopier-Symbol. Blendet Anheften, Abzweigen und Auswählen aus." },
+            messageMenu: { copy: "Nachricht kopieren", selectText: "Text auswählen" },
             selectionEnabled: {
                 title: 'Nachrichtenauswahl aktivieren',
                 subtitle: 'Unter Nachrichten ein Auswahl-Symbol zeigen, um sie gesammelt zu kopieren oder weiterzuleiten',

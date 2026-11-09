@@ -8285,6 +8285,8 @@ settingsSession: {
             messageActions: {
             groupTitle: 'Actions de message',
             groupFooter: 'Configure les actions de sélection et de transfert des messages dans le transcript.',
+            copyOnly: { title: "Copier uniquement", subtitle: "Vos messages : appui long pour Copier le message et Sélectionner le texte. Réponses : une icône Copier. Masque épingler, bifurquer et sélectionner." },
+            messageMenu: { copy: "Copier le message", selectText: "Sélectionner le texte" },
             selectionEnabled: {
                 title: 'Activer la sélection de messages',
                 subtitle: 'Affiche une icône Sélectionner sous les messages pour les copier ou les transférer en lot',

@@ -9106,6 +9106,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Azioni messaggio',
           groupFooter: 'Configura la selezione dei messaggi e le azioni di inoltro nella trascrizione.',
+          copyOnly: { title: "Solo copia", subtitle: "I tuoi messaggi: tieni premuto per Copia messaggio e Seleziona testo. Risposte: un’icona Copia. Nasconde fissa, dirama e seleziona." },
+          messageMenu: { copy: "Copia messaggio", selectText: "Seleziona testo" },
           selectionEnabled: {
             title: 'Abilita selezione messaggi',
             subtitle: 'Mostra un’icona di selezione sotto i messaggi per copiarli o inoltrarli in blocco',

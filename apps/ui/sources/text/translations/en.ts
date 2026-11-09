@@ -8330,6 +8330,8 @@ settingsSession: {
             messageActions: {
             groupTitle: 'Message actions',
             groupFooter: 'Configure the message selection and forwarding actions in the transcript.',
+            copyOnly: { title: "Copy only", subtitle: "Your messages: long-press for Copy message and Select text. Replies: one Copy icon. Hides pin, fork and select." },
+            messageMenu: { copy: "Copy message", selectText: "Select text" },
             selectionEnabled: {
                 title: 'Enable message selection',
                 subtitle: 'Show a Select icon under messages to bulk-copy or forward them',

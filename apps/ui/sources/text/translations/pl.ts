@@ -8768,6 +8768,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Akcje wiadomości',
           groupFooter: 'Skonfiguruj zaznaczanie wiadomości i akcje przekazywania w transkrypcie.',
+          copyOnly: { title: "Tylko kopiowanie", subtitle: "Twoje wiadomości: przytrzymaj, aby kopiować wiadomość lub zaznaczyć tekst. Odpowiedzi: jedna ikona kopiowania. Ukrywa przypinanie, rozgałęzianie i zaznaczanie." },
+          messageMenu: { copy: "Kopiuj wiadomość", selectText: "Zaznacz tekst" },
           selectionEnabled: {
             title: 'Włącz zaznaczanie wiadomości',
             subtitle: 'Pokaż ikonę zaznaczania pod wiadomościami, aby kopiować lub przekazywać je zbiorczo',

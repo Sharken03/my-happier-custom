@@ -7450,6 +7450,8 @@ settingsSession: {
             messageActions: {
               groupTitle: '訊息操作',
               groupFooter: '設定逐字稿中的訊息選取與轉送操作。',
+              copyOnly: { title: "僅複製", subtitle: "你的訊息：長按可「複製訊息」和「選取文字」。回覆：僅一個複製圖示。隱藏釘選、分支和選取。" },
+              messageMenu: { copy: "複製訊息", selectText: "選取文字" },
               selectionEnabled: {
                 title: '啟用訊息選取',
                 subtitle: '在訊息下方顯示選取圖示，以便批次複製或轉送',

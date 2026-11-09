@@ -50,6 +50,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptToolCallsGroupShowBackground, setTranscriptToolCallsGroupShowBackground] = useSettingMutable('transcriptToolCallsGroupShowBackground');
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
+    const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
     const [transcriptMessageSendToSessionEnabled, setTranscriptMessageSendToSessionEnabled] = useSettingMutable('transcriptMessageSendToSessionEnabled');
     const [transcriptMessageSendToSessionTemplate, setTranscriptMessageSendToSessionTemplate] = useSettingMutable('transcriptMessageSendToSessionTemplate');
     const [transcriptBulkCopyFormat, setTranscriptBulkCopyFormat] = useSettingMutable('transcriptBulkCopyFormat');
@@ -385,6 +386,14 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.transcript.messageActions.groupTitle')} footer={t('settingsSession.transcript.messageActions.groupFooter')}>
+                <Item
+                    testID="settings-session-transcript-message-actions-copy-only"
+                    title={t('settingsSession.transcript.messageActions.copyOnly.title')}
+                    subtitle={t('settingsSession.transcript.messageActions.copyOnly.subtitle')}
+                    rightElement={<Switch value={transcriptMessageActionsCopyOnly === true} onValueChange={setTranscriptMessageActionsCopyOnly} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptMessageActionsCopyOnly(!(transcriptMessageActionsCopyOnly === true))}
+                />
                 <Item
                     testID="settings-session-transcript-message-selection-enabled"
                     title={t('settingsSession.transcript.messageActions.selectionEnabled.title')}

@@ -9021,6 +9021,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'メッセージ操作',
           groupFooter: 'トランスクリプトでのメッセージ選択と転送操作を設定します。',
+          copyOnly: { title: "コピーのみ", subtitle: "自分のメッセージ：長押しで「メッセージをコピー」と「テキストを選択」。返信：コピーアイコンのみ。ピン留め、分岐、選択を非表示にします。" },
+          messageMenu: { copy: "メッセージをコピー", selectText: "テキストを選択" },
           selectionEnabled: {
             title: 'メッセージ選択を有効化',
             subtitle: 'メッセージ下に選択アイコンを表示し、一括コピーまたは転送できるようにする',

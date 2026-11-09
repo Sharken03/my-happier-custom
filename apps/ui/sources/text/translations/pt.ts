@@ -8886,6 +8886,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Ações de mensagem',
           groupFooter: 'Configure a seleção de mensagens e as ações de encaminhamento na transcrição.',
+          copyOnly: { title: "Somente copiar", subtitle: "Suas mensagens: toque e segure para Copiar mensagem e Selecionar texto. Respostas: um ícone Copiar. Oculta fixar, bifurcar e selecionar." },
+          messageMenu: { copy: "Copiar mensagem", selectText: "Selecionar texto" },
           selectionEnabled: {
             title: 'Ativar seleção de mensagens',
             subtitle: 'Mostrar um ícone de seleção sob as mensagens para copiar ou encaminhar em lote',

@@ -50,6 +50,7 @@ import { getImageMimeTypeFromPath } from '@/scm/utils/filePresentation';
 import { normalizeVoiceAgentTurnTranscriptText } from '@happier-dev/agents';
 import { MessageSelectionCheckbox } from '@/components/sessions/transcript/messageSelection/MessageSelectionCheckbox';
 import { SelectMessageButton } from '@/components/sessions/transcript/messageSelection/SelectMessageButton';
+import { UserMessageLongPressMenu } from '@/components/sessions/transcript/messageActions/UserMessageLongPressMenu';
 import { useOptionalTranscriptSelectionRow } from '@/components/sessions/transcript/messageSelection/TranscriptMessageSelectionContext';
 import { useTranscriptQuoteMarkdownProps } from '@/components/sessions/transcript/quote/TranscriptQuoteContext';
 import {
@@ -663,6 +664,7 @@ function UserTextBlock(props: {
     return base && unsupportedContentText != null ? { ...base, text: unsupportedContentText } : base;
   })();
   const selectionEnabled = props.messageDisplayCommon.transcriptMessageSelectionEnabled === true && selectableMessage != null;
+  const copyOnly = props.messageDisplayCommon.transcriptMessageActionsCopyOnly === true;
   const selectionRow = useOptionalTranscriptSelectionRow(props.message.id);
   const selectionModeActionsVisible = selectionEnabled && selectionRow.isSelectionMode;
   const sessionReplayEnabled = props.forkCommon.sessionReplayEnabled;
@@ -768,7 +770,7 @@ function UserTextBlock(props: {
             timestampText={timestampText}
             showActions={showMessageActions}
             showPinAction={showPinButton}
-            pinAction={hasPinButton ? (
+            pinAction={hasPinButton && !copyOnly ? (
               <MessagePinButton
                 availability={messagePinAvailability}
                 onTogglePin={props.onToggleMessagePin}
@@ -783,6 +785,7 @@ function UserTextBlock(props: {
             isWeb={isWeb}
             invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
           >
+            {copyOnly ? null : (<>
             {props.rollbackAction ? (
               <TranscriptRollbackActionButton
                 sessionId={props.sessionId}
@@ -833,6 +836,7 @@ function UserTextBlock(props: {
               onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
+            </>)}
           </MessageActionRow>
         </View>
       </View>
@@ -860,54 +864,56 @@ function UserTextBlock(props: {
         >
           {provenance ? <SessionMessageProvenanceAttribution messageId={props.message.id} provenance={provenance} /> : null}
           <View style={styles.userMessageBubbleAligner}>
-            <TranscriptJumpAttention
-              sessionId={props.sessionId}
-              routeMessageId={buildMessageRouteId(props.message)}
-              seq={seq}
-              radius={TRANSCRIPT_MESSAGE_HIGHLIGHT_RADIUS}
-              style={[styles.userMessageBubble, isDiscarded ? styles.userMessageBubbleDiscarded : null]}
-            >
-              <StructuredMessageBlock
-                message={props.message}
+            <UserMessageLongPressMenu enabled={copyOnly} text={copyText} messageId={props.message.id}>
+              <TranscriptJumpAttention
                 sessionId={props.sessionId}
-                interaction={props.interaction}
-                onJumpToAnchor={handleJumpToAnchor}
-              />
-              <MarkdownView {...quoteMarkdownProps} codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])} markdown={renderedMarkdownText} onOptionPress={handleOptionPress} onOptionLongPress={handleOptionLongPress} onLinkPress={handleMarkdownLinkPress} selectable={true} profile="transcript" textStyle={styles.transcriptMarkdownText} />
-              {sessionMediaInlineImages.length > 0 ? (
-                <SessionMediaInlineImages
+                routeMessageId={buildMessageRouteId(props.message)}
+                seq={seq}
+                radius={TRANSCRIPT_MESSAGE_HIGHLIGHT_RADIUS}
+                style={[styles.userMessageBubble, isDiscarded ? styles.userMessageBubbleDiscarded : null]}
+              >
+                <StructuredMessageBlock
+                  message={props.message}
                   sessionId={props.sessionId}
-                  media={sessionMediaInlineImages}
-                  onOpenPath={handleOpenAttachmentPath}
-                  fileOpenEnabled={props.canOpenFiles}
-                  mediaPreviewEnabled={props.canPreviewMedia}
+                  interaction={props.interaction}
+                  onJumpToAnchor={handleJumpToAnchor}
                 />
-              ) : null}
-              <SessionMediaUnavailableItems items={unavailableSessionMedia} />
-              {nonImageAttachments.length > 0 ? (
-                <AttachmentsMessageRow
-                  attachments={nonImageAttachments}
-                  onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
-                />
-              ) : null}
-              {structuredReferences.length > 0 ? (
-                <StructuredReferencesRow
-                  sessionId={props.sessionId}
-                  references={structuredReferences}
-                  fileOpenEnabled={props.canOpenFiles}
-                />
-              ) : null}
-              {isDiscarded && (
-                <Text selectable style={styles.discardedCommittedMessageLabel}>{t('message.discarded')}</Text>
-              )}
-            </TranscriptJumpAttention>
+                <MarkdownView {...quoteMarkdownProps} codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])} markdown={renderedMarkdownText} onOptionPress={handleOptionPress} onOptionLongPress={handleOptionLongPress} onLinkPress={handleMarkdownLinkPress} selectable={!copyOnly} profile="transcript" textStyle={styles.transcriptMarkdownText} />
+                {sessionMediaInlineImages.length > 0 ? (
+                  <SessionMediaInlineImages
+                    sessionId={props.sessionId}
+                    media={sessionMediaInlineImages}
+                    onOpenPath={handleOpenAttachmentPath}
+                    fileOpenEnabled={props.canOpenFiles}
+                    mediaPreviewEnabled={props.canPreviewMedia}
+                  />
+                ) : null}
+                <SessionMediaUnavailableItems items={unavailableSessionMedia} />
+                {nonImageAttachments.length > 0 ? (
+                  <AttachmentsMessageRow
+                    attachments={nonImageAttachments}
+                    onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
+                  />
+                ) : null}
+                {structuredReferences.length > 0 ? (
+                  <StructuredReferencesRow
+                    sessionId={props.sessionId}
+                    references={structuredReferences}
+                    fileOpenEnabled={props.canOpenFiles}
+                  />
+                ) : null}
+                {isDiscarded && (
+                  <Text selectable style={styles.discardedCommittedMessageLabel}>{t('message.discarded')}</Text>
+                )}
+              </TranscriptJumpAttention>
+            </UserMessageLongPressMenu>
           </View>
           <MessageActionRow
             messageId={props.message.id}
             timestampText={timestampText}
             showActions={showMessageActions}
             showPinAction={showPinButton}
-            pinAction={hasPinButton ? (
+            pinAction={hasPinButton && !copyOnly ? (
               <MessagePinButton
                 availability={messagePinAvailability}
                 onTogglePin={props.onToggleMessagePin}
@@ -922,6 +928,7 @@ function UserTextBlock(props: {
             isWeb={isWeb}
             invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
           >
+            {copyOnly ? null : (<>
             {props.rollbackAction ? (
               <TranscriptRollbackActionButton
                 sessionId={props.sessionId}
@@ -972,6 +979,7 @@ function UserTextBlock(props: {
               onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
+            </>)}
           </MessageActionRow>
         </View>
       </View>
@@ -1085,6 +1093,7 @@ function AgentTextBlock(props: {
     return base && unsupportedContentText != null ? { ...base, text: unsupportedContentText } : base;
   })();
   const selectionEnabled = props.messageDisplayCommon.transcriptMessageSelectionEnabled === true && selectableMessage != null;
+  const copyOnly = props.messageDisplayCommon.transcriptMessageActionsCopyOnly === true;
   const copyText = selectableMessage?.text ?? (isStructuredOnly ? props.message.text : markdown);
 
   const handleOptionPress = React.useCallback((option: Option) => {
@@ -1426,7 +1435,7 @@ function AgentTextBlock(props: {
           timestampText={timestampText}
           showActions={showMessageActions}
           showPinAction={showPinButton}
-          pinAction={hasPinButton ? (
+          pinAction={hasPinButton && !copyOnly ? (
             <MessagePinButton
               availability={messagePinAvailability}
               onTogglePin={props.onToggleMessagePin}
@@ -1440,7 +1449,9 @@ function AgentTextBlock(props: {
           onActionsBlur={handleActionsBlur}
           isWeb={isWeb}
           invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
+          align={copyOnly ? 'start' : 'end'}
         >
+          {copyOnly ? null : (<>
           {props.rollbackAction ? (
             <TranscriptRollbackActionButton
               sessionId={props.sessionId}
@@ -1484,6 +1495,7 @@ function AgentTextBlock(props: {
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
           ) : null}
+          </>)}
           <CopyMessageButton
             markdown={copyText}
             testID={`transcript-message-copy:${props.message.id}`}

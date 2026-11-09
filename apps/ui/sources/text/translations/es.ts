@@ -8773,6 +8773,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Acciones de mensajes',
           groupFooter: 'Configura la selección de mensajes y las acciones de reenvío en la transcripción.',
+          copyOnly: { title: "Solo copiar", subtitle: "Tus mensajes: mantén pulsado para Copiar mensaje y Seleccionar texto. Respuestas: un icono Copiar. Oculta fijar, bifurcar y seleccionar." },
+          messageMenu: { copy: "Copiar mensaje", selectText: "Seleccionar texto" },
           selectionEnabled: {
             title: 'Activar selección de mensajes',
             subtitle: 'Mostrar un icono de selección bajo los mensajes para copiarlos o reenviarlos en bloque',

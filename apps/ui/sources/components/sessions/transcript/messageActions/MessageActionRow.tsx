@@ -18,6 +18,8 @@ export function MessageActionRow(props: Readonly<{
     children: React.ReactNode;
     isWeb: boolean;
     invertTimestampAndActions: boolean;
+    /** 'start' puts the row under the left edge of the message, as the Claude app does for replies. */
+    align?: 'start' | 'end';
     messageId: string;
     showActions: boolean;
     showPinAction?: boolean;
@@ -33,6 +35,7 @@ export function MessageActionRow(props: Readonly<{
             style={[
                 styles.container,
                 props.invertTimestampAndActions ? styles.containerInverted : null,
+                props.align === 'start' ? styles.containerStart : null,
                 props.isWeb ? styles.containerWebPointerEvents : null,
             ]}
             testID={`transcript-message-actions-row:${props.messageId}`}
@@ -81,6 +84,11 @@ const styles = StyleSheet.create((theme) => ({
     },
     containerInverted: {
         flexDirection: 'row-reverse',
+    },
+    containerStart: {
+        right: undefined,
+        left: 0,
+        justifyContent: 'flex-start',
     },
     containerWebPointerEvents: {
         pointerEvents: 'box-none',

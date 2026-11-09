@@ -148,6 +148,14 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptMessageActionsCopyOnly: {
+        schema: z.boolean(),
+        // 8T fork: as in the Claude app.
+        default: true,
+        description: 'Own messages: a long-press menu with Copy message and Select text. Replies: one Copy icon on the left. No pin, fork or select icons',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptMessageSendToSessionEnabled: {
         schema: z.boolean(),
         default: false,

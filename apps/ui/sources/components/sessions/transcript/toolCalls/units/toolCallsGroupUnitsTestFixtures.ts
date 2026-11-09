@@ -24,6 +24,7 @@ export function createTranscriptSessionCommonPropsFixture(overrides?: Readonly<{
             transcriptMessageTimestampDisplayMode: 'always',
             transcriptMessageSelectionEnabled: false,
             transcriptMessageSendToSessionEnabled: false,
+            transcriptMessageActionsCopyOnly: false,
             transcriptStreamingMarkdownRenderingEnabled: true,
             transcriptStreamingPartialOutputEnabled: true,
             transcriptStreamingSettleDelayMs: 0,

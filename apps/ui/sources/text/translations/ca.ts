@@ -8302,6 +8302,8 @@ settingsSession: {
               messageActions: {
             groupTitle: 'Accions de missatge',
             groupFooter: 'Configura la selecció de missatges i les accions de reenviament a la transcripció.',
+            copyOnly: { title: "Només copiar", subtitle: "Els teus missatges: mantén premut per Copiar el missatge i Seleccionar text. Respostes: una icona Copiar. Amaga fixar, bifurcar i seleccionar." },
+            messageMenu: { copy: "Copiar el missatge", selectText: "Seleccionar text" },
             selectionEnabled: {
                 title: 'Activa la selecció de missatges',
                 subtitle: 'Mostra una icona de selecció sota els missatges per copiar-los o reenviar-los en bloc',

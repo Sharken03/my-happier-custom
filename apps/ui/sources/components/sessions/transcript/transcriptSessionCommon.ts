@@ -27,6 +27,7 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'toolViewTimelineChromeMode'
     | 'transcriptMessageTimestampDisplayMode'
     | 'transcriptMessageSelectionEnabled'
+    | 'transcriptMessageActionsCopyOnly'
     | 'transcriptMessageSendToSessionEnabled'
     | 'transcriptStreamingMarkdownRenderingEnabled'
     | 'transcriptStreamingPartialOutputEnabled'
@@ -42,6 +43,7 @@ export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSetting
     | 'sessionThinkingInlinePresentation'
     | 'transcriptMessageTimestampDisplayMode'
     | 'transcriptMessageSelectionEnabled'
+    | 'transcriptMessageActionsCopyOnly'
     | 'transcriptMessageSendToSessionEnabled'
     | 'transcriptStreamingMarkdownRenderingEnabled'
     | 'transcriptStreamingPartialOutputEnabled'
@@ -145,6 +147,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const toolViewTimelineChromeMode = useSetting('toolViewTimelineChromeMode');
     const transcriptMessageTimestampDisplayMode = useSetting('transcriptMessageTimestampDisplayMode');
     const transcriptMessageSelectionEnabled = useSetting('transcriptMessageSelectionEnabled');
+    const transcriptMessageActionsCopyOnly = useSetting('transcriptMessageActionsCopyOnly');
     const transcriptMessageSendToSessionEnabled = useSetting('transcriptMessageSendToSessionEnabled');
     const transcriptStreamingMarkdownRenderingEnabled = useSetting('transcriptStreamingMarkdownRenderingEnabled');
     const transcriptStreamingPartialOutputEnabled = useSetting('transcriptStreamingPartialOutputEnabled');
@@ -178,6 +181,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             sessionThinkingInlinePresentation,
             transcriptMessageTimestampDisplayMode,
             transcriptMessageSelectionEnabled,
+            transcriptMessageActionsCopyOnly,
             transcriptMessageSendToSessionEnabled,
             transcriptStreamingMarkdownRenderingEnabled,
             transcriptStreamingPartialOutputEnabled,
@@ -191,6 +195,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             sessionThinkingInlinePresentation,
             transcriptMessageTimestampDisplayMode,
             transcriptMessageSelectionEnabled,
+            transcriptMessageActionsCopyOnly,
             transcriptMessageSendToSessionEnabled,
             transcriptStreamingMarkdownRenderingEnabled,
             transcriptStreamingPartialOutputEnabled,
