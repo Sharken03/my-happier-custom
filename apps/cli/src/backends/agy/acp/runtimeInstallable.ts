@@ -3,12 +3,19 @@ import { INSTALLABLE_KEYS } from '@happier-dev/protocol';
 import {
   getAgyAcpDepStatus,
   installAgyAcp,
+  resolveAgyAcpCommandOverride,
   verifyExistingAgyAcpManagedBinPath,
 } from '@/capabilities/deps/agyAcp';
 import { resolveAgyAcpReleaseAsset } from '@/runtime/managedTools/providers/agyAcpRelease';
 import type { RuntimeInstallableAdapter, RuntimeInstallableLaunchResolution } from '@/installables/runtime/runtimeInstallablesRegistry';
 
-export async function detectAgyAcpLaunchResolution(): Promise<RuntimeInstallableLaunchResolution> {
+export async function detectAgyAcpLaunchResolution(
+  params: Readonly<{ env?: NodeJS.ProcessEnv }> = {},
+): Promise<RuntimeInstallableLaunchResolution> {
+  // The server HAPPIER_AGY_ACP_COMMAND names needs no managed install (launch uses the same rule).
+  if (resolveAgyAcpCommandOverride({ ...process.env, ...params.env })) {
+    return { availability: { ok: true }, canAutoInstall: false, canBackgroundAutoUpdate: false };
+  }
   try {
     resolveAgyAcpReleaseAsset();
   } catch (error) {

@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/installables/runtime/ensureRuntimeInstallablesForLaunch', () => ({
   ensureRuntimeInstallablesForLaunch: mocks.ensureRuntimeInstallablesForLaunch,
 }));
-vi.mock('@/capabilities/deps/agyAcp', () => ({
+vi.mock('@/capabilities/deps/agyAcp', async (importOriginal) => ({
+  // The override rule is real logic; only the managed install on disk is replaced.
+  resolveAgyAcpCommandOverride: (await importOriginal<typeof import('@/capabilities/deps/agyAcp')>()).resolveAgyAcpCommandOverride,
   resolveExistingAgyAcpManagedBinPath: mocks.resolveExistingAgyAcpManagedBinPath,
 }));
 vi.mock('@/runtime/managedTools/providers/agyAcpRelease', () => ({

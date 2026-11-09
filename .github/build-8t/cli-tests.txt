@@ -14,3 +14,5 @@ src/backends/agy/acp/modelControls.test.ts
 src/backends/agy/acp/quotaModelSwitch.test.ts
 src/agent/acp/__tests__/AcpBackend.beforePrompt.test.ts
 src/backends/pi/rpc/PiRpcBackend.contextTelemetry.test.ts
+src/backends/agy/acp/runtimeInstallable.test.ts
+src/capabilities/deps/agyAcp.test.ts
