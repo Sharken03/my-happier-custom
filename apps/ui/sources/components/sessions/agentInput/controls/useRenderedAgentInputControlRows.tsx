@@ -89,6 +89,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
     extraChipAnchorRefsByKey: Readonly<Record<string, React.RefObject<View | null>>>;
 }> {
     const hiddenControlIds = useSetting('agentInputHiddenControls');
+    const engineChipStyle = useSetting('agentInputModelChipStyle');
     return React.useMemo(() => {
         const extraControlNodesById = resolveRenderedExtraActionChipNodes({
             chips: params.chips,
@@ -143,6 +144,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
             agentChipAnchorRef: params.agentChipAnchorRef,
             agentLabel: params.agentLabel,
             engineLabel: params.engineLabel,
+            engineChipStyle,
             onAgentPress: params.onAgentPress,
             onAgentIntent: params.onAgentIntent,
             machineChipAnchorRef: params.machineChipAnchorRef,
@@ -189,6 +191,7 @@ export function useRenderedAgentInputControlRows(params: Readonly<{
             extraChipAnchorRefsByKey: extraControlNodesById.extraChipAnchorRefsByKey as Readonly<Record<string, React.RefObject<View | null>>>,
         };
     }, [
+        engineChipStyle,
         hiddenControlIds,
         params.actionBarIsCollapsed,
         params.actionButtonPressedStyle,

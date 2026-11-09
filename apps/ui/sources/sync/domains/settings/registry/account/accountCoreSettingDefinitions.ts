@@ -185,6 +185,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    agentInputModelChipStyle: {
+        schema: z.enum(['agentAndModel', 'modelAndEffort']),
+        default: 'agentAndModel',
+        description: 'Composer model chip: the agent mark and model, or the model name and its reasoning effort',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListDensity: {
         schema: SessionListDensitySchema,
         default: 'narrow',

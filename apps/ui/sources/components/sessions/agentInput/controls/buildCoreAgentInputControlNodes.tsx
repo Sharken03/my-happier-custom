@@ -53,6 +53,7 @@ export function buildCoreAgentInputControlNodes(params: Readonly<{
     agentChipAnchorRef: React.RefObject<View | null>;
     agentLabel: string;
     engineLabel: string;
+    engineChipStyle: 'agentAndModel' | 'modelAndEffort';
     onAgentPress: () => void;
     onAgentIntent?: () => void;
     machineChipAnchorRef: React.RefObject<View | null>;
@@ -142,7 +143,8 @@ export function buildCoreAgentInputControlNodes(params: Readonly<{
         anchorRef: params.agentChipAnchorRef,
         agentId: params.agentId,
         tint: params.tint,
-        showLabel: params.showChipLabels,
+        showLabel: params.engineChipStyle === 'modelAndEffort' || params.showChipLabels,
+        showAgentMark: params.engineChipStyle !== 'modelAndEffort',
         label: params.engineLabel,
         chipStyle: params.chipStyle,
         textStyle: params.textStyle,

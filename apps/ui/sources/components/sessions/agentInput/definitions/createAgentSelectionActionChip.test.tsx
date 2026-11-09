@@ -36,4 +36,25 @@ describe('createAgentSelectionActionChip', () => {
 
         expect(onIntent).toHaveBeenCalledTimes(3);
     });
+
+    it('leaves out the agent mark in the "Model + effort" style and keeps the label', () => {
+        const build = (showAgentMark: boolean) => createAgentSelectionActionChip({
+            anchorRef: React.createRef(),
+            agentId: 'pi',
+            tint: 'currentColor',
+            showLabel: true,
+            label: 'DS Pro · High',
+            showAgentMark,
+            chipStyle: () => null,
+            textStyle: null,
+            onPress: vi.fn(),
+        }) as React.ReactElement<{ children: React.ReactNode }>;
+
+        const children = (chip: React.ReactElement<{ children: React.ReactNode }>) =>
+            React.Children.toArray(chip.props.children) as Array<React.ReactElement<{ label?: string }>>;
+        expect(children(build(true))).toHaveLength(2);
+        const withoutMark = children(build(false));
+        expect(withoutMark).toHaveLength(1);
+        expect(withoutMark[0]!.props.label).toBe('DS Pro · High');
+    });
 });

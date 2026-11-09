@@ -47,4 +47,13 @@ describe('Session composer settings: composer buttons', () => {
         next.pressRowByTitle('settingsSession.composerButtons.controls.mcp');
         expect(sessionSettingsEntryState.settingsState.agentInputHiddenControls).toEqual(['connectedServices']);
     });
+
+    it('switches the model chip to model and effort', async () => {
+        const mod = await import('@/app/(app)/settings/session/composer');
+        const SessionComposerSettingsScreen = mod.default;
+        const screen = await renderSettingsView(React.createElement(SessionComposerSettingsScreen));
+
+        screen.pressRowByTitle('settingsSession.modelChip.modelAndEffortTitle');
+        expect(sessionSettingsEntryState.settingsState.agentInputModelChipStyle).toBe('modelAndEffort');
+    });
 });

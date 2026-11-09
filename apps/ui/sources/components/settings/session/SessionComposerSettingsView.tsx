@@ -40,6 +40,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [agentInputActionBarLayout, setAgentInputActionBarLayout] = useSettingMutable('agentInputActionBarLayout');
     const [agentInputChipDensity, setAgentInputChipDensity] = useSettingMutable('agentInputChipDensity');
     const [storedHiddenControls, setHiddenControls] = useSettingMutable('agentInputHiddenControls');
+    const [modelChipStyle, setModelChipStyle] = useSettingMutable('agentInputModelChipStyle');
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
@@ -225,6 +226,29 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                         ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
                         : null}
                     onPress={() => setNewSessionAfterSend('startAnother')}
+                    showChevron={false}
+                />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.modelChip.title')} footer={t('settingsSession.modelChip.footer')}>
+                <Item
+                    testID="settings-model-chip-agent-and-model"
+                    title={t('settingsSession.modelChip.agentAndModelTitle')}
+                    subtitle={t('settingsSession.modelChip.agentAndModelSubtitle')}
+                    rightElement={modelChipStyle !== 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('agentAndModel')}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-model-chip-model-and-effort"
+                    title={t('settingsSession.modelChip.modelAndEffortTitle')}
+                    subtitle={t('settingsSession.modelChip.modelAndEffortSubtitle')}
+                    rightElement={modelChipStyle === 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('modelAndEffort')}
                     showChevron={false}
                 />
             </ItemGroup>

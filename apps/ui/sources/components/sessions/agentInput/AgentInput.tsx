@@ -125,6 +125,8 @@ import {
     type SessionConfigOption,
     type SessionConfigOptionValueId,
 } from '@/sync/domains/sessionControl/configOptionsControl';
+import { readSessionConfigOptionOverridesState, readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
+import { resolveModelChipEffortLabel } from './controls/resolveModelChipEffortLabel';
 import type { PendingPermissionRequest } from '@/utils/sessions/sessionUtils';
 import type { OpenApprovalArtifactForSession } from '@/sync/domains/artifacts/approvalArtifacts';
 import { Text } from '@/components/ui/text/Text';
@@ -2520,6 +2522,25 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         if (!engineChipMarkAgentId) return t('status.unknown');
         return hasAgentPickerOptions ? selectedModelLabel : resolvedAgentLabel;
     }, [armedComposerTarget, engineChipMarkAgentId, hasAgentPickerOptions, resolvedAgentLabel, selectedModelLabel]);
+    const modelChipStyle = useSetting('agentInputModelChipStyle');
+    const engineChipDisplayLabel = React.useMemo(() => {
+        if (modelChipStyle !== 'modelAndEffort' || armedComposerTarget) return engineChipLabel;
+        const effortLabel = resolveModelChipEffortLabel({
+            modelsState: readSessionModelsState(props.metadata ?? null),
+            selectedModelId: effectiveModelPolicy.selectedModelId,
+            overrides: props.acpConfigOptionOverridesOverride?.overrides
+                ?? readSessionConfigOptionOverridesState(props.metadata ?? null)?.overrides
+                ?? null,
+        });
+        return effortLabel ? `${engineChipLabel} · ${effortLabel}` : engineChipLabel;
+    }, [
+        armedComposerTarget,
+        effectiveModelPolicy.selectedModelId,
+        engineChipLabel,
+        modelChipStyle,
+        props.acpConfigOptionOverridesOverride,
+        props.metadata,
+    ]);
     const hasRecipient = React.useMemo(() => {
         return (props.extraActionChips ?? []).some((chip) => chip.controlId === 'recipient');
     }, [props.extraActionChips]);
@@ -2810,7 +2831,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hasAgentSelection: hasAgent,
         agentChipAnchorRef,
         agentLabel: resolvedAgentLabel,
-        engineLabel: engineChipLabel,
+        engineLabel: engineChipDisplayLabel,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,
         machineChipAnchorRef,
