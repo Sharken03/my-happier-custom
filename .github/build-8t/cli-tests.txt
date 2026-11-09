@@ -10,3 +10,4 @@ src/daemon/identity/store.test.ts
 src/backends/pi/rpc/PiRpcBackend.pendingTurnLifecycle.test.ts
 src/backends/pi/models/piModelCatalog.test.ts
 src/backends/agy/acp/ensureAgyAcpServerForLaunch.test.ts
+src/backends/agy/acp/modelControls.test.ts
