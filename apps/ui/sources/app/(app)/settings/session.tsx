@@ -62,6 +62,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceFaviconsEnabled, setWorkspaceFaviconsEnabled] = useSettingMutable('workspaceFaviconsEnabled');
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
+    const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -681,6 +682,13 @@ export default React.memo(function SessionSettingsScreen() {
                     subtitle={t('settingsFeatures.hideInactiveSessionsSubtitle')}
                     icon={<Icon name="eye-slash" size={29} color={theme.colors.accent.orange} />}
                     rightElement={<Switch value={hideInactiveSessions} onValueChange={setHideInactiveSessions} />}
+                    showChevron={false}
+                />
+                <Item
+                    title={t('settingsFeatures.showArchivedSessionsLink')}
+                    subtitle={t('settingsFeatures.showArchivedSessionsLinkSubtitle')}
+                    icon={<Icon name="archive" size={29} color={theme.colors.accent.blue} />}
+                    rightElement={<Switch value={showArchivedSessionsLink} onValueChange={setShowArchivedSessionsLink} />}
                     showChevron={false}
                 />
                 <Item

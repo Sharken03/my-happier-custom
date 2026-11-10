@@ -4840,6 +4840,8 @@ export const ru: TranslationStructure = {
       commandPaletteDisabled: "Быстрый доступ к командам отключён",
       hideInactiveSessions: "Скрывать неактивные сессии",
       hideInactiveSessionsSubtitle: "Показывать в списке только активные чаты",
+      showArchivedSessionsLink: "Показывать ссылку на архив",
+      showArchivedSessionsLinkSubtitle: "Показывать ссылку на архивные и неактивные сессии внизу списка",
       hiddenInactiveSessionsEmptyStateTitle: "Сейчас нет активных сессий",
       hiddenInactiveSessionsEmptyStateSubtitle: "Неактивные сессии скрыты в этом списке",
       hiddenInactiveSessionsSectionTitle: "Неактивные сессии",

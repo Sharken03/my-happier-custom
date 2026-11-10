@@ -4571,6 +4571,8 @@ export const fr: TranslationStructure = {
         commandPaletteDisabled: 'Accès rapide aux commandes désactivé',
         hideInactiveSessions: 'Masquer les sessions inactives',
         hideInactiveSessionsSubtitle: 'N’afficher que les chats actifs dans ta liste',
+        showArchivedSessionsLink: "Afficher le lien des archives",
+        showArchivedSessionsLinkSubtitle: "Afficher un lien vers les sessions archivées et inactives en bas de la liste",
         hiddenInactiveSessionsEmptyStateTitle: 'Aucune session active pour l’instant',
         hiddenInactiveSessionsEmptyStateSubtitle: 'Les sessions inactives sont masquées de cette liste',
         hiddenInactiveSessionsSectionTitle: 'Sessions inactives',

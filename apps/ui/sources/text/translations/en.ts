@@ -4591,6 +4591,8 @@ export const en = {
         commandPaletteDisabled: 'Quick command access disabled',
         hideInactiveSessions: 'Hide inactive sessions',
         hideInactiveSessionsSubtitle: 'Show only active chats in your list',
+        showArchivedSessionsLink: 'Show archived link',
+        showArchivedSessionsLinkSubtitle: 'Show a link to archived and inactive sessions at the bottom of the list',
         hiddenInactiveSessionsEmptyStateTitle: 'No active sessions right now',
         hiddenInactiveSessionsEmptyStateSubtitle: 'Inactive sessions are hidden from this list',
         hiddenInactiveSessionsSectionTitle: 'Inactive sessions',

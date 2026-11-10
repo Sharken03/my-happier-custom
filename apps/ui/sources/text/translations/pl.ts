@@ -4924,6 +4924,8 @@ export const pl: TranslationStructure = {
       commandPaletteDisabled: "Szybki dostęp do poleceń wyłączony",
       hideInactiveSessions: "Ukryj nieaktywne sesje",
       hideInactiveSessionsSubtitle: "Wyświetlaj tylko aktywne czaty na liście",
+      showArchivedSessionsLink: "Pokaż łącze do archiwum",
+      showArchivedSessionsLinkSubtitle: "Pokaż łącze do zarchiwizowanych i nieaktywnych sesji na dole listy",
       hiddenInactiveSessionsEmptyStateTitle: "Brak aktywnych sesji w tej chwili",
       hiddenInactiveSessionsEmptyStateSubtitle: "Nieaktywne sesje są ukryte na tej liście",
       hiddenInactiveSessionsSectionTitle: "Nieaktywne sesje",

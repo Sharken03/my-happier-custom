@@ -4758,6 +4758,8 @@ export const zhHans: TranslationStructure = {
       commandPaletteDisabled: "快速命令访问已禁用",
       hideInactiveSessions: "隐藏非活跃会话",
       hideInactiveSessionsSubtitle: "仅在列表中显示活跃的聊天",
+      showArchivedSessionsLink: "显示已归档链接",
+      showArchivedSessionsLinkSubtitle: "在列表底部显示指向已归档和非活跃会话的链接",
       hiddenInactiveSessionsEmptyStateTitle: "当前没有活跃会话",
       hiddenInactiveSessionsEmptyStateSubtitle: "非活跃会话在此列表中已隐藏",
       hiddenInactiveSessionsSectionTitle: "非活跃会话",

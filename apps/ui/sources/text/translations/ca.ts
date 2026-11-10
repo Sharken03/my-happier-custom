@@ -4643,6 +4643,8 @@ export const ca: TranslationStructure = {
           commandPaletteDisabled: 'Accés ràpid a comandes desactivat',
           hideInactiveSessions: 'Amaga les sessions inactives',
           hideInactiveSessionsSubtitle: 'Mostra només els xats actius a la llista',
+          showArchivedSessionsLink: "Mostra l'enllaç a arxivades",
+          showArchivedSessionsLinkSubtitle: "Mostra un enllaç a les sessions arxivades i inactives al final de la llista",
           hiddenInactiveSessionsEmptyStateTitle: 'No hi ha sessions actives ara mateix',
           hiddenInactiveSessionsEmptyStateSubtitle: 'Les sessions inactives estan ocultes en aquesta llista',
           hiddenInactiveSessionsSectionTitle: 'Sessions inactives',

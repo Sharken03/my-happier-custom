@@ -301,6 +301,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    showArchivedSessionsLink: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show a link to archived and inactive sessions at the bottom of the session list',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     groupInactiveSessionsByProject: {
         schema: z.boolean(),
         default: false,

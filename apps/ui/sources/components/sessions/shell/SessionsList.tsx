@@ -648,6 +648,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
     const sessionListIdentityDisplay = useSessionListIdentityDisplay();
     const sessionListActiveColorMode = useSetting('sessionListActiveColorModeV1');
     const sessionListSectionModeRaw = useSetting('sessionListSectionModeV1');
+    const sessionListShowArchivedLink = useSetting('showArchivedSessionsLink') !== false;
     const sessionReplayEnabled = useSetting('sessionReplayEnabled');
     const executionRunsEnabled = useFeatureEnabled('execution.runs');
     const forkActionContext = React.useMemo(() => ({
@@ -2274,6 +2275,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
     ), [folderBreadcrumbRootTitle, folderBreadcrumbs, handleClearSessionFolderFocus, handleSelectSessionFolderBreadcrumb, rowPresentationSettings.density]);
 
     const renderVirtualizedFooter = React.useCallback(() => {
+        if (!sessionListShowArchivedLink) return null;
         return (
             <ItemGroup style={styles.footerContainer}>
                 <Item
@@ -2285,7 +2287,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 />
             </ItemGroup>
         );
-    }, [hideInactiveSessions, router, styles.footerContainer, theme.colors.text.secondary]);
+    }, [hideInactiveSessions, router, sessionListShowArchivedLink, styles.footerContainer, theme.colors.text.secondary]);
 
     const onEndReached = surfaceOwnership.dataActive ? handleLoadMoreSessions : undefined;
     const nativeRefreshControl = React.useMemo(() => {

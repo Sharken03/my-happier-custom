@@ -4476,6 +4476,8 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
           commandPaletteDisabled: '快速命令存取已停用',
           hideInactiveSessions: '隱藏非活躍工作階段',
           hideInactiveSessionsSubtitle: '僅在清單中顯示活躍的聊天',
+          showArchivedSessionsLink: "顯示已封存連結",
+          showArchivedSessionsLinkSubtitle: "在清單底部顯示指向已封存和非活躍工作階段的連結",
           hiddenInactiveSessionsEmptyStateTitle: '目前沒有活躍工作階段',
           hiddenInactiveSessionsEmptyStateSubtitle: '非活躍工作階段已在此清單中隱藏',
           hiddenInactiveSessionsSectionTitle: '非活躍工作階段',

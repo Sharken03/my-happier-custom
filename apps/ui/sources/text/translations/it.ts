@@ -5246,6 +5246,8 @@ export const it: TranslationStructure = {
       commandPaletteDisabled: "Accesso rapido ai comandi disabilitato",
       hideInactiveSessions: "Nascondi sessioni inattive",
       hideInactiveSessionsSubtitle: "Mostra solo le chat attive nella tua lista",
+      showArchivedSessionsLink: "Mostra link archiviati",
+      showArchivedSessionsLinkSubtitle: "Mostra un link alle sessioni archiviate e inattive in fondo all'elenco",
       hiddenInactiveSessionsEmptyStateTitle: "Nessuna sessione attiva in questo momento",
       hiddenInactiveSessionsEmptyStateSubtitle: "Le sessioni inattive sono nascoste in questo elenco",
       hiddenInactiveSessionsSectionTitle: "Sessioni inattive",

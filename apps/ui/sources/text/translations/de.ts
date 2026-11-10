@@ -4571,6 +4571,8 @@ export const de: TranslationStructure = {
         commandPaletteDisabled: 'Schnellzugriff auf Befehle deaktiviert',
         hideInactiveSessions: 'Inaktive Sessions ausblenden',
         hideInactiveSessionsSubtitle: 'Nur aktive Chats in deiner Liste zeigen',
+        showArchivedSessionsLink: "Link zu Archiv anzeigen",
+        showArchivedSessionsLinkSubtitle: "Zeigt einen Link zu archivierten und inaktiven Sitzungen am Ende der Liste",
         hiddenInactiveSessionsEmptyStateTitle: 'Gerade keine aktiven Sessions',
         hiddenInactiveSessionsEmptyStateSubtitle: 'Inaktive Sessions sind in dieser Liste ausgeblendet',
         hiddenInactiveSessionsSectionTitle: 'Inaktive Sessions',

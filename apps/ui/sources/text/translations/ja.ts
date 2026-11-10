@@ -5181,6 +5181,8 @@ localTailscale: {
       commandPaletteDisabled: "クイックコマンドアクセスは無効",
       hideInactiveSessions: "非アクティブセッションを非表示",
       hideInactiveSessionsSubtitle: "アクティブなチャットのみをリストに表示",
+      showArchivedSessionsLink: "アーカイブのリンクを表示",
+      showArchivedSessionsLinkSubtitle: "リストの下部にアーカイブ済みおよび非アクティブなセッションへのリンクを表示",
       hiddenInactiveSessionsEmptyStateTitle: "現在アクティブなセッションはありません",
       hiddenInactiveSessionsEmptyStateSubtitle: "非アクティブなセッションはこのリストで非表示になっています",
       hiddenInactiveSessionsSectionTitle: "非アクティブなセッション",
