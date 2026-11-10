@@ -54,7 +54,7 @@ env:
   EXPO_PUBLIC_HAPPIER_SOCKET_FORCE_WEBSOCKET: "1"
   # Experiment (exp/transcript-list): the transcript on FlashList instead of Legend, and older
   # pages read earlier, against the blank frame and jump when scrolling up (8T, 10/11-2026).
-  EXPO_PUBLIC_HAPPIER_SYNC_TUNING_JSON: '{"sessionMessagesPageSize":50,"messageMaxIncrementalPagesOnResume":9,"transcriptLegendListSpikeSurface":"flashList","transcriptBackwardPrefetchThresholdItems":40,"transcriptBackwardPrefetchThresholdPx":2400}'
+  EXPO_PUBLIC_HAPPIER_SYNC_TUNING_JSON: '{"sessionMessagesPageSize":50,"messageMaxIncrementalPagesOnResume":9,"transcriptLegendListSpikeSurface":"flashList"}'
   EXPO_UNSTABLE_WEB_MODAL: "1"
   YARN_PRODUCTION: "false"
   npm_config_production: "false"
