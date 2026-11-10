@@ -8,6 +8,7 @@ const SESSION_LIST_PRIMARY_HEADER_KINDS = new Set<SessionListHeaderKind>([
     'pinned',
     'active',
     'inactive',
+    'archived',
     'sessions',
 ]);
 

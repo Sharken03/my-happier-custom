@@ -10,7 +10,15 @@ export const SESSION_LIST_ORDERING_MODE_DEFAULT_V1: SessionListOrderingModeV1 = 
 
 export const SESSION_LIST_UPDATED_ORDERING_BUCKET_MS = 5 * 60_000;
 
-export type SessionListOrderingSection = 'active' | 'inactive' | 'sessions';
+export const SESSION_LIST_VISIBILITY_SCOPES = ['all', 'active', 'archived'] as const;
+export type SessionListVisibilityScope = typeof SESSION_LIST_VISIBILITY_SCOPES[number];
+export const SESSION_LIST_VISIBILITY_SCOPE_DEFAULT: SessionListVisibilityScope = 'active';
+
+export function normalizeSessionListVisibilityScope(value: unknown): SessionListVisibilityScope {
+    return value === 'all' || value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
+}
+
+export type SessionListOrderingSection = 'active' | 'inactive' | 'archived' | 'sessions';
 export type SessionListOrderingSectionMode = 'activity' | 'single';
 export type SessionListOrderingGroupKind = NonNullable<Extract<SessionListIndexItem, { type: 'session' }>['groupKind']>;
 

@@ -149,6 +149,7 @@ export const SessionListHeaderControls = React.memo(function SessionListHeaderCo
     onSearchQueryChange: (query: string) => void;
     onSearchOpenChange: (open: boolean) => void;
     searchTrailingAccessory?: React.ReactNode;
+    visibilityMenu?: React.ReactNode;
     viewMenu: React.ReactNode;
 }>) {
     const {
@@ -160,6 +161,7 @@ export const SessionListHeaderControls = React.memo(function SessionListHeaderCo
         selectedTags,
         onSearchOpenChange,
         searchTrailingAccessory,
+        visibilityMenu,
         viewMenu,
     } = props;
     const styles = stylesheet;
@@ -269,6 +271,7 @@ export const SessionListHeaderControls = React.memo(function SessionListHeaderCo
 
     return (
         <View style={styles.controls}>
+            {visibilityMenu}
             <AnimatedPressable
                 ref={searchTriggerRef}
                 testID="session-list-search-trigger"

@@ -79,6 +79,7 @@ import {
 } from './row/sessionListVisibleRowStoreScopes';
 import { treeRowId } from './drop-resolution/treeRowId';
 import { SessionListViewMenuButton } from './sessionListViewMenu';
+import { SessionListVisibilityMenu } from './sessionListVisibilityMenu';
 import { buildNewSessionTempDataFromSessionConfiguration } from '@/components/sessions/authoring/draft/sessionConfigurationSeed';
 import { storeTempData } from '@/utils/sessions/tempDataStore';
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
@@ -613,6 +614,8 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         hideInactiveSessions,
         setHideInactiveSessions,
+        sessionListVisibilityScope,
+        setSessionListVisibilityScope,
         rememberLastProjectSessionSelections,
         workspaceLabelsV1,
         setWorkspaceLabelsV1,
@@ -1848,6 +1851,12 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 disabled={!folderActionsEnabled}
             />
         );
+        const visibilityMenu = (
+            <SessionListVisibilityMenu
+                value={sessionListVisibilityScope}
+                onChange={setSessionListVisibilityScope}
+            />
+        );
         return (
             <SessionListHeaderControls
                 allKnownTags={sessionTagsEnabled === true ? allKnownTags : EMPTY_SESSION_KEYS}
@@ -1858,6 +1867,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 onSearchQueryChange={setSearchQuery}
                 onSearchOpenChange={(open) => handleHeaderSearchOpenChange(anchorKey, open)}
                 searchTrailingAccessory={searchTrailingAccessory}
+                visibilityMenu={visibilityMenu}
                 viewMenu={menu}
             />
         );
@@ -1872,6 +1882,8 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         folderActionsEnabled,
         hideInactiveSessions,
+        sessionListVisibilityScope,
+        setSessionListVisibilityScope,
         sessionListOrderingMode,
         sessionListSavedFolderSortMode,
         sessionFolderViewMode,

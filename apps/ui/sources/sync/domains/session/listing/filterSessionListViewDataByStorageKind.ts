@@ -17,7 +17,7 @@ export function filterSessionListViewDataByStorageKind(
                 pendingServerHeader = item;
                 continue;
             }
-            if (item.headerKind === 'active' || item.headerKind === 'inactive' || item.headerKind === 'sessions') {
+            if (item.headerKind === 'active' || item.headerKind === 'inactive' || item.headerKind === 'archived' || item.headerKind === 'sessions') {
                 pendingSectionHeader = item;
                 pendingGroupHeader = null;
                 continue;
