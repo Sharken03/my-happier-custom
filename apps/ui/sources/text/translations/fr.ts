@@ -245,6 +245,8 @@ const settingsAppearanceTranslationExtension = {
       darkModern: 'Dark Modern',
       catppuccinLatte: 'Catppuccin Latte',
       githubLight: 'GitHub Light',
+      claudeCode: 'Claude Code',
+      claudeCodeLight: 'Claude Code Light',
     },
     readOnlyPreset: 'Préréglage en lecture seule',
     clonePreset: 'Cloner le préréglage',
