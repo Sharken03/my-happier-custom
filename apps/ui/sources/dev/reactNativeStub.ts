@@ -123,7 +123,9 @@ type AnimationStub = { start: (cb?: (result: { finished: boolean }) => void) => 
 export const Animated = {
     Value: AnimatedValue as any,
     createAnimatedComponent: (component: any) => component,
-    timing: (_value: any, _config: any) => ({
+    timing: (_value: any, config: any) => ({
+        // Kept so tests can read the easing a native-driven timing was given.
+        config,
         start: (cb?: any) => {
             cb?.({ finished: true });
         },

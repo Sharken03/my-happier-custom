@@ -30,9 +30,19 @@ function sharedLoop(key: string, build: SharedLoop['build']): SharedLoop {
     return loop;
 }
 
-function cycleLoop(cycleMs: number): SharedLoop {
-    return sharedLoop(`cycle:${cycleMs}`, (value) => Animated.loop(
-        Animated.timing(value, { toValue: 1, duration: cycleMs, easing: Easing.linear, useNativeDriver: true }),
+/**
+ * Holds the clock on the start of its sampled frame, as the web strip's `steps()` does. A linear
+ * clock moved the dots on every display refresh (120 Hz on some phones), and each move redrew the
+ * window: about one core while a chat worked (measured on a OnePlus 8T, 10/11-2026). A value that
+ * does not change leaves the dot views untouched, so the window redraws once per sampled frame.
+ */
+function steppedEasing(frameCount: number): (t: number) => number {
+    return (t) => Math.floor(t * frameCount) / frameCount;
+}
+
+function cycleLoop(cycleMs: number, frameCount: number): SharedLoop {
+    return sharedLoop(`cycle:${cycleMs}:${frameCount}`, (value) => Animated.loop(
+        Animated.timing(value, { toValue: 1, duration: cycleMs, easing: steppedEasing(frameCount), useNativeDriver: true }),
     ));
 }
 
@@ -65,9 +75,9 @@ function useHeldLoop(loop: SharedLoop, active: boolean): Animated.Value {
     return loop.value;
 }
 
-/** The shared 0 → 1 clock for one cycle length, running only while `active`. */
-export function useDotSpinnerCycleClock(cycleMs: number, active: boolean): Animated.Value {
-    return useHeldLoop(cycleLoop(cycleMs), active);
+/** The shared 0 → 1 clock for one cycle of `frameCount` sampled frames, running only while `active`. */
+export function useDotSpinnerCycleClock(cycleMs: number, frameCount: number, active: boolean): Animated.Value {
+    return useHeldLoop(cycleLoop(cycleMs, frameCount), active);
 }
 
 /** The shared reduced-motion breath clock, running only while `active`. */
