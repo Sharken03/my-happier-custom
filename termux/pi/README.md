@@ -8,7 +8,7 @@ Versioned copies of the Pi coding agent config from `~/.pi/agent` on the phone.
 | `extensions/termux-notify.ts` | `notify` tool: Android notification through Termux:API |
 | `skills/setup-preset/SKILL.md` | Set up a project from a Git URL |
 | `skills/happier-build/SKILL.md` | Commit, push and start the Happier GitHub Actions build |
-| `models.json` | Model providers; the API keys are placeholders that the router replaces. Each model has `"image"` in `input`: the router sends an image for a model that reads text only to DS Flash |
+| `models.json` | Model providers; the API keys are placeholders that the router replaces. Each model has `"image"` in `input`: the router sends an image for a model that reads text only to DS Flash. The DeepSeek base URL has "openrouter.ai" in it, so Pi takes the cost from the router's answer; `compat` keeps Pi's other OpenRouter rules off |
 
 This folder holds no credentials, sessions or `auth.json`. Do not add them.
 

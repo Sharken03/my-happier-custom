@@ -3,7 +3,7 @@
   "providers": {
     "deepseek-router": {
       "name": "DeepSeek (8T router)",
-      "baseUrl": "http://127.0.0.1:18080/openai/deepseek/v1",
+      "baseUrl": "http://127.0.0.1:18080/openai/deepseek-openrouter.ai/v1",
       "api": "openai-completions",
       "apiKey": "added-by-the-image-router",
       "authHeader": true,
@@ -44,7 +44,9 @@
         }
       ],
       "compat": {
-        "supportsDeveloperRole": false
+        "supportsDeveloperRole": false,
+        "thinkingFormat": "openai",
+        "sendSessionAffinityHeaders": false
       }
     },
     "openrouter-router": {
