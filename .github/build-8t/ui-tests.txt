@@ -26,3 +26,4 @@ sources/components/sessions/panes/git/externalChanges/externalRepositoryChanges.
 sources/components/sessions/transcript/turnGrouping/buildTranscriptTurnUnits.test.ts
 sources/components/markdown/enriched/androidEnrichedMarkdownStyle.test.ts
 sources/components/markdown/enriched/useEnrichedMarkdownStyle.test.ts
+sources/components/sessions/transcript/measurement/transcriptRowShellSignature.test.ts

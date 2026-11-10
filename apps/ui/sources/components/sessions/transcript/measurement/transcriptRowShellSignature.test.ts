@@ -327,20 +327,27 @@ describe('buildTranscriptRowShellSignature', () => {
             expect(after.rowState).toBe('stable');
         });
 
-        it('invalidates the header signature on count and status-summary changes', () => {
+        /**
+         * The header is one line (the summary has `numberOfLines={1}`) with a fixed-width status slot,
+         * so neither the number of calls nor the group status changes its height. With them in the
+         * size version every new call dropped the measured height three times (count, running,
+         * completed) and re-placed the row from its estimate: on Android that is 44 px against a
+         * painted 48 px, so the transcript moved 4 px and back on each call.
+         */
+        it('keeps the measured height of the header row when a call is added or the status flips', () => {
             const base = buildSignature({ item: headerItem(), messagesById });
 
             const grown = buildSignature({
                 item: headerItem({ toolMessageIds: [...toolMessageIds, 'tool-4'] }),
                 messagesById: { ...messagesById, 'tool-4': toolMessage('tool-4') },
             });
-            expect(grown.structuralKey).not.toBe(base.structuralKey);
+            expect(buildTranscriptItemHeightSignatureKey(grown)).toBe(buildTranscriptItemHeightSignatureKey(base));
 
             const running = buildSignature({
                 item: headerItem(),
                 messagesById: { ...messagesById, 'tool-2': runningToolMessage('tool-2') },
             });
-            expect(running.structuralKey).not.toBe(base.structuralKey);
+            expect(buildTranscriptItemHeightSignatureKey(running)).toBe(buildTranscriptItemHeightSignatureKey(base));
         });
 
         /**

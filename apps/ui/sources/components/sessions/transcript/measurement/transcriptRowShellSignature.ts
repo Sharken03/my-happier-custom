@@ -198,14 +198,10 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
         // (Legend `validateItemSizeVersion` drops `sizesKnown` + `sizes`) on every tap.
         return {
             ...base,
-            structuralKey: buildStableJsonSignature({
-                groupId: item.groupId,
-                count: item.toolMessageIds.length,
-                status: buildToolStatusSummary({
-                    getMessageById: params.getMessageById,
-                    toolMessageIds: item.toolMessageIds,
-                }),
-            }),
+            // The number of calls and the group status are not inputs either: the header is one line
+            // with a fixed-width status slot. Keying on them dropped the measured height on every new
+            // call and re-placed the row from its estimate, which moved the transcript and back.
+            structuralKey: buildStableJsonSignature({ groupId: item.groupId }),
             expansionKey: 'tools:none|thinking:none',
             rowState: 'stable',
         };
