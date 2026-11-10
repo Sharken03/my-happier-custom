@@ -9177,6 +9177,9 @@ settingsSession: {
             jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} ${count === 1 ? "nuova attività" : "nuove attività"}, vai in fondo`,
             jumpToBottomSubtitle:
               "Mostra un pulsante quando scorri su e arriva nuova attività.",
+            jumpToBottomPositionTitle: "Posizione del pulsante vai in fondo",
+            jumpToBottomPositionBottomCenter: "In basso al centro",
+            jumpToBottomPositionBottomRight: "In basso a destra",
             advancedScrollTitle: "Scorrimento avanzato…",
           advancedScrollSubtitle: "Regola soglie e contatori.",
           advancedTitle: "Avanzato…",

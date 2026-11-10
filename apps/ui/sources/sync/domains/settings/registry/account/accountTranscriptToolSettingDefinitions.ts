@@ -429,6 +429,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptJumpToBottomPosition: {
+        schema: z.enum(['bottom-right', 'bottom-center']),
+        default: 'bottom-center',
+        description: 'Position of the jump-to-bottom button in the transcript',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptScrollJumpToBottomMinNewCount: {
         schema: z.number(),
         default: 1,

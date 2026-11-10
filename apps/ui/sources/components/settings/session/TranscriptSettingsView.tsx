@@ -71,6 +71,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
 
     const [transcriptScrollPinEnabled, setTranscriptScrollPinEnabled] = useSettingMutable('transcriptScrollPinEnabled');
     const [transcriptScrollJumpToBottomEnabled, setTranscriptScrollJumpToBottomEnabled] = useSettingMutable('transcriptScrollJumpToBottomEnabled');
+    const [transcriptJumpToBottomPosition, setTranscriptJumpToBottomPosition] = useSettingMutable('transcriptJumpToBottomPosition');
 
     // Code & Diffs settings (moved from Appearance)
     const [showLineNumbers, setShowLineNumbers] = useSettingMutable('showLineNumbers');
@@ -79,6 +80,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
 
     const [openGroupingMenu, setOpenGroupingMenu] = React.useState(false);
     const [openTimestampMenu, setOpenTimestampMenu] = React.useState(false);
+    const [openJumpToBottomPositionMenu, setOpenJumpToBottomPositionMenu] = React.useState(false);
     const [openBulkCopyFormatMenu, setOpenBulkCopyFormatMenu] = React.useState(false);
     const [openThinkingDisplayMenu, setOpenThinkingDisplayMenu] = React.useState(false);
     const [openToolChromeMenu, setOpenToolChromeMenu] = React.useState(false);
@@ -887,6 +889,32 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     onPress={() => {
                         if (transcriptScrollPinEnabled !== true) return;
                         setTranscriptScrollJumpToBottomEnabled((transcriptScrollJumpToBottomEnabled !== true) as any);
+                    }}
+                />
+
+                <DropdownMenu
+                    open={openJumpToBottomPositionMenu}
+                    onOpenChange={setOpenJumpToBottomPositionMenu}
+                    variant="selectable"
+                    search={false}
+                    selectedId={transcriptJumpToBottomPosition as any}
+                    showCategoryTitles={false}
+                    matchTriggerWidth={true}
+                    connectToTrigger={true}
+                    rowKind="item"
+                    popoverBoundaryRef={popoverBoundaryRef}
+                    itemTrigger={{
+                        title: t('settingsSession.transcript.jumpToBottomPositionTitle'),
+                        icon: <Icon name="arrow-down" size={29} color={theme.colors.text.secondary} />,
+                        itemProps: { testID: 'settings-session-transcript-jump-to-bottom-position' },
+                    }}
+                    items={[
+                        { id: 'bottom-center', title: t('settingsSession.transcript.jumpToBottomPositionBottomCenter') },
+                        { id: 'bottom-right', title: t('settingsSession.transcript.jumpToBottomPositionBottomRight') },
+                    ]}
+                    onSelect={(id) => {
+                        setTranscriptJumpToBottomPosition(id as any);
+                        setOpenJumpToBottomPositionMenu(false);
                     }}
                 />
 

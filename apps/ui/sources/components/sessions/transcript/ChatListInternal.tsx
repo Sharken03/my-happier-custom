@@ -669,6 +669,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptScrollPinEnabled = useSetting('transcriptScrollPinEnabled');
     const transcriptScrollPinOffsetThresholdPx = useSetting('transcriptScrollPinOffsetThresholdPx');
     const transcriptScrollAutoFollowWhenPinned = useSetting('transcriptScrollAutoFollowWhenPinned');
+    const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
     // `action-draft` row's size key moves when a SYNCED settings push adds or removes one of its
@@ -2610,7 +2611,9 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                     <ComposerKeyboardFloatingInset
                         testID="transcript-jump-to-bottom-keyboard-offset"
                         baseBottom={12}
-                        style={{ position: 'absolute', right: 12 }}
+                        style={transcriptJumpToBottomPosition === 'bottom-right'
+                            ? { position: 'absolute', right: 12 }
+                            : { position: 'absolute', left: 0, right: 0, alignItems: 'center', pointerEvents: 'box-none' }}
                     >
                         <JumpToBottomButton
                             testID="transcript-jump-to-bottom"

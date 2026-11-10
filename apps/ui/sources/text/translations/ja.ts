@@ -9092,6 +9092,9 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count}件の新しいアクティビティ、最下部へ移動`,
             jumpToBottomSubtitle:
               "上にスクロールしている間に新しいアクティビティが来たら表示します。",
+            jumpToBottomPositionTitle: "最下部へ移動ボタンの位置",
+            jumpToBottomPositionBottomCenter: "下部中央",
+            jumpToBottomPositionBottomRight: "下部右",
             advancedScrollTitle: "詳細スクロール…",
           advancedScrollSubtitle: "しきい値とカウンターを調整します。",
           advancedTitle: "高度な設定…",
