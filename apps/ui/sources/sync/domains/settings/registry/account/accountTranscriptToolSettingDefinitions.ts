@@ -436,6 +436,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptChatFont: {
+        schema: z.enum(['default', 'dm-sans']),
+        default: 'default',
+        description: 'Font of message text in the transcript',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptScrollJumpToBottomMinNewCount: {
         schema: z.number(),
         default: 1,

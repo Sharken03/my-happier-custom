@@ -4,7 +4,8 @@ import type { EnrichedMarkdownTextProps, MarkdownStyle } from 'react-native-enri
 import { useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
-import { useLocalSetting } from '@/sync/domains/state/storage';
+import { resolveChatFontFaces } from '@/constants/chatFont';
+import { useLocalSetting, useSetting } from '@/sync/domains/state/storage';
 import { scaleTextStyle } from '@/components/ui/text/uiFontScale';
 import type { MarkdownRenderingProfile } from '../rendering/MarkdownRenderingProfile';
 import { adaptEnrichedMarkdownStyleForAndroid } from './androidEnrichedMarkdownStyle';
@@ -102,6 +103,7 @@ export function buildEnrichedMarkdownStyle(params: Readonly<{
     profile: MarkdownRenderingProfile;
     uiFontScale: number;
     textStyle?: StyleProp<TextStyle>;
+    chatFont?: unknown;
 }>): EnrichedMarkdownStyleBundle {
     const uiFontScale = typeof params.uiFontScale === 'number' && Number.isFinite(params.uiFontScale)
         ? params.uiFontScale
@@ -127,9 +129,10 @@ export function buildEnrichedMarkdownStyle(params: Readonly<{
     const h2LineHeight = Math.max(baseLineHeight, scaledMetric(h2FontSize, 1.35));
     const h3LineHeight = Math.max(baseLineHeight, scaledMetric(h3FontSize, 1.4));
     const h6LineHeight = Math.max(scaledMetric(baseLineHeight, 0.875), scaledMetric(h6FontSize, 1.4));
-    const defaultTypography = Typography.default();
-    const semiBoldTypography = Typography.default('semiBold');
-    const italicTypography = Typography.default('italic');
+    const chatFontFaces = resolveChatFontFaces(params.chatFont, params.profile);
+    const defaultTypography: TextStyle = chatFontFaces?.regular ?? Typography.default();
+    const semiBoldTypography: TextStyle = chatFontFaces?.semiBold ?? Typography.default('semiBold');
+    const italicTypography: TextStyle = chatFontFaces?.italic ?? Typography.default('italic');
     const monoTypography = Typography.mono();
     const defaultFace = blockFontFace(defaultTypography);
     const semiBoldFace = blockFontFace(semiBoldTypography);
@@ -313,11 +316,13 @@ export function useEnrichedMarkdownStyle(params: Readonly<{
 }>): EnrichedMarkdownStyleBundle {
     const { theme } = useUnistyles();
     const uiFontScale = useLocalSetting('uiFontScale') ?? 1;
+    const chatFont = useSetting('transcriptChatFont');
 
     return React.useMemo(() => buildEnrichedMarkdownStyle({
         colors: theme.colors,
         profile: params.profile,
         textStyle: params.textStyle,
         uiFontScale,
-    }), [params.profile, params.textStyle, theme.colors, uiFontScale]);
+        chatFont,
+    }), [params.profile, params.textStyle, theme.colors, uiFontScale, chatFont]);
 }

@@ -652,7 +652,7 @@ describe('app/_layout init resilience', () => {
         const screen = await renderSettledRootLayout();
 
         expect(loadAsyncMock).toHaveBeenCalledTimes(0);
-        expect(fontLoadMock).toHaveBeenCalledTimes(10);
+        expect(fontLoadMock).toHaveBeenCalledTimes(13);
         expect(fontLoadMock).toHaveBeenCalledWith('1em "Inter-Regular"');
         expect(fontLoadMock).toHaveBeenCalledWith('1em "IBMPlexMono-Regular"');
 
@@ -684,7 +684,7 @@ describe('app/_layout init resilience', () => {
 
         const screen = await renderSettledRootLayout();
 
-        expect(fontLoadMock).toHaveBeenCalledTimes(10);
+        expect(fontLoadMock).toHaveBeenCalledTimes(13);
         expect(screen.findByTestId('app-crash-recovery-boundary')).not.toBeNull();
     });
 

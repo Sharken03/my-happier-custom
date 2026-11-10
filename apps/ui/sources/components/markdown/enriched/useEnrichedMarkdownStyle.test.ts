@@ -66,3 +66,33 @@ describe('buildEnrichedMarkdownStyle uiFontScale', () => {
         expect(bundle.markdownStyle.paragraph?.lineHeight).toBe(24);
     });
 });
+
+describe('buildEnrichedMarkdownStyle chat font', () => {
+    const build = (profile: 'default' | 'transcript' | 'thinking', chatFont: unknown) => buildEnrichedMarkdownStyle({
+        colors,
+        profile,
+        uiFontScale: 1,
+        textStyle: { fontSize: 16, lineHeight: 24 },
+        chatFont,
+    }).markdownStyle;
+
+    it('uses the DM Sans faces for transcript text and keeps the mono font for code', () => {
+        const style = build('transcript', 'dm-sans');
+        const standard = build('transcript', 'default');
+
+        expect(style.paragraph?.fontFamily).toBe('DMSans-Regular');
+        expect(style.h1?.fontFamily).toBe('DMSans-SemiBold');
+        expect(style.link?.fontFamily).toBe('DMSans-Regular');
+        expect(style.codeBlock?.fontFamily).toBe(standard.codeBlock?.fontFamily);
+        expect(build('thinking', 'dm-sans').paragraph?.fontFamily).toBe('DMSans-Regular');
+    });
+
+    it('keeps the default typography outside transcripts and for unknown values', () => {
+        const standard = build('transcript', 'default');
+
+        expect(standard.paragraph?.fontFamily).not.toBe('DMSans-Regular');
+        expect(build('default', 'dm-sans').paragraph?.fontFamily).toBe(standard.paragraph?.fontFamily);
+        expect(build('transcript', true).paragraph?.fontFamily).toBe(standard.paragraph?.fontFamily);
+        expect(build('transcript', undefined).h1?.fontFamily).toBe(standard.h1?.fontFamily);
+    });
+});

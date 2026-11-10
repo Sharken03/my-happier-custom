@@ -93,7 +93,8 @@ import {
   deriveTranscriptInteractionFromSession,
   type TranscriptInteraction,
 } from '@/utils/sessions/deriveTranscriptInteraction';
-import { useSessionInteractionSource, useSessionReferenceTarget } from '@/sync/domains/state/storage';
+import { useSessionInteractionSource, useSessionReferenceTarget, useSetting } from '@/sync/domains/state/storage';
+import { resolveChatFontFaces } from '@/constants/chatFont';
 import { Icon, ICON_SIZE } from '@/components/ui/icons/Icon';
 import { getSessionDisplayTitle } from '@/utils/sessions/sessionUtils';
 
@@ -1181,6 +1182,7 @@ function AgentTextBlock(props: {
   const transcriptStreamingSettleDelayMsRaw = props.messageDisplayCommon.transcriptStreamingSettleDelayMs;
   const transcriptStreamingPartialOutputEnabledRaw = props.messageDisplayCommon.transcriptStreamingPartialOutputEnabled;
   const transcriptStreamingMarkdownRenderingEnabledRaw = props.messageDisplayCommon.transcriptStreamingMarkdownRenderingEnabled;
+  const transcriptChatFont = useSetting('transcriptChatFont');
   const transcriptStreamingSmoothingEnabled =
     typeof transcriptStreamingSmoothingEnabledRaw === 'boolean'
       ? transcriptStreamingSmoothingEnabledRaw
@@ -1372,7 +1374,7 @@ function AgentTextBlock(props: {
                 <Text
                   testID={`transcript-streaming-plain:${props.message.id}`}
                   selectable={fallbackTextSelectable}
-                  style={[styles.transcriptMarkdownText, styles.streamingPlainText]}
+                  style={[styles.transcriptMarkdownText, styles.streamingPlainText, resolveChatFontFaces(transcriptChatFont, 'transcript')?.regular]}
                 >
                   {streaming.displayText}
                 </Text>

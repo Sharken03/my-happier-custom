@@ -18,6 +18,8 @@ import { CopyIconButton } from '@/components/ui/copy/CopyIconButton';
 import { useTemporaryCopyFeedback } from '@/components/ui/copy/useTemporaryCopyFeedback';
 import { EnrichedMarkdownTextAdapter } from './enriched/EnrichedMarkdownTextAdapter';
 import type { MarkdownRenderingProfile } from './rendering/MarkdownRenderingProfile';
+import { resolveChatFontFaces, resolveChatFontSpanStyle, type ChatFontFaces } from '@/constants/chatFont';
+import { useSetting } from '@/sync/domains/state/storage';
 
 // Option type for callback
 export type Option = {
@@ -78,7 +80,7 @@ export const MarkdownBlockView = React.memo((props: MarkdownBlockViewProps) => {
     } else if (block.type === 'mermaid') {
         return <MermaidRenderer content={block.content} />;
     } else if (block.type === 'options') {
-        return <RenderOptionsBlock items={block.items} first={props.first} last={props.last} selectable={props.selectable} onOptionPress={props.onOptionPress} onOptionLongPress={props.onOptionLongPress} textStyle={props.textStyle} />;
+        return <RenderOptionsBlock items={block.items} first={props.first} last={props.last} selectable={props.selectable} onOptionPress={props.onOptionPress} onOptionLongPress={props.onOptionLongPress} textStyle={props.textStyle} profile={props.profile} />;
     } else if (block.type === 'table') {
         return (
             <RenderTableBlock
@@ -233,8 +235,10 @@ function RenderOptionsBlock(props: {
     onOptionPress?: (option: Option) => void,
     onOptionLongPress?: OptionLongPressHandler,
     textStyle?: StyleProp<TextStyle>,
+    profile: MarkdownRenderingProfile,
 }) {
-    const optionTextStyle = [style.optionText, props.textStyle];
+    const chatFontFaces = resolveChatFontFaces(useSetting('transcriptChatFont'), props.profile);
+    const optionTextStyle = [style.optionText, props.textStyle, chatFontFaces?.regular];
     return (
         <View style={[style.optionsContainer, props.first && style.first, props.last && style.last]}>
             {props.items.map((item, index) => {
@@ -335,6 +339,7 @@ function RenderTableBlock(props: {
     streamingRevealPreset?: StreamingTextRevealPreset,
     agentTexMath: boolean,
 }) {
+  const chatFontFaces = resolveChatFontFaces(useSetting('transcriptChatFont'), props.profile);
   const columnCount = props.headers.length;
   const rowCount = props.rows.length;
   const isLastRow = (rowIndex: number) => rowIndex === rowCount - 1;
@@ -368,7 +373,8 @@ function RenderTableBlock(props: {
                           markdown={header}
                           selectable={props.selectable}
                           onLinkPress={props.onLinkPress}
-                          textStyle={[style.tableHeaderText, textAlignmentStyle, props.textStyle]}
+                          textStyle={[style.tableHeaderText, textAlignmentStyle, props.textStyle, chatFontFaces?.semiBold]}
+                          chatFontFaces={chatFontFaces}
                           profile={props.profile}
                           streamingReveal={props.streamingReveal}
                           streamingRevealPreset={props.streamingRevealPreset}
@@ -389,7 +395,8 @@ function RenderTableBlock(props: {
                               markdown={row[colIndex] ?? ''}
                               selectable={props.selectable}
                               onLinkPress={props.onLinkPress}
-                              textStyle={[style.tableCellText, textAlignmentStyle, props.textStyle]}
+                              textStyle={[style.tableCellText, textAlignmentStyle, props.textStyle, chatFontFaces?.regular]}
+                              chatFontFaces={chatFontFaces}
                               profile={props.profile}
                               streamingReveal={props.streamingReveal}
                               streamingRevealPreset={props.streamingRevealPreset}
@@ -424,6 +431,7 @@ function RenderTableCellContent(props: Readonly<{
     selectable: boolean;
     onLinkPress?: (url: string) => boolean | void;
     textStyle?: StyleProp<TextStyle>;
+    chatFontFaces: ChatFontFaces | null;
     profile: MarkdownRenderingProfile;
     streamingReveal: boolean;
     streamingRevealPreset?: StreamingTextRevealPreset;
@@ -431,7 +439,7 @@ function RenderTableCellContent(props: Readonly<{
 }>) {
     if (!containsPotentialEnrichedMath(props.markdown, props.agentTexMath)) {
         if (TABLE_CELL_INLINE_MARKDOWN.test(props.markdown)) {
-            return <RenderTableCellSpans markdown={props.markdown} selectable={props.selectable} onLinkPress={props.onLinkPress} textStyle={props.textStyle} />;
+            return <RenderTableCellSpans markdown={props.markdown} selectable={props.selectable} onLinkPress={props.onLinkPress} textStyle={props.textStyle} chatFontFaces={props.chatFontFaces} />;
         }
         return <Text selectable={props.selectable} style={props.textStyle}>{props.markdown}</Text>;
     }
@@ -466,16 +474,25 @@ function RenderTableCellSpans(props: Readonly<{
     selectable: boolean;
     onLinkPress?: (url: string) => boolean | void;
     textStyle?: StyleProp<TextStyle>;
+    chatFontFaces: ChatFontFaces | null;
 }>) {
     const spans = React.useMemo(() => parseMarkdownSpans(props.markdown, false), [props.markdown]);
+    const faces = props.chatFontFaces;
+    const resolveSpanStyle = React.useCallback(
+        (styleName: MarkdownSpan['styles'][number]) => (faces
+            ? [resolveTableCellSpanStyle(styleName), resolveChatFontSpanStyle(faces, styleName)]
+            : resolveTableCellSpanStyle(styleName)),
+        [faces],
+    );
+    const linkStyle = React.useMemo(() => (faces ? [style.link, faces.regular] : style.link), [faces]);
     return (
         <Text selectable={props.selectable} style={props.textStyle}>
             <MarkdownSpansView
                 spans={spans}
                 baseStyle={props.textStyle}
-                linkStyle={style.link}
+                linkStyle={linkStyle}
                 onLinkPress={props.onLinkPress}
-                resolveSpanStyle={resolveTableCellSpanStyle}
+                resolveSpanStyle={resolveSpanStyle}
                 inlineTextSelectable={false}
             />
         </Text>

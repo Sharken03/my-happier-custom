@@ -72,6 +72,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptScrollPinEnabled, setTranscriptScrollPinEnabled] = useSettingMutable('transcriptScrollPinEnabled');
     const [transcriptScrollJumpToBottomEnabled, setTranscriptScrollJumpToBottomEnabled] = useSettingMutable('transcriptScrollJumpToBottomEnabled');
     const [transcriptJumpToBottomPosition, setTranscriptJumpToBottomPosition] = useSettingMutable('transcriptJumpToBottomPosition');
+    const [transcriptChatFont, setTranscriptChatFont] = useSettingMutable('transcriptChatFont');
 
     // Code & Diffs settings (moved from Appearance)
     const [showLineNumbers, setShowLineNumbers] = useSettingMutable('showLineNumbers');
@@ -80,6 +81,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
 
     const [openGroupingMenu, setOpenGroupingMenu] = React.useState(false);
     const [openTimestampMenu, setOpenTimestampMenu] = React.useState(false);
+    const [openChatFontMenu, setOpenChatFontMenu] = React.useState(false);
     const [openJumpToBottomPositionMenu, setOpenJumpToBottomPositionMenu] = React.useState(false);
     const [openBulkCopyFormatMenu, setOpenBulkCopyFormatMenu] = React.useState(false);
     const [openThinkingDisplayMenu, setOpenThinkingDisplayMenu] = React.useState(false);
@@ -351,6 +353,31 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     onSelect={(id) => {
                         setTranscriptGroupingMode(id as any);
                         setOpenGroupingMenu(false);
+                    }}
+                />
+                <DropdownMenu
+                    open={openChatFontMenu}
+                    onOpenChange={setOpenChatFontMenu}
+                    variant="selectable"
+                    search={false}
+                    selectedId={transcriptChatFont === 'dm-sans' ? 'dm-sans' : 'default'}
+                    showCategoryTitles={false}
+                    matchTriggerWidth={true}
+                    connectToTrigger={true}
+                    rowKind="item"
+                    popoverBoundaryRef={popoverBoundaryRef}
+                    itemTrigger={{
+                        title: t('settingsSession.transcript.chatFontTitle'),
+                        icon: <Icon name="text-aa" size={29} color={theme.colors.text.secondary} />,
+                        itemProps: { testID: 'settings-session-transcript-chat-font' },
+                    }}
+                    items={[
+                        { id: 'default', title: t('settingsSession.transcript.chatFontDefault') },
+                        { id: 'dm-sans', title: t('settingsSession.transcript.chatFontDmSans') },
+                    ]}
+                    onSelect={(id) => {
+                        setTranscriptChatFont(id === 'dm-sans' ? 'dm-sans' : 'default');
+                        setOpenChatFontMenu(false);
                     }}
                 />
                 <DropdownMenu
