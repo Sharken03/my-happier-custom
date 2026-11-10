@@ -16,6 +16,7 @@ import { ensurePiBridgeExtensionAsset } from './piBridgeExtensionAssets';
 import { readActionsSettingsOverrideFromEnv } from '@/settings/actionsSettings';
 import { resolveSessionAgentToolPresentation } from '@/agent/tools/happierTools/resolveSessionAgentToolPresentation';
 import { PiBridgeSessionConfigSchema, type PiBridgeSessionConfig } from './piBridgeSessionConfig';
+import { resolvePiSessionTitleReminder } from './piSessionTitleReminder';
 
 /**
  * Resolved tools-bridge backend options for a Pi session. `extensionPath` is passed via
@@ -106,6 +107,11 @@ export async function resolveHappyToolsBridgeBackendOptions(params: Readonly<{
       memoryRecallGuidanceEnabled: memoryGuidanceEnabled,
       sessionTitleToolAvailable: directToolNames.has('change_title'),
     })),
+    sessionTitleReminder: resolvePiSessionTitleReminder({
+      settings: params.settings,
+      sessionMetadata: params.sessionMetadata,
+      sessionTitleToolAvailable: directToolNames.has('change_title'),
+    }),
     launch: {
       filePath: launchSpec.filePath,
       argPrefix: launchArgPrefix,

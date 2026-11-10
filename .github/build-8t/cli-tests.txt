@@ -16,3 +16,5 @@ src/agent/acp/__tests__/AcpBackend.beforePrompt.test.ts
 src/backends/pi/rpc/PiRpcBackend.contextTelemetry.test.ts
 src/backends/agy/acp/runtimeInstallable.test.ts
 src/capabilities/deps/agyAcp.test.ts
+src/backends/pi/bridgeExtension/piBridgeExtensionSource.test.ts
+src/backends/pi/bridgeExtension/resolveHappyToolsBridgeBackendOptions.test.ts

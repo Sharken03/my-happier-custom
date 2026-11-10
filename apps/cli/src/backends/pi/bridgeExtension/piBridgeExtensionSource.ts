@@ -21,6 +21,7 @@ import { readFileSync } from "node:fs";
 const CONFIG_PATH_FLAG = ${jsString(PI_BRIDGE_CONFIG_PATH_FLAG)};
 const TOKEN_COUNT_MARKER_TYPE = ${jsString(PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE)};
 const USER_INPUT_MARKER_TYPE = ${jsString(PI_BRIDGE_USER_INPUT_MARKER_TYPE)};
+const SESSION_TITLE_REMINDER_MESSAGE_TYPE = "happier-session-title-reminder";
 const BRIDGE_OUTPUT_MAX_BYTES = 1024 * 1024;
 const BRIDGE_OUTPUT_MAX_LINES = 4000;
 const TOOL_OUTPUT_MAX_BYTES = 50 * 1024;
@@ -388,11 +389,25 @@ export default function HappierPiToolsBridgeExtension(pi) {
       if (message && typeof message === "object" && message.role === "assistant") emitContextTelemetryMarker(ctx);
     });
 
+    // Some models ignore the session-title section of the system prompt. The host resolves a
+    // reminder for a session that still needs a title; it goes out once, as a hidden message
+    // after the user message that starts a run, unless the model already set a title.
+    const reminderConfig = config.sessionTitleReminder && typeof config.sessionTitleReminder === "object" ? config.sessionTitleReminder : null;
+    const sessionTitleToolName = typeof reminderConfig?.toolName === "string" ? reminderConfig.toolName : "";
+    let sessionTitleReminder = typeof reminderConfig?.text === "string" ? reminderConfig.text.trim() : "";
+
     pi.on("before_agent_start", async (event) => {
       const addition = config.promptAddition.trim();
-      if (!addition) return undefined;
-      const base = event && typeof event.systemPrompt === "string" ? event.systemPrompt.trim() : "";
-      return { systemPrompt: base ? base + "\\n\\n" + addition : addition };
+      const result = {};
+      if (addition) {
+        const base = event && typeof event.systemPrompt === "string" ? event.systemPrompt.trim() : "";
+        result.systemPrompt = base ? base + "\\n\\n" + addition : addition;
+      }
+      if (sessionTitleReminder && event?.messageType !== "custom") {
+        result.message = { customType: SESSION_TITLE_REMINDER_MESSAGE_TYPE, content: sessionTitleReminder, display: false };
+        sessionTitleReminder = "";
+      }
+      return result.systemPrompt === undefined && result.message === undefined ? undefined : result;
     });
 
     for (const tool of config.directTools) {
@@ -402,6 +417,7 @@ export default function HappierPiToolsBridgeExtension(pi) {
         description: tool.description,
         parameters: tool.inputSchema,
         async execute(toolCallId, args, signal, _onUpdate, ctx) {
+          if (tool.name === sessionTitleToolName) sessionTitleReminder = "";
           const cwd = typeof ctx?.cwd === "string" && ctx.cwd.trim() ? ctx.cwd : process.cwd();
           const callArgs = tool.call.actionId === null
             ? args

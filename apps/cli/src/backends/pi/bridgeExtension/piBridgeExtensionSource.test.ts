@@ -486,6 +486,53 @@ if (argv[0] === 'tools' && argv[1] === 'serve') {
     }
   });
 
+  it('sends the session title reminder once as a hidden message, and not after a title call', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-config-'));
+    try {
+      const writeConfig = (name: string): string => {
+        const configPath = join(dir, name);
+        writeFileSync(configPath, JSON.stringify({
+          v: 1,
+          sessionId: 'sess-1',
+          directTools: [{
+            name: 'change_title',
+            title: 'Change Chat Title',
+            description: 'Change the title of the current chat session',
+            inputSchema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+            call: { toolName: 'change_title', actionId: null },
+          }],
+          promptAddition: '',
+          sessionTitleReminder: { text: 'SET_A_TITLE', toolName: 'change_title' },
+          launch: { filePath: process.execPath, argPrefix: [], env: {} },
+        }));
+        return configPath;
+      };
+      const factory = await loadExtensionFactory();
+
+      const reminded = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: writeConfig('reminded.json') });
+      factory(reminded.pi);
+      await reminded.emit('session_start', {});
+      // A run that a custom message starts has no user message to title.
+      await expect(reminded.emit('before_agent_start', { systemPrompt: 'PI_BASE', messageType: 'custom' }))
+        .resolves.toBeUndefined();
+      await expect(reminded.emit('before_agent_start', { systemPrompt: 'PI_BASE', messageType: 'user' })).resolves.toEqual({
+        message: { customType: 'happier-session-title-reminder', content: 'SET_A_TITLE', display: false },
+      });
+      await expect(reminded.emit('before_agent_start', { systemPrompt: 'PI_BASE', messageType: 'user' }))
+        .resolves.toBeUndefined();
+
+      const titled = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: writeConfig('titled.json') });
+      factory(titled.pi);
+      await titled.emit('session_start', {});
+      await titled.tools[0]?.execute('call-1', { title: 'Title' }, new AbortController().signal, undefined, { cwd: dir })
+        .catch(() => undefined);
+      await expect(titled.emit('before_agent_start', { systemPrompt: 'PI_BASE', messageType: 'user' }))
+        .resolves.toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('stays inert without a valid protected config binding', async () => {
     const factory = await loadExtensionFactory();
     const harness = createFakePi({});

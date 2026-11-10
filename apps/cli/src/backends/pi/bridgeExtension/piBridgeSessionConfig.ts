@@ -17,6 +17,14 @@ export const PiBridgeSessionConfigSchema = lazySchema(() => z.object({
   sessionId: z.string().min(1),
   directTools: z.array(PiBridgeToolDescriptorSchema),
   promptAddition: z.string(),
+  /**
+   * `text` goes out once as a hidden message after the first user message, unless the model has
+   * already called `toolName`. Absent means no reminder.
+   */
+  sessionTitleReminder: z.object({
+    text: z.string().min(1),
+    toolName: z.string().min(1),
+  }).strict().optional(),
   launch: z.object({
     filePath: z.string().min(1),
     argPrefix: z.array(z.string()),
