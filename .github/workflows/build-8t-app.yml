@@ -47,6 +47,12 @@ env:
   EXPO_PUBLIC_HAPPIER_SERVER_URL: https://happy.sharken.duckdns.org
   APP_ENV: preview
   HAPPIER_EMBEDDED_POLICY_ENV: preview
+  # Speed (happy/docs/plan-happier-app-speed.md, measured 10/11-2026): websocket only, no
+  # socket.io polling handshake on each reconnect (the rpi's Caddy passes websockets). Pages of
+  # 50 messages instead of 150: the transcript repair always asks for a full page, also for one
+  # edited message (350-490 KB in a long Pi chat). Nine resume pages keep 450 messages of catch-up.
+  EXPO_PUBLIC_HAPPIER_SOCKET_FORCE_WEBSOCKET: "1"
+  EXPO_PUBLIC_HAPPIER_SYNC_TUNING_JSON: '{"sessionMessagesPageSize":50,"messageMaxIncrementalPagesOnResume":9}'
   EXPO_UNSTABLE_WEB_MODAL: "1"
   YARN_PRODUCTION: "false"
   npm_config_production: "false"
