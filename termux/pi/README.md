@@ -6,11 +6,13 @@ Versioned copies of the Pi coding agent config from `~/.pi/agent` on the phone.
 | --- | --- |
 | `APPEND_SYSTEM.md` | Extra system prompt for remote, headless use in Termux |
 | `extensions/termux-notify.ts` | `notify` tool: Android notification through Termux:API |
+| `extensions/bash-guard.ts` | Limits for the bash tool: 300 s without a timeout (1800 s at most), nice 10, and `bin/` first in PATH |
+| `bin/cpu-guard` | `bin/grep` and `bin/rg` link to it: the real tool with a CPU-time limit (grep 60 s, rg 120 s; `PI_GUARD_GREP_CPU_S`, `PI_GUARD_RG_CPU_S`) |
 | `skills/setup-preset/SKILL.md` | Set up a project from a Git URL |
 | `skills/happier-build/SKILL.md` | Commit, push and start the Happier GitHub Actions build |
 | `extensions/describe-images.ts` | Describes each image for a model that reads text only, with an image model of your choice; see [Image descriptions](#image-descriptions) |
 | `describe-images.json` | The image model on the 8T: `deepseek-router/deepseek-flash` |
-| `tests/describe-images.test.mjs` | Tests for the extension: `node --test termux/pi/tests/describe-images.test.mjs` (Node 24) |
+| `tests/*.test.mjs` | Tests for the extensions: `node --test termux/pi/tests/*.test.mjs` (Node 24) |
 | `models.json` | Model providers; the API keys are placeholders that the router replaces. The DeepSeek base URL has "openrouter.ai" in it, so Pi takes the cost from the router's answer (the model that answered, peak-hours price); `compat` keeps Pi's other OpenRouter rules off and sets DeepSeek's thinking format |
 
 This folder holds no credentials, sessions or `auth.json`. Do not add them.
@@ -21,7 +23,7 @@ From the repository root:
 
 ```sh
 mkdir -p ~/.pi/agent
-cp -R termux/pi/APPEND_SYSTEM.md termux/pi/models.json termux/pi/describe-images.json termux/pi/extensions termux/pi/skills ~/.pi/agent/
+cp -R termux/pi/APPEND_SYSTEM.md termux/pi/models.json termux/pi/describe-images.json termux/pi/extensions termux/pi/bin termux/pi/skills ~/.pi/agent/
 ```
 
 Restart Pi to load the changes.

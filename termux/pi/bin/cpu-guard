@@ -1,0 +1,19 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# grep and rg for Pi's bash tool (extensions/bash-guard.ts puts this folder first in PATH).
+# Runs the real tool from $PREFIX/bin with a CPU-time limit, so a slow pattern on a big file
+# (for example ".{0,2500}" around a match in a 342 MB binary) stops instead of loading the phone
+# for minutes. grep and rg are links to this script. A memory limit is not possible on Android:
+# "ulimit -v" stops the linker before the program starts.
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+name=${0##*/}
+case "$name" in
+  rg) limit="${PI_GUARD_RG_CPU_S:-120}" ;;
+  *) limit="${PI_GUARD_GREP_CPU_S:-60}" ;;
+esac
+(ulimit -t "$limit" && exec "$PREFIX/bin/$name" "$@")
+rc=$?
+# The kernel stops the process with SIGXCPU (152) or SIGKILL (137) at the limit.
+if [ "$rc" -eq 152 ] || [ "$rc" -eq 137 ]; then
+  echo "$name: stopped by bash-guard after $limit s of CPU time. Use a shorter pattern (for example .{0,200} instead of .{0,2500}), fewer files, or rg -m N." >&2
+fi
+exit "$rc"
