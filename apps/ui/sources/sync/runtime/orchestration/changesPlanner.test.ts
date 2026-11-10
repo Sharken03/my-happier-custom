@@ -413,8 +413,21 @@ describe('planSyncActionsFromChanges', () => {
             plannerOwner: 'session-drafts',
             materializationProof: 'session-draft',
         });
-        const planned = planSyncActionsFromChanges([change]);
-        expect(planned.sessionDraftAddresses).toEqual([{ kind: 'session', sessionId: 'session-a' }]);
+        const newer = buildChange({
+            cursor: 13,
+            kind: 'account',
+            entityId: 'session-draft:session/session-a',
+            hint: { v: 1, sessionDraft: true, address: { kind: 'session', sessionId: 'session-a' }, revision: 6, status: 'present' },
+        });
+        const planned = planSyncActionsFromChanges([change, newer]);
+        // One read per draft, with the newest announced revision.
+        expect(planned.sessionDrafts).toEqual([{
+            v: 1,
+            sessionDraft: true,
+            address: { kind: 'session', sessionId: 'session-a' },
+            revision: 6,
+            status: 'present',
+        }]);
         expect(planned.invalidate.settings).toBe(false);
         expect(planned.invalidate.profile).toBe(false);
     });

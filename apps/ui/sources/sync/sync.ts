@@ -8066,12 +8066,12 @@ class Sync {
                             });
                         },
                         convergePendingForSession: (sessionId) => this.fetchPendingMessages(sessionId),
-                        materializeSessionDraft: async (address) => {
+                        materializeSessionDraft: async (address, known) => {
                             const scope = getActiveServerAccountScope();
                             if (!scope || !shouldContinue()) {
                                 throw new Error('Session draft scope changed before materialization');
                             }
-                            await materializeExactSessionDraft(scope, address);
+                            await materializeExactSessionDraft(scope, address, known);
                             if (
                                 !shouldContinue()
                                 || !areServerAccountScopesEqual(getActiveServerAccountScope(), scope)
