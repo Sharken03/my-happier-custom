@@ -73,6 +73,24 @@ describe('TranscriptEventRow', () => {
         eventRowMocks.modalConfirm.mockResolvedValue(true);
     });
 
+    it('keeps the balance line on one line and lets it shrink', async () => {
+        const text = 'DS: $4.67 · OR: $0.28 · OR: 203/1000 (01:00)';
+        const screen = await renderScreen(
+            <TranscriptEventRow event={{ type: 'message', message: text }} sessionId="session-1" />,
+        );
+        const node = screen.findAllByType(Text).find((n) => n.props.children === text);
+        expect(node?.props.numberOfLines).toBe(1);
+        expect(node?.props.adjustsFontSizeToFit).toBe(true);
+    });
+
+    it('does not limit other message events to one line', async () => {
+        const screen = await renderScreen(
+            <TranscriptEventRow event={{ type: 'message', message: 'Hello there' }} sessionId="session-1" />,
+        );
+        const node = screen.findAllByType(Text).find((n) => n.props.children === 'Hello there');
+        expect(node?.props.numberOfLines).toBeUndefined();
+    });
+
     it('renders typed terminal composer draft blocked events with the clear-composer action', async () => {
         const event = parseProtocolValidAgentEvent({
             type: 'terminal-composer-draft-blocked',
