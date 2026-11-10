@@ -73,6 +73,7 @@ export type BuiltInThemeProfilePresetId =
     | 'catppuccinLatte'
     | 'githubLight'
     | 'claudeCode'
+    | 'claudeCodeDarker'
     | 'claudeCodeLight';
 
 export type BuiltInThemeProfileDefinition = Readonly<{

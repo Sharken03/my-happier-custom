@@ -413,6 +413,7 @@ describe('built-in theme profiles', () => {
             'catppuccinLatte',
             'githubLight',
             'claudeCode',
+            'claudeCodeDarker',
             'claudeCodeLight',
         ]);
         expect(getBuiltInThemeProfileDefinition('premiumDark')).toMatchObject({ cloneable: true, editable: false, deletable: false, preferredMode: 'dark' });
