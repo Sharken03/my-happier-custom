@@ -1449,6 +1449,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             item,
             toolCallsGroupChromeVariant,
             platformIsWeb: Platform.OS === 'web',
+            platformIsAndroid: Platform.OS === 'android',
         })
     ), [buildRowShellSignature, getTurnMessageById, measurementReconciler, toolCallsGroupChromeVariant]);
     const getItemSizeVersion = React.useCallback((item: ChatTranscriptListItem): React.Key => (

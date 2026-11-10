@@ -568,6 +568,11 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
      * 20px estimate/paint split-brain stayed green.
      */
     platformIsWeb: boolean;
+    /**
+     * Android paints the plain-feed group header at its 48 px touch target (`minHeight` in
+     * `toolCallsGroupChrome`), 4 px more than the other native platform.
+     */
+    platformIsAndroid?: boolean;
 }>): number | undefined {
     const { item, toolCallsGroupChromeVariant } = params;
     const unitRowHeights = resolveToolGroupUnitRowHeights(toolCallsGroupChromeVariant);
@@ -589,6 +594,7 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
         if (params.platformIsWeb && toolCallsGroupChromeVariant !== 'cards') {
             return toolCallsGroupChromeVariant === 'feed_background' ? 34 : 28;
         }
+        if (params.platformIsAndroid === true && toolCallsGroupChromeVariant === 'feed') return 48;
         return unitRowHeights?.header;
     }
     if (item.kind === 'tool-group-footer') {

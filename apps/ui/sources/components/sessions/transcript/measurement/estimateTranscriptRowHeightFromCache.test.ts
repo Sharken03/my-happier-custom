@@ -399,6 +399,22 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
     });
 
 
+    it('estimates the Android plain-feed header at its 48 px touch target', () => {
+        // The header chrome paints `minHeight: 48` on Android and 44 elsewhere. A 44 px estimate
+        // placed a new group 4 px short, and the correction after the first measure moved the list.
+        const header = toolUnitItem('tool-group-header', false);
+        const estimate = (platformIsAndroid: boolean) => estimateTranscriptRowHeightFromContent({
+            platformIsWeb: false,
+            platformIsAndroid,
+            getMessageById: () => null,
+            item: header,
+            toolCallsGroupChromeVariant: 'feed',
+        });
+
+        expect(estimate(true)).toBe(48);
+        expect(estimate(false)).toBe(44);
+    });
+
     it('keeps the feed variants on their measured single-line caps', () => {
         expect(estimateFor(toolUnitItem('tool-group-tool', false), 'feed')).toBe(MEASURED_FEED_TOOL_ROW_PX);
         expect(estimateFor(toolUnitItem('tool-group-tool', false), 'feed_background')).toBe(MEASURED_FEED_TOOL_ROW_PX);
