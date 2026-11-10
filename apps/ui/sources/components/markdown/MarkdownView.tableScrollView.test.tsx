@@ -130,6 +130,21 @@ describe('MarkdownView (tables)', () => {
         ].join('\n'));
     }, 60_000);
 
+    it('renders bold and code inside a table cell instead of showing the markers', async () => {
+        mockPlatform('android');
+        const { MarkdownView } = await import('./MarkdownView');
+
+        const screen = await renderScreen(
+            <MarkdownView markdown={['| Rum | Tid |', '|---|---|', '| **Stue** | `26,5 %` (plain) |'].join('\n')} selectable profile="transcript" />,
+        );
+
+        const text = screen.getTextContent();
+        expect(text).toContain('Stue');
+        expect(text).toContain('26,5 %');
+        expect(text).not.toContain('**');
+        expect(text).not.toContain('`');
+    }, 60_000);
+
     it('renders math table cells through the enriched renderer without losing horizontal scrolling', async () => {
         mockPlatform('android');
         const { MarkdownView } = await import('./MarkdownView');

@@ -9,6 +9,7 @@ import { Typography } from '@/constants/Typography';
 import { MermaidRenderer } from './MermaidRenderer';
 import { t } from '@/text';
 import { MarkdownSpansView } from './MarkdownSpansView';
+import { parseMarkdownSpans } from './parseMarkdownSpans';
 import { MarkdownCodeBlock } from './MarkdownCodeBlock';
 import { serializeMarkdownTable } from './serializeMarkdownTable';
 import type { StreamingTextRevealPreset } from './streaming/streamingTextRevealConfig';
@@ -429,6 +430,9 @@ function RenderTableCellContent(props: Readonly<{
     agentTexMath: boolean;
 }>) {
     if (!containsPotentialEnrichedMath(props.markdown, props.agentTexMath)) {
+        if (TABLE_CELL_INLINE_MARKDOWN.test(props.markdown)) {
+            return <RenderTableCellSpans markdown={props.markdown} selectable={props.selectable} onLinkPress={props.onLinkPress} textStyle={props.textStyle} />;
+        }
         return <Text selectable={props.selectable} style={props.textStyle}>{props.markdown}</Text>;
     }
 
@@ -446,6 +450,35 @@ function RenderTableCellContent(props: Readonly<{
             fillContainer={false}
             agentTexMath={props.agentTexMath}
         />
+    );
+}
+
+/** The characters that start bold, italic, code or a link. A cell without them stays one plain text node. */
+const TABLE_CELL_INLINE_MARKDOWN = /[*_`[]/;
+
+function resolveTableCellSpanStyle(styleName: MarkdownSpan['styles'][number]) {
+    return (style as any)[styleName];
+}
+
+/** A table cell with inline markdown: without this the cell showed its markers, such as `**Stue**`. */
+function RenderTableCellSpans(props: Readonly<{
+    markdown: string;
+    selectable: boolean;
+    onLinkPress?: (url: string) => boolean | void;
+    textStyle?: StyleProp<TextStyle>;
+}>) {
+    const spans = React.useMemo(() => parseMarkdownSpans(props.markdown, false), [props.markdown]);
+    return (
+        <Text selectable={props.selectable} style={props.textStyle}>
+            <MarkdownSpansView
+                spans={spans}
+                baseStyle={props.textStyle}
+                linkStyle={style.link}
+                onLinkPress={props.onLinkPress}
+                resolveSpanStyle={resolveTableCellSpanStyle}
+                inlineTextSelectable={false}
+            />
+        </Text>
     );
 }
 
