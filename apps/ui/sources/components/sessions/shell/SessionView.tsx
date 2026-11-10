@@ -1317,7 +1317,7 @@ const SessionAgentInputWithUsage = React.memo(function SessionAgentInputWithUsag
             inputComposerPersistence.setExpanded((current) => !current);
         },
     }), [collapsedInputMaxHeight, inputComposerPersistence, isInputExpanded]);
-    const statusCostLabel = formatSessionCostUsd(useSessionCostUsd(sessionId, sessionUsage ?? sessionLatestUsage ?? null));
+    const statusCostLabel = formatSessionCostUsd(useSessionCostUsd(sessionId));
     const agentInputUsageData = React.useMemo(() => {
         const usage = sessionUsage ?? sessionLatestUsage ?? null;
         return usage ? {

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '@/auth/context/AuthContext';
 import { calculateTotals, queryUsage } from '@/sync/api/account/apiUsage';
 import { log } from '@/log';
+import { useSessionReadyActivity } from '@/sync/store/hooks';
 
 /**
  * The chat's cost for the composer's status row: three decimals below $0.10 ("$0.042"), two above
@@ -12,16 +13,17 @@ export function formatSessionCostUsd(usd: number | null | undefined): string | n
     return `$${usd.toFixed(usd < 0.1 ? 3 : 2)}`;
 }
 
-// The CLI posts a turn's usage report next to its token_count message, so the session's latest
-// usage can change before the server has stored the report.
+// The CLI sends a usage report with each token_count message; the last one of a turn comes before
+// the turn's ready event, and the server may store it a moment later.
 const REPORT_SETTLE_MS = 1_500;
 
 /**
  * The chat's cost so far: the session's usage reports summed by the server's usage query, the same
- * source and totals as Settings → Usage. Reads again after each change of `refreshKey` (the
- * session's latest usage, which changes once per turn).
+ * source and totals as Settings → Usage. Reads again once per finished turn (the session's latest
+ * ready event), not on each token count within a turn.
  */
-export function useSessionCostUsd(sessionId: string, refreshKey: unknown): number | null {
+export function useSessionCostUsd(sessionId: string): number | null {
+    const refreshKey = useSessionReadyActivity(sessionId).latestReadyEventSeq;
     const auth = useAuth();
     const credentials = auth.credentials;
     const [costUsd, setCostUsd] = React.useState<number | null>(null);
