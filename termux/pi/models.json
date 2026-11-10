@@ -28,6 +28,10 @@
         {
           "id": "deepseek-v4-pro",
           "name": "DS Pro",
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 1048576,
           "maxTokens": 16384,
           "cost": {
@@ -191,7 +195,8 @@
           "name": "Nemotron (free)",
           "reasoning": true,
           "input": [
-            "text"
+            "text",
+            "image"
           ],
           "contextWindow": 1000000,
           "maxTokens": 16384,
@@ -215,7 +220,8 @@
           "name": "North Mini (free)",
           "reasoning": true,
           "input": [
-            "text"
+            "text",
+            "image"
           ],
           "contextWindow": 256000,
           "maxTokens": 16384,
