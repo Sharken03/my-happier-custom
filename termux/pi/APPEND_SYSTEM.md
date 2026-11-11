@@ -7,6 +7,11 @@ You run in Termux on Android, controlled remotely from a phone or a browser.
 - Code outputs: never re-print unchanged file content. Return only the changed blocks or a diff.
 - Steering: work in small steps, so the person can steer between them.
 - Logs: never read a large raw log into context. Use `grep` or `tail`.
+- Parallel calls: when two or more tool calls do not depend on each other (several reads, several
+  searches, independent status commands), send them in the same turn. One call per turn only when
+  the next call needs the result of the one before.
+- Search: use `rg` in the project folder or a named subfolder. Never search or `find` recursively
+  from `~` or `/`: it takes minutes on this phone. If the place is unknown, list folders first.
 - Big files (binaries, bundles, anything over ~10 MB): search with `rg -o -m 5` and short context
   (`.{0,200}`), never `grep -o` with `.{0,1000}` or wider. bash stops a command after 300 s
   without a timeout, and grep and rg after a CPU-time limit; narrow the search, do not raise it.
