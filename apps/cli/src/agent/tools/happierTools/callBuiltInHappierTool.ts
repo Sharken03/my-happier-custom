@@ -75,9 +75,11 @@ export async function callBuiltInHappierTool(params: Readonly<{
         toolName: params.toolName,
       }
     : null;
-  const defaultSessionMachineId = typeof rawSession.machineId === 'string' && rawSession.machineId.trim()
-    ? rawSession.machineId.trim()
-    : null;
+  // The server's session record has no machine id: the session's metadata holds it.
+  const metadataMachineId = (sessionMetadata as { machineId?: unknown } | null)?.machineId;
+  const defaultSessionMachineId = [rawSession.machineId, metadataMachineId]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .find((value) => value.length > 0) ?? null;
   const actionsSettings = readActionsSettingsFromEnv();
   const executor = createCliActionExecutor(
     {
