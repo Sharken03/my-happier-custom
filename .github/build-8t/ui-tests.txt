@@ -29,3 +29,5 @@ sources/components/markdown/enriched/useEnrichedMarkdownStyle.test.ts
 sources/components/sessions/transcript/measurement/transcriptRowShellSignature.test.ts
 sources/components/markdown/MarkdownView.tableScrollView.test.tsx
 sources/components/sessions/transcript/measurement/estimateTranscriptRowHeightFromCache.test.ts
+sources/components/sessions/transcript/measurement/rowRenderKeys.test.ts
+sources/components/sessions/transcript/measurement/transcriptMeasurementReconciler.test.ts

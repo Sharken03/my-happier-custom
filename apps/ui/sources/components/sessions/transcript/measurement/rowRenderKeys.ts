@@ -26,3 +26,21 @@ export function resolveFontScaleKey(): string {
         : 1;
     return `font:${Math.round(normalized * 100)}`;
 }
+
+/**
+ * The presentation part of a row height key: everything outside a row's own content that changes
+ * its painted height. A height measured in one chat font is not the height of that row in the
+ * other font, and a thinking row measured while hidden (1 px) is not its height as a row or card.
+ */
+export function resolveTranscriptRowPresentationKey(params: Readonly<{
+    chatFont: unknown;
+    thinkingDisplayMode: unknown;
+    thinkingInlineChrome: unknown;
+}>): string {
+    const chatFont = params.chatFont === 'dm-sans' ? 'dm-sans' : 'default';
+    const thinkingDisplayMode = params.thinkingDisplayMode === 'hidden' || params.thinkingDisplayMode === 'tool'
+        ? params.thinkingDisplayMode
+        : 'inline';
+    const thinkingInlineChrome = params.thinkingInlineChrome === 'card' ? 'card' : 'plain';
+    return `${resolveFontScaleKey()}|chat-font:${chatFont}|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}`;
+}

@@ -234,7 +234,7 @@ import { resolveToolCallsGroupChromeVariant } from '@/components/sessions/transc
 import { buildTranscriptItemHeightSignatureKey } from '@/components/sessions/transcript/measurement/transcriptItemHeightCache';
 import { useTranscriptMeasurementHostWiring } from '@/components/sessions/transcript/measurement/useTranscriptMeasurementHostWiring';
 import {
-    resolveFontScaleKey,
+    resolveTranscriptRowPresentationKey,
     resolveInitialTranscriptRowWidthBucket,
     resolveTranscriptRowWidthBucket,
 } from '@/components/sessions/transcript/measurement/rowRenderKeys';
@@ -671,6 +671,9 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptScrollAutoFollowWhenPinned = useSetting('transcriptScrollAutoFollowWhenPinned');
     const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
+    const transcriptChatFont = useSetting('transcriptChatFont');
+    const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
+    const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
     // `action-draft` row's size key moves when a SYNCED settings push adds or removes one of its
     // chips while the row is offscreen. This hook is deliberately the narrow variant — one
@@ -1251,7 +1254,11 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         renderWindowIndexMapRef,
         resolveActionDraftFieldOptions,
         resolveThinkingExpanded,
-        rowFontScaleKey: resolveFontScaleKey(),
+        rowFontScaleKey: resolveTranscriptRowPresentationKey({
+            chatFont: transcriptChatFont,
+            thinkingDisplayMode: sessionThinkingDisplayMode,
+            thinkingInlineChrome: sessionThinkingInlineChrome,
+        }),
         rowWidthBucket: listLayoutWidthBucket,
         sessionActive: props.sessionActive,
         sessionId: props.sessionId,
