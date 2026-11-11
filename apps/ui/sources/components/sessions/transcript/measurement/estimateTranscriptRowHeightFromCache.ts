@@ -515,8 +515,52 @@ function estimateTextBlockPx(text: string, chromePx: number): number {
     return chromePx + estimateWrappedLineCount(text) * transcriptMarkdownTextStyle.lineHeight;
 }
 
-function estimateMessagePx(message: Message | null, chromeVariant: ToolCallsGroupChromeVariant): number {
+/**
+ * What a thinking message paints, by the account's thinking display settings. Sized as its text,
+ * each collapsed or hidden thinking row of an older page overshot by the whole thinking text, and
+ * the content height dropped by thousands of px when the next scroll measured the rows.
+ *
+ * Android device capture 2026-11-11 (Legend, 82 and 64 measured rows): a hidden block paints
+ * nothing (`MessageView` returns null) and its row measures 1 px; a collapsed inline row with the
+ * plain chrome measures 41 px; the Reasoning tool card measures 69 px. The card chrome adds its
+ * `paddingVertical` 8 x 2 (`ThinkingTimelineRow`). An expanded inline row paints its text, so it
+ * keeps the text estimate.
+ *
+ * These numbers are the estimate only until the list measures one such row on this device:
+ * `measuredCollapsedRowPx` (the reconciler's `resolveCollapsedThinkingRowHeight`) then replaces
+ * them, so the estimate follows the phone's font scale and platform.
+ */
+const HIDDEN_THINKING_ROW_PX = 1;
+const COLLAPSED_INLINE_THINKING_ROW_PX = 41;
+const COLLAPSED_INLINE_THINKING_CARD_CHROME_PX = 8 * 2;
+const THINKING_TOOL_CARD_ROW_PX = 69;
+
+export type TranscriptThinkingRowEstimateInput = Readonly<{
+    displayMode: 'inline' | 'tool' | 'hidden';
+    inlineChrome: 'plain' | 'card';
+    isExpanded: (messageId: string) => boolean;
+    measuredCollapsedRowPx?: number;
+}>;
+
+function estimateCollapsedThinkingPx(messageId: string, thinking: TranscriptThinkingRowEstimateInput): number | undefined {
+    if (thinking.displayMode === 'hidden') return HIDDEN_THINKING_ROW_PX;
+    if (thinking.displayMode === 'inline' && thinking.isExpanded(messageId)) return undefined;
+    if (thinking.measuredCollapsedRowPx !== undefined) return thinking.measuredCollapsedRowPx;
+    if (thinking.displayMode === 'tool') return THINKING_TOOL_CARD_ROW_PX;
+    return COLLAPSED_INLINE_THINKING_ROW_PX
+        + (thinking.inlineChrome === 'card' ? COLLAPSED_INLINE_THINKING_CARD_CHROME_PX : 0);
+}
+
+function estimateMessagePx(
+    message: Message | null,
+    chromeVariant: ToolCallsGroupChromeVariant,
+    thinking: TranscriptThinkingRowEstimateInput | undefined,
+): number {
     if (!message) return ESTIMATE_COMPACT_ROW_PX;
+    if (message.kind === 'agent-text' && message.isThinking === true && thinking) {
+        const collapsedPx = estimateCollapsedThinkingPx(message.id, thinking);
+        if (collapsedPx !== undefined) return collapsedPx;
+    }
     if (message.kind === 'user-text') {
         return estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX);
     }
@@ -573,11 +617,13 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
      * `toolCallsGroupChrome`), 4 px more than the other native platform.
      */
     platformIsAndroid?: boolean;
+    /** How this account paints thinking messages; without it a thinking row is sized as its text. */
+    thinking?: TranscriptThinkingRowEstimateInput;
 }>): number | undefined {
     const { item, toolCallsGroupChromeVariant } = params;
     const unitRowHeights = resolveToolGroupUnitRowHeights(toolCallsGroupChromeVariant);
     if (item.kind === 'message') {
-        return estimateMessagePx(params.getMessageById(item.messageId), toolCallsGroupChromeVariant);
+        return estimateMessagePx(params.getMessageById(item.messageId), toolCallsGroupChromeVariant, params.thinking);
     }
     if (item.kind === 'pending-queue') {
         return estimatePendingQueueRowPx(item, params.platformIsWeb);

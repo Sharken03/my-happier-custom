@@ -1444,10 +1444,16 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     // exact measurement beats the renderer's average-size learning for rows it has
     // not mounted yet (legend-list#492; live reopen/switch-back oscillation captures
     // 2026-07-22/23). Unknown rows return undefined and keep the renderer fallback.
-    const getEstimatedItemSize = React.useCallback((item: ChatTranscriptListItem): number | undefined => (
-        estimateTranscriptRowHeightFromCache({
+    const thinkingRowEstimateInput = React.useMemo(() => ({
+        displayMode: sessionThinkingDisplayMode,
+        inlineChrome: sessionThinkingInlineChrome,
+        isExpanded: resolveThinkingExpanded,
+    }), [resolveThinkingExpanded, sessionThinkingDisplayMode, sessionThinkingInlineChrome]);
+    const getEstimatedItemSize = React.useCallback((item: ChatTranscriptListItem): number | undefined => {
+        const signature = buildRowShellSignature(item);
+        return estimateTranscriptRowHeightFromCache({
             reconciler: measurementReconciler,
-            signature: buildRowShellSignature(item),
+            signature,
             // A committed user row can inherit the bubble height the pending block just painted for
             // the same utterance, so the send crossover is placed from a measurement rather than a
             // wrap heuristic that undershoots by whole lines.
@@ -1458,8 +1464,12 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             toolCallsGroupChromeVariant,
             platformIsWeb: Platform.OS === 'web',
             platformIsAndroid: Platform.OS === 'android',
-        })
-    ), [buildRowShellSignature, getTurnMessageById, measurementReconciler, toolCallsGroupChromeVariant]);
+            thinking: {
+                ...thinkingRowEstimateInput,
+                measuredCollapsedRowPx: measurementReconciler.resolveCollapsedThinkingRowHeight(signature),
+            },
+        });
+    }, [buildRowShellSignature, getTurnMessageById, measurementReconciler, thinkingRowEstimateInput, toolCallsGroupChromeVariant]);
     const getItemSizeVersion = React.useCallback((item: ChatTranscriptListItem): React.Key => (
         buildTranscriptItemHeightSignatureKey(buildRowShellSignature(item))
     ), [buildRowShellSignature]);
