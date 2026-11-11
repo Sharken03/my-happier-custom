@@ -294,6 +294,24 @@ export const LEGEND_PATCH_MARKERS = Object.freeze([
             + 'or drops the pending-adjust state machine',
     },
     {
+        id: 'pending-mvcp-no-clamp-left',
+        marker: 'HAPPIER-PENDING-MVCP-NO-CLAMP-LEFT',
+        minOccurrences: 1,
+        builds: LEGEND_NATIVE_RUNTIME_BUILDS,
+        defect: 'doMaintainScrollAtEnd returns early while a pendingNativeMVCPAdjust is armed, and '
+            + 'only a native scroll event retires it. Native emits that event only when it clamps '
+            + 'the offset to the content end. When the content grew past the offset first, nothing '
+            + 'was left to clamp, no event came, and tail maintenance stayed off for the rest of '
+            + 'the stream. Measured on an Android device 2026-11-11: pending amount -1.25 px, '
+            + 'content 55 px past the offset 85 ms later, the reply then ran 1 894 px below the '
+            + 'viewport while the app still held the reader at the end.',
+        evidence: 'sources/components/sessions/transcript/viewport/shell/renderer/'
+            + 'legendNativeMvcpAsymmetry.fabric.native.real.integration.test.tsx '
+            + '("retires a pending native adjust that native has nothing left to clamp")',
+        removeWhen: 'upstream retires a pending native adjust that can no longer be answered, '
+            + 'or drops the pending-adjust state machine',
+    },
+    {
         id: 'mvcp-ignore-defers-observation',
         marker: 'ignoreScrollFromMVCPDeferredScroll',
         // Set on rejection, cleared on acceptance, cleared when a new adjust arms, and read plus

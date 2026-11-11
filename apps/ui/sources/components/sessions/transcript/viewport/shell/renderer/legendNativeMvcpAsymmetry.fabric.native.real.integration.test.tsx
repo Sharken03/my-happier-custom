@@ -87,12 +87,18 @@ function renderRow({ item, index }: { item: Row; index: number }) {
     return index === 0 ? <StateProbe /> : <React.Fragment>{item.id}</React.Fragment>;
 }
 
-function listElement(data: readonly Row[]) {
+/** The shape the transcript passes while it holds the reader at the tail. */
+const HELD_END_MAINTENANCE = { animated: false, isMaintainingScrollAtEnd: () => true } as const;
+
+type ListOptions = Readonly<{ heldAtEnd?: boolean }>;
+
+function listElement(data: readonly Row[], options?: ListOptions) {
     return (
         <LegendList
             data={[...data]}
             estimatedItemSize={ROW_HEIGHT}
             keyExtractor={(item: Row) => item.id}
+            maintainScrollAtEnd={options?.heldAtEnd ? (HELD_END_MAINTENANCE as never) : undefined}
             maintainVisibleContentPosition
             recycleItems={false}
             renderItem={renderRow}
@@ -100,11 +106,11 @@ function listElement(data: readonly Row[]) {
     );
 }
 
-async function mountList(data: readonly Row[]): Promise<MountedList> {
+async function mountList(data: readonly Row[], options?: ListOptions): Promise<MountedList> {
     const nodes = createShippedNativeNodeMock({ rowHeight: ROW_HEIGHT, viewportHeight: VIEWPORT_HEIGHT });
     let screen: ReactTestRenderer | null = null;
     await act(async () => {
-        screen = create(listElement(data), { createNodeMock: nodes.createNodeMock });
+        screen = create(listElement(data, options), { createNodeMock: nodes.createNodeMock });
     });
     const created = screen as unknown as ReactTestRenderer;
     await act(async () => {
@@ -132,9 +138,9 @@ async function observeScroll(list: MountedList, offset: number): Promise<void> {
     });
 }
 
-async function setData(list: MountedList, data: readonly Row[]): Promise<void> {
+async function setData(list: MountedList, data: readonly Row[], options?: ListOptions): Promise<void> {
     await act(async () => {
-        list.screen.update(listElement(data));
+        list.screen.update(listElement(data, options));
         await Promise.resolve();
     });
 }
@@ -223,6 +229,34 @@ describe('native MVCP contracts across a data change', () => {
             // The band still SUPPRESSES the offset - retiring the pending adjust must not adopt a
             // rejected observation. If this ever reads 1600 the gate was weakened, not fixed.
             scroll: 1500,
+        });
+    });
+
+    it('retires a pending native adjust that native has nothing left to clamp', async () => {
+        // A pending native adjust is retired only by a scroll observation, and
+        // `doMaintainScrollAtEnd` returns early while it is armed. The OS emits that observation
+        // only when it clamps the offset to the content end. When the content grows past the
+        // offset before the clamp, nothing is left to clamp, no observation comes, and tail
+        // maintenance stayed off for the rest of a stream (Android device capture 2026-11-11:
+        // pending amount -1.25 px, content 55 px past the offset 85 ms later, the reply then ran
+        // 1 894 px below the viewport).
+        const options = { heldAtEnd: true } as const;
+        const list = await mountList(buildRows(20), options);
+        await observeScroll(list, 1700);
+
+        // One row leaves above the tail: the content end moves up 100 px and the OS has to clamp.
+        await setData(list, buildRows(20).slice(1), options);
+        const armed = state().pendingNativeMVCPAdjust;
+
+        // Before the OS reports that clamp, the tail grows: the offset is inside the content again.
+        await setData(list, [...buildRows(20).slice(1), ...buildRows(2, 20)], options);
+
+        expect({
+            armedAmount: armed?.amount,
+            pendingArmedAfterGrowth: state().pendingNativeMVCPAdjust !== undefined,
+        }).toEqual({
+            armedAmount: -100,
+            pendingArmedAfterGrowth: false,
         });
     });
 
