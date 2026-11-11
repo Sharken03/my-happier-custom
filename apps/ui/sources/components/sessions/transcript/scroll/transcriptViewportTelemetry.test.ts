@@ -1108,6 +1108,29 @@ describe('transcript viewport telemetry', () => {
         expect((globalThis as Record<string, unknown>)[GLOBAL_KEY]).toBeUndefined();
     });
 
+    it('records in a release build when the build sets the device QA flag', async () => {
+        vi.stubEnv('EXPO_PUBLIC_HAPPIER_TRANSCRIPT_VIEWPORT_TELEMETRY_IN_RELEASE', '1');
+        try {
+            const module = await loadTelemetryModule();
+            const recordTranscriptViewportTelemetryEvent = requireFunction(module, 'recordTranscriptViewportTelemetryEvent');
+            const transcriptViewportTelemetry = module.transcriptViewportTelemetry as {
+                configure: (options: { enabled: boolean; sink?: null }) => void;
+                snapshot: () => { events: Array<Record<string, unknown>>; droppedCount: number };
+            };
+            vi.stubGlobal('__DEV__', false);
+            transcriptViewportTelemetry.configure({ enabled: false, sink: null });
+
+            recordTranscriptViewportTelemetryEvent(buildScrollWriteEvent(), {
+                transcriptViewportTelemetryEnabled: true,
+                transcriptViewportTelemetryMaxEvents: 16,
+            });
+
+            expect(transcriptViewportTelemetry.snapshot().events).toHaveLength(1);
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     it('keeps a dev runtime override enabled when tuning is disabled for device QA', async () => {
         const module = await loadTelemetryModule();
         const configureTranscriptViewportTelemetryDebugOverride = requireFunction(
