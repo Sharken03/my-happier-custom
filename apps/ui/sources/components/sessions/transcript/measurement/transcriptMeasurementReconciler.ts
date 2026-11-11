@@ -89,6 +89,14 @@ export type TranscriptMeasurementReconciler = Readonly<{
      */
     resolveLastMeasuredHeight(signature: TranscriptItemHeightValiditySignature): number | undefined;
 
+    /**
+     * The height the list last measured for a thinking row in its collapsed shape, at this row's
+     * width and font key. That shape has one height whatever the thinking text is, so it sizes the
+     * thinking rows nothing has measured yet from this device's own layout. `undefined` until one
+     * such row is measured.
+     */
+    resolveCollapsedThinkingRowHeight(signature: TranscriptItemHeightValiditySignature): number | undefined;
+
     /** Record a committed measurement (from onLayout). Updates exact (stable) or the monotonic per-item floor. */
     recordMeasuredHeight(input: Readonly<{
         signature: TranscriptItemHeightValiditySignature;
@@ -325,6 +333,17 @@ export function isStructuralSignatureDelta(
     return false;
 }
 
+function buildRowGeometryKey(signature: TranscriptItemHeightValiditySignature): string {
+    return `${signature.widthBucket}|${signature.fontScaleKey}`;
+}
+
+/** A settled thinking row that does not paint its text: hidden, a tool card, or a collapsed inline row. */
+function isCollapsedThinkingSignature(signature: TranscriptItemHeightValiditySignature): boolean {
+    return signature.kind === 'message:thinking'
+        && signature.rowState === 'stable'
+        && !signature.expansionKey.includes(':expanded');
+}
+
 export function createTranscriptMeasurementReconciler(
     options: TranscriptMeasurementReconcilerOptions = {},
 ): TranscriptMeasurementReconciler {
@@ -342,6 +361,9 @@ export function createTranscriptMeasurementReconciler(
      * never consults this again), so the cap is a leak guard, not a policy.
      */
     const paintedUtteranceBubbleHeights = new Map<string, number>();
+
+    /** One height per geometry (`widthBucket|fontScaleKey`), so the map stays a handful of entries. */
+    const collapsedThinkingRowHeights = new Map<string, number>();
 
     let lastClearedCommitToken: number | null = null;
 
@@ -392,10 +414,18 @@ export function createTranscriptMeasurementReconciler(
             return floor.lastMeasuredHeight;
         },
 
+        resolveCollapsedThinkingRowHeight(signature) {
+            return collapsedThinkingRowHeights.get(buildRowGeometryKey(signature));
+        },
+
         recordMeasuredHeight(input) {
             const { signature, heightPx } = input;
             if (!isValidHeight(heightPx)) return;
             const measured = Math.trunc(heightPx);
+
+            if (isCollapsedThinkingSignature(signature)) {
+                collapsedThinkingRowHeights.set(buildRowGeometryKey(signature), measured);
+            }
 
             // Exact path: stable rows write the LRU height cache (its existing stable-only contract).
             if (isTranscriptItemHeightSignatureStable(signature)) {
