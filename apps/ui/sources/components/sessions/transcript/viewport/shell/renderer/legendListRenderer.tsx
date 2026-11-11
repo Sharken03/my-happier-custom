@@ -453,6 +453,7 @@ function LegendListTranscriptRendererInner<TItem>(
                 ...readHeldIntentDiagnosticIdentity(intent),
                 event: 'hold-release',
             });
+            console.log('HAPPIER_HOLD', JSON.stringify({ event: 'direct-null', from: heldScrollIntentRef.current?.kind ?? null, atMs: Date.now() }));
             heldScrollIntentRef.current = null;
             heldIntentSettleUntilRef.current = 0;
             lastHeldIntentCorrectionRef.current = null;
@@ -534,6 +535,11 @@ function LegendListTranscriptRendererInner<TItem>(
                     event: 'hold-release',
                 });
             }
+        }
+        if ((heldScrollIntentRef.current?.kind ?? null) !== (intent?.kind ?? null)) {
+            console.log('HAPPIER_HOLD', JSON.stringify({
+                event: 'set', from: heldScrollIntentRef.current?.kind ?? null, to: intent?.kind ?? null, atMs: Date.now(),
+            }));
         }
         heldScrollIntentRef.current = intent;
         startEntryPlacement(intent);
@@ -1029,7 +1035,12 @@ function LegendListTranscriptRendererInner<TItem>(
 
     const releaseHeldScrollIntent = React.useCallback((
         outcome: 'preempted' | 'superseded' = 'preempted',
+        debugSite: string = 'unknown',
     ) => {
+        // Device QA only: names the call site that drops the hold.
+        console.log('HAPPIER_HOLD', JSON.stringify({
+            event: 'release', site: debugSite, outcome, held: heldScrollIntentRef.current?.kind ?? null, atMs: Date.now(),
+        }));
         finishEntryPlacement(heldScrollIntentRef.current, outcome);
         legendListRef.current?.cancelScroll();
         setHeldScrollIntent(null);
@@ -2239,7 +2250,7 @@ function LegendListTranscriptRendererInner<TItem>(
             && hasLiveKeyedHeldIntent()
             && isPlacementHeldIntent(heldScrollIntentRef.current);
         if (webUserMovedAwayFromTail || readerTookOverPlacementHold) {
-            releaseHeldScrollIntent();
+            releaseHeldScrollIntent('preempted', 'L2242');
         }
         const keyedLandingDisplacedByRenderer = isWebFrame
             && offsetMoved
@@ -2251,7 +2262,7 @@ function LegendListTranscriptRendererInner<TItem>(
             // only one), so every unattributed frame re-asserted the hold and re-opened the
             // 1500ms settle window. Web now has a better liveness fact than native had when that
             // fork was written, so both platforms release from the same fact.
-            releaseHeldScrollIntent();
+            releaseHeldScrollIntent('preempted', 'L2254');
         } else if (keyedLandingDisplacedByRenderer) {
             // A keyed target can be displaced to the physical end of a target-window slice
             // after its active settle cadence goes quiet. In that state the tail-derived facts
@@ -2278,7 +2289,7 @@ function LegendListTranscriptRendererInner<TItem>(
                 !isWebFrame
                 && Date.now() - userScrollIntent.lastInputAtMs() <= LEGEND_USER_INPUT_DETACH_WINDOW_MS
             ) {
-                releaseHeldScrollIntent();
+                releaseHeldScrollIntent('preempted', 'L2281');
             } else {
                 // This is an external offset rollback (Legend's internal maintain/adjust
                 // path replaying a stale basis), not a user detach. Releasing here is
@@ -2339,7 +2350,7 @@ function LegendListTranscriptRendererInner<TItem>(
                 && deltaY > 0
                 && affirmWebHeldEndFromTowardEndInput();
             if (!followAffirming) {
-                releaseHeldScrollIntent();
+                releaseHeldScrollIntent('preempted', 'L2342');
             }
         }
         props.platformInteractionProps?.onWheel?.(event);
@@ -2361,7 +2372,7 @@ function LegendListTranscriptRendererInner<TItem>(
             // any held-tail intent and cancels the in-flight settle window so the user's drag
             // detaches normally. Ending the drag at the tail re-latches through the next
             // at-end observation.
-            releaseHeldScrollIntent();
+            releaseHeldScrollIntent('preempted', 'L2364');
         }
         props.onScrollBeginDrag?.(event);
     }, [invalidateNativePhysicalViewportCapture, isWebFrame, props.onScrollBeginDrag, props.webDomObservation, releaseHeldScrollIntent, userScrollIntent]);
@@ -2451,7 +2462,7 @@ function LegendListTranscriptRendererInner<TItem>(
                     : heldScrollIntentRef.current?.kind === 'end'
             );
         if (!followAffirmingHeldEndInput) {
-            releaseHeldScrollIntent();
+            releaseHeldScrollIntent('preempted', 'L2454');
         }
     }, [affirmWebHeldEndFromTowardEndInput, invalidateNativePhysicalViewportCapture, isWebFrame, props.webDomObservation, releaseHeldScrollIntent, userScrollIntent]);
     const handleLegendTouchMove = React.useCallback((event: unknown) => {
@@ -2489,7 +2500,7 @@ function LegendListTranscriptRendererInner<TItem>(
         const hadHeldEndOwnership = heldScrollIntentRef.current?.kind === 'end';
         invalidateUserInertiaContinuation();
         suppressAutoEndLatchRef.current = true;
-        releaseHeldScrollIntent('superseded');
+        releaseHeldScrollIntent('superseded', 'L2492');
         // Releasing held-end ownership schedules the phase render. Other prior intents already
         // keep maintenance disabled, but publish the explicit takeover phase synchronously.
         if (!hadHeldEndOwnership) renderPositioningPhase();
@@ -2591,7 +2602,7 @@ function LegendListTranscriptRendererInner<TItem>(
             // genuine user movement or an explicit tail command clears this shared
             // lifecycle guard.
             suppressAutoEndLatchRef.current = true;
-            releaseHeldScrollIntent();
+            releaseHeldScrollIntent('preempted', 'L2594');
         },
         hasLiveWebHold: (target) => {
             const held = heldScrollIntentRef.current;
