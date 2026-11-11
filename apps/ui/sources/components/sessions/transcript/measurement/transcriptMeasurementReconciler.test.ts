@@ -27,6 +27,49 @@ function stableSignature(
 }
 
 describe('transcriptMeasurementReconciler', () => {
+    /**
+     * A collapsed thinking row has one height on a given phone, whatever its text. The first one
+     * the list measures sizes the rows it has not measured yet, so the estimate follows this
+     * device's font scale and chrome and needs no per-device constant.
+     */
+    describe('resolveCollapsedThinkingRowHeight', () => {
+        const thinkingSignature = (overrides: Partial<TranscriptItemHeightValiditySignature> = {}) => stableSignature({
+            kind: 'message:thinking',
+            expansionKey: 'tools:none|thinking:message-1:collapsed',
+            ...overrides,
+        });
+
+        it('serves the measured height of one collapsed thinking row to another', () => {
+            const reconciler = createTestTranscriptMeasurementReconciler();
+            reconciler.recordMeasuredHeight({ signature: thinkingSignature(), heightPx: 47 });
+
+            expect(reconciler.resolveCollapsedThinkingRowHeight(thinkingSignature({
+                itemId: 'message-2',
+                structuralKey: 'message-2:content-v1',
+                expansionKey: 'tools:none|thinking:message-2:collapsed',
+            }))).toBe(47);
+        });
+
+        it('does not learn from an expanded thinking row or from another kind of row', () => {
+            const reconciler = createTestTranscriptMeasurementReconciler();
+            reconciler.recordMeasuredHeight({
+                signature: thinkingSignature({ expansionKey: 'tools:none|thinking:message-1:expanded' }),
+                heightPx: 900,
+            });
+            reconciler.recordMeasuredHeight({ signature: stableSignature(), heightPx: 300 });
+
+            expect(reconciler.resolveCollapsedThinkingRowHeight(thinkingSignature({ itemId: 'message-2' }))).toBeUndefined();
+        });
+
+        it('keeps one height per width and font key', () => {
+            const reconciler = createTestTranscriptMeasurementReconciler();
+            reconciler.recordMeasuredHeight({ signature: thinkingSignature(), heightPx: 47 });
+
+            expect(reconciler.resolveCollapsedThinkingRowHeight(thinkingSignature({ fontScaleKey: 'font:130' }))).toBeUndefined();
+            expect(reconciler.resolveCollapsedThinkingRowHeight(thinkingSignature({ widthBucket: 'width:800' }))).toBeUndefined();
+        });
+    });
+
     describe('resolveRecycleType is shape-stable across a stream (T2)', () => {
         it('returns the same recycle type for an agent message growing past the long-text threshold', () => {
             const reconciler = createTestTranscriptMeasurementReconciler();

@@ -294,6 +294,61 @@ describe('estimateTranscriptRowHeightFromContent', () => {
     });
 
     /**
+     * Device capture 2026-11-11 (Android, Legend): an older page of 30 rows went in at 14 084 px
+     * because each hidden thinking row was sized as its full text; the next scroll measured them
+     * and the content height dropped by 17 600 px. Measured rows: hidden 1 px, collapsed inline
+     * (plain chrome) 41 px, Reasoning tool card 69 px.
+     */
+    describe('thinking messages', () => {
+        const thinkingMessage = { ...agentText('m1', 'x'.repeat(14_000)), isThinking: true } as Message;
+        const estimateThinking = (thinking: Parameters<typeof estimateTranscriptRowHeightFromContent>[0]['thinking']) => (
+            estimateTranscriptRowHeightFromContent({
+                platformIsWeb: false,
+                toolCallsGroupChromeVariant: 'feed_background',
+                thinking,
+                getMessageById: () => thinkingMessage,
+                item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+            })
+        );
+        const collapsed = () => false;
+        const expanded = (messageId: string) => messageId === 'm1';
+
+        it('sizes a hidden thinking message as the empty row it paints', () => {
+            expect(estimateThinking({ displayMode: 'hidden', inlineChrome: 'plain', isExpanded: expanded })).toBe(1);
+        });
+
+        it('sizes a collapsed inline thinking message as its one-line row', () => {
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'plain', isExpanded: collapsed })).toBe(41);
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'card', isExpanded: collapsed })).toBe(57);
+        });
+
+        it('prefers the collapsed height this device measured over the calibration', () => {
+            const measured = { inlineChrome: 'plain' as const, isExpanded: collapsed, measuredCollapsedRowPx: 53 };
+            expect(estimateThinking({ displayMode: 'inline', ...measured })).toBe(53);
+            expect(estimateThinking({ displayMode: 'tool', ...measured })).toBe(53);
+            expect(estimateThinking({ displayMode: 'inline', ...measured, isExpanded: expanded })).toBeGreaterThan(3_000);
+        });
+
+        it('keeps the text estimate for an expanded inline thinking message', () => {
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'plain', isExpanded: expanded })).toBeGreaterThan(3_000);
+        });
+
+        it('sizes a thinking message shown as a tool card as the card', () => {
+            expect(estimateThinking({ displayMode: 'tool', inlineChrome: 'plain', isExpanded: collapsed })).toBe(69);
+        });
+    });
+
+    it('keeps the text estimate for a visible reply when thinking is hidden', () => {
+        expect(estimateTranscriptRowHeightFromContent({
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            thinking: { displayMode: 'hidden', inlineChrome: 'plain', isExpanded: () => false },
+            getMessageById: () => agentText('m1', 'x'.repeat(14_000)),
+            item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+        })).toBeGreaterThan(3_000);
+    });
+
+    /**
      * T-3 · residual 1 — the cap rows are the gap.
      *
      * Legend places rows by ACCUMULATION (`positions[i+1] = positions[i] + size_i`), so an
