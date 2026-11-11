@@ -305,6 +305,7 @@ function LegendListTranscriptRendererInner<TItem>(
         React.useRef<TranscriptRendererNativePhysicalViewportCapture | null>(null);
     const nativePhysicalViewportObservationRef = React.useRef<object | null>(null);
     const explicitJumpTakeoverOperationRef = React.useRef<TranscriptExplicitJumpOperationId | null>(null);
+    const debugMaintainGateRef = React.useRef<string | null>(null);
     // Native prop: `react-native-unistyles` installs `nativeProps_DEPRECATED` stickily, so a fresh
     // object here deep-copies on every commit of a styled family. Built once per mount because the
     // predicate closes over `heldScrollIntentRef` only — a ref, so it is already stable and reads
@@ -2487,12 +2488,14 @@ function LegendListTranscriptRendererInner<TItem>(
         operationId: TranscriptExplicitJumpOperationId,
     ): (() => void) => {
         const releaseOperation = () => {
+            console.log('HAPPIER_HOLD', JSON.stringify({ event: 'takeover-release', current: explicitJumpTakeoverOperationRef.current === operationId, atMs: Date.now() }));
             if (explicitJumpTakeoverOperationRef.current !== operationId) return;
             explicitJumpTakeoverOperationRef.current = null;
             renderPositioningPhase();
         };
         const alreadyActive = explicitJumpTakeoverOperationRef.current !== null;
         explicitJumpTakeoverOperationRef.current = operationId;
+        console.log('HAPPIER_HOLD', JSON.stringify({ event: 'takeover-begin', alreadyActive, held: heldScrollIntentRef.current?.kind ?? null, atMs: Date.now() }));
         if (alreadyActive) {
             cancelLegendScroll();
             return releaseOperation;
@@ -2829,6 +2832,12 @@ function LegendListTranscriptRendererInner<TItem>(
         if (isWebScrollbarBandPress(event)) beginWebScrollbarDrag();
         props.platformInteractionProps?.onPointerDown?.(event);
     }, [beginWebScrollbarDrag, isWebScrollbarBandPress, props.platformInteractionProps, recordUserInteraction]);
+    // Device QA only: logs each change of the gate that hands tail maintenance to Legend.
+    const debugMaintainGate = `${explicitJumpTakeoverOperationRef.current === null ? 'no-takeover' : 'takeover'}|${heldScrollIntentRef.current?.kind ?? 'none'}`;
+    if (debugMaintainGateRef.current !== debugMaintainGate) {
+        debugMaintainGateRef.current = debugMaintainGate;
+        console.log('HAPPIER_HOLD', JSON.stringify({ event: 'render-gate', gate: debugMaintainGate, atMs: Date.now() }));
+    }
     const legendPlatformInteractionProps = {
         ...props.platformInteractionProps,
         onMouseDown: isWebFrame ? handleLegendMouseDown : props.platformInteractionProps?.onMouseDown,
