@@ -8957,6 +8957,8 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} ${count === 1 ? "novo item de atividade" : "novos itens de atividade"}, pular para o final`,
           jumpToBottomSubtitle:
             "Mostrar um botão quando você rolar para cima e novas atividades chegarem.",
+          jumpToBottomShowCountTitle: 'Mostrar o número de itens novos',
+          jumpToBottomShowCountSubtitle: 'Número no botão para ir ao fim',
           jumpToBottomPositionTitle: "Posição do botão ir para o fim",
           jumpToBottomPositionBottomCenter: "Embaixo no centro",
           jumpToBottomPositionBottomRight: "Embaixo à direita",

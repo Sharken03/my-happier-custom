@@ -429,6 +429,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptScrollJumpToBottomShowCount: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show the number of new items on the jump-to-bottom button',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptJumpToBottomPosition: {
         schema: z.enum(['bottom-right', 'bottom-center']),
         default: 'bottom-center',

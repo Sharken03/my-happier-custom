@@ -7515,6 +7515,8 @@ settingsSession: {
             jumpToBottomButtonLabel: '跳到底部',
             jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} 則新活動，跳到底部`,
             jumpToBottomSubtitle: '當你向上捲動且有新活動時顯示按鈕。',
+            jumpToBottomShowCountTitle: '顯示新項目數量',
+            jumpToBottomShowCountSubtitle: '「跳到底部」按鈕上的數字',
             jumpToBottomPositionTitle: "跳到底部按鈕位置",
             jumpToBottomPositionBottomCenter: "底部置中",
             jumpToBottomPositionBottomRight: "底部靠右",
