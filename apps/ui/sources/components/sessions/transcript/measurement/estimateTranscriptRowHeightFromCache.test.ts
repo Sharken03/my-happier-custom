@@ -196,6 +196,7 @@ describe('W-1 · an offscreen shape change must not displace the anchored row', 
     ): number {
         const estimate = estimateTranscriptRowHeightFromCache({ reconciler, signature: row.signature })
             ?? estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
                 getMessageById: () => null,
                 item: row.item,
@@ -275,12 +276,14 @@ describe('estimateTranscriptRowHeightFromContent', () => {
 
     it('scales a text message estimate with its content instead of a flat scalar', () => {
         const short = estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => agentText('m1', 'hello'),
             item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
         });
         const giant = estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => agentText('m1', 'x'.repeat(14_000)),
@@ -293,6 +296,21 @@ describe('estimateTranscriptRowHeightFromContent', () => {
         expect(giant).toBeGreaterThan(short as number);
     });
 
+    // The transcript markdown paints its lines at 24 px times the in-app text size
+    // (`useEnrichedMarkdownStyle`). Device capture 2026-11-12 (Android, 360 dp, text size Large):
+    // the unscaled estimate was off by a median 23% on replies and 32% on user bubbles.
+    it('paints text lines at the in-app text size', () => {
+        const estimate = (uiFontScale: number) => estimateTranscriptRowHeightFromContent({
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            uiFontScale,
+            getMessageById: () => agentText('m1', 'one line\nsecond line'),
+            item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+        }) as number;
+        // Same chrome; the 2 lines paint at 30 px instead of 24 px.
+        expect(estimate(1.25) - estimate(1)).toBe(2 * (30 - 24));
+    });
+
     /**
      * Device capture 2026-11-11 (Android, Legend): an older page of 30 rows went in at 14 084 px
      * because each hidden thinking row was sized as its full text; the next scroll measured them
@@ -303,6 +321,7 @@ describe('estimateTranscriptRowHeightFromContent', () => {
         const thinkingMessage = { ...agentText('m1', 'x'.repeat(14_000)), isThinking: true } as Message;
         const estimateThinking = (thinking: Parameters<typeof estimateTranscriptRowHeightFromContent>[0]['thinking']) => (
             estimateTranscriptRowHeightFromContent({
+                uiFontScale: 1,
                 platformIsWeb: false,
                 toolCallsGroupChromeVariant: 'feed_background',
                 thinking,
@@ -340,6 +359,7 @@ describe('estimateTranscriptRowHeightFromContent', () => {
 
     it('keeps the text estimate for a visible reply when thinking is hidden', () => {
         expect(estimateTranscriptRowHeightFromContent({
+            uiFontScale: 1,
             platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             thinking: { displayMode: 'hidden', inlineChrome: 'plain', isExpanded: () => false },
@@ -361,6 +381,7 @@ describe('estimateTranscriptRowHeightFromContent', () => {
      */
     it('estimates the tool-group cap rows at their measured heights so accumulation leaves no gap', () => {
         const estimateFor = (item: TranscriptRowShellItem) => estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => null,
@@ -381,6 +402,7 @@ describe('estimateTranscriptRowHeightFromContent', () => {
 
     it('returns undefined for unknown item shapes so the renderer fallback applies', () => {
         const estimate = estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => null,
@@ -427,6 +449,7 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
         item: TranscriptRowShellItem,
         toolCallsGroupChromeVariant: 'cards' | 'feed' | 'feed_background',
     ) => estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
         getMessageById: () => null,
         item,
@@ -437,6 +460,7 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
 
     it('estimates compact desktop disclosure rows without the native touch-height reservation', () => {
         const estimate = (kind: string, variant: 'feed' | 'feed_background') => estimateTranscriptRowHeightFromContent({
+            uiFontScale: 1,
             platformIsWeb: true, getMessageById: () => null,
             item: toolUnitItem(kind, false), toolCallsGroupChromeVariant: variant,
         });
@@ -459,6 +483,7 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
         // placed a new group 4 px short, and the correction after the first measure moved the list.
         const header = toolUnitItem('tool-group-header', false);
         const estimate = (platformIsAndroid: boolean) => estimateTranscriptRowHeightFromContent({
+            uiFontScale: 1,
             platformIsWeb: false,
             platformIsAndroid,
             getMessageById: () => null,
@@ -568,6 +593,7 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
     const messageItem = { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem;
     const estimateMessageFor = (variant: 'cards' | 'feed' | 'feed_background') => (
         estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         platformIsWeb: false,
             getMessageById: () => toolMessage,
             item: messageItem,
