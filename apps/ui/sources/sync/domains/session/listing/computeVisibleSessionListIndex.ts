@@ -460,9 +460,9 @@ function computeVisibleSessionListIndexUnmeasured(
         if (item.type !== 'session') return true;
         const row = resolveSessionRowForIndexItem(item, params.resolveSessionRow);
         const isArchived = row?.archivedAt != null;
-        if (visibilityScope === 'archived') return isArchived;
-        if (visibilityScope === 'active') return !isArchived;
-        return true;
+        // Archived holds every session that does not run: archived and inactive ones.
+        if (visibilityScope === 'archived') return isArchived || !(item.section === 'active' || row?.active === true);
+        return !isArchived;
     });
 
     const {
@@ -615,7 +615,7 @@ export function computeVisibleSessionListIndex(
             effectiveModeOverrides: sourceTelemetry.effectiveModeOverrides,
             bucketSortApplied: sourceTelemetry.bucketSortApplied,
             hideInactive: params.hideInactiveSessions === true ? 1 : 0,
-            visibilityScope: normalizeSessionListVisibilityScope(params.sessionListVisibilityScope) === 'archived' ? 2 : normalizeSessionListVisibilityScope(params.sessionListVisibilityScope) === 'all' ? 1 : 0,
+            visibilityScope: normalizeSessionListVisibilityScope(params.sessionListVisibilityScope) === 'archived' ? 2 : 0,
             pins: countPinnedSessionKeys(params.normalizedOrganizationProjection?.pinnedSessionKeys ?? params.pinnedSessionKeysV1),
             missingPinnedSessionKeys: projectionTelemetry.missingPinnedSessionKeys,
             visiblePlaceholderRows: projectionTelemetry.visiblePlaceholderRows,

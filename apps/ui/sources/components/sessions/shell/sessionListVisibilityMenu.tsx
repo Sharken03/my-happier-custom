@@ -15,7 +15,6 @@ import {
 // (see sessionListViewData.ts), so this filter keeps the same plain labels instead of
 // adding translation keys to every locale file.
 function getScopeLabel(scope: SessionListVisibilityScope): string {
-    if (scope === 'all') return 'All';
     if (scope === 'archived') return 'Archived';
     return 'Active';
 }
@@ -33,7 +32,7 @@ export const SessionListVisibilityMenu = React.memo((props: Readonly<{
     })), []);
 
     const handleSelect = React.useCallback((itemId: string) => {
-        if (itemId === 'all' || itemId === 'active' || itemId === 'archived') {
+        if (itemId === 'active' || itemId === 'archived') {
             props.onChange(itemId);
         }
     }, [props.onChange]);

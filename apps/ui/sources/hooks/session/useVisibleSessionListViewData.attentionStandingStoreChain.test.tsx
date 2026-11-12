@@ -64,6 +64,13 @@ sourceData.activeData = [
     },
 ] satisfies SessionListViewItem[];
 
+// The visibility scope owns the inactive filter of the list. These tests drive that filter
+// directly through sourceData.hideInactiveSessions.
+vi.mock('@/sync/domains/session/listing/sessionListOrderingRules', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/sync/domains/session/listing/sessionListOrderingRules')>()),
+    resolveSessionListHideInactiveSessions: () => sourceData.hideInactiveSessions,
+}));
+
 vi.mock('@/sync/domains/state/storage', async (importOriginal) => {
     const { createStorageModuleMock } = await import('@/dev/testkit/mocks/storage');
     return createStorageModuleMock({
@@ -75,8 +82,6 @@ vi.mock('@/sync/domains/state/storage', async (importOriginal) => {
             useSessionFolderAssignmentsBySessionKey: () => ({}),
             useSetting: (key: string) => {
                 if (key === 'hideInactiveSessions') return sourceData.hideInactiveSessions;
-                // The visibility scope owns the inactive filter; Active hides inactive sessions.
-                if (key === 'sessionListVisibilityScope') return sourceData.hideInactiveSessions ? 'active' : 'all';
                 if (key === 'sessionListAttentionPromotionModeV1') return sourceData.sessionListAttentionPromotionMode;
                 if (key === 'sessionListAttentionStandingDefaultV1') return false;
                 if (key === 'sessionListWorkingPlacementModeV1') return 'off';

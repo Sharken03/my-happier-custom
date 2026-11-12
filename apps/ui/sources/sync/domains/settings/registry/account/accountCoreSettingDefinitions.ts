@@ -22,7 +22,7 @@ import {
     SESSION_LIST_ORDERING_MODE_DEFAULT_V1,
     SESSION_LIST_ORDERING_MODES_V1,
     SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
-    SESSION_LIST_VISIBILITY_SCOPES,
+    SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import {
     DEFAULT_SESSION_INACTIVE_RESUME_POLICY,
@@ -344,9 +344,9 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
     sessionListVisibilityScope: {
-        schema: z.enum(SESSION_LIST_VISIBILITY_SCOPES),
+        schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
         default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
-        description: 'Which sessions the main list shows: all (including archived), active, or archived only',
+        description: 'Which sessions the main list shows: active (running) or archived (inactive and archived)',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },

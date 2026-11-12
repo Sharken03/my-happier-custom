@@ -10,17 +10,19 @@ export const SESSION_LIST_ORDERING_MODE_DEFAULT_V1: SessionListOrderingModeV1 = 
 
 export const SESSION_LIST_UPDATED_ORDERING_BUCKET_MS = 5 * 60_000;
 
-export const SESSION_LIST_VISIBILITY_SCOPES = ['all', 'active', 'archived'] as const;
+export const SESSION_LIST_VISIBILITY_SCOPES = ['active', 'archived'] as const;
+// Stored values of the setting. 'all' is a former scope and now reads as Active.
+export const SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES = ['all', 'active', 'archived'] as const;
 export type SessionListVisibilityScope = typeof SESSION_LIST_VISIBILITY_SCOPES[number];
 export const SESSION_LIST_VISIBILITY_SCOPE_DEFAULT: SessionListVisibilityScope = 'active';
 
 export function normalizeSessionListVisibilityScope(value: unknown): SessionListVisibilityScope {
-    return value === 'all' || value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
+    return value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
 }
 
 /**
- * The visibility scope owns the inactive filter of the main session list: Active shows only
- * running sessions, All and Archived show every session of their scope.
+ * The visibility scope owns the inactive filter of the main session list. Active shows only
+ * running sessions. Archived shows all other sessions: inactive and archived.
  */
 export function resolveSessionListHideInactiveSessions(scope: SessionListVisibilityScope): boolean {
     return scope === 'active';
