@@ -44,11 +44,25 @@ runs:
           if [ -n "$NOTES" ]; then printf "%s\n" "${NOTES%$'\n'}"; fi
           echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         } > "$RUNNER_TEMP/notes.md"
-        gh release create "$tag" ./* \
-          --prerelease \
-          --target "$GITHUB_SHA" \
-          --title "${TITLE} ${GITHUB_SHA::7} (#${build})" \
-          --notes-file "$RUNNER_TEMP/notes.md"
+        # Up to 3 tries. On 12/11-2026 two APK runs got "HTTP 403: Resource not accessible by
+        # integration" here, after a push changed the workflow files while they ran. A try that
+        # failed halfway can leave the release behind, so it is deleted before the next try.
+        for try in 1 2 3; do
+          if gh release create "$tag" ./* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "${TITLE} ${GITHUB_SHA::7} (#${build})" \
+            --notes-file "$RUNNER_TEMP/notes.md"; then
+            break
+          fi
+          gh release delete "$tag" --cleanup-tag --yes >/dev/null 2>&1 || true
+          if [ "$try" = 3 ]; then
+            echo "::error::Publish failed 3 times. The job keeps the files as an artifact."
+            exit 1
+          fi
+          echo "Publish try $try failed; next try in $((try * 30)) s"
+          sleep $((try * 30))
+        done
         echo "Published ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
 
         gh release list --limit 200 --json tagName,createdAt \

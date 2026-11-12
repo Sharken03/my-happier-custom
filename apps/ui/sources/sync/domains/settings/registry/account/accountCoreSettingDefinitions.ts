@@ -323,14 +323,14 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     sessionListActiveGroupingV1: {
-        schema: z.enum(['project', 'date']),
+        schema: z.enum(['project', 'date', 'none']),
         default: 'project',
         description: 'How to group active sessions in the session list',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
     sessionListInactiveGroupingV1: {
-        schema: z.enum(['project', 'date']),
+        schema: z.enum(['project', 'date', 'none']),
         default: 'date',
         description: 'How to group inactive sessions in the session list',
         storageScope: 'account',
@@ -342,6 +342,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Whether the session list separates active and inactive sessions or shows one combined section',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionListArchivedSectionV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether archived sessions get their own Archived section in the session list or join the inactive sessions',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     sessionListVisibilityScope: {
         schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),

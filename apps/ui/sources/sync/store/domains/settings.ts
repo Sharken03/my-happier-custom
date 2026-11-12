@@ -80,6 +80,7 @@ function shouldRebuildSessionListViewData(previous: Settings, next: Settings): b
         next.sessionListActiveGroupingV1 !== previous.sessionListActiveGroupingV1 ||
         next.sessionListInactiveGroupingV1 !== previous.sessionListInactiveGroupingV1 ||
         next.sessionListSectionModeV1 !== previous.sessionListSectionModeV1 ||
+        next.sessionListArchivedSectionV1 !== previous.sessionListArchivedSectionV1 ||
         next.sessionListAttentionPromotionModeV1 !== previous.sessionListAttentionPromotionModeV1 ||
         next.sessionListWorkingPlacementModeV1 !== previous.sessionListWorkingPlacementModeV1 ||
         next.sessionListBackgroundWorkAttentionModeV1 !== previous.sessionListBackgroundWorkAttentionModeV1 ||
