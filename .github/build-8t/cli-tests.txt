@@ -22,3 +22,5 @@ src/session/services/createSpawnedSession.rowFirst.test.ts
 src/session/services/createSpawnedSession.replaySeeded.test.ts
 src/api/machine/rpcHandlers.rowFirstSpawn.test.ts
 src/api/machine/rpcHandlers.sourceContextSpawn.test.ts
+src/daemon/spawn/prewarmedRunner.test.ts
+src/rpc/handlers/registerSessionHandlers.previewEnv.test.ts

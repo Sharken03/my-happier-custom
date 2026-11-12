@@ -23,8 +23,14 @@ import { installConsoleWriteErrorGuards, shouldInstallConsoleWriteErrorGuards } 
 import { logger } from '@/ui/logger';
 import { applyStackSessionPriority } from '@/utils/process/applyStackSessionPriority';
 import { fail } from '@happier-dev/cli-common/output';
+import { HAPPIER_RUNNER_PREWARM_ENV_KEY, awaitPrewarmedRunnerAssignment } from '@/daemon/spawn/prewarmedRunnerAssignment';
 
 async function main() {
+  // A prewarmed runner has loaded the CLI above; it becomes a runner when the daemon sends its
+  // launch, and ends when the daemon lets it go.
+  if (process.env[HAPPIER_RUNNER_PREWARM_ENV_KEY] === '1' && !(await awaitPrewarmedRunnerAssignment(process))) {
+    process.exit(0);
+  }
   applyStackSessionPriority();
   // Best-effort Windows console hardening for Unicode output (workaround for upstream reports of mojibake when
   // launching via npm-generated wrappers). Opt-out via HAPPIER_WINDOWS_UTF8_CODEPAGE=0.
