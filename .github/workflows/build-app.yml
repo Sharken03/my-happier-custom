@@ -73,7 +73,6 @@ jobs:
       EXPO_APP_NAME: Happier
       EXPO_ANDROID_PACKAGE: dev.happier.app.sharken
       EXPO_APP_LOCAL_CONFIG_PATH: ${{ github.workspace }}/.github/build-8t/app.local.cjs
-      HAPPIER_8T_VERSION_CODE: ${{ github.run_number }}
       HAPPIER_ANDROID_BUILD_ARCHS: arm64-v8a
       # No R8 (HAPPIER_ANDROID_ENABLE_MINIFY, ..._SHRINK_RESOURCES default off in app.config.js):
       # on the 8 GB runner it was the slowest and most memory-hungry task, for a private APK
@@ -82,6 +81,14 @@ jobs:
       # No Sentry auth token here: the Sentry Gradle step must not try to upload source maps.
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
     steps:
+      # The workflows were renamed on 12/11-2026, so run_number restarted at 1. The offset keeps
+      # the APK versionCode, web version and release tags above the builds from before (#60).
+      - name: Set the build number
+        run: |
+          n=$((GITHUB_RUN_NUMBER + 100))
+          echo "HAPPIER_BUILD_NUMBER=$n" >> "$GITHUB_ENV"
+          echo "HAPPIER_8T_VERSION_CODE=$n" >> "$GITHUB_ENV"
+
       # Runs before checkout (the free-disk action lives in the repository). The APK build writes
       # React Native's CMake trees, node_modules and android/build into the workspace, which filled
       # / twice ("No space left on device") with Gradle's home already on /mnt. When the second

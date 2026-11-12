@@ -32,7 +32,8 @@ runs:
         NOTES: ${{ inputs.notes }}
       run: |
         set -euo pipefail
-        tag="8t-${KIND}-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+        build="${HAPPIER_BUILD_NUMBER:-$GITHUB_RUN_NUMBER}"
+        tag="8t-${KIND}-${GITHUB_SHA::7}-${build}"
         cd "$DIR"
         for f in *; do sha256sum "$f" > "$f.sha256"; done
         ls -l
@@ -46,7 +47,7 @@ runs:
         gh release create "$tag" ./* \
           --prerelease \
           --target "$GITHUB_SHA" \
-          --title "${TITLE} ${GITHUB_SHA::7} (#${GITHUB_RUN_NUMBER})" \
+          --title "${TITLE} ${GITHUB_SHA::7} (#${build})" \
           --notes-file "$RUNNER_TEMP/notes.md"
         echo "Published ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
 
