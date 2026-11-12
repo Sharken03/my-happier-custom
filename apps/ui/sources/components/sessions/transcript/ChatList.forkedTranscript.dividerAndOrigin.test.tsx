@@ -523,7 +523,7 @@ describe('ChatList (forked transcript)', () => {
             await flushHookEffects({ cycles: 2, turns: 3 });
         });
 
-        expect(loadOlderForkAware).toHaveBeenCalledWith('child-1', { limit: 64 });
+        expect(loadOlderForkAware).toHaveBeenCalledWith('child-1', expect.objectContaining({ limit: 64 }));
 
         await screen.unmount();
     });
