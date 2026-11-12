@@ -65,6 +65,7 @@ function estimatePendingQueue(
     platformIsWeb = false,
 ): number | undefined {
     return estimateTranscriptRowHeightFromContent({
+        uiFontScale: 1,
         toolCallsGroupChromeVariant: 'feed_background',
         getMessageById: () => null,
         platformIsWeb,
