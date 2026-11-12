@@ -30,7 +30,7 @@ import { TRANSCRIPT_WEB_GENUINE_TOP_EPSILON_PX } from '@/components/sessions/tra
 
 export type OlderPaginationPhase = 'idle' | 'armed' | 'loading' | 'cooldown';
 
-export type OlderPaginationSuspendReason = 'negative-offset' | 'transaction-open' | 'fill-not-done';
+export type OlderPaginationSuspendReason = 'negative-offset' | 'transaction-open' | 'fill-not-done' | 'native-momentum';
 
 export type OlderPaginationScrollTrigger = 'scroll' | 'edge-reached' | 'layout-committed';
 

@@ -1943,6 +1943,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         spinnerDelayMs: sync.getSyncTuning().transcriptOlderLoadSpinnerDelayMs,
         isFillDone: () => sessionOpenLatch.initialFillStatus() === 'done',
         isTransactionOpen: () => viewportCommandController.activeOwner() !== 'follow',
+        isNativeMomentumActive: () => nativeMomentumScrollActiveRef.current,
         readHasMoreAfterExhaustion: () => sync.getSessionTailDiscontinuityOlderAvailability(props.sessionId),
     });
     // Navigation consumes the pager's result; it does not own another exhaustion cache.
@@ -2544,6 +2545,12 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         setListLayoutHeight,
         verifyNativeSliceEntryRestoreTransaction,
     });
+    const onScrollObservationMomentumScrollEnd = scrollObservationHost.onMomentumScrollEnd;
+    const onOlderPaginationNativeMomentumEnd = olderPagination.onNativeMomentumEnd;
+    const handleMomentumScrollEnd = React.useCallback(() => {
+        onScrollObservationMomentumScrollEnd();
+        onOlderPaginationNativeMomentumEnd();
+    }, [onOlderPaginationNativeMomentumEnd, onScrollObservationMomentumScrollEnd]);
     useCommittedTranscriptRef(
         observeCommittedProjectionLayoutRef,
         scrollObservationHost.observeCommittedProjectionLayout,
@@ -2597,7 +2604,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                     onScrollBeginDrag={scrollObservationHost.onScrollBeginDrag}
                     onScrollEndDrag={scrollObservationHost.onScrollEndDrag}
                     onMomentumScrollBegin={scrollObservationHost.onMomentumScrollBegin}
-                    onMomentumScrollEnd={scrollObservationHost.onMomentumScrollEnd}
+                    onMomentumScrollEnd={handleMomentumScrollEnd}
                     onRendererAtEndChange={handleRendererAtEndChange}
                     onEntryPlacementEvent={onEntryPlacementEvent}
                     renderItem={renderItem}

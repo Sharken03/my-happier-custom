@@ -32,3 +32,4 @@ sources/components/sessions/transcript/measurement/estimateTranscriptRowHeightFr
 sources/components/sessions/transcript/measurement/rowRenderKeys.test.ts
 sources/components/sessions/transcript/measurement/transcriptMeasurementReconciler.test.ts
 sources/components/sessions/transcript/scroll/jumpToBottomAffordanceState.test.ts
+sources/components/sessions/transcript/pagination/useTranscriptOlderPagination.test.tsx
