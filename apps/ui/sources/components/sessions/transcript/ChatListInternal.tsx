@@ -1485,13 +1485,16 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 measuredCollapsedRowPx: measurementReconciler.resolveCollapsedThinkingRowHeight(signature),
             },
             uiFontScale: transcriptUiFontScale,
+            transcriptContentWidthPx: Math.min(listLayoutWidthPx, transcriptContentMaxWidth),
         });
     }, [
         buildRowShellSignature,
         getTurnMessageById,
+        listLayoutWidthPx,
         measurementReconciler,
         thinkingRowEstimateInput,
         toolCallsGroupChromeVariant,
+        transcriptContentMaxWidth,
         transcriptUiFontScale,
     ]);
     const getItemSizeVersion = React.useCallback((item: ChatTranscriptListItem): React.Key => (
