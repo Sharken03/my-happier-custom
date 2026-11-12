@@ -658,8 +658,8 @@ function pushOwnedSessionsToList(params: Readonly<{
     if (params.sessions.length === 0) return;
 
     if (params.grouping === 'none') {
-        // One group without a header, newest updated first. groupKind 'date' makes each row show
-        // its age at the right, as in date groups.
+        // One group without a header, newest activity first. No groupKind 'date': each row then
+        // shows the age of its last activity, the same time the list sorts by.
         const groupKey = `server:${params.serverKey}:${params.section}:all`;
         params.sessions.slice().sort(compareSessionsStableNewestUpdatedFirst).forEach((session) => {
             params.listData.push({
@@ -667,7 +667,6 @@ function pushOwnedSessionsToList(params: Readonly<{
                 session,
                 section: resolveSectionForSession(params.section, session),
                 groupKey,
-                groupKind: 'date',
                 ...params.serverScopeMeta,
             });
         });
