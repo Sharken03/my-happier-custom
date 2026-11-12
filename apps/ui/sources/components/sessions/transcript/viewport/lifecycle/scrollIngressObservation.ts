@@ -1,5 +1,5 @@
 import type { WebTranscriptScrollMetrics } from '@/components/sessions/transcript/webTranscriptScrollMetrics';
-import { resolveWebDomOlderLoadObservationTrigger } from '../driver/webDomOlderLoadObservation';
+import { resolveOlderPaginationScrollTrigger } from '@/components/sessions/transcript/pagination/olderPaginationMachine';
 import {
     normalizeTranscriptScrollIngress,
     type TranscriptScrollIngressNativeCommandSpace,
@@ -251,12 +251,7 @@ export function observeTranscriptScrollIngress(
         callbacks.recordNativeVisibleWindowTelemetry(reason, telemetryInput);
     };
     const observeCanonicalOlderPaginationScroll = (): boolean => {
-        const trigger =
-            observation.platform === 'web'
-                ? resolveWebDomOlderLoadObservationTrigger({
-                    scrollTop: observation.scrollOffsetPx,
-                })
-                : 'scroll';
+        const trigger = resolveOlderPaginationScrollTrigger({ offsetY: observation.scrollOffsetPx });
         return callbacks.observeOlderPaginationScroll({
             offsetY: observation.scrollOffsetPx,
             layoutHeight: observation.layoutHeightPx,

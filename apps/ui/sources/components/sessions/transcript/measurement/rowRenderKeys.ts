@@ -31,16 +31,25 @@ export function resolveFontScaleKey(): string {
  * The presentation part of a row height key: everything outside a row's own content that changes
  * its painted height. A height measured in one chat font is not the height of that row in the
  * other font, and a thinking row measured while hidden (1 px) is not its height as a row or card.
+ * The transcript markdown scales with the in-app text size (`useEnrichedMarkdownStyle`), and the
+ * code block wrap default decides whether long code lines wrap or scroll sideways.
  */
 export function resolveTranscriptRowPresentationKey(params: Readonly<{
     chatFont: unknown;
     thinkingDisplayMode: unknown;
     thinkingInlineChrome: unknown;
+    uiFontScale: unknown;
+    wrapCodeBlocks: unknown;
 }>): string {
     const chatFont = params.chatFont === 'dm-sans' ? 'dm-sans' : 'default';
     const thinkingDisplayMode = params.thinkingDisplayMode === 'hidden' || params.thinkingDisplayMode === 'tool'
         ? params.thinkingDisplayMode
         : 'inline';
     const thinkingInlineChrome = params.thinkingInlineChrome === 'card' ? 'card' : 'plain';
-    return `${resolveFontScaleKey()}|chat-font:${chatFont}|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}`;
+    const uiFontScale = typeof params.uiFontScale === 'number' && Number.isFinite(params.uiFontScale)
+        ? params.uiFontScale
+        : 1;
+    const codeWrap = params.wrapCodeBlocks === true ? 'wrap' : 'scroll';
+    return `${resolveFontScaleKey()}|ui-font:${Math.round(uiFontScale * 100)}|chat-font:${chatFont}`
+        + `|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}|code:${codeWrap}`;
 }

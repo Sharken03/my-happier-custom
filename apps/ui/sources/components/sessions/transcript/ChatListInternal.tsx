@@ -684,6 +684,8 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptChatFont = useSetting('transcriptChatFont');
     const calibrationUiFontScale = useLocalSetting('uiFontScale');
+    const transcriptUiFontScale = useLocalSetting('uiFontScale');
+    const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');
     const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
@@ -1200,9 +1202,11 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const resolveSyncLoadOlderOptions = React.useCallback((): TranscriptPrependOlderLoadSyncOptions | undefined => {
         if (Platform.OS === 'web') return undefined;
         const configuredLimit = sync.getSyncTuning().transcriptNativeOlderMessagesPageSize;
-        if (typeof configuredLimit !== 'number' || !Number.isFinite(configuredLimit)) return undefined;
-        return { limit: Math.max(1, Math.trunc(configuredLimit)) };
-    }, []);
+        const limit = typeof configuredLimit === 'number' && Number.isFinite(configuredLimit)
+            ? Math.max(1, Math.trunc(configuredLimit))
+            : undefined;
+        return { ...(limit !== undefined ? { limit } : {}), waitForApply: nativeFlingApplyGate.waitForApply };
+    }, [nativeFlingApplyGate]);
     const [firstListPaintObserved, setFirstListPaintObserved] = React.useState(false);
     const firstListPaintObservedRef = React.useRef(false);
     useCommittedTranscriptRef(firstListPaintObservedRef, firstListPaintObserved);
@@ -1270,6 +1274,8 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             chatFont: transcriptChatFont,
             thinkingDisplayMode: sessionThinkingDisplayMode,
             thinkingInlineChrome: sessionThinkingInlineChrome,
+            uiFontScale: transcriptUiFontScale,
+            wrapCodeBlocks: transcriptWrapCodeBlocks,
         }),
         rowWidthBucket: listLayoutWidthBucket,
         sessionActive: props.sessionActive,
@@ -1941,12 +1947,13 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             hideOlderLoadSpinner,
             isReady: props.isLoaded || props.forkedTranscriptEnabled === true,
             loadOlderInFlight,
-            loadOlderMessages: async (syncLoadOlderOptions) => {
-                const options = { ...syncLoadOlderOptions, waitForApply: nativeFlingApplyGate.waitForApply };
-                return props.forkedTranscriptEnabled
-                    ? await sync.loadOlderMessagesForkAware(props.sessionId, options)
-                    : await sync.loadOlderMessages(props.sessionId, options);
-            },
+            loadOlderMessages: async (syncLoadOlderOptions) => props.forkedTranscriptEnabled
+                ? (syncLoadOlderOptions
+                    ? await sync.loadOlderMessagesForkAware(props.sessionId, syncLoadOlderOptions)
+                    : await sync.loadOlderMessagesForkAware(props.sessionId))
+                : (syncLoadOlderOptions
+                    ? await sync.loadOlderMessages(props.sessionId, syncLoadOlderOptions)
+                    : await sync.loadOlderMessages(props.sessionId)),
             olderLoadSpinnerDelayTimeoutRef,
             options: loadOlderOptions,
             prependHost,
@@ -1961,7 +1968,6 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         clearOlderLoadSpinnerDelay,
         hideOlderLoadSpinner,
         mainTranscriptRendererOwnerPolicy.prependRestore,
-        nativeFlingApplyGate,
         pinThresholdPx,
         prependHost,
         props.committedMessagesCount,

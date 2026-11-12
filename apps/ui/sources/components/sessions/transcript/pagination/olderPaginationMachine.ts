@@ -34,6 +34,21 @@ export type OlderPaginationSuspendReason = 'negative-offset' | 'transaction-open
 
 export type OlderPaginationScrollTrigger = 'scroll' | 'edge-reached' | 'layout-committed';
 
+/**
+ * A scroll frame at the genuine top is the older edge itself, on every platform. The list's own
+ * start callback (`onStartReached`) fires again only after the list has left its start zone, and a
+ * page shorter than the older-load threshold never takes the reader out of it, so the frame is the
+ * only signal left. The machine still requires the platform's exact-edge proof (item space on
+ * native) before it treats the frame as the edge.
+ */
+export function resolveOlderPaginationScrollTrigger(params: Readonly<{
+    offsetY: number;
+    requestedTrigger?: 'edge-reached' | 'scroll';
+}>): 'edge-reached' | 'scroll' {
+    const isGenuineTopFrame = params.offsetY >= 0 && params.offsetY <= TRANSCRIPT_WEB_GENUINE_TOP_EPSILON_PX;
+    return isGenuineTopFrame ? 'edge-reached' : params.requestedTrigger ?? 'scroll';
+}
+
 export type OlderPaginationState = Readonly<{
     phase: OlderPaginationPhase;
     insideThreshold: boolean;

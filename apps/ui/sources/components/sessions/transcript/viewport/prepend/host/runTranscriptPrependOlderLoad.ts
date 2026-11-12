@@ -16,7 +16,8 @@ export type TranscriptPrependOlderLoadResult = Readonly<{
 }>;
 
 export type TranscriptPrependOlderLoadSyncOptions = Readonly<{
-    limit: number;
+    limit?: number;
+    waitForApply?: () => Promise<void>;
 }>;
 
 export async function runTranscriptPrependOlderLoad(params: Readonly<{
