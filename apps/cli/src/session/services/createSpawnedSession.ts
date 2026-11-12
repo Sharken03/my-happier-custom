@@ -85,6 +85,28 @@ export type ReplaySeededSessionCreationV1 = Readonly<{
   sourceRecipe: ReplaySeededCreationSourceRecipe;
 }>;
 
+/**
+ * Row-first creation for an ordinary new Session: the row is committed from
+ * the caller's launch nonce before the runner starts, so the caller gets the
+ * Session id without waiting for the runner process to boot.
+ */
+export type RowFirstSessionCreationV1 = Readonly<{
+  /** The caller's launch nonce; a retry of the same launch rejoins the same row. */
+  tag: string;
+  /** Creation-metadata `flavor` recorded for the row. */
+  agentId: string;
+  /** Extra creation metadata the caller already knows, such as `machineId`. */
+  metadata?: Record<string, unknown>;
+}>;
+
+/** What the row-first creator needs; only Replay carries a source recipe to authenticate. */
+type RowFirstCreationInput = Readonly<{
+  tag: string;
+  agentId: string;
+  metadata: Record<string, unknown>;
+  sourceRecipe?: ReplaySeededCreationSourceRecipe;
+}>;
+
 export type CreateSpawnedSessionParams = Readonly<{
   credentials: Credentials;
   directory: string;
@@ -130,6 +152,8 @@ export type CreateSpawnedSessionParams = Readonly<{
    * runner bootstrap creates the row.
    */
   replaySeededCreation?: ReplaySeededSessionCreationV1;
+  /** Commit an ordinary new Session's row first and attach the runner to it. */
+  rowFirstCreation?: RowFirstSessionCreationV1;
   /**
    * A fork's already-minted child launch projection. The fork and the
    * replay-seeded creator share this one projection so the committed row and
@@ -312,16 +336,18 @@ export function replaySeedSourceRecipeConflicts(
 }
 
 /**
- * Replay-seeded creation, owned by the canonical creator.
+ * Row-first creation, owned by the canonical creator, for Replay-seeded and
+ * ordinary new Sessions.
  *
- * The row is committed here from the already-resolved recipe, the launched
- * runner attaches to it through `existingSessionId`, and cleanup only applies
- * to a fresh row after a definite pre-admission rejection. The returned row
- * always proves the requested source lineage before a runner attaches.
+ * The row is committed here, the launched runner attaches to it through
+ * `existingSessionId`, and cleanup only applies to a fresh row after a definite
+ * pre-admission rejection. The returned row always proves its identity before
+ * a runner attaches: a Replay row proves the requested source lineage, an
+ * ordinary row proves it carries this launch's tag.
  */
-async function createReplaySeededSpawnedSession(args: Readonly<{
+async function createRowFirstSpawnedSession(args: Readonly<{
   params: CreateSpawnedSessionParams;
-  replaySeededCreation: ReplaySeededSessionCreationV1;
+  replaySeededCreation: RowFirstCreationInput;
   spawnRequestInput: Readonly<Record<string, unknown>>;
   dispatchSpawnRequest: (request: SpawnDaemonSessionRequest) => Promise<unknown>;
 }>): Promise<Readonly<{ created: true; sessionId: string; session: SessionSummary }>> {
@@ -379,22 +405,30 @@ async function createReplaySeededSpawnedSession(args: Readonly<{
   // lineage. Consumption keeps these fields (it blanks `seedText` and spreads
   // the rest), so an exact retry after the child has already run still rejoins.
   const ownerMetadata = tryDecryptSessionMetadata({ credentials: params.credentials, rawSession: created.session });
-  const persistedSourceRecipe = readPersistedReplaySeedSourceRecipe(
-    ownerMetadata as Readonly<Record<string, unknown>> | null,
-  );
-  if (persistedSourceRecipe === null) {
+  const requestedSourceRecipe = params.sourceContext ?? replaySeededCreation.sourceRecipe;
+  if (requestedSourceRecipe) {
+    const persistedSourceRecipe = readPersistedReplaySeedSourceRecipe(
+      ownerMetadata as Readonly<Record<string, unknown>> | null,
+    );
+    if (persistedSourceRecipe === null) {
+      throw createCodedError(
+        'Existing Session creation candidate could not be authenticated',
+        'creation_conflict',
+        { sessionId },
+      );
+    }
+    if (replaySeedSourceRecipeConflicts(persistedSourceRecipe, requestedSourceRecipe)) {
+      throw createCodedError(
+        'Existing Session was created from a different source recipe',
+        'creation_conflict',
+        { sessionId },
+      );
+    }
+  } else if (readNonBlankExactString((ownerMetadata as { tag?: unknown } | null)?.tag) !== tag) {
+    // An ordinary row has no lineage to prove; the same rule applies to its
+    // tag: only a row that decodes and carries this launch's tag is ours.
     throw createCodedError(
       'Existing Session creation candidate could not be authenticated',
-      'creation_conflict',
-      { sessionId },
-    );
-  }
-  if (replaySeedSourceRecipeConflicts(
-    persistedSourceRecipe,
-    params.sourceContext ?? replaySeededCreation.sourceRecipe,
-  )) {
-    throw createCodedError(
-      'Existing Session was created from a different source recipe',
       'creation_conflict',
       { sessionId },
     );
@@ -586,9 +620,21 @@ export async function createSpawnedSession(
   };
 
   if (params.replaySeededCreation) {
-    return await createReplaySeededSpawnedSession({
+    return await createRowFirstSpawnedSession({
       params,
       replaySeededCreation: params.replaySeededCreation,
+      spawnRequestInput,
+      dispatchSpawnRequest,
+    });
+  }
+  if (params.rowFirstCreation) {
+    return await createRowFirstSpawnedSession({
+      params,
+      replaySeededCreation: {
+        tag: params.rowFirstCreation.tag,
+        agentId: params.rowFirstCreation.agentId,
+        metadata: params.rowFirstCreation.metadata ?? {},
+      },
       spawnRequestInput,
       dispatchSpawnRequest,
     });

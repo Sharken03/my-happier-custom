@@ -18,3 +18,7 @@ src/backends/agy/acp/runtimeInstallable.test.ts
 src/capabilities/deps/agyAcp.test.ts
 src/backends/pi/bridgeExtension/piBridgeExtensionSource.test.ts
 src/backends/pi/bridgeExtension/resolveHappyToolsBridgeBackendOptions.test.ts
+src/session/services/createSpawnedSession.rowFirst.test.ts
+src/session/services/createSpawnedSession.replaySeeded.test.ts
+src/api/machine/rpcHandlers.rowFirstSpawn.test.ts
+src/api/machine/rpcHandlers.sourceContextSpawn.test.ts
