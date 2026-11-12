@@ -417,6 +417,7 @@ jobs:
           ls -l dist/8t
 
       - name: Publish
+        id: publish
         uses: ./.github/build-8t/publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -428,3 +429,12 @@ jobs:
           notes: |
             - Android APK (arm64-v8a, ${{ env.EXPO_ANDROID_PACKAGE }}, "${{ env.EXPO_APP_NAME }}")
             - APK signing: ${{ steps.signing.outputs.mode }} (certificate SHA-256 ${{ steps.verify.outputs.cert_sha256 }})
+
+      # A failed Publish keeps the files as an artifact, so the build is not lost.
+      - name: Keep the files when Publish fails
+        if: failure() && steps.publish.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: app-${{ github.sha }}
+          path: dist/8t
+          retention-days: 7
