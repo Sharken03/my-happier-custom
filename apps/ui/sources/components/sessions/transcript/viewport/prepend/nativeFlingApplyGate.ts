@@ -36,8 +36,13 @@ export function createNativeFlingApplyGate(params: Readonly<{
         for (const resolve of waiters.splice(0)) resolve();
     };
     return {
-        waitForApply: () => (isHolding() ? new Promise<void>((resolve) => { waiters.push(resolve); }) : Promise.resolve()),
+        waitForApply: () => {
+            const holding = isHolding();
+            console.log('HAPPIER_GATE', JSON.stringify({ step: 'wait', holding, fling: params.readFling() }));
+            return holding ? new Promise<void>((resolve) => { waiters.push(resolve); }) : Promise.resolve();
+        },
         notify: () => {
+            console.log('HAPPIER_GATE', JSON.stringify({ step: 'notify', held: waiters.length, fling: params.readFling() }));
             if (!isHolding()) releaseAll();
         },
         releaseAll,
