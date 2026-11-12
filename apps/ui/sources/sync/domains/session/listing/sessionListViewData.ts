@@ -65,8 +65,8 @@ export type SessionListViewItem =
 export interface BuildSessionListViewDataOptions {
     groupInactiveSessionsByProject: boolean;
     groupGitWorktreesByRepository?: boolean;
-    activeGroupingV1?: 'project' | 'date';
-    inactiveGroupingV1?: 'project' | 'date';
+    activeGroupingV1?: 'project' | 'date' | 'none';
+    inactiveGroupingV1?: 'project' | 'date' | 'none';
     sectionModeV1?: 'activity' | 'single';
     // false: archived sessions join the inactive sessions instead of an own Archived section.
     archivedSectionV1?: boolean;
@@ -110,7 +110,7 @@ function resolveSectionForSession(
 function resolveGroupingForSection(
     section: 'active' | 'inactive',
     options: BuildSessionListViewDataOptions,
-): 'project' | 'date' {
+): 'project' | 'date' | 'none' {
     if (section === 'active') {
         return options.activeGroupingV1 ?? 'project';
     }
@@ -647,7 +647,7 @@ function pushOwnedSessionsToList(params: Readonly<{
     listData: SessionListViewItem[];
     sessions: ReadonlyArray<SessionListRenderableSession>;
     section: SessionListSectionScope;
-    grouping: 'project' | 'date';
+    grouping: 'project' | 'date' | 'none';
     machines: Record<string, MachineDisplayRenderable>;
     serverKey: string;
     serverScopeMeta: ServerScopeMeta;
@@ -656,6 +656,23 @@ function pushOwnedSessionsToList(params: Readonly<{
     groupGitWorktreesByRepository?: boolean;
 }>): void {
     if (params.sessions.length === 0) return;
+
+    if (params.grouping === 'none') {
+        // One group without a header, newest updated first. groupKind 'date' makes each row show
+        // its age at the right, as in date groups.
+        const groupKey = `server:${params.serverKey}:${params.section}:all`;
+        params.sessions.slice().sort(compareSessionsStableNewestUpdatedFirst).forEach((session) => {
+            params.listData.push({
+                type: 'session',
+                session,
+                section: resolveSectionForSession(params.section, session),
+                groupKey,
+                groupKind: 'date',
+                ...params.serverScopeMeta,
+            });
+        });
+        return;
+    }
 
     if (params.grouping === 'project') {
         pushProjectGroupsToList({

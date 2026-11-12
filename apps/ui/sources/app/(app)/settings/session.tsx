@@ -138,10 +138,16 @@ export default React.memo(function SessionSettingsScreen() {
             title: t('settingsFeatures.sessionListGrouping.dateTitle'),
             subtitle: t('settingsFeatures.sessionListGrouping.dateSubtitle'),
         },
+        // Plain English like the Active/Archived menu, so no locale file changes.
+        {
+            id: 'none',
+            title: 'None',
+            subtitle: 'One list, newest first; the age shows on each row',
+        },
     ], []);
 
     const selectGrouping = React.useCallback((itemId: string, section: 'active' | 'inactive') => {
-        if (itemId !== 'project' && itemId !== 'date') return;
+        if (itemId !== 'project' && itemId !== 'date' && itemId !== 'none') return;
         if (section === 'active') {
             setSessionListActiveGroupingV1(itemId);
             return;

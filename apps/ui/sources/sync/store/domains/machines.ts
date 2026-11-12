@@ -56,7 +56,7 @@ type MachinesDomainDependencies = Readonly<{
 function resolveGroupingForSection(
     section: 'active' | 'inactive',
     settings: Settings,
-): 'project' | 'date' {
+): 'project' | 'date' | 'none' {
     if (section === 'active') {
         return settings.sessionListActiveGroupingV1 ?? 'project';
     }

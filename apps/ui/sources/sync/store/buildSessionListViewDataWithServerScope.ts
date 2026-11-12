@@ -99,8 +99,8 @@ export function buildSessionListViewDataWithServerScope(params: {
     serverId?: string | null;
     groupInactiveSessionsByProject: boolean;
     groupGitWorktreesByRepository?: boolean;
-    activeGroupingV1?: 'project' | 'date';
-    inactiveGroupingV1?: 'project' | 'date';
+    activeGroupingV1?: 'project' | 'date' | 'none';
+    inactiveGroupingV1?: 'project' | 'date' | 'none';
     sectionModeV1?: 'activity' | 'single';
     archivedSectionV1?: boolean;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;

@@ -282,8 +282,8 @@ type SessionsDomainDependencies = {
     settings: {
         groupInactiveSessionsByProject?: boolean;
         sessionListGroupGitWorktreesV1?: boolean;
-        sessionListActiveGroupingV1?: 'project' | 'date';
-        sessionListInactiveGroupingV1?: 'project' | 'date';
+        sessionListActiveGroupingV1?: 'project' | 'date' | 'none';
+        sessionListInactiveGroupingV1?: 'project' | 'date' | 'none';
         sessionListSectionModeV1?: 'activity' | 'single';
         sessionListArchivedSectionV1?: boolean;
         sessionListAttentionPromotionModeV1?: SessionListAttentionPromotionMode;
