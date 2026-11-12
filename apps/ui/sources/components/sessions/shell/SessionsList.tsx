@@ -113,7 +113,7 @@ import { SessionListHeaderControls } from './SessionListHeaderControls';
 import { useSessionListSearchTextByKey } from './useSessionListSearchTextByKey';
 import { useSessionListMemorySearchAugmentation } from './search/useSessionListMemorySearchAugmentation';
 import { useSessionListHeaderFilterRetention } from './search/useSessionListHeaderFilterRetention';
-import { isSessionListPrimaryHeaderKind } from './sessionListPrimaryHeader';
+import { isSessionListPrimaryHeaderKind, withPrimaryHeaderFallback } from './sessionListPrimaryHeader';
 import {
     getSessionListHeaderControlsAnchorKey,
     hasActiveSessionListHeaderFilters,
@@ -820,7 +820,11 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         activeSnapshot: activeDragSnapshot,
         liveViewItems: listItems as ReadonlyArray<SessionListViewItem>,
     });
-    const renderedListItems = frozenListProjection.viewItems;
+    const frozenViewItems = frozenListProjection.viewItems;
+    const renderedListItems = React.useMemo(() => withPrimaryHeaderFallback(frozenViewItems, {
+        title: sessionListVisibilityScope === 'archived' ? 'Archived' : t('tabs.sessions'),
+        headerKind: sessionListVisibilityScope === 'archived' ? 'archived' : 'sessions',
+    }), [frozenViewItems, sessionListVisibilityScope]);
     const rowStoreScopesRaw = React.useMemo(() => renderedListItems
         .filter((item): item is SessionListSessionItem => item.type === 'session')
         .map((item) => ({
@@ -995,6 +999,12 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         if (!surfaceDataActiveRef.current) return;
         fireAndForget(sync.fetchMoreSessions(), { tag: 'SessionsList.fetchMoreSessions' });
     }, []);
+    // The main session list holds no archived rows (the server leaves them out). The All and
+    // Archived scopes load them with the same request as the Archived Sessions screen.
+    React.useEffect(() => {
+        if (sessionListVisibilityScope === 'active' || !surfaceOwnership.dataActive) return;
+        fireAndForget(sync.fetchArchivedSessions(), { tag: 'SessionsList.fetchArchivedSessions' });
+    }, [sessionListVisibilityScope, surfaceOwnership.dataActive]);
     const handleRefreshSessions = React.useCallback(async () => {
         if (!surfaceDataActiveRef.current) return;
         if (refreshingSessionsRef.current) return;

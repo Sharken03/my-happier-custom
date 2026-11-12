@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useSocketStatus } from '@/sync/domains/state/storage';
+import { useSetting, useSocketStatus } from '@/sync/domains/state/storage';
+import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import { ActivitySpinner, HERO_SPINNER_SIZE } from '@/components/ui/feedback/ActivitySpinner';
 import {
     useVisibleSessionListPaneState,
@@ -316,6 +317,9 @@ const SidebarMainViewContent = React.memo(function SidebarMainViewContent({
         router.push({ pathname: '/new', params: { draftId, draftOrigin } });
     }, [resolveNewSessionOrdinaryEntryRoute, router]);
 
+    // With a scope other than Active the list renders even when empty, so its header keeps the
+    // visibility menu and the user can switch back.
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const storageChrome = (
         <SessionsListStorageChrome
             directSessionsEnabled={directSessionsEnabled}
@@ -336,7 +340,7 @@ const SidebarMainViewContent = React.memo(function SidebarMainViewContent({
                 </View>
             </View>
         );
-    } else if (visibleSessionCount === 0) {
+    } else if (visibleSessionCount === 0 && sessionListVisibilityScope === 'active') {
         const suppressSidebarGuidance = isTablet && pathname === '/';
         content = (
             <View style={styles.sidebarContainer}>
