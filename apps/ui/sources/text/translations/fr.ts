@@ -8350,6 +8350,8 @@ settingsSession: {
             jumpToBottomButtonLabel: 'Aller en bas',
             jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} ${count === 1 ? 'nouvel élément' : 'nouveaux éléments'} d’activité, aller en bas`,
             jumpToBottomSubtitle: 'Affiche un bouton quand tu remontes et que de la nouvelle activité arrive.',
+            jumpToBottomShowCountTitle: 'Afficher le nombre de nouveaux éléments',
+            jumpToBottomShowCountSubtitle: 'Nombre sur le bouton pour aller en bas',
             jumpToBottomPositionTitle: "Position du bouton aller en bas",
             jumpToBottomPositionBottomCenter: "En bas au centre",
             jumpToBottomPositionBottomRight: "En bas à droite",

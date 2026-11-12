@@ -31,3 +31,4 @@ sources/components/markdown/MarkdownView.tableScrollView.test.tsx
 sources/components/sessions/transcript/measurement/estimateTranscriptRowHeightFromCache.test.ts
 sources/components/sessions/transcript/measurement/rowRenderKeys.test.ts
 sources/components/sessions/transcript/measurement/transcriptMeasurementReconciler.test.ts
+sources/components/sessions/transcript/scroll/jumpToBottomAffordanceState.test.ts

@@ -82,6 +82,39 @@ describe('callBuiltInHappierTool', () => {
     );
   });
 
+  it('takes the session machine from the session metadata when the session record has none', async () => {
+    resolveSessionTransportContext.mockResolvedValueOnce({
+      ok: true,
+      sessionId: 'sess-1',
+      rawSession: {
+        id: 'sess-1',
+        metadata: { summary: { text: 'Old title' }, permissionMode: 'safe-yolo', machineId: 'machine-meta' },
+      },
+      ctx: { type: 'plain' as const },
+      mode: 'plain' as const,
+    });
+    execute.mockResolvedValueOnce({ ok: true, result: { matches: [] } });
+
+    const { callBuiltInHappierTool } = await import('./callBuiltInHappierTool');
+    await callBuiltInHappierTool({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32).fill(1) } },
+      sessionId: 'sess-1',
+      toolName: 'action_execute',
+      args: {
+        actionId: 'memory.search',
+        input: { query: { v: 1, query: 'bridge', scope: { type: 'global' }, mode: 'hints' } },
+      },
+      invocation: 'session_agent_bridge',
+      toolCallId: 'pi-tool-call-1',
+    });
+
+    expect(execute).toHaveBeenCalledWith(
+      'memory.search',
+      expect.objectContaining({ machineId: 'machine-meta' }),
+      expect.objectContaining({ defaultSessionMachineId: 'machine-meta' }),
+    );
+  });
+
   it('dispatches trusted session-agent bridge calls on the agent surface with session machine context', async () => {
     resolveSessionTransportContext.mockResolvedValueOnce({
       ok: true,

@@ -8839,6 +8839,8 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} ${count === 1 ? "nowy element aktywności" : "nowe elementy aktywności"}, skocz na dół`,
           jumpToBottomSubtitle:
             "Pokaż przycisk, gdy przewiniesz w górę i pojawi się nowa aktywność.",
+          jumpToBottomShowCountTitle: 'Pokaż liczbę nowych elementów',
+          jumpToBottomShowCountSubtitle: 'Liczba na przycisku przewijania na dół',
           jumpToBottomPositionTitle: "Pozycja przycisku przejścia na dół",
           jumpToBottomPositionBottomCenter: "Na dole na środku",
           jumpToBottomPositionBottomRight: "Na dole po prawej",

@@ -90,7 +90,35 @@ export function resolveWorkspaceReplicationJobStatusHeartbeatIntervalMs(): numbe
   });
 }
 
-export function isDaemonProcessArgv(args: readonly string[]): boolean {
+// The prefix flags of applyEphemeralServerSelectionFromPrefixArgs (server/serverSelection.ts).
+const SERVER_SELECTION_PREFIX_FLAGS: readonly string[] = [
+  '--server',
+  '--server-url',
+  '--webapp-url',
+  '--local-server-url',
+  '--public-server-url',
+]
+
+function skipServerSelectionPrefixArgs(args: readonly string[]): readonly string[] {
+  let index = 0
+  while (index < args.length) {
+    const arg = args[index]
+    if (SERVER_SELECTION_PREFIX_FLAGS.includes(arg)) {
+      const value = args[index + 1]
+      if (!value || value.startsWith('--')) break
+      index += 2
+    } else if (SERVER_SELECTION_PREFIX_FLAGS.some((flag) => arg.startsWith(`${flag}=`))) {
+      index += 1
+    } else {
+      break
+    }
+  }
+  return args.slice(index)
+}
+
+export function isDaemonProcessArgv(argsRaw: readonly string[]): boolean {
+  // `happier --server <id> daemon start-sync` is a daemon process too.
+  const args = skipServerSelectionPrefixArgs(argsRaw)
   if (args.length < 2) return false
   if (args[0] !== 'daemon') return false
   return args[1] === 'start' || args[1] === 'start-sync'

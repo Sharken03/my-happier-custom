@@ -72,6 +72,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptScrollPinEnabled, setTranscriptScrollPinEnabled] = useSettingMutable('transcriptScrollPinEnabled');
     const [transcriptScrollJumpToBottomEnabled, setTranscriptScrollJumpToBottomEnabled] = useSettingMutable('transcriptScrollJumpToBottomEnabled');
     const [transcriptJumpToBottomPosition, setTranscriptJumpToBottomPosition] = useSettingMutable('transcriptJumpToBottomPosition');
+    const [transcriptScrollJumpToBottomShowCount, setTranscriptScrollJumpToBottomShowCount] = useSettingMutable('transcriptScrollJumpToBottomShowCount');
     const [transcriptChatFont, setTranscriptChatFont] = useSettingMutable('transcriptChatFont');
 
     // Code & Diffs settings (moved from Appearance)
@@ -917,6 +918,21 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                         if (transcriptScrollPinEnabled !== true) return;
                         setTranscriptScrollJumpToBottomEnabled((transcriptScrollJumpToBottomEnabled !== true) as any);
                     }}
+                />
+
+                <Item
+                    title={t('settingsSession.transcript.jumpToBottomShowCountTitle')}
+                    subtitle={t('settingsSession.transcript.jumpToBottomShowCountSubtitle')}
+                    icon={<Icon name="list-numbers" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-session-transcript-jump-to-bottom-show-count"
+                            value={transcriptScrollJumpToBottomShowCount !== false}
+                            onValueChange={(v) => setTranscriptScrollJumpToBottomShowCount(Boolean(v) as any)}
+                        />
+                    }
+                    showChevron={false}
+                    onPress={() => setTranscriptScrollJumpToBottomShowCount((transcriptScrollJumpToBottomShowCount === false) as any)}
                 />
 
                 <DropdownMenu

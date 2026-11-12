@@ -8823,6 +8823,8 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `Новая активность: ${count}. К низу`,
           jumpToBottomSubtitle:
             "Показывать кнопку, когда вы прокрутили вверх и пришла новая активность.",
+          jumpToBottomShowCountTitle: 'Показывать число новых элементов',
+          jumpToBottomShowCountSubtitle: 'Число на кнопке перехода вниз',
           jumpToBottomPositionTitle: "Положение кнопки перехода вниз",
           jumpToBottomPositionBottomCenter: "По центру внизу",
           jumpToBottomPositionBottomRight: "Справа внизу",

@@ -8395,6 +8395,8 @@ settingsSession: {
             jumpToBottomButtonLabel: 'Jump to bottom',
             jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} new activity ${count === 1 ? 'item' : 'items'}, jump to bottom`,
             jumpToBottomSubtitle: 'Show a button when you scroll up and new activity arrives.',
+            jumpToBottomShowCountTitle: 'Show new item count',
+            jumpToBottomShowCountSubtitle: 'Number on the jump-to-bottom button',
             jumpToBottomPositionTitle: 'Jump to bottom position',
             jumpToBottomPositionBottomCenter: 'Bottom center',
             jumpToBottomPositionBottomRight: 'Bottom right',

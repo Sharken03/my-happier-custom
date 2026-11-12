@@ -8363,6 +8363,8 @@ settingsSession: {
             jumpToBottomButtonLabel: 'Zum Ende springen',
             jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} neue Aktivität ${count === 1 ? 'Eintrag' : 'Einträge'}, zum Ende springen`,
             jumpToBottomSubtitle: 'Einen Button zeigen, wenn du nach oben scrollst und neue Aktivität eintrifft.',
+            jumpToBottomShowCountTitle: 'Anzahl neuer Einträge anzeigen',
+            jumpToBottomShowCountSubtitle: 'Zahl auf der Schaltfläche „Nach unten springen“',
             jumpToBottomPositionTitle: "Position des Nach-unten-Buttons",
             jumpToBottomPositionBottomCenter: "Unten mittig",
             jumpToBottomPositionBottomRight: "Unten rechts",
