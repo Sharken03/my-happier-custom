@@ -64,6 +64,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
     const [sessionListArchivedSection, setSessionListArchivedSection] = useSettingMutable('sessionListArchivedSectionV1');
+    const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -692,6 +693,15 @@ export default React.memo(function SessionSettingsScreen() {
                     showChevron={false}
                 />
                 {/* Plain English like the Active/Archived menu, so no locale file changes. */}
+                {/* Plain English like the setting above, so no locale file changes. */}
+                <Item
+                    testID="settings-session-openBeforeUpload"
+                    title="Open new chat before upload"
+                    subtitle="Attachments upload in the background"
+                    icon={<Icon name="cloud-arrow-up" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={newSessionOpenBeforeUpload} onValueChange={setNewSessionOpenBeforeUpload} />}
+                    showChevron={false}
+                />
                 <Item
                     testID="settings-session-archivedSection"
                     title="Archived as own section"

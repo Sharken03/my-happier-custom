@@ -155,6 +155,12 @@ export type HandleCreateSessionOptions = Readonly<{
     structuredInputMetaOverrides?: Record<string, unknown>;
     afterCreated?: (context: CreatedSessionFollowUpContext) => void | Promise<void>;
     /**
+     * The text `afterCreated` sends as the first turn. With the setting
+     * `newSessionOpenBeforeUploadV1` the chat opens before `afterCreated` runs and shows this
+     * text as a queued message under the id that `afterCreated` sends with.
+     */
+    afterCreatedDisplayText?: string;
+    /**
      * D2: relaunch under the newly-selected connected-service account WITHOUT resume continuity, after
      * the "switch unavailable" dialog offered "start fresh". Drops the vendor resume reference so the
      * new account begins a clean conversation instead of fail-closing again on an unreachable resume.
@@ -1158,11 +1164,73 @@ export function useCreateNewSession(params: Readonly<{
                     });
                 }
 
+                // With newSessionOpenBeforeUploadV1 the chat opens before the follow-up (an
+                // attachment upload can take most of a minute on mobile data); the follow-up and
+                // its failure handling below run on after this screen unmounts.
+                let openedBeforeFollowUp = false;
+                let queuedFollowUpLocalId: string | null = null;
+                if (
+                    !postSpawnFollowUpError
+                    && opts?.afterCreated
+                    && current.settings.newSessionOpenBeforeUploadV1 === true
+                    && !postSpawnSessionRouteSuffix
+                    && !postSpawnReplacementHref
+                    && mountedRef.current
+                    && isLaunchScopeStillActive()
+                ) {
+                    await requireSpawnedSessionVisibleForRoute({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
+                        ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
+                    });
+                    const state = storage.getState();
+                    const session = state.sessions[createdSessionId] ?? null;
+                    if (session) {
+                        state.markSessionOptimisticThinking(createdSessionId);
+                    }
+                    const queuedText = opts.afterCreatedDisplayText?.trim() ?? '';
+                    if (queuedText) {
+                        queuedFollowUpLocalId = launchAttempt.attachmentMessageLocalId;
+                        projectLocalOutboundUserMessage({
+                            sessionId: createdSessionId,
+                            localId: queuedFollowUpLocalId,
+                            text: queuedText,
+                            displayText: queuedText,
+                            rawRecord: buildOutgoingUserTextRecord({
+                                text: queuedText,
+                                sentFrom: resolveSentFrom(),
+                                displayText: queuedText,
+                                agentId: current.agentType,
+                                modelMode: current.modelMode,
+                                permissionMode: current.permissionMode,
+                                settings: state.settings,
+                                session,
+                            }),
+                            deliveryStatus: 'queued',
+                        });
+                    }
+                    current.router.replace(buildScopedSessionRouteHref({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        suffix: '',
+                    }), {
+                        dangerouslySingular() {
+                            return 'session';
+                        },
+                    });
+                    openedBeforeFollowUp = true;
+                }
+
                 if (!postSpawnFollowUpError && opts?.afterCreated) {
                     try {
                         await runAfterCreatedFollowUp();
                     } catch (error) {
                         postSpawnFollowUpError = error;
+                        if (queuedFollowUpLocalId) {
+                            // The chat already shows the prompt as queued; it was never sent.
+                            storage.getState().removePendingMessage(createdSessionId, queuedFollowUpLocalId);
+                        }
                     }
                 }
 
@@ -1305,7 +1373,9 @@ export function useCreateNewSession(params: Readonly<{
                     suffix: postSpawnSessionRouteSuffix,
                 });
 
-                if (mountedRef.current && isLaunchScopeStillActive()) {
+                if (openedBeforeFollowUp) {
+                    // The chat opened before the follow-up.
+                } else if (mountedRef.current && isLaunchScopeStillActive()) {
                     current.router.replace(postSpawnReplacementHref ?? sessionRoute, {
                         dangerouslySingular() {
                             return 'session';
