@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
     getStorage,
+    useLocalSetting,
     useSetting,
 } from '@/sync/domains/state/storage';
 import { Dimensions, Platform, View } from 'react-native';
@@ -682,6 +683,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptChatFont = useSetting('transcriptChatFont');
+    const calibrationUiFontScale = useLocalSetting('uiFontScale');
     const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
@@ -1854,8 +1856,9 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             }),
             text,
             chatFont: transcriptChatFont,
+            uiFontScale: typeof calibrationUiFontScale === 'number' ? calibrationUiFontScale : undefined,
         });
-    }, [getTurnMessageById, handleRowShellMeasured, listDataRef, thinkingRowEstimateInput, toolCallsGroupChromeVariant, transcriptChatFont]);
+    }, [calibrationUiFontScale, getTurnMessageById, handleRowShellMeasured, listDataRef, thinkingRowEstimateInput, toolCallsGroupChromeVariant, transcriptChatFont]);
     const itemRenderer = useTranscriptItemRenderer({
         buildRowShellSignature,
         expandedToolCallsAnchorMessageIds,

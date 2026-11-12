@@ -66,6 +66,7 @@ export function logRowEstimateCalibration(params: Readonly<{
     estimatePx: number | undefined;
     text: string | null;
     chatFont: string | undefined;
+    uiFontScale: number | undefined;
 }>): void {
     if (params.text === null || loggedRows.has(params.itemId)) return;
     loggedRows.add(params.itemId);
@@ -77,6 +78,7 @@ export function logRowEstimateCalibration(params: Readonly<{
         w: Math.round(window.width),
         fontScale: PixelRatio.getFontScale(),
         font: params.chatFont ?? null,
+        uiFontScale: params.uiFontScale ?? null,
         grid: CHARS_PER_LINE_GRID,
         ...describeText(params.text),
     }));
