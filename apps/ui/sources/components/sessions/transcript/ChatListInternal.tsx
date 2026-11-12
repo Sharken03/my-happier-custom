@@ -189,6 +189,7 @@ import {
 import { clearTranscriptNavigationVisibilityStore } from '@/components/sessions/transcript/viewport/visibility/transcriptNavigationVisibilityStore';
 import { useLayoutMaxWidth } from '@/components/ui/layout/layout';
 import { useTranscriptPrependHost } from '@/components/sessions/transcript/viewport/prepend/host/useTranscriptPrependHost';
+import { logRowEstimateCalibration } from '@/components/sessions/transcript/measurement/rowEstimateCalibrationLog';
 import { createNativeFlingApplyGate } from '@/components/sessions/transcript/viewport/prepend/nativeFlingApplyGate';
 import {
     useTranscriptViewportAnchorCaptureHost,
@@ -1827,6 +1828,34 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         }
         handleRowLayoutMutation(rowMutation);
     }, [handleRowLayoutMutation, mainTranscriptRendererOwnerPolicy.localHeightChangeRestore]);
+    const handleRowShellMeasuredWithCalibration = React.useCallback((row: Readonly<{
+        itemId: string;
+        rowKind: string;
+        heightPx: number;
+    }>) => {
+        handleRowShellMeasured(row);
+        const item = listDataRef.current.find((candidate) => candidate.id === row.itemId);
+        if (!item || item.kind !== 'message') return;
+        const message = getTurnMessageById(item.messageId);
+        const text = message?.kind === 'user-text' || (message?.kind === 'agent-text' && message.isThinking !== true)
+            ? message.text
+            : null;
+        logRowEstimateCalibration({
+            itemId: row.itemId,
+            rowKind: row.rowKind,
+            heightPx: row.heightPx,
+            estimatePx: estimateTranscriptRowHeightFromContent({
+                getMessageById: getTurnMessageById,
+                item,
+                toolCallsGroupChromeVariant,
+                platformIsWeb: Platform.OS === 'web',
+                platformIsAndroid: Platform.OS === 'android',
+                thinking: thinkingRowEstimateInput,
+            }),
+            text,
+            chatFont: transcriptChatFont,
+        });
+    }, [getTurnMessageById, handleRowShellMeasured, listDataRef, thinkingRowEstimateInput, toolCallsGroupChromeVariant, transcriptChatFont]);
     const itemRenderer = useTranscriptItemRenderer({
         buildRowShellSignature,
         expandedToolCallsAnchorMessageIds,
@@ -1834,7 +1863,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         getMessageOrigin: getTurnMessageOrigin,
         getMessageRevisionById: getTurnMessageRevisionById,
         handleRowLayoutMutation: handleRowLayoutMutationWithViewportOwnership,
-        handleRowShellMeasured,
+        handleRowShellMeasured: handleRowShellMeasuredWithCalibration,
         itemsRef,
         listData,
         listOrientation,
