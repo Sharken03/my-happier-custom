@@ -453,6 +453,7 @@ export async function fetchAndApplyOlderMessages(params: {
     request: (path: string) => Promise<Response>;
     sessionReceivedMessages: Map<string, Map<string, number>>;
     applyMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
+    waitForApply?: () => Promise<void>;
     onTaskLifecycleEvent?: (event: TaskLifecycleEvent) => void;
     onMessagesPage?: (page: ApiSessionMessagesResponse) => void;
     onNormalizedMessages?: (messages: NormalizedMessage[]) => void;
@@ -491,6 +492,7 @@ export async function fetchAndApplyOlderMessages(params: {
         request,
         sessionReceivedMessages,
         applyMessages,
+        waitForApply: params.waitForApply,
         onMessagesPage: params.onMessagesPage,
         onNormalizedMessages: params.onNormalizedMessages,
         log,

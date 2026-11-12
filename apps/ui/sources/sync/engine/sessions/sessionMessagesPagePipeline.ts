@@ -359,6 +359,11 @@ export async function runSessionMessagesPagePipeline(params: {
     messageIds?: ReadonlySet<string>;
     isMessageMaterialized?: (messageId: string, localId: string | null) => boolean;
     applyMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
+    /**
+     * Resolves when the caller can take the page. The page is fetched and decrypted before
+     * this wait and applied after it, unless `shouldContinue` turned false meanwhile.
+     */
+    waitForApply?: () => Promise<void>;
     onTaskLifecycleEvent?: (event: TaskLifecycleEvent) => void;
     onMessagesPage?: (page: ApiSessionMessagesResponse) => void;
     onNormalizedMessages?: (messages: NormalizedMessage[]) => void;
@@ -466,6 +471,10 @@ export async function runSessionMessagesPagePipeline(params: {
         }
     });
 
+    if (params.waitForApply && normalizedMessages.length > 0) {
+        await params.waitForApply();
+        if (params.shouldContinue?.() === false) return skippedPageResult(params.page.direction, 'superseded');
+    }
     params.onNormalizedMessages?.(normalizedMessages);
     recordMessageApplyTelemetry(
         params.purpose,

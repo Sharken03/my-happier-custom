@@ -189,6 +189,7 @@ import {
 import { clearTranscriptNavigationVisibilityStore } from '@/components/sessions/transcript/viewport/visibility/transcriptNavigationVisibilityStore';
 import { useLayoutMaxWidth } from '@/components/ui/layout/layout';
 import { useTranscriptPrependHost } from '@/components/sessions/transcript/viewport/prepend/host/useTranscriptPrependHost';
+import { createNativeFlingApplyGate } from '@/components/sessions/transcript/viewport/prepend/nativeFlingApplyGate';
 import {
     useTranscriptViewportAnchorCaptureHost,
     type ScheduledViewportAnchorCapture,
@@ -590,6 +591,14 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     // mode machine's retained trusted drag session it forms the post-drag release attribution
     // window: momentum frames may release follow, height-churn frames without a drag never can.
     const nativeMomentumScrollActiveRef = React.useRef(false);
+    const [nativeFlingApplyGate] = React.useState(() => createNativeFlingApplyGate({
+        platformOS: Platform.OS,
+        readFling: () => ({
+            momentumActive: nativeMomentumScrollActiveRef.current,
+            dragActive: nativeListDragActiveRef.current,
+        }),
+    }));
+    React.useEffect(() => () => nativeFlingApplyGate.releaseAll(), [nativeFlingApplyGate, props.sessionId]);
     const nativeVisibleWindowSnapshotRef = React.useRef<NativeVisibleWindowSnapshot | null>(null);
     const lastNativeVisibleRowsSnapshotRef = React.useRef<NativeVisibleWindowSnapshot | null>(null);
     const nativeFlashListMvcpPolicyRef = React.useRef<TranscriptViewportTelemetryMvcpPolicy>('none');
@@ -1900,13 +1909,12 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             hideOlderLoadSpinner,
             isReady: props.isLoaded || props.forkedTranscriptEnabled === true,
             loadOlderInFlight,
-            loadOlderMessages: async (syncLoadOlderOptions) => props.forkedTranscriptEnabled
-                ? (syncLoadOlderOptions
-                    ? await sync.loadOlderMessagesForkAware(props.sessionId, syncLoadOlderOptions)
-                    : await sync.loadOlderMessagesForkAware(props.sessionId))
-                : (syncLoadOlderOptions
-                    ? await sync.loadOlderMessages(props.sessionId, syncLoadOlderOptions)
-                    : await sync.loadOlderMessages(props.sessionId)),
+            loadOlderMessages: async (syncLoadOlderOptions) => {
+                const options = { ...syncLoadOlderOptions, waitForApply: nativeFlingApplyGate.waitForApply };
+                return props.forkedTranscriptEnabled
+                    ? await sync.loadOlderMessagesForkAware(props.sessionId, options)
+                    : await sync.loadOlderMessages(props.sessionId, options);
+            },
             olderLoadSpinnerDelayTimeoutRef,
             options: loadOlderOptions,
             prependHost,
@@ -1921,6 +1929,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         clearOlderLoadSpinnerDelay,
         hideOlderLoadSpinner,
         mainTranscriptRendererOwnerPolicy.prependRestore,
+        nativeFlingApplyGate,
         pinThresholdPx,
         prependHost,
         props.committedMessagesCount,
@@ -2544,6 +2553,16 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         setListLayoutHeight,
         verifyNativeSliceEntryRestoreTransaction,
     });
+    const onScrollObservationScrollBeginDrag = scrollObservationHost.onScrollBeginDrag;
+    const onScrollObservationMomentumScrollEnd = scrollObservationHost.onMomentumScrollEnd;
+    const handleScrollBeginDrag = React.useCallback(() => {
+        onScrollObservationScrollBeginDrag();
+        nativeFlingApplyGate.notify();
+    }, [nativeFlingApplyGate, onScrollObservationScrollBeginDrag]);
+    const handleMomentumScrollEnd = React.useCallback(() => {
+        onScrollObservationMomentumScrollEnd();
+        nativeFlingApplyGate.notify();
+    }, [nativeFlingApplyGate, onScrollObservationMomentumScrollEnd]);
     useCommittedTranscriptRef(
         observeCommittedProjectionLayoutRef,
         scrollObservationHost.observeCommittedProjectionLayout,
@@ -2594,10 +2613,10 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                     onLayout={scrollObservationHost.onLayout}
                     onContentSizeChange={scrollObservationHost.onContentSizeChange}
                     onScroll={scrollObservationHost.onScroll}
-                    onScrollBeginDrag={scrollObservationHost.onScrollBeginDrag}
+                    onScrollBeginDrag={handleScrollBeginDrag}
                     onScrollEndDrag={scrollObservationHost.onScrollEndDrag}
                     onMomentumScrollBegin={scrollObservationHost.onMomentumScrollBegin}
-                    onMomentumScrollEnd={scrollObservationHost.onMomentumScrollEnd}
+                    onMomentumScrollEnd={handleMomentumScrollEnd}
                     onRendererAtEndChange={handleRendererAtEndChange}
                     onEntryPlacementEvent={onEntryPlacementEvent}
                     renderItem={renderItem}
