@@ -292,6 +292,32 @@ describe('observeTranscriptScrollIngress', () => {
         expect(genuineUserMovementByCall).toEqual([false, true]);
     });
 
+    // Legend fires onStartReached again only after the list leaves the start zone. When a page
+    // is shorter than the older-load threshold the reader never leaves it, so the native frame at
+    // the genuine top must classify as the edge itself, as the web DOM frame does. The pagination
+    // machine still requires item-space proof (itemsToOlderEdge 0) before it treats it as the edge.
+    it('classifies a native frame at the genuine top as the older edge', () => {
+        const triggers: string[] = [];
+        const observeAt = (y: number) => observeTranscriptScrollIngress(webScrollIngressInput({
+            eventNativeEvent: {
+                contentOffset: { y },
+                contentSize: { height: 2_000 },
+                layoutMeasurement: { height: 500 },
+            },
+            nativeCommandSpace: 'standard',
+            platform: 'native',
+        }), scrollIngressCallbacks({
+            observeOlderPaginationScroll(input) {
+                triggers.push(input.trigger);
+            },
+        }));
+
+        observeAt(400);
+        observeAt(0);
+
+        expect(triggers).toEqual(['scroll', 'edge-reached']);
+    });
+
     it('routes invalid native offsets to blank recovery outside telemetry recording', () => {
         const log: string[] = [];
 
