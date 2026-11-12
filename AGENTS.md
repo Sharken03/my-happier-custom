@@ -275,6 +275,7 @@ Before changing production behavior:
 - `scripts/workspaces/typescriptCommand.mjs` is the only compiler-selection owner. Orchestrators import it or use `runTypeScriptCli.mjs`/`buildTypeScriptPackageDist.mjs`; never add compiler fallbacks.
 - The `typescript` dependency remains on 5.9 for compiler-API consumers. Do not use it for compilation, remove it, or upgrade it independently without inventorying and validating those consumers.
 - The direct-`node` prohibition applies to shipped product runtime paths, not documented repository development commands.
+- On the 8T (Termux), never run the full `apps/ui` typecheck locally (`yarn typecheck` or `node scripts/workspaces/runTypeScriptCli.mjs -p tsconfig.json --noEmit` in `apps/ui`). It needs about 2.2 GB, Android kills all of Termux, and the restart resumes the sessions, which then start it again (12/11-2026). Run it in GitHub Actions instead: `gh workflow run typecheck-8t.yml -R Sharken03/my-happier-custom --ref <branch>`, then `gh run watch <id>`. It checks the pushed commit of the branch, not uncommitted changes in the checkout. Never start a second run: first `gh run list -R Sharken03/my-happier-custom -w typecheck-8t.yml -b <branch> -L 5`, and if a run is not `completed`, attach to it with `gh run watch`. A run that was cancelled, timed out or never started is `not run`, never "no errors".
 
 ## Files, folders, and moves
 
