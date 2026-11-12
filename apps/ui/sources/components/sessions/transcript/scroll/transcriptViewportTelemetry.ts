@@ -712,7 +712,11 @@ function defaultNow(): number {
     return Date.now();
 }
 
+// A release build made for device QA sets this flag, so the telemetry runs without a dev runtime.
 function readDevFlag(): boolean {
+    if (process.env.EXPO_PUBLIC_HAPPIER_TRANSCRIPT_VIEWPORT_TELEMETRY_IN_RELEASE === '1') {
+        return true;
+    }
     return typeof __DEV__ !== 'undefined' && __DEV__ === true;
 }
 
