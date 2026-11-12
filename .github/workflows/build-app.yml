@@ -53,6 +53,8 @@ env:
   # edited message (350-490 KB in a long Pi chat). Nine resume pages keep 450 messages of catch-up.
   EXPO_PUBLIC_HAPPIER_SOCKET_FORCE_WEBSOCKET: "1"
   EXPO_PUBLIC_HAPPIER_SYNC_TUNING_JSON: '{"sessionMessagesPageSize":50,"messageMaxIncrementalPagesOnResume":9}'
+  # Device QA build: keep console.log so the row calibration lines reach logcat.
+  HAPPIER_UI_KEEP_CONSOLE_IN_RELEASE: "1"
   EXPO_UNSTABLE_WEB_MODAL: "1"
   YARN_PRODUCTION: "false"
   npm_config_production: "false"
