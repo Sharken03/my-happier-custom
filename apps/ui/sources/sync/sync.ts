@@ -1368,6 +1368,26 @@ class Sync {
             );
             this.machineActivityAccumulator = new MachineActivityAccumulator(this.flushMachineActivityUpdates.bind(this), 300);
 
+          const pauseForNativeBackground = (nextAppState: string) => {
+              this.isForeground = false;
+              this.markNativeCryptoWorkerBackgroundQuiescent();
+              setServerReachabilityNetworkAllowed(false);
+              log.log(`📱 App state changed to: ${nextAppState}`);
+              this.pauseController.pause();
+              try {
+                  this.disconnectSocketIntentionally();
+              } catch {
+                  // ignore
+              }
+              fireAndForget(stopServerReachabilitySupervisors(), { tag: 'Sync.stopServerReachabilitySupervisors' });
+              if (nextAppState === 'inactive') {
+                  this.scheduleNativeInactiveCheckpoint();
+              } else {
+                  this.clearNativeInactiveCheckpointTimer();
+                  this.flushBackgroundSyncCheckpointsNow();
+              }
+          };
+
           // Listen for app state changes to pause sync + run a single centralized resume pipeline.
           AppState.addEventListener('change', (nextAppState) => {
               if (this.usesPersistentDesktopSync && nextAppState !== 'active') {
@@ -1378,6 +1398,7 @@ class Sync {
                   return;
               }
               if (nextAppState === 'active') {
+                  this.deferredWebVisibilityTeardown = null;
                   this.clearNativeInactiveCheckpointTimer();
                   this.isForeground = true;
                   this.resumeNativeCryptoWorkerDispatchAfterForeground('Sync.nativeCryptoWorkerQueue.active.appState');
@@ -1387,23 +1408,13 @@ class Sync {
                   fireAndForget(invalidateAllServerReachabilitySupervisors(), { tag: 'Sync.invalidateAllServerReachabilitySupervisors' });
                   this.resumeAfterForegroundTransition('Sync.resumeSync.app-foreground');
               } else {
-                  this.isForeground = false;
-                  this.markNativeCryptoWorkerBackgroundQuiescent();
-                  setServerReachabilityNetworkAllowed(false);
-                  log.log(`📱 App state changed to: ${nextAppState}`);
-                  this.pauseController.pause();
-                  try {
-                      this.disconnectSocketIntentionally();
-                  } catch {
-                      // ignore
+                  // A running user request (for example an attachment upload) keeps the socket
+                  // open; the pause runs when the last lease ends, unless the app is active again.
+                  if (this.userRequestLeases.size > 0) {
+                      this.deferredWebVisibilityTeardown = () => pauseForNativeBackground(nextAppState);
+                      return;
                   }
-                  fireAndForget(stopServerReachabilitySupervisors(), { tag: 'Sync.stopServerReachabilitySupervisors' });
-                  if (nextAppState === 'inactive') {
-                      this.scheduleNativeInactiveCheckpoint();
-                  } else {
-                      this.clearNativeInactiveCheckpointTimer();
-                      this.flushBackgroundSyncCheckpointsNow();
-                  }
+                  pauseForNativeBackground(nextAppState);
               }
           });
 

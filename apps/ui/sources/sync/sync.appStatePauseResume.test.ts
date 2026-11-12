@@ -264,6 +264,32 @@ describe('sync AppState pause/resume', () => {
         expect(pauseController.isPaused()).toBe(false);
     });
 
+    it('keeps the socket open in the background while a user request lease is held', async () => {
+        const { sync } = await import('./sync');
+        const handler = Array.from(appStateHandlers)[0];
+        const pauseController = (sync as unknown as { pauseController: PauseController }).pauseController;
+
+        const release = sync.acquireUserRequestLease();
+        handler!('background');
+        expect(apiSocketDisconnect).not.toHaveBeenCalled();
+        expect(pauseController.isPaused()).toBe(false);
+
+        release();
+        expect(apiSocketDisconnect).toHaveBeenCalledTimes(1);
+        expect(pauseController.isPaused()).toBe(true);
+    });
+
+    it('drops the deferred background pause when the app is active again before the lease ends', async () => {
+        const { sync } = await import('./sync');
+        const handler = Array.from(appStateHandlers)[0];
+
+        const release = sync.acquireUserRequestLease();
+        handler!('background');
+        handler!('active');
+        release();
+        expect(apiSocketDisconnect).not.toHaveBeenCalled();
+    });
+
     it('keeps Tauri desktop sync active when AppState reports background', async () => {
         isTauriDesktopState.value = true;
         const { sync } = await import('./sync');
