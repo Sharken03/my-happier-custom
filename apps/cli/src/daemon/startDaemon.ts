@@ -253,6 +253,7 @@ import {
   HAPPIER_DAEMON_PENDING_FIRST_INPUT_ENV_KEY,
   serializePendingFirstInputForEnv,
 } from './spawn/pendingFirstInput';
+import { prewarmedRunnerSlot } from './spawn/prewarmedRunner';
 import { createDefaultTerminalHostRegistry } from '@/integrations/terminalHost/defaultRegistry';
 import { resolveLiveRunnerSnapshotFingerprints } from './sessionRunnerRuntime/resolveLiveRunnerSnapshotFingerprints';
 import { buildHappySessionControlArgs } from './sessionSpawnArgs';
@@ -4701,6 +4702,23 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     launchOptions: runnerLaunchOptions,
                   })
                   : null;
+              // A prewarmed runner can take this launch when it is the plain spawn below: same
+              // program and flags, and an environment that differs only in the session's own keys.
+              const prewarmLaunch = (() => {
+                if (cgroupSelfMigratingLaunchSpec || !prewarmedRunnerSlot.isEnabled()) return null;
+                const launchSpec = buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
+                const baseArgs = launchSpec.args.slice(0, launchSpec.args.length - args.length);
+                const userArgs = launchSpec.args.slice(baseArgs.length);
+                if (userArgs.length !== args.length || userArgs.some((arg, index) => arg !== args[index])) return null;
+                return {
+                  filePath: launchSpec.filePath,
+                  baseArgs,
+                  env: { ...childProcessEnv, ...(launchSpec.env ?? {}) },
+                };
+              })();
+              const prewarmedRunner = prewarmLaunch
+                ? prewarmedRunnerSlot.take({ ...prewarmLaunch, userArgs: args, cwd: resolvedDirectory })
+                : null;
               const happyProcess = cgroupSelfMigratingLaunchSpec
                 ? spawnChildProcess(
                   cgroupSelfMigratingLaunchSpec.filePath,
@@ -4713,7 +4731,13 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     },
                   },
                 )
-                : spawnHappyCLI(args, spawnOptions, runnerLaunchOptions);
+                : prewarmedRunner ?? spawnHappyCLI(args, spawnOptions, runnerLaunchOptions);
+              if (prewarmedRunner) {
+                logger.debug(`[DAEMON RUN] Using the prewarmed runner process ${prewarmedRunner.pid}`);
+              }
+              if (prewarmLaunch) {
+                prewarmedRunnerSlot.rememberLaunch({ ...prewarmLaunch, cwd: configuration.happyHomeDir });
+              }
 
               if (!happyProcess.pid) {
                 logger.debug('[DAEMON RUN] Failed to spawn process - no PID returned');

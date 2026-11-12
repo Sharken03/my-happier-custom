@@ -2,6 +2,7 @@ import type { RpcHandlerRegistrar } from '@/api/rpc/types';
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { isValidEnvVarKey, sanitizeEnvVarRecord } from '@/terminal/runtime/envVarSanitization';
 import { RPC_METHODS } from '@happier-dev/protocol/rpc';
+import { prewarmedRunnerSlot } from '@/daemon/spawn/prewarmedRunner';
 
 type EnvPreviewSecretsPolicy = 'none' | 'redacted' | 'full';
 
@@ -84,6 +85,9 @@ export function registerPreviewEnvHandler(rpcHandlerManager: RpcHandlerRegistrar
     // - Optionally applies profile-provided extraEnv with the same ${VAR} expansion semantics used for spawns
     // - Applies daemon-controlled secret visibility policy (HAPPIER_ENV_PREVIEW_SECRETS)
     rpcHandlerManager.registerHandler<PreviewEnvRequest, PreviewEnvResponse>(RPC_METHODS.PREVIEW_ENV, async (data) => {
+        // The app previews the spawn environment when it opens its new-session screen: a spawn
+        // is likely, so the daemon can load a runner now (a no-op unless it is turned on).
+        prewarmedRunnerSlot.prewarm();
         const keys = Array.isArray(data?.keys) ? data.keys : [];
         const maxKeys = 200;
         const trimmedKeys = keys.slice(0, maxKeys);

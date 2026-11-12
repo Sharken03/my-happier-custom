@@ -55,7 +55,7 @@ import { useOptionalTranscriptSelectionRow } from '@/components/sessions/transcr
 import { useTranscriptQuoteMarkdownProps } from '@/components/sessions/transcript/quote/TranscriptQuoteContext';
 import {
   resolveSelectableMessageText,
-  stripLegacyAttachmentsBlock,
+  resolveUserTextDisplayText,
   unwrapLegacyThinkingWrapper,
 } from '@/components/sessions/transcript/messageSelection/resolveSelectableMessageText';
 import { TranscriptRollbackActionButton } from '@/components/sessions/transcript/TranscriptRollbackActionButton';
@@ -616,15 +616,10 @@ function UserTextBlock(props: {
     })
     : null;
 
-  const markdownText = React.useMemo(() => {
-    if (unsupportedContentText != null) return unsupportedContentText;
-    if (isVoiceAgentTurn && props.message.displayText === undefined) {
-      return normalizeVoiceAgentTurnTranscriptText(props.message.text);
-    }
-    if (props.message.displayText !== undefined) return props.message.displayText;
-    if (attachmentsMeta) return stripLegacyAttachmentsBlock(props.message.text);
-    return props.message.text;
-  }, [attachmentsMeta, isVoiceAgentTurn, props.message.displayText, props.message.text, unsupportedContentText]);
+  const markdownText = React.useMemo(
+    () => unsupportedContentText ?? resolveUserTextDisplayText(props.message, attachmentsMeta != null),
+    [attachmentsMeta, props.message, unsupportedContentText],
+  );
   const renderedMarkdownText = markdownText ?? props.message.displayText ?? props.message.text;
 
   const structuredReferences = useMessageStructuredReferences({

@@ -68,6 +68,8 @@ export type SyncTuning = Readonly<{
     transcriptViewportAnchorOlderLookupMaxLoads: number;
     transcriptDerivedItemsCacheMaxSessions: number;
     transcriptItemHeightCacheMaxEntries: number;
+    /** Measured row heights kept on disk across app restarts (native). 0 turns the store off. */
+    transcriptItemHeightStoreMaxEntries: number;
     transcriptForkedSnapshotCacheMaxSessions: number;
     transcriptFlashListDrawDistance: number;
     transcriptMountSettleQuiescentWindowMs: number;
@@ -335,6 +337,8 @@ export function loadSyncTuning(opts?: {
         transcriptViewportAnchorOlderLookupMaxLoads: 6,
         transcriptDerivedItemsCacheMaxSessions: 16,
         transcriptItemHeightCacheMaxEntries: 1024,
+        // About 200 bytes per entry: 20 000 entries is about 4 MB on disk.
+        transcriptItemHeightStoreMaxEntries: 20_000,
         transcriptForkedSnapshotCacheMaxSessions: 64,
         transcriptFlashListDrawDistance: 0,
         transcriptMountSettleQuiescentWindowMs: 120,
@@ -447,6 +451,7 @@ export function loadSyncTuning(opts?: {
         transcriptViewportAnchorOlderLookupMaxLoads: readNumber(merged, 'transcriptViewportAnchorOlderLookupMaxLoads', { min: 0, max: 10 }) ?? defaults.transcriptViewportAnchorOlderLookupMaxLoads,
         transcriptDerivedItemsCacheMaxSessions: readNumber(merged, 'transcriptDerivedItemsCacheMaxSessions', { min: 1, max: 64 }) ?? defaults.transcriptDerivedItemsCacheMaxSessions,
         transcriptItemHeightCacheMaxEntries: readNumber(merged, 'transcriptItemHeightCacheMaxEntries', { min: 1, max: 10_000 }) ?? defaults.transcriptItemHeightCacheMaxEntries,
+        transcriptItemHeightStoreMaxEntries: readNumber(merged, 'transcriptItemHeightStoreMaxEntries', { min: 0, max: 200_000 }) ?? defaults.transcriptItemHeightStoreMaxEntries,
         transcriptForkedSnapshotCacheMaxSessions: readNumber(merged, 'transcriptForkedSnapshotCacheMaxSessions', { min: 1, max: 256 }) ?? defaults.transcriptForkedSnapshotCacheMaxSessions,
         transcriptFlashListDrawDistance: readNumber(merged, 'transcriptFlashListDrawDistance', { min: 0, max: 50_000 }) ?? defaults.transcriptFlashListDrawDistance,
         transcriptMountSettleQuiescentWindowMs: readNumber(merged, 'transcriptMountSettleQuiescentWindowMs', { min: 16, max: 1000 }) ?? defaults.transcriptMountSettleQuiescentWindowMs,

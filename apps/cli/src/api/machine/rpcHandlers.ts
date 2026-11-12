@@ -58,6 +58,7 @@ import {
 import { buildReplaySeededSpawnRecipe } from '@/session/replay/buildReplaySeededSpawnRecipe';
 import { resolveReplaySourceContextAuthority } from '@/session/replay/resolveReplaySourceContextAuthority';
 import { readReplaySeededCreationFailure } from '@/session/replay/replaySeededCreationFailure';
+import { ensureSessionDirectory } from '@/daemon/startup/ensureSessionDirectory';
 import {
   createSpawnedSession,
   readPersistedReplaySeedSourceRecipe,
@@ -698,6 +699,94 @@ export function registerMachineRpcHandlers(params: Readonly<{
     }
   };
 
+  /**
+   * Row-first spawn for an ordinary new Session, opt-in with HAPPIER_SPAWN_ROW_FIRST=1. The
+   * canonical creator commits the row from the launch nonce and attaches the runner to it, so
+   * the caller gets the Session id before the runner process has booted (about 5 s on a phone).
+   */
+  const spawnRowFirstSession = async (args: Readonly<{
+    directory: string;
+    agentId: string;
+    baseSpawnOptions: SpawnSessionOptions;
+    approvedNewDirectoryCreation: unknown;
+    spawnNonce: string;
+    hasPendingFirstInput: boolean;
+  }>): Promise<SpawnSessionResult> => {
+    // The daemon's own directory rule runs before the row exists, so a declined approval of a
+    // missing directory leaves no empty Session row behind.
+    const directoryReady = await ensureSessionDirectory({
+      directory: args.directory,
+      approvedNewDirectoryCreation: args.approvedNewDirectoryCreation === true,
+    });
+    if (!directoryReady.ok) return directoryReady.response;
+    const credentials = await readCredentials().catch(() => null);
+    if (!credentials) {
+      // No daemon credentials to commit a row with: the runner creates it, as without the setting.
+      return await spawnSession({
+        ...args.baseSpawnOptions,
+        approvedNewDirectoryCreation: args.approvedNewDirectoryCreation as boolean | undefined,
+      });
+    }
+    const connectedServices = ConnectedServiceBindingsV1Schema.safeParse(
+      args.baseSpawnOptions.connectedServices,
+    );
+    let runnerResult: SpawnSessionResult | null = null;
+    try {
+      const created = await createSpawnedSession({
+        credentials,
+        directory: args.directory,
+        backendTarget: { kind: 'builtInAgent', agentId: args.agentId },
+        ...(connectedServices.success ? { connectedServices: connectedServices.data } : {}),
+        spawnNonce: args.spawnNonce,
+        rowFirstCreation: {
+          tag: args.spawnNonce,
+          agentId: args.agentId,
+          // The app routes uploads to this machine by the row's machineId before the runner is up.
+          ...(params.machineId ? { metadata: { machineId: params.machineId } } : {}),
+        },
+        directTransport: {
+          spawn: async (request) => {
+            runnerResult = await spawnSession({
+              ...args.baseSpawnOptions,
+              existingSessionId: request.existingSessionId,
+              ...(request.connectedServiceMaterializationIdentityV1
+                ? { connectedServiceMaterializationIdentityV1: request.connectedServiceMaterializationIdentityV1 }
+                : {}),
+              approvedNewDirectoryCreation: args.approvedNewDirectoryCreation as boolean | undefined,
+            } satisfies SpawnSessionOptions);
+            return runnerResult;
+          },
+        },
+      });
+      const accepted = runnerResult as SpawnSessionResult | null;
+      return {
+        type: 'success',
+        sessionId: created.sessionId,
+        ...(args.hasPendingFirstInput
+          ? {
+              pendingFirstInputAccepted:
+                accepted?.type === 'success' && accepted.runnerAcceptance !== 'preexisting_or_adopted',
+            }
+          : {}),
+      };
+    } catch (error) {
+      if (isAuthenticationError(error)) throw error;
+      const failure = readReplaySeededCreationFailure(error);
+      if (failure.stage === 'spawn') {
+        // The canonical creator already settled the orphaned row.
+        return failure.spawnResult as SpawnSessionResult;
+      }
+      logger.debug('[API MACHINE] Failed to create the row of a new session', {
+        error: failure.errorMessage,
+      });
+      return {
+        type: 'error',
+        errorCode: SPAWN_SESSION_ERROR_CODES.UNEXPECTED,
+        errorMessage: 'Failed to create a new session',
+      };
+    }
+  };
+
   // Both public spawn RPCs delegate to this single nonce/custody owner. Their
   // response projections intentionally differ below for released-client compatibility.
   type PreparedSpawnRequest = Readonly<{
@@ -1004,6 +1093,24 @@ export function registerMachineRpcHandlers(params: Readonly<{
         baseSpawnOptions,
         approvedNewDirectoryCreation,
         spawnNonce: normalizedSpawnNonce,
+      }));
+    }
+
+    if (
+      process.env.HAPPIER_SPAWN_ROW_FIRST === '1'
+      && !sessionId
+      && normalizedSpawnNonce
+      && normalizedBackendTarget?.kind === 'builtInAgent'
+    ) {
+      const rowFirstSpawnNonce = normalizedSpawnNonce;
+      const rowFirstAgentId = normalizedBackendTarget.agentId;
+      return await executePrepared({ ...baseSpawnOptions, approvedNewDirectoryCreation }, () => spawnRowFirstSession({
+        directory: resolvedDirectory,
+        agentId: rowFirstAgentId,
+        baseSpawnOptions,
+        approvedNewDirectoryCreation,
+        spawnNonce: rowFirstSpawnNonce,
+        hasPendingFirstInput: normalizedPendingFirstInput !== undefined,
       }));
     }
 

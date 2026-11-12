@@ -112,6 +112,7 @@ async function createHarness() {
     updateSessionDraft: vi.fn(),
     markSessionOptimisticThinking: vi.fn(),
     upsertPendingMessage: vi.fn(),
+    removePendingMessage: vi.fn(),
   };
 
   installNewSessionScreenModelCommonModuleMocks({
@@ -358,6 +359,7 @@ async function createHarness() {
     storageState.updateSessionDraft.mockReset();
     storageState.markSessionOptimisticThinking.mockReset();
     storageState.upsertPendingMessage.mockReset();
+    storageState.removePendingMessage.mockReset();
     for (const sessionId of Object.keys(storageState.sessions)) {
       delete storageState.sessions[sessionId];
     }
@@ -2809,5 +2811,96 @@ describe('useCreateNewSession (daemon unavailable UX)', () => {
     expect(machineSpawnNewSessionSpy).toHaveBeenCalledTimes(1);
     expect(modalAlertSpy).not.toHaveBeenCalled();
     await hook.unmount();
+  });
+  describe('open before upload (newSessionOpenBeforeUploadV1)', () => {
+    const TARGET = 'machine.spawn_new:{"machineId":"m1","serverId":"server-a","directory":"/tmp"}';
+
+    async function launchWithAttachmentFollowUp(afterCreated: () => Promise<void>) {
+      vi.useRealTimers();
+      const harness = await setupHarness();
+      harness.machineSpawnNewSessionSpy.mockImplementationOnce(async (options: { userAttemptId: string; spawnNonce: string }) => ({
+        type: 'success',
+        sessionId: 'session-created',
+        spawnAttemptCustody: {
+          status: 'completed',
+          userAttemptId: options.userAttemptId,
+          spawnNonce: options.spawnNonce,
+          targetFingerprint: TARGET,
+        },
+      }));
+      harness.storageState.sessions['session-created'] = { id: 'session-created' };
+      const router = { push: vi.fn(), replace: vi.fn() };
+      const hook = await renderHook(() => harness.useCreateNewSession({
+        draftId: '8e0a5dd1-b1df-43dd-b51e-b7787b30362e',
+        launchIntentSignature: 'direct-launch-intent',
+        router,
+        selectedMachineId: 'm1',
+        selectedPath: '/tmp',
+        selectedMachine: { id: 'm1', active: true, activeAt: Date.now(), metadata: { host: 'devbox', homeDir: '/Users/alice' } },
+        setIsCreating: vi.fn(),
+        setIsResumeSupportChecking: vi.fn(),
+        settings: { experiments: false, newSessionOpenBeforeUploadV1: true } as unknown as Settings,
+        useProfiles: false,
+        selectedProfileId: null,
+        profileMap: new Map(),
+        recentMachinePaths: [],
+        agentType: 'opencode' as any,
+        permissionMode: 'default' as PermissionMode,
+        modelMode: 'default' as ModelMode,
+        promptStore: createNewSessionPromptStore('See the photos'),
+        resumeSessionId: '',
+        agentNewSessionOptions: null,
+        machineEnvPresence: { isPreviewEnvSupported: false, isLoading: false, meta: {}, refreshedAt: null, refresh: () => {} },
+        secrets: [],
+        secretBindingsByProfileId: {},
+        selectedSecretIdByProfileIdByEnvVarName: {},
+        sessionOnlySecretValueByProfileIdByEnvVarName: {},
+        selectedMachineCapabilities: {},
+        targetServerId: null,
+        allowedTargetServerIds: undefined,
+        draftScope: { serverId: 'server-a', accountId: 'account-a' },
+        persistDraftForLaunch: vi.fn(),
+        onLaunchUserAttemptIdChange: vi.fn(),
+      }));
+      let createPromise: Promise<void> | void | null = null;
+      await act(async () => {
+        createPromise = hook.getCurrent().handleCreateSession({
+          initialMessage: 'skip',
+          afterCreated,
+          afterCreatedDisplayText: 'See the photos',
+        });
+        await flushHookEffects({ cycles: 2, turns: 4 });
+      });
+      return { harness, router, hook, finish: async () => { await createPromise; } };
+    }
+
+    it('opens the chat with the prompt queued before the attachment follow-up settles', async () => {
+      let releaseUpload!: () => void;
+      const afterCreated = vi.fn(() => new Promise<void>((resolve) => { releaseUpload = resolve; }));
+      const { harness, router, finish } = await launchWithAttachmentFollowUp(afterCreated);
+
+      await vi.waitFor(() => expect(afterCreated).toHaveBeenCalled());
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(harness.storageState.markSessionOptimisticThinking).toHaveBeenCalledWith('session-created');
+      expect(harness.storageState.upsertPendingMessage).toHaveBeenCalledWith(
+        'session-created',
+        expect.objectContaining({ deliveryStatus: 'queued', text: 'See the photos', source: 'local_outbound' }),
+      );
+
+      releaseUpload();
+      await finish();
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(harness.storageState.removePendingMessage).not.toHaveBeenCalled();
+    }, 120_000);
+
+    it('removes the queued prompt when the attachment follow-up fails after the chat opened', async () => {
+      const afterCreated = vi.fn(async () => { throw new Error('upload failed'); });
+      const { harness, router, finish } = await launchWithAttachmentFollowUp(afterCreated);
+      await finish();
+
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      const queued = harness.storageState.upsertPendingMessage.mock.calls[0]?.[1] as { localId: string };
+      expect(harness.storageState.removePendingMessage).toHaveBeenCalledWith('session-created', queued.localId);
+    }, 120_000);
   });
 });

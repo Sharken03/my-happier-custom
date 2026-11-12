@@ -343,6 +343,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    newSessionOpenBeforeUploadV1: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Whether a new chat with attachments opens at once and uploads them in the background, instead of after the upload',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListArchivedSectionV1: {
         schema: z.boolean(),
         default: true,
