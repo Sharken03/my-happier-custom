@@ -1871,6 +1871,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 platformIsAndroid: Platform.OS === 'android',
                 thinking: thinkingRowEstimateInput,
                 uiFontScale: transcriptUiFontScale,
+                transcriptContentWidthPx: Math.min(listLayoutWidthPx, transcriptContentMaxWidth),
             }),
             text,
             chatFont: transcriptChatFont,

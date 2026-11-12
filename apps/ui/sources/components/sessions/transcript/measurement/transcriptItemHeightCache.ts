@@ -92,6 +92,9 @@ export function createDefaultTranscriptItemHeightCache(
             const inMemory = entries.get(key);
             if (inMemory !== undefined || store === undefined) return inMemory;
             const storedHeightPx = store.get(key);
+            // Device QA only (exp/row-calibration).
+            storeReads[storedHeightPx === undefined ? 'miss' : 'hit'] += 1;
+            if ((storeReads.hit + storeReads.miss) % 20 === 1) console.log('HAPPIER_HEIGHT_STORE', JSON.stringify(storeReads));
             if (storedHeightPx === undefined || !isValidHeight(storedHeightPx)) return undefined;
             const restored = { heightPx: storedHeightPx };
             entries.set(key, restored);
@@ -101,7 +104,7 @@ export function createDefaultTranscriptItemHeightCache(
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
             if (!isValidHeight(entry.heightPx)) return false;
             const key = buildTranscriptItemHeightSignatureKey(signature);
-            if (entries.get(key)?.heightPx !== entry.heightPx) store?.set(key, entry.heightPx);
+            if (entries.get(key)?.heightPx !== entry.heightPx) { store?.set(key, entry.heightPx); if (store) storeReads.write += 1; }
             entries.set(key, {
                 heightPx: entry.heightPx,
             });
@@ -122,6 +125,8 @@ export function createTestTranscriptItemHeightCache(
 ): TranscriptItemHeightCache {
     return createDefaultTranscriptItemHeightCache(options);
 }
+
+const storeReads = { hit: 0, miss: 0, write: 0 };
 
 let defaultCacheInstance: TranscriptItemHeightCache | null = null;
 
