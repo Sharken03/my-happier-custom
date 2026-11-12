@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-    resolveWebDomOlderLoadObservation,
-    resolveWebDomOlderLoadObservationTrigger,
-} from './webDomOlderLoadObservation';
+import { resolveWebDomOlderLoadObservation } from './webDomOlderLoadObservation';
 
 function scroller(params: Readonly<{
     clientHeight: number;
@@ -18,28 +15,6 @@ function scroller(params: Readonly<{
 }
 
 describe('resolveWebDomOlderLoadObservation', () => {
-    it('resolves genuine top frames to edge-reached while preserving caller triggers outside the top band', () => {
-        expect(resolveWebDomOlderLoadObservationTrigger({
-            requestedTrigger: 'scroll',
-            scrollTop: 0,
-        })).toBe('edge-reached');
-        expect(resolveWebDomOlderLoadObservationTrigger({
-            requestedTrigger: 'scroll',
-            scrollTop: 1,
-        })).toBe('edge-reached');
-        expect(resolveWebDomOlderLoadObservationTrigger({
-            requestedTrigger: 'scroll',
-            scrollTop: 2,
-        })).toBe('scroll');
-        expect(resolveWebDomOlderLoadObservationTrigger({
-            requestedTrigger: 'edge-reached',
-            scrollTop: 2,
-        })).toBe('edge-reached');
-        expect(resolveWebDomOlderLoadObservationTrigger({
-            scrollTop: 2,
-        })).toBe('scroll');
-    });
-
     it('classifies exact and epsilon top frames as edge-reached without widening the band', () => {
         expect(resolveWebDomOlderLoadObservation({
             target: scroller({ clientHeight: 500, scrollHeight: 2000, scrollTop: 0 }),
