@@ -61,6 +61,13 @@ jobs:
       # One token less than the app scope, so the two workflows keep separate node_modules caches.
       HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
     steps:
+      # The workflows were renamed on 12/11-2026, so run_number restarted at 1. The offset keeps
+      # the web version and release tags above the builds from before (#60).
+      - name: Set the build number
+        run: |
+          n=$((GITHUB_RUN_NUMBER + 100))
+          echo "HAPPIER_BUILD_NUMBER=$n" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -115,7 +122,7 @@ jobs:
         id: web
         run: |
           set -euo pipefail
-          version="$(node -p "require('./apps/ui/package.json').version")-8t.${GITHUB_RUN_NUMBER}"
+          version="$(node -p "require('./apps/ui/package.json').version")-8t.${HAPPIER_BUILD_NUMBER}"
           node scripts/pipeline/release/build-ui-web-bundle.mjs --channel preview --version "$version"
           archive="$(find dist/release-assets/ui-web -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
           test -n "$archive"
