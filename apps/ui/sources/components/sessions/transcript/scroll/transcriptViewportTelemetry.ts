@@ -1,4 +1,3 @@
-import type { OlderPaginationSuspendReason } from '@/components/sessions/transcript/pagination/olderPaginationMachine';
 import type {
     TranscriptViewportMode,
     TranscriptViewportOwner,
@@ -188,7 +187,10 @@ export type TranscriptViewportTelemetryWebTrigger =
 
 export type TranscriptViewportTelemetryPaginationPhase = 'idle' | 'armed' | 'loading' | 'cooldown';
 
-export type TranscriptViewportTelemetryPaginationSuspendReason = OlderPaginationSuspendReason;
+export type TranscriptViewportTelemetryPaginationSuspendReason =
+    | 'negative-offset'
+    | 'transaction-open'
+    | 'fill-not-done';
 
 export type TranscriptViewportTelemetryWebPrependAnchorKind = 'stable' | 'item' | 'none';
 
@@ -658,16 +660,11 @@ const PAGINATION_PHASES = new Set<TranscriptViewportTelemetryPaginationPhase>([
     'cooldown',
 ]);
 
-// Keyed by the pager's own type, so a new suspend reason fails the typecheck until listed here.
-const PAGINATION_SUSPENDED_REASON_KEYS: Record<TranscriptViewportTelemetryPaginationSuspendReason, true> = {
-    'negative-offset': true,
-    'transaction-open': true,
-    'fill-not-done': true,
-    'native-momentum': true,
-};
-const PAGINATION_SUSPENDED_REASONS = new Set(
-    Object.keys(PAGINATION_SUSPENDED_REASON_KEYS) as TranscriptViewportTelemetryPaginationSuspendReason[],
-);
+const PAGINATION_SUSPENDED_REASONS = new Set<TranscriptViewportTelemetryPaginationSuspendReason>([
+    'negative-offset',
+    'transaction-open',
+    'fill-not-done',
+]);
 
 const WEB_PREPEND_ANCHOR_KINDS = new Set<TranscriptViewportTelemetryWebPrependAnchorKind>([
     'stable',
