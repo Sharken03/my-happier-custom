@@ -198,6 +198,9 @@ const ESTIMATE_COMPACT_ROW_PX = 56;
  * defect it was standing in for is fixed where it lives — see `transcriptRowShellSignature`
  * (R2): a row that is streaming no longer has its real measurement discarded on every chunk, so
  * this estimate is not what positions a row the user is watching.
+ *
+ * User bubbles on native now have that device calibration (2026-11-12) and wrap at their own
+ * width; see {@link USER_BUBBLE_GLYPH_ADVANCE_EM}. Replies and web keep this flat number.
  */
 const ESTIMATE_CHARS_PER_LINE = 72;
 
@@ -528,6 +531,43 @@ function estimateTextBlockPx(text: string, chromePx: number, lineHeightPx: numbe
 }
 
 /**
+ * The user bubble's horizontal chrome: `userMessageContainer.paddingHorizontal` 16 x 2 plus
+ * `userMessageBubble.paddingHorizontal` 14 x 2 (`MessageView.tsx`).
+ */
+const USER_BUBBLE_HORIZONTAL_CHROME_PX = 16 * 2 + 14 * 2;
+/**
+ * Average glyph advance of a user bubble's text, in em. Device capture 2026-11-12 (Android 8T and
+ * OnePlus 13 at 360 dp, Inter and DM Sans, text sizes Default and Large, 140 user bubbles): one
+ * advance of 0.5 em fits every combination, with 89% of the bubbles within 5% of the painted
+ * height. The flat {@link ESTIMATE_CHARS_PER_LINE} model was off by a median 28% on the same rows,
+ * because a bubble is narrower than the reply column it was set for. Replies keep the flat model:
+ * the same capture found no simple model that beat it for markdown replies.
+ */
+const USER_BUBBLE_GLYPH_ADVANCE_EM = 0.5;
+
+/**
+ * Painted line count of a user bubble: each hard line wraps on its own at the bubble's real text
+ * width. Returns `undefined` while the transcript width is unknown, so the caller keeps the
+ * width-blind model.
+ */
+function estimateUserBubbleLineCount(
+    text: string,
+    transcriptContentWidthPx: number,
+    uiFontScale: number,
+): number | undefined {
+    const textWidthPx = transcriptContentWidthPx - USER_BUBBLE_HORIZONTAL_CHROME_PX;
+    if (!Number.isFinite(textWidthPx) || textWidthPx <= 0) return undefined;
+    const scale = Number.isFinite(uiFontScale) && uiFontScale > 0 ? uiFontScale : 1;
+    const glyphPx = transcriptMarkdownTextStyle.fontSize * scale * USER_BUBBLE_GLYPH_ADVANCE_EM;
+    const glyphsPerLine = Math.max(1, Math.floor(textWidthPx / glyphPx));
+    let lines = 0;
+    for (const line of text.split('\n')) {
+        lines += Math.max(1, Math.ceil(line.length / glyphsPerLine));
+    }
+    return lines;
+}
+
+/**
  * What a thinking message paints, by the account's thinking display settings. Sized as its text,
  * each collapsed or hidden thinking row of an older page overshot by the whole thinking text, and
  * the content height dropped by thousands of px when the next scroll measured the rows.
@@ -563,11 +603,17 @@ function estimateCollapsedThinkingPx(messageId: string, thinking: TranscriptThin
         + (thinking.inlineChrome === 'card' ? COLLAPSED_INLINE_THINKING_CARD_CHROME_PX : 0);
 }
 
+type TranscriptTextEstimateInput = Readonly<{
+    lineHeightPx: number;
+    transcriptContentWidthPx: number;
+    uiFontScale: number;
+}>;
+
 function estimateMessagePx(
     message: Message | null,
     chromeVariant: ToolCallsGroupChromeVariant,
     thinking: TranscriptThinkingRowEstimateInput | undefined,
-    lineHeightPx: number,
+    text: TranscriptTextEstimateInput,
 ): number {
     if (!message) return ESTIMATE_COMPACT_ROW_PX;
     if (message.kind === 'agent-text' && message.isThinking === true && thinking) {
@@ -575,10 +621,13 @@ function estimateMessagePx(
         if (collapsedPx !== undefined) return collapsedPx;
     }
     if (message.kind === 'user-text') {
-        return estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX, lineHeightPx);
+        const bubbleLines = estimateUserBubbleLineCount(message.text, text.transcriptContentWidthPx, text.uiFontScale);
+        return bubbleLines === undefined
+            ? estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX, text.lineHeightPx)
+            : COMMITTED_USER_TEXT_CHROME_PX + bubbleLines * text.lineHeightPx;
     }
     if (message.kind === 'agent-text') {
-        return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX, lineHeightPx);
+        return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX, text.lineHeightPx);
     }
     // The whole tool surface of `cards` mode, since grouping is off there. Measured 2026-07-29: a
     // standalone `MessageView` tool row is 50px in either feed variant (the compact constant is
@@ -637,6 +686,11 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
      * REQUIRED for the reason `toolCallsGroupChromeVariant` is.
      */
     uiFontScale: number;
+    /**
+     * The transcript's content width in px (`min(list width, layout max width)`), which a user
+     * bubble wraps in. `0` while unknown. REQUIRED for the reason `toolCallsGroupChromeVariant` is.
+     */
+    transcriptContentWidthPx: number;
 }>): number | undefined {
     const { item, toolCallsGroupChromeVariant } = params;
     const unitRowHeights = resolveToolGroupUnitRowHeights(toolCallsGroupChromeVariant);
@@ -645,7 +699,13 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
             params.getMessageById(item.messageId),
             toolCallsGroupChromeVariant,
             params.thinking,
-            resolveTranscriptTextLineHeightPx(params.uiFontScale),
+            {
+                lineHeightPx: resolveTranscriptTextLineHeightPx(params.uiFontScale),
+                // The bubble calibration is native only; the web capture above found the flat model
+                // exact for a user bubble, so web keeps it.
+                transcriptContentWidthPx: params.platformIsWeb ? 0 : params.transcriptContentWidthPx,
+                uiFontScale: params.uiFontScale,
+            },
         );
     }
     if (item.kind === 'pending-queue') {
