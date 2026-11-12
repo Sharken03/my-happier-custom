@@ -328,6 +328,36 @@ describe('estimateTranscriptRowHeightFromContent', () => {
         expect(estimate(360, 1, true)).toBe(38 + 3 * 24);
     });
 
+    // Device capture 2026-11-12 (8T portrait 179 px, OnePlus 13 landscape 155 px): a bubble with a
+    // legacy attachment paints the text without its `[attachments]` block, plus the image row
+    // (2 px + an 84 px tile before the image loads + 7 px). The old estimate sized the block's
+    // paths as text: 302 px.
+    it('sizes a user bubble with an attachment as its painted text and image row', () => {
+        const message = {
+            kind: 'user-text',
+            id: 'u1',
+            localId: null,
+            createdAt: 1,
+            text: 'look at this\n\nAttachments:\n[attachments]\n- shot.png (/home/me/.happier/uploads/'
+                + 'a'.repeat(120) + '/shot.png)\n[/attachments]',
+            meta: {
+                happier: {
+                    kind: 'attachments.v1',
+                    payload: { attachments: [{ name: 'shot.png', path: '/uploads/shot.png', mimeType: 'image/png', sizeBytes: 10 }] },
+                },
+            },
+        } as unknown as Message;
+        const estimate = estimateTranscriptRowHeightFromContent({
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            uiFontScale: 1,
+            transcriptContentWidthPx: 792,
+            getMessageById: () => message,
+            item: { kind: 'message', id: 'i1', messageId: 'u1' } as TranscriptRowShellItem,
+        });
+        expect(estimate).toBe(38 + 24 + 2 + 84 + 7);
+    });
+
     // The transcript markdown paints its lines at 24 px times the in-app text size
     // (`useEnrichedMarkdownStyle`). Device capture 2026-11-12 (Android, 360 dp, text size Large):
     // the unscaled estimate was off by a median 23% on replies and 32% on user bubbles.

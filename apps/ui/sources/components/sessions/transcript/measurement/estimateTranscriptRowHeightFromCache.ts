@@ -16,6 +16,8 @@ import { parseHappierMetaEnvelope } from '@/components/sessions/transcript/struc
 import { findStructuredMessageRenderer } from '@/components/sessions/transcript/structured/structuredMessageRegistry';
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
 import { transcriptMarkdownTextStyle } from '@/components/sessions/transcript/transcriptMarkdownTypography';
+import { resolveUserTextDisplayText } from '@/components/sessions/transcript/messageSelection/resolveSelectableMessageText';
+import { resolveSessionMediaInlineImagesHeightPx } from '@/components/sessions/sessionMedia/sessionMediaThumbnailLayout';
 import type { Message } from '@/sync/domains/messages/messageTypes';
 import { settingsDefaults } from '@/sync/domains/settings/settings';
 import type { PendingMessage } from '@/sync/domains/state/storageTypes';
@@ -603,10 +605,34 @@ function estimateCollapsedThinkingPx(messageId: string, thinking: TranscriptThin
         + (thinking.inlineChrome === 'card' ? COLLAPSED_INLINE_THINKING_CARD_CHROME_PX : 0);
 }
 
+/**
+ * A user bubble as `MessageView` paints it: the display text (`resolveUserTextDisplayText`), then
+ * the inline image row (`resolveSessionMediaInlineImagesHeightPx`) at the bubble's text width.
+ */
+function estimateUserBubblePx(
+    message: Extract<Message, { kind: 'user-text' }>,
+    text: TranscriptTextEstimateInput,
+): number {
+    const media = parseSessionMediaMessageMeta(message.meta);
+    const displayText = resolveUserTextDisplayText(message, media.legacyAttachments != null) ?? message.text;
+    const bubbleLines = text.wrapUserBubbleAtWidth
+        ? estimateUserBubbleLineCount(displayText, text.transcriptContentWidthPx, text.uiFontScale)
+        : undefined;
+    const textPx = bubbleLines === undefined
+        ? estimateTextBlockPx(displayText, COMMITTED_USER_TEXT_CHROME_PX, text.lineHeightPx)
+        : COMMITTED_USER_TEXT_CHROME_PX + bubbleLines * text.lineHeightPx;
+    const imageRowWidthPx = text.transcriptContentWidthPx > 0
+        ? text.transcriptContentWidthPx - USER_BUBBLE_HORIZONTAL_CHROME_PX
+        : Number.POSITIVE_INFINITY;
+    return textPx + resolveSessionMediaInlineImagesHeightPx(media.inlineImages, imageRowWidthPx);
+}
+
 type TranscriptTextEstimateInput = Readonly<{
     lineHeightPx: number;
     transcriptContentWidthPx: number;
     uiFontScale: number;
+    /** False on web: the web capture found the flat model exact for a user bubble's text. */
+    wrapUserBubbleAtWidth: boolean;
 }>;
 
 function estimateMessagePx(
@@ -621,10 +647,7 @@ function estimateMessagePx(
         if (collapsedPx !== undefined) return collapsedPx;
     }
     if (message.kind === 'user-text') {
-        const bubbleLines = estimateUserBubbleLineCount(message.text, text.transcriptContentWidthPx, text.uiFontScale);
-        return bubbleLines === undefined
-            ? estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX, text.lineHeightPx)
-            : COMMITTED_USER_TEXT_CHROME_PX + bubbleLines * text.lineHeightPx;
+        return estimateUserBubblePx(message, text);
     }
     if (message.kind === 'agent-text') {
         return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX, text.lineHeightPx);
@@ -701,9 +724,8 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
             params.thinking,
             {
                 lineHeightPx: resolveTranscriptTextLineHeightPx(params.uiFontScale),
-                // The bubble calibration is native only; the web capture above found the flat model
-                // exact for a user bubble, so web keeps it.
-                transcriptContentWidthPx: params.platformIsWeb ? 0 : params.transcriptContentWidthPx,
+                transcriptContentWidthPx: params.transcriptContentWidthPx,
+                wrapUserBubbleAtWidth: !params.platformIsWeb,
                 uiFontScale: params.uiFontScale,
             },
         );

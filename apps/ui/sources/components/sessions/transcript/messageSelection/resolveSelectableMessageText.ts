@@ -47,6 +47,22 @@ export function isAgentTextMessageActivelyStreamingForSelection(message: Message
     return streamSegmentMeta.segmentKind === 'assistant' && streamSegmentMeta.segmentState === null;
 }
 
+/**
+ * The text a user bubble shows: a voice turn's normalized transcript, else the display form, else
+ * the text without its legacy `[attachments]` block (the block is painted as the image row).
+ * `MessageView`, selection and the row height estimate all read this one answer.
+ */
+export function resolveUserTextDisplayText(
+    message: Extract<Message, { kind: 'user-text' }>,
+    hasAttachmentBlockToStrip: boolean,
+): string | null {
+    if (isVoiceAgentTurn(message) && message.displayText === undefined) {
+        return normalizeVoiceAgentTurnTranscriptText(message.text);
+    }
+    if (message.displayText !== undefined) return message.displayText;
+    return hasAttachmentBlockToStrip ? stripLegacyAttachmentsBlock(message.text) : message.text;
+}
+
 function normalizeResolvedText(entry: TranscriptSelectableMessageText): TranscriptSelectableMessageText | null {
     if (!entry.text.trim()) return null;
     return entry;
@@ -62,13 +78,7 @@ export function resolveSelectableMessageText(input: {
     if (message.kind === 'user-text') {
         const text = input.isStructuredOnly
             ? message.text
-            : isVoiceAgentTurn(message) && message.displayText === undefined
-                ? normalizeVoiceAgentTurnTranscriptText(message.text)
-                : message.displayText !== undefined
-                    ? message.displayText
-                    : input.hasAttachmentBlockToStrip
-                        ? stripLegacyAttachmentsBlock(message.text)
-                        : message.text;
+            : resolveUserTextDisplayText(message, input.hasAttachmentBlockToStrip);
         if (text == null) return null;
         return normalizeResolvedText({ role: 'user', text });
     }

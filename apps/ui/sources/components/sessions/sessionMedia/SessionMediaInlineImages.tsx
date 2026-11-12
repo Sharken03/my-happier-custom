@@ -20,11 +20,16 @@ import { SafeNativeSvgXml } from '@/components/ui/media/SafeNativeSvgXml';
 import type { SessionMediaInlineImageSummary } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
 
 import { resolveSessionMediaImageMimeType } from './sessionMediaPresentation';
+import {
+    SESSION_MEDIA_INLINE_IMAGES_GAP_PX,
+    SESSION_MEDIA_INLINE_IMAGES_MARGIN_BOTTOM_PX,
+    SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
+    resolveImageDimensions,
+    resolveThumbnailSize,
+    type ImageDimensions,
+} from './sessionMediaThumbnailLayout';
 import { Icon } from '@/components/ui/icons/Icon';
 
-const FALLBACK_THUMBNAIL_SIZE = 84;
-const MAX_THUMBNAIL_WIDTH = 220;
-const MAX_THUMBNAIL_HEIGHT = 160;
 const fallbackSessionMediaMappingHelper: FlashListCompat.FlashListMappingHelper = {
     getMappingKey: (itemKey: FlashListCompat.FlashListMappingKey) => itemKey,
 };
@@ -37,11 +42,11 @@ function useSessionMediaMappingHelper(): FlashListCompat.FlashListMappingHelper 
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
-        marginTop: 2,
-        marginBottom: 7,
+        marginTop: SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
+        marginBottom: SESSION_MEDIA_INLINE_IMAGES_MARGIN_BOTTOM_PX,
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: SESSION_MEDIA_INLINE_IMAGES_GAP_PX,
     },
     tile: {
         borderRadius: 12,
@@ -61,41 +66,6 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surface.elevated,
     },
 }));
-
-type ImageDimensions = Readonly<{
-    width: number;
-    height: number;
-}>;
-
-function readPositiveDimension(value: number | undefined): number | null {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-    const normalized = Math.trunc(value);
-    return normalized > 0 ? normalized : null;
-}
-
-function resolveImageDimensions(value: Readonly<{ width?: number; height?: number }> | null): ImageDimensions | null {
-    const width = readPositiveDimension(value?.width);
-    const height = readPositiveDimension(value?.height);
-    return width && height ? { width, height } : null;
-}
-
-function resolveThumbnailSize(dimensions: ImageDimensions | null): ImageDimensions {
-    if (!dimensions) {
-        return {
-            width: FALLBACK_THUMBNAIL_SIZE,
-            height: FALLBACK_THUMBNAIL_SIZE,
-        };
-    }
-
-    const scale = Math.min(
-        MAX_THUMBNAIL_WIDTH / dimensions.width,
-        MAX_THUMBNAIL_HEIGHT / dimensions.height,
-    );
-    return {
-        width: Math.max(1, Math.round(dimensions.width * scale)),
-        height: Math.max(1, Math.round(dimensions.height * scale)),
-    };
-}
 
 function resolveSessionMediaAccessibilityLabel(media: SessionMediaInlineImageSummary): string {
     const accessibleName = (media.description ?? media.name).slice(0, 512);
