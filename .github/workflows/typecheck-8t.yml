@@ -79,3 +79,11 @@ jobs:
       - name: Typecheck apps/ui
         working-directory: apps/ui
         run: yarn -s typecheck
+
+      # The same 8T tests as Build 8T web, so a fix branch is checked without a web build.
+      - name: Run the 8T UI tests
+        working-directory: apps/ui
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/ui-tests.txt | sed '/^$/d')
+          yarn -s vitest run --config vitest.config.ts "${tests[@]}"
