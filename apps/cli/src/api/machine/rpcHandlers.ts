@@ -58,6 +58,7 @@ import {
 import { buildReplaySeededSpawnRecipe } from '@/session/replay/buildReplaySeededSpawnRecipe';
 import { resolveReplaySourceContextAuthority } from '@/session/replay/resolveReplaySourceContextAuthority';
 import { readReplaySeededCreationFailure } from '@/session/replay/replaySeededCreationFailure';
+import { ensureSessionDirectory } from '@/daemon/startup/ensureSessionDirectory';
 import {
   createSpawnedSession,
   readPersistedReplaySeedSourceRecipe,
@@ -711,6 +712,13 @@ export function registerMachineRpcHandlers(params: Readonly<{
     spawnNonce: string;
     hasPendingFirstInput: boolean;
   }>): Promise<SpawnSessionResult> => {
+    // The daemon's own directory rule runs before the row exists, so a declined approval of a
+    // missing directory leaves no empty Session row behind.
+    const directoryReady = await ensureSessionDirectory({
+      directory: args.directory,
+      approvedNewDirectoryCreation: args.approvedNewDirectoryCreation === true,
+    });
+    if (!directoryReady.ok) return directoryReady.response;
     const credentials = await readCredentials().catch(() => null);
     if (!credentials) {
       // No daemon credentials to commit a row with: the runner creates it, as without the setting.

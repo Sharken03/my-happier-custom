@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RPC_METHODS } from '@happier-dev/protocol/rpc';
@@ -71,11 +75,12 @@ function registerSpawnHandler(spawnSession: ReturnType<typeof vi.fn>) {
 }
 
 const FIRST_INPUT = { text: 'Hvad koster det?', localId: 'first-turn-1' };
+let workspace = '';
 
 function spawnRequest(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     type: 'spawn-in-directory',
-    directory: '/repo',
+    directory: workspace,
     backendTarget: { kind: 'builtInAgent', agentId: 'pi' },
     approvedNewDirectoryCreation: true,
     spawnNonce: 'nonce-1',
@@ -86,6 +91,7 @@ function spawnRequest(overrides: Record<string, unknown> = {}): Record<string, u
 
 describe('SPAWN_HAPPY_SESSION row-first ingress', () => {
   beforeEach(() => {
+    workspace = mkdtempSync(join(tmpdir(), 'row-first-spawn-'));
     readCredentials.mockReset();
     getOrCreateSessionByTag.mockReset();
     fetchSessionById.mockReset();
@@ -115,6 +121,7 @@ describe('SPAWN_HAPPY_SESSION row-first ingress', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    rmSync(workspace, { recursive: true, force: true });
   });
 
   it('answers with the committed row id and attaches the runner, first input included', async () => {
@@ -129,13 +136,26 @@ describe('SPAWN_HAPPY_SESSION row-first ingress', () => {
     expect(result).toMatchObject({ type: 'success', sessionId: 'sess_new', pendingFirstInputAccepted: true });
     const creation = getOrCreateSessionByTag.mock.calls[0]![0] as { tag: string; metadata: Record<string, unknown> };
     expect(creation.tag).toBe('nonce-1');
-    expect(creation.metadata).toMatchObject({ path: '/repo', flavor: 'pi', machineId: 'machine-8t' });
+    expect(creation.metadata).toMatchObject({ path: workspace, flavor: 'pi', machineId: 'machine-8t' });
     expect(spawnSession).toHaveBeenCalledTimes(1);
     expect(spawnSession.mock.calls[0]![0]).toMatchObject({
       existingSessionId: 'sess_new',
       spawnNonce: 'nonce-1',
       pendingFirstInput: FIRST_INPUT,
     });
+  });
+
+  it('asks to approve a missing directory before it commits a row', async () => {
+    vi.stubEnv('HAPPIER_SPAWN_ROW_FIRST', '1');
+    const spawnSession = vi.fn();
+    const handler = registerSpawnHandler(spawnSession);
+    const missing = join(workspace, 'new-project');
+
+    const result = await handler(spawnRequest({ directory: missing, approvedNewDirectoryCreation: false }));
+
+    // A declined approval must not leave an empty Session row behind.
+    expect(result).toMatchObject({ type: 'requestToApproveDirectoryCreation', directory: missing });
+    expect(getOrCreateSessionByTag).not.toHaveBeenCalled();
   });
 
   it('leaves row creation to the runner when the setting is off', async () => {
