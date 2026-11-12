@@ -368,6 +368,48 @@ describe('sync.fetchMessages server-scoped known-session checks', () => {
         expect(Object.values(messagesById).some((message) => message.kind === 'user-text' && message.text === 'hello direct')).toBe(true);
     });
 
+    it('applies an older direct session page only after the caller allows it', async () => {
+        const sessionId = 'direct_session_id';
+        resolvePreferredServerIdForSessionIdMock.mockReturnValue('server-owned');
+        storage.getState().applySessions([createDirectSession(sessionId)]);
+        machineDirectSessionTranscriptPageMock.mockResolvedValueOnce({
+            ok: true,
+            items: [{ id: 'direct-msg-2', createdAtMs: 2, raw: { role: 'user', content: { type: 'text', text: 'newer direct' } } }],
+            nextCursor: 'older-cursor-1',
+            hasMore: true,
+        });
+        machineDirectSessionTranscriptReadAfterMock.mockResolvedValueOnce({
+            ok: true,
+            items: [],
+            nextCursor: 'tail-cursor-1',
+            truncated: false,
+        });
+        const { sync } = await import('./sync');
+        (sync as any).encryption = { getSessionEncryption: () => null };
+        (sync as any).activeServerSessionIds = new Set<string>([sessionId]);
+        (sync as any).hasFetchedSessionsSnapshotForActiveServer = true;
+        await (sync as any).fetchMessages(sessionId);
+
+        machineDirectSessionTranscriptPageMock.mockResolvedValueOnce({
+            ok: true,
+            items: [{ id: 'direct-msg-1', createdAtMs: 1, raw: { role: 'user', content: { type: 'text', text: 'older direct' } } }],
+            nextCursor: null,
+            hasMore: false,
+        });
+        let allow: (() => void) | null = null;
+        const hasOlderRow = () => Object.values(storage.getState().sessionMessages[sessionId]?.messagesById ?? {})
+            .some((message) => message.kind === 'user-text' && message.text === 'older direct');
+        const load = sync.loadOlderMessages(sessionId, {
+            waitForApply: () => new Promise<void>((resolve) => { allow = resolve; }),
+        });
+        await vi.waitFor(() => expect(allow).not.toBeNull());
+        expect(hasOlderRow()).toBe(false);
+
+        allow!();
+        await expect(load).resolves.toMatchObject({ loaded: 1, status: 'no_more' });
+        expect(hasOlderRow()).toBe(true);
+    });
+
     it('fetches persisted session messages through the preferred owner server when the owner is not active', async () => {
         const sessionId = 'persisted_session_remote_messages';
         const activeServer = upsertServerProfile({ serverUrl: 'https://active.example', name: 'Active' });

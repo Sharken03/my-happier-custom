@@ -153,6 +153,8 @@ import {
 
 type LoadOlderMessagesOptions = Readonly<{
     limit?: number;
+    /** Resolves when the transcript can take the fetched page; see `runSessionMessagesPagePipeline`. */
+    waitForApply?: () => Promise<void>;
 }>;
 
 class PendingOutboxSessionNotHydratedError extends Error {}
@@ -6590,6 +6592,7 @@ class Sync {
           sidechainId?: string | null;
           beforeSeqOverride?: number;
           limit?: number;
+          waitForApply?: () => Promise<void>;
       }>): Promise<{
           loaded: number;
           hasMore: boolean;
@@ -6679,6 +6682,12 @@ class Sync {
                           return { loaded: 0, hasMore: true, status: 'not_ready' };
                       }
                       const normalizedMessages = normalizeDirectTranscriptMessages(page.items);
+                      if (normalizedMessages.length > 0 && params.waitForApply) {
+                          await params.waitForApply();
+                          if (!shouldContinue() || this.directSessionTailStateBySessionId.get(params.sessionId) !== acceptedWindow) {
+                              return { loaded: 0, hasMore: knownHasMore ?? true, status: 'not_ready' };
+                          }
+                      }
                       let changedMessageIds: readonly string[] = [];
                       if (normalizedMessages.length > 0) {
                           changedMessageIds = this.applyMessages(params.sessionId, normalizedMessages, { notifyVoice: false }).changed;
@@ -6783,6 +6792,7 @@ class Sync {
                   request: requestMessages,
                   sessionReceivedMessages: this.sessionReceivedMessages,
                   applyMessages: (sid, messages) => this.applyMessages(sid, messages, { notifyVoice: false }),
+                  waitForApply: params.waitForApply,
                   ...this.getMessageDecryptBatchOptions(),
                   log,
               });
@@ -6881,7 +6891,7 @@ class Sync {
           hasMore: boolean;
           status: 'loaded' | 'no_more' | 'not_ready' | 'in_flight';
       }> {
-          return this.loadOlderMessagesForChain({ sessionId, scope: 'main', limit: options?.limit });
+          return this.loadOlderMessagesForChain({ sessionId, scope: 'main', limit: options?.limit, waitForApply: options?.waitForApply });
       }
 
       public async loadOlderMessagesFromCursor(sessionId: string, beforeSeq: number, options?: LoadOlderMessagesOptions): Promise<{
@@ -6889,7 +6899,13 @@ class Sync {
           hasMore: boolean;
           status: 'loaded' | 'no_more' | 'not_ready' | 'in_flight';
       }> {
-          return this.loadOlderMessagesForChain({ sessionId, scope: 'main', beforeSeqOverride: beforeSeq, limit: options?.limit });
+          return this.loadOlderMessagesForChain({
+              sessionId,
+              scope: 'main',
+              beforeSeqOverride: beforeSeq,
+              limit: options?.limit,
+              waitForApply: options?.waitForApply,
+          });
       }
 
       public async loadTargetWindowMessages(
