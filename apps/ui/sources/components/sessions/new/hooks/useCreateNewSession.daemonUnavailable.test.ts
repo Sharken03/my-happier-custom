@@ -2818,16 +2818,19 @@ describe('useCreateNewSession (daemon unavailable UX)', () => {
     async function launchWithAttachmentFollowUp(afterCreated: () => Promise<void>) {
       vi.useRealTimers();
       const harness = await setupHarness();
-      harness.machineSpawnNewSessionSpy.mockImplementationOnce(async (options: { userAttemptId: string; spawnNonce: string }) => ({
-        type: 'success',
-        sessionId: 'session-created',
-        spawnAttemptCustody: {
-          status: 'completed',
-          userAttemptId: options.userAttemptId,
-          spawnNonce: options.spawnNonce,
-          targetFingerprint: TARGET,
-        },
-      }));
+      harness.machineSpawnNewSessionSpy.mockImplementationOnce(async (options: unknown) => {
+        const attempt = options as { userAttemptId: string; spawnNonce: string };
+        return {
+          type: 'success',
+          sessionId: 'session-created',
+          spawnAttemptCustody: {
+            status: 'completed',
+            userAttemptId: attempt.userAttemptId,
+            spawnNonce: attempt.spawnNonce,
+            targetFingerprint: TARGET,
+          },
+        };
+      });
       harness.storageState.sessions['session-created'] = { id: 'session-created' };
       const router = { push: vi.fn(), replace: vi.fn() };
       const hook = await renderHook(() => harness.useCreateNewSession({
