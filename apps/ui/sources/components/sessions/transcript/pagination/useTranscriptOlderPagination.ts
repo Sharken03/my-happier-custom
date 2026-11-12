@@ -100,6 +100,18 @@ function mapLoadResultToFinishedEvent(result: TranscriptOlderPaginationLoadResul
     return { type: 'loadFinished', loaded: 0, hasMore: true, error: true };
 }
 
+function logPager(step: string, state: OlderPaginationState, extra?: Record<string, unknown>): void {
+    console.log('HAPPIER_PAGER', JSON.stringify({
+        step,
+        phase: state.phase,
+        inside: state.insideThreshold,
+        hasMore: state.hasMore,
+        suspended: Array.from(state.suspendedReasons),
+        rearm: state.rearmEligible,
+        ...extra,
+    }));
+}
+
 function normalizeDelayMs(value: number): number {
     return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
 }
@@ -129,6 +141,7 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
         const previous = stateRef.current;
         const next = reduceOlderPagination(previous, event);
         stateRef.current = next;
+        if (next !== previous) logPager(event.type, next, 'reason' in event ? { reason: event.reason } : undefined);
         if (next.hasMore !== previous.hasMore && mountedRef.current) {
             setHasMore(next.hasMore);
         }
@@ -226,6 +239,7 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
     const maybeStartLoad = React.useCallback((trigger: TranscriptOlderPaginationLoadTrigger) => {
         if (inputRef.current.enabled !== true) return;
         syncDerivedSuspensions();
+        logPager('maybe-start', stateRef.current, { trigger });
         if (!shouldLoadNow(stateRef.current)) return;
         dispatch({ type: 'loadStarted' });
         if (stateRef.current.phase !== 'loading') return;
@@ -317,6 +331,7 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
     }, [clearCooldownTimeout, dispatch, reconcileExhaustedSource]);
 
     const onNativeMomentumEnd = React.useCallback(() => {
+        logPager('momentum-end', stateRef.current, { momentum: inputRef.current.isNativeMomentumActive?.() === true });
         if (stateRef.current.phase !== 'armed') return;
         maybeStartLoadRef.current('readiness-open');
     }, []);
