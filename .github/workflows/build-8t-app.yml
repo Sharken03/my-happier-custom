@@ -70,7 +70,7 @@ jobs:
       HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor,audio-stream-native,sherpa-native
       # Native builds do not need the web-only vendored assets (same as upstream mobile builds).
       HAPPIER_UI_VENDOR_WEB_ASSETS: "0"
-      EXPO_APP_NAME: Happier 8T
+      EXPO_APP_NAME: Happier
       EXPO_ANDROID_PACKAGE: dev.happier.app.sharken
       EXPO_APP_LOCAL_CONFIG_PATH: ${{ github.workspace }}/.github/build-8t/app.local.cjs
       HAPPIER_8T_VERSION_CODE: ${{ github.run_number }}
