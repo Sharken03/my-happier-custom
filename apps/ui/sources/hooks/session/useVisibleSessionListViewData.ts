@@ -45,6 +45,7 @@ import {
     normalizeSessionListOrderingSectionMode,
     normalizeSessionListOrderingModeV1,
     normalizeSessionListVisibilityScope,
+    resolveSessionListHideInactiveSessions,
     type SessionListOrderingSectionMode,
     type SessionListOrderingModeV1,
     type SessionListVisibilityScope,
@@ -799,8 +800,8 @@ function useSessionListDataState(
     const sessionListSurfaceDataActive = options.sessionListSurfaceDataActive !== false;
     const activeData = useSessionListViewData();
     const openApprovalSessionIdList = useOpenApprovalSessionIds();
-    const hideInactiveSessions = useSetting('hideInactiveSessions') === true;
     const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
+    const hideInactiveSessions = resolveSessionListHideInactiveSessions(sessionListVisibilityScope);
     const sessionListWorkingPlacementMode = normalizeSessionListWorkingPlacementMode(useSetting('sessionListWorkingPlacementModeV1'));
     const backgroundWorkAttentionMode = normalizeSessionListBackgroundWorkAttentionMode(useSetting('sessionListBackgroundWorkAttentionModeV1'));
     const sessionListFolderSortModeV1 = normalizeSessionListFolderSortModeV1(useLocalSetting('sessionListFolderSortModeV1'));
@@ -997,7 +998,9 @@ export function useVisibleSessionListSessionSummary(
     _options: Pick<VisibleSessionListViewDataOptions, 'sessionListSurfaceDataActive'> = {},
 ): VisibleSessionListSessionSummary {
     const activeData = useSessionListViewData();
-    const hideInactiveSessions = useSetting('hideInactiveSessions') === true;
+    const hideInactiveSessions = resolveSessionListHideInactiveSessions(
+        normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope')),
+    );
     const selection = useResolvedActiveServerSelection();
     const selectedServerIdsKey = React.useMemo(() => selection.allowedServerIds.join('\u0000'), [selection.allowedServerIds]);
     const selectedServerIdsForCache = selection.enabled

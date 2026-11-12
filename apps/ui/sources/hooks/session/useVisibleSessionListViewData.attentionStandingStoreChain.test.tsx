@@ -75,6 +75,8 @@ vi.mock('@/sync/domains/state/storage', async (importOriginal) => {
             useSessionFolderAssignmentsBySessionKey: () => ({}),
             useSetting: (key: string) => {
                 if (key === 'hideInactiveSessions') return sourceData.hideInactiveSessions;
+                // The visibility scope owns the inactive filter; Active hides inactive sessions.
+                if (key === 'sessionListVisibilityScope') return sourceData.hideInactiveSessions ? 'active' : 'all';
                 if (key === 'sessionListAttentionPromotionModeV1') return sourceData.sessionListAttentionPromotionMode;
                 if (key === 'sessionListAttentionStandingDefaultV1') return false;
                 if (key === 'sessionListWorkingPlacementModeV1') return 'off';

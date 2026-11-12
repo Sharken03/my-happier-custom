@@ -18,6 +18,14 @@ export function normalizeSessionListVisibilityScope(value: unknown): SessionList
     return value === 'all' || value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
 }
 
+/**
+ * The visibility scope owns the inactive filter of the main session list: Active shows only
+ * running sessions, All and Archived show every session of their scope.
+ */
+export function resolveSessionListHideInactiveSessions(scope: SessionListVisibilityScope): boolean {
+    return scope === 'active';
+}
+
 export type SessionListOrderingSection = 'active' | 'inactive' | 'archived' | 'sessions';
 export type SessionListOrderingSectionMode = 'activity' | 'single';
 export type SessionListOrderingGroupKind = NonNullable<Extract<SessionListIndexItem, { type: 'session' }>['groupKind']>;
