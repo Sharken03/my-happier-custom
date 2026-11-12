@@ -34,4 +34,3 @@ sources/components/sessions/transcript/measurement/transcriptMeasurementReconcil
 sources/components/sessions/transcript/scroll/jumpToBottomAffordanceState.test.ts
 sources/hooks/session/useVisibleSessionListViewData.test.tsx
 sources/hooks/session/useVisibleSessionListViewData.attentionStandingStoreChain.test.tsx
-sources/components/sessions/transcript/pagination/useTranscriptOlderPagination.test.tsx

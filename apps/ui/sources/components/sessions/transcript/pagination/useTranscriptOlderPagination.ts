@@ -53,13 +53,6 @@ export type UseTranscriptOlderPaginationInput = Readonly<{
     spinnerDelayMs: number;
     isFillDone: () => boolean;
     isTransactionOpen: () => boolean;
-    /**
-     * True while a native fling runs. Android re-creates a running fling after the content
-     * above the viewport grows, and that fling can run the wrong way (8T capture
-     * 2026-11-12: 2 of 5 prepends moved 76-388 px toward the bottom). So a page goes in
-     * only when no fling runs; `onNativeMomentumEnd` starts the held load.
-     */
-    isNativeMomentumActive?: () => boolean;
     /** Current source evidence can reopen a pager exhausted before a new gap existed. */
     readHasMoreAfterExhaustion?: () => boolean | null;
 }>;
@@ -75,8 +68,6 @@ export type UseTranscriptOlderPaginationResult = Readonly<{
     observeLoadResult: (result: TranscriptOlderPaginationLoadResult | null) => void;
     /** Read one retained older page without requiring a scrollable viewport. */
     continueOlderLoad: () => void;
-    /** Starts a load that native momentum held. */
-    onNativeMomentumEnd: () => void;
     reset: () => void;
 }>;
 
@@ -204,8 +195,6 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
         const transactionOpen = inputRef.current.isTransactionOpen() === true;
         dispatch({ type: fillDone ? 'resume' : 'suspend', reason: 'fill-not-done' });
         dispatch({ type: transactionOpen ? 'suspend' : 'resume', reason: 'transaction-open' });
-        const momentumActive = inputRef.current.isNativeMomentumActive?.() === true;
-        dispatch({ type: momentumActive ? 'suspend' : 'resume', reason: 'native-momentum' });
     }, [dispatch]);
 
     const maybeStartLoadRef = React.useRef<(trigger: TranscriptOlderPaginationLoadTrigger) => void>(() => {});
@@ -316,11 +305,6 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
         maybeStartLoadRef.current('explicit-continuation');
     }, [clearCooldownTimeout, dispatch, reconcileExhaustedSource]);
 
-    const onNativeMomentumEnd = React.useCallback(() => {
-        if (stateRef.current.phase !== 'armed') return;
-        maybeStartLoadRef.current('readiness-open');
-    }, []);
-
     React.useEffect(() => {
         mountedRef.current = true;
         return () => {
@@ -331,5 +315,5 @@ export function useTranscriptOlderPagination(input: UseTranscriptOlderPagination
         };
     }, [clearCooldownTimeout, clearSpinnerTimeout]);
 
-    return { onScrollObservation, isReadyForLoad, isNearOlderEdge, isLoadingOlder, hasMore, getSnapshot, observeLoadResult, continueOlderLoad, onNativeMomentumEnd, reset };
+    return { onScrollObservation, isReadyForLoad, isNearOlderEdge, isLoadingOlder, hasMore, getSnapshot, observeLoadResult, continueOlderLoad, reset };
 }

@@ -379,22 +379,6 @@ describe('useTranscriptOlderPagination', () => {
         expect(loadOlder).toHaveBeenCalledTimes(1);
     });
 
-    it('holds a load during native momentum and starts it when the momentum ends', async () => {
-        vi.useFakeTimers();
-        let momentumActive = true;
-        const { input, loadOlder } = createHarness({ isNativeMomentumActive: () => momentumActive });
-        const hook = await renderHook(() => useTranscriptOlderPagination(input));
-
-        await observe(hook, { offsetY: 120 });
-        await hook.rerender();
-        expect(loadOlder).not.toHaveBeenCalled();
-
-        momentumActive = false;
-        await act(async () => hook.getCurrent().onNativeMomentumEnd());
-        expect(loadOlder).toHaveBeenCalledTimes(1);
-        expect(loadOlder).toHaveBeenLastCalledWith({ trigger: 'readiness-open' });
-    });
-
     it('suspends loads until the initial fill is done', async () => {
         vi.useFakeTimers();
         let fillDone = false;
