@@ -8,7 +8,7 @@
 //
 // Measured 9/11-2026 (single-threaded, GOGC=40): packages/protocol peaks at about 400 MB in 7 s.
 // apps/cli passed 2800 MB after 90 s and was still growing, so the CLI and the UI typecheck only in
-// CI (build-8t-cli.yml, build-8t-web.yml); local vitest runs still work.
+// CI (build-cli.yml, build-web.yml); local vitest runs still work.
 //
 // Usage, from the repository root:  node termux/typecheck-lowmem.mjs apps/cli [--max-mb 2200]
 // The exit code is tsgo's; 137 means the watchdog stopped it (raise --max-mb only with free memory).

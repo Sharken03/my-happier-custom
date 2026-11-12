@@ -1,4 +1,4 @@
-name: Build 8T web
+name: Build web
 
 # Private build of the Happier web UI for the OnePlus 8T, with the self-hosted relay in
 # HAPPIER_8T_SERVER_URL as the default server. Each run publishes one prerelease
@@ -13,16 +13,16 @@ on:
       - "**/*.md"
       - "docs/**"
       - "termux/**"
-      - ".github/workflows/build-8t-app.yml"
+      - ".github/workflows/build-app.yml"
       - ".github/build-8t/app.local.cjs"
-      - ".github/workflows/build-8t-cli.yml"
+      - ".github/workflows/build-cli.yml"
       - "apps/cli/**"
       - ".github/build-8t/cli-tests.txt"
       - "apps/server/**"
   workflow_dispatch:
 
 concurrency:
-  group: build-8t-web-${{ github.ref }}
+  group: build-web-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -96,7 +96,7 @@ jobs:
           args: --frozen-lockfile --ignore-engines
 
       # The fork's UI changes are written on the phone, which has no dependencies to check them.
-      - name: Check the UI (typecheck and the 8T tests)
+      - name: Check the UI (typecheck and the fork tests)
         working-directory: apps/ui
         run: |
           set -euo pipefail
@@ -108,8 +108,8 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: /tmp/metro-cache
-          key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-web.yml') }}-${{ github.run_id }}
-          restore-keys: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-web.yml') }}-
+          key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-${{ github.run_id }}
+          restore-keys: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-
 
       - name: Export web bundle
         id: web
@@ -132,5 +132,5 @@ jobs:
         with:
           kind: web
           path: dist/8t
-          title: Happier 8T web
+          title: Happier web
           notes: "- Web export (ui-web archive for the relay's HAPPIER_SERVER_UI_DIR)"

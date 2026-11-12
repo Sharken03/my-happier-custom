@@ -1,4 +1,4 @@
-name: Publish 8T prerelease
+name: Publish prerelease
 description: >
   Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
   newest 5 prereleases of that kind, and keep only the newest Metro and ccache cache of that kind. The web
@@ -13,7 +13,7 @@ inputs:
     description: Folder with the files to publish
     required: true
   title:
-    description: Release title prefix, for example "Happier 8T web"
+    description: Release title prefix, for example "Happier web"
     required: true
   notes:
     description: Extra Markdown lines for the release notes

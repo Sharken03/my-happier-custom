@@ -1,4 +1,4 @@
-# Vitest files (relative to apps/cli) for the 8T fork's own CLI changes; build-8t-cli.yml
+# Vitest files (relative to apps/cli) for the fork's own CLI changes; build-cli.yml
 # runs them with the CLI typecheck before it packs.
 src/daemon/chatFolders/chatsDir.test.ts
 src/daemon/machine/metadata.test.ts

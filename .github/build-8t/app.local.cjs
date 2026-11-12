@@ -1,4 +1,4 @@
-// Expo config overrides for the Happier 8T Android build (.github/workflows/build-8t-app.yml).
+// Expo config overrides for the Happier Android build (.github/workflows/build-app.yml).
 // apps/ui/app.config.js loads this file through EXPO_APP_LOCAL_CONFIG_PATH and deep-merges `expo`.
 // Name, package and default server come from env vars that app.config.js and the app already read.
 

@@ -1,4 +1,4 @@
-name: Build 8T APK
+name: Build APK
 
 # Private build of an arm64 Android APK of Happier for the OnePlus 8T, with the self-hosted relay in
 # HAPPIER_8T_SERVER_URL as the default server. Each run publishes one prerelease
@@ -25,13 +25,13 @@ on:
       - ".github/build-8t/**"
       - "!.github/build-8t/ui-tests.txt"
       - "!.github/build-8t/cli-tests.txt"
-      - ".github/workflows/build-8t-app.yml"
+      - ".github/workflows/build-app.yml"
   workflow_dispatch:
 
 # A newer push waits for the running build instead of cancelling it (a cancelled build loses up to
 # an hour); GitHub keeps only the newest waiting run.
 concurrency:
-  group: build-8t-app-${{ github.ref }}
+  group: build-app-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -217,8 +217,8 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: /tmp/metro-cache
-          key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-${{ github.run_id }}
-          restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-8t-app.yml') }}-
+          key: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-app.yml') }}-${{ github.run_id }}
+          restore-keys: metro-app-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-app.yml') }}-
 
       # prepareSherpaOnnxAndroid downloads only the files that are missing from this directory.
       - name: Restore sherpa-onnx download
@@ -372,7 +372,7 @@ jobs:
           # log with it. Every 2 minutes the Gradle log tail and a memory/process snapshot go to
           # the release 8t-buildlog, which outlives the runner.
           gh release view 8t-buildlog >/dev/null 2>&1 \
-            || gh release create 8t-buildlog --prerelease --title "8T build log snapshots" --notes "Diagnostics of the APK job." >/dev/null
+            || gh release create 8t-buildlog --prerelease --title "Build log snapshots" --notes "Diagnostics of the APK job." >/dev/null
           (
             while sleep 120; do
               {
@@ -406,7 +406,7 @@ jobs:
           echo "$certs"
           echo "cert_sha256=$(echo "$certs" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)" >> "$GITHUB_OUTPUT"
           mkdir -p dist/8t
-          cp "$apk" "dist/8t/happier-8t-${GITHUB_SHA::7}-arm64-v8a.apk"
+          cp "$apk" "dist/8t/happier-${GITHUB_SHA::7}-arm64-v8a.apk"
           ls -l dist/8t
 
       - name: Publish
@@ -417,7 +417,7 @@ jobs:
         with:
           kind: app
           path: dist/8t
-          title: Happier 8T APK
+          title: Happier APK
           notes: |
             - Android APK (arm64-v8a, ${{ env.EXPO_ANDROID_PACKAGE }}, "${{ env.EXPO_APP_NAME }}")
             - APK signing: ${{ steps.signing.outputs.mode }} (certificate SHA-256 ${{ steps.verify.outputs.cert_sha256 }})

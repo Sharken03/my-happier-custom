@@ -1,4 +1,4 @@
-name: Build 8T CLI
+name: Build CLI
 
 # Private build of the Happier CLI (@happier-dev/cli) from this branch, as the npm tarball that
 # upstream publishes. The 8T installs it with happy/server/update-happier-cli --tarball <url>
@@ -21,11 +21,11 @@ on:
       - "packages/transfers/**"
       - "package.json"
       - "yarn.lock"
-      - ".github/workflows/build-8t-cli.yml"
+      - ".github/workflows/build-cli.yml"
   workflow_dispatch:
 
 concurrency:
-  group: build-8t-cli-${{ github.ref }}
+  group: build-cli-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -88,7 +88,7 @@ jobs:
           args: --frozen-lockfile --ignore-engines
 
       # The fork's CLI changes are written on the phone, which has no dependencies to check them.
-      - name: Check the CLI (typecheck and the 8T tests)
+      - name: Check the CLI (typecheck and the fork tests)
         working-directory: apps/cli
         run: |
           set -euo pipefail
@@ -108,7 +108,7 @@ jobs:
           mkdir -p "$out"
           node scripts/packTarball.mjs --dest-dir "$out"
           mkdir -p ../../dist/8t
-          cp "$(find "$out" -maxdepth 1 -name '*.tgz' -print -quit)" "../../dist/8t/happier-cli-8t-${GITHUB_SHA::7}.tgz"
+          cp "$(find "$out" -maxdepth 1 -name '*.tgz' -print -quit)" "../../dist/8t/happier-cli-${GITHUB_SHA::7}.tgz"
           tar -tzf ../../dist/8t/*.tgz | grep -c . | xargs echo "files in tarball:"
           tar -xzOf ../../dist/8t/*.tgz package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log("version",JSON.parse(s).version))'
           ls -l ../../dist/8t
@@ -121,5 +121,5 @@ jobs:
         with:
           kind: cli
           path: dist/8t
-          title: Happier 8T CLI
+          title: Happier CLI
           notes: "- @happier-dev/cli tarball for happy/server/update-happier-cli --tarball"

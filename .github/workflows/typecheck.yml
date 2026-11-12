@@ -1,11 +1,11 @@
-name: Typecheck 8T
+name: Typecheck
 
 # Typecheck of apps/ui on a GitHub runner, for work done on the OnePlus 8T. The full typecheck
 # needs about 2.2 GB; on the phone, Android then kills all of Termux (12/11-2026), so it runs here.
 # It checks the pushed commit of the ref, not uncommitted changes in the phone's checkout.
 #
 # Start it with a push to a typecheck/** branch:  git push origin HEAD:typecheck/<name>
-# A dispatch (gh workflow run typecheck-8t.yml -R Sharken03/my-happier-custom --ref <branch>)
+# A dispatch (gh workflow run typecheck.yml -R Sharken03/my-happier-custom --ref <branch>)
 # works only after GitHub knows the workflow: from the default branch or an earlier push run.
 # Own concurrency group, so it never waits for, blocks or cancels the web, APK or CLI builds.
 # cancel-in-progress is off: a second dispatch for the same ref waits instead of cancelling a run
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: typecheck-8t-${{ github.ref }}
+  group: typecheck-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      # Same scope as Build 8T web, so the two share the node_modules cache.
+      # Same scope as Build web, so the two share the node_modules cache.
       HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
     steps:
       - name: Checkout
@@ -80,8 +80,8 @@ jobs:
         working-directory: apps/ui
         run: yarn -s typecheck
 
-      # The same 8T tests as Build 8T web, so a fix branch is checked without a web build.
-      - name: Run the 8T UI tests
+      # The same fork tests as Build web, so a fix branch is checked without a web build.
+      - name: Run the fork UI tests
         working-directory: apps/ui
         run: |
           set -euo pipefail
