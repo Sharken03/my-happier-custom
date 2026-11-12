@@ -355,20 +355,31 @@ const PENDING_QUEUE_SCROLL_MAX_HEIGHT_PX = settingsDefaults.transcriptPendingQue
 /** `transcriptPendingMessageCollapsedLines` account default — the clamp a tombstone always paints. */
 const PENDING_QUEUE_COLLAPSED_LINES = settingsDefaults.transcriptPendingMessageCollapsedLines;
 
+/**
+ * The painted height of one transcript text line at the in-app text size. The markdown renderer
+ * scales its 24 px line by the same factor and rounds it to 2 decimals (`useEnrichedMarkdownStyle`).
+ */
+function resolveTranscriptTextLineHeightPx(uiFontScale: number): number {
+    const scale = Number.isFinite(uiFontScale) && uiFontScale > 0 ? uiFontScale : 1;
+    return Math.round(transcriptMarkdownTextStyle.lineHeight * scale * 100) / 100;
+}
+
 function estimatePendingQueueTextPx(
     message: Pick<PendingMessage, 'text' | 'displayText'>,
+    lineHeightPx: number,
     maxLines?: number,
 ): number {
     // `displayText ?? text` is the string the block renders (`PendingMessagesTranscriptBlock`); a
     // message with a distinct display form is otherwise sized from text it never paints.
     const rendered = (message.displayText ?? message.text) ?? '';
     const lines = estimateWrappedLineCount(rendered);
-    return (maxLines === undefined ? lines : Math.min(lines, maxLines)) * transcriptMarkdownTextStyle.lineHeight;
+    return (maxLines === undefined ? lines : Math.min(lines, maxLines)) * lineHeightPx;
 }
 
 function estimatePendingQueueRowPx(
     item: Extract<TranscriptRowShellItem, { kind: 'pending-queue' }>,
     platformIsWeb: boolean,
+    lineHeightPx: number,
 ): number {
     let scrollContentPx = PENDING_QUEUE_SCROLL_PADDING_TOP_PX;
     let hasTerminalDraftNotice = false;
@@ -386,7 +397,7 @@ function estimatePendingQueueRowPx(
                 isLastInScrollContent: index === item.pendingMessages.length - 1 && item.discardedMessages.length === 0,
             })
             + actionRowPx
-            + estimatePendingQueueTextPx(pendingMessage);
+            + estimatePendingQueueTextPx(pendingMessage, lineHeightPx);
         // The canonical owner of what chrome a pending row paints. Its session-runtime inputs are
         // not reachable from a pure size estimate, so a `queued_behind_turn` wait notice is NOT
         // modelled — it is absorbed by the cap for any queue that reaches it, and superseded by the
@@ -429,7 +440,7 @@ function estimatePendingQueueRowPx(
                 // A tombstone is ALWAYS clamped — the block renders it through a plain `Text` with
                 // `numberOfLines={collapsedLines}` and no expand path — so its text term is bounded
                 // where a pending row's is not.
-                + estimatePendingQueueTextPx(discardedMessage, PENDING_QUEUE_COLLAPSED_LINES)
+                + estimatePendingQueueTextPx(discardedMessage, lineHeightPx, PENDING_QUEUE_COLLAPSED_LINES)
                 + (platformIsWeb ? PENDING_QUEUE_MESSAGE_ACTION_ROW_PX : 0)
                 + PENDING_QUEUE_DISCARDED_LABEL_PX
                 + (discardedMessage.discardedReason ? PENDING_QUEUE_DISCARDED_REASON_PX : 0);
@@ -449,6 +460,7 @@ function estimatePendingQueueRowPx(
         pendingCount: item.pendingMessages.length,
         discardedCount: item.discardedMessages.length,
         queueMaxHeightPx: PENDING_QUEUE_SCROLL_MAX_HEIGHT_PX,
+        // The renderer bounds the box with the unscaled line (`PendingMessagesTranscriptBlock`).
         lineHeightPx: transcriptMarkdownTextStyle.lineHeight,
     }));
     return headerPx + (hasTerminalDraftNotice ? PENDING_QUEUE_TERMINAL_DRAFT_NOTICE_PX : 0) + scrollBoxPx;
@@ -511,8 +523,8 @@ const COMMITTED_USER_TEXT_CHROME_PX = COMMITTED_USER_WRAPPER_PADDING_BOTTOM_PX +
 /** `agentMessageContainer.paddingBottom` 22 (`MessageView.tsx`) — the reply paints no bubble. */
 const COMMITTED_AGENT_TEXT_CHROME_PX = 22;
 
-function estimateTextBlockPx(text: string, chromePx: number): number {
-    return chromePx + estimateWrappedLineCount(text) * transcriptMarkdownTextStyle.lineHeight;
+function estimateTextBlockPx(text: string, chromePx: number, lineHeightPx: number): number {
+    return chromePx + estimateWrappedLineCount(text) * lineHeightPx;
 }
 
 /**
@@ -555,6 +567,7 @@ function estimateMessagePx(
     message: Message | null,
     chromeVariant: ToolCallsGroupChromeVariant,
     thinking: TranscriptThinkingRowEstimateInput | undefined,
+    lineHeightPx: number,
 ): number {
     if (!message) return ESTIMATE_COMPACT_ROW_PX;
     if (message.kind === 'agent-text' && message.isThinking === true && thinking) {
@@ -562,10 +575,10 @@ function estimateMessagePx(
         if (collapsedPx !== undefined) return collapsedPx;
     }
     if (message.kind === 'user-text') {
-        return estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX);
+        return estimateTextBlockPx(message.text, COMMITTED_USER_TEXT_CHROME_PX, lineHeightPx);
     }
     if (message.kind === 'agent-text') {
-        return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX);
+        return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX, lineHeightPx);
     }
     // The whole tool surface of `cards` mode, since grouping is off there. Measured 2026-07-29: a
     // standalone `MessageView` tool row is 50px in either feed variant (the compact constant is
@@ -619,14 +632,24 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
     platformIsAndroid?: boolean;
     /** How this account paints thinking messages; without it a thinking row is sized as its text. */
     thinking?: TranscriptThinkingRowEstimateInput;
+    /**
+     * The in-app text size (`uiFontScale`), which the transcript markdown scales its lines by.
+     * REQUIRED for the reason `toolCallsGroupChromeVariant` is.
+     */
+    uiFontScale: number;
 }>): number | undefined {
     const { item, toolCallsGroupChromeVariant } = params;
     const unitRowHeights = resolveToolGroupUnitRowHeights(toolCallsGroupChromeVariant);
     if (item.kind === 'message') {
-        return estimateMessagePx(params.getMessageById(item.messageId), toolCallsGroupChromeVariant, params.thinking);
+        return estimateMessagePx(
+            params.getMessageById(item.messageId),
+            toolCallsGroupChromeVariant,
+            params.thinking,
+            resolveTranscriptTextLineHeightPx(params.uiFontScale),
+        );
     }
     if (item.kind === 'pending-queue') {
-        return estimatePendingQueueRowPx(item, params.platformIsWeb);
+        return estimatePendingQueueRowPx(item, params.platformIsWeb, resolveTranscriptTextLineHeightPx(params.uiFontScale));
     }
     // Per-unit rows, one cap each. They are the ONLY tool-group shape this estimate can be asked
     // about: `useTranscriptItemsPipeline` runs `buildTranscriptTurnUnits` unconditionally over
