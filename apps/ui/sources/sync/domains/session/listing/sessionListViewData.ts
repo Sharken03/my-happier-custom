@@ -68,6 +68,8 @@ export interface BuildSessionListViewDataOptions {
     activeGroupingV1?: 'project' | 'date';
     inactiveGroupingV1?: 'project' | 'date';
     sectionModeV1?: 'activity' | 'single';
+    // false: archived sessions join the inactive sessions instead of an own Archived section.
+    archivedSectionV1?: boolean;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
     /**
      * Optional state snapshot used to resolve reachable machine targets when session metadata is stale
@@ -705,7 +707,7 @@ export function buildSessionListViewData(
             return;
         }
         const isSharedSession = typeof session.owner === 'string' && session.owner.trim().length > 0;
-        if (session.archivedAt != null) {
+        if (session.archivedAt != null && options.archivedSectionV1 !== false) {
             if (isSharedSession) {
                 archivedSharedSessions.push(session);
             } else {

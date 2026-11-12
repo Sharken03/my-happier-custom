@@ -343,6 +343,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    sessionListArchivedSectionV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether archived sessions get their own Archived section in the session list or join the inactive sessions',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListVisibilityScope: {
         schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
         default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,

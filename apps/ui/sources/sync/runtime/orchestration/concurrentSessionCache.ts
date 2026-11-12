@@ -293,6 +293,7 @@ async function refreshServerSnapshot(entry: ManagedConcurrentServer): Promise<vo
             activeGroupingV1: storage.getState().settings.sessionListActiveGroupingV1,
             inactiveGroupingV1: storage.getState().settings.sessionListInactiveGroupingV1,
             sectionModeV1: storage.getState().settings.sessionListSectionModeV1,
+            archivedSectionV1: storage.getState().settings.sessionListArchivedSectionV1,
             workspacePathDisplayModeV1: storage.getState().settings.workspacePathDisplayModeV1,
             serverScope: {
                 serverId: entry.id,

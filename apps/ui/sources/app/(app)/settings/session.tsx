@@ -63,6 +63,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
+    const [sessionListArchivedSection, setSessionListArchivedSection] = useSettingMutable('sessionListArchivedSectionV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -682,6 +683,15 @@ export default React.memo(function SessionSettingsScreen() {
                     subtitle={t('settingsFeatures.hideInactiveSessionsSubtitle')}
                     icon={<Icon name="eye-slash" size={29} color={theme.colors.accent.orange} />}
                     rightElement={<Switch value={hideInactiveSessions} onValueChange={setHideInactiveSessions} />}
+                    showChevron={false}
+                />
+                {/* Plain English like the Active/Archived menu, so no locale file changes. */}
+                <Item
+                    testID="settings-session-archivedSection"
+                    title="Archived as own section"
+                    subtitle="Off: archived sessions join the inactive sessions"
+                    icon={<Icon name="archive" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={sessionListArchivedSection} onValueChange={setSessionListArchivedSection} />}
                     showChevron={false}
                 />
                 <Item
