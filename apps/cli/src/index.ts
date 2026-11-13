@@ -28,8 +28,13 @@ import { HAPPIER_RUNNER_PREWARM_ENV_KEY, awaitPrewarmedRunnerAssignment } from '
 async function main() {
   // A prewarmed runner has loaded the CLI above; it becomes a runner when the daemon sends its
   // launch, and ends when the daemon lets it go.
-  if (process.env[HAPPIER_RUNNER_PREWARM_ENV_KEY] === '1' && !(await awaitPrewarmedRunnerAssignment(process))) {
-    process.exit(0);
+  if (process.env[HAPPIER_RUNNER_PREWARM_ENV_KEY] === '1') {
+    // A Pi chat also starts a Pi process; a prewarmed one loads while this runner waits. A chat
+    // that is not a Pi chat lets it go.
+    const warmPi = await import('@/backends/pi/rpc/warmPiProcess');
+    warmPi.prewarmPiProcess();
+    if (!(await awaitPrewarmedRunnerAssignment(process))) process.exit(0);
+    setTimeout(warmPi.releaseWarmPiProcess, 30_000).unref();
   }
   applyStackSessionPriority();
   // Best-effort Windows console hardening for Unicode output (workaround for upstream reports of mojibake when

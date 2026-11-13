@@ -1,3 +1,4 @@
+import { takeWarmPiProcess } from '@/backends/pi/rpc/warmPiProcess';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { open, readdir, stat } from 'node:fs/promises';
@@ -1585,12 +1586,15 @@ export class PiRpcBackend implements AgentBackend {
 
   private spawnRpcProcess(params: Readonly<{ args: string[] }>): void {
     this.refreshPiBrokerLoadNonceForNextSpawn();
-    const child = spawn(this.options.command, params.args, {
+    const childEnv = { ...process.env, ...this.options.env };
+    const child = takeWarmPiProcess({
+      command: this.options.command,
+      args: params.args,
       cwd: this.options.cwd,
-      env: {
-        ...process.env,
-        ...this.options.env,
-      },
+      env: childEnv,
+    }) ?? spawn(this.options.command, params.args, {
+      cwd: this.options.cwd,
+      env: childEnv,
       stdio: 'pipe',
       windowsHide: true,
     });
