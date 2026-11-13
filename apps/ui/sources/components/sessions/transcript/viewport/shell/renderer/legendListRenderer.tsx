@@ -1499,6 +1499,10 @@ function LegendListTranscriptRendererInner<TItem>(
             // Native keyed entry exactness is measured from the mounted row relative to the
             // physical scroller. Apply that residual through the existing offset writer;
             // never replay the estimate-based semantic command.
+            logScrollWrite('held-residual', legendListRef.current, {
+                animated: false,
+                offset: landing.targetOffset,
+            });
             settleLegendScroll(legendListRef.current?.scrollToOffset({
                 animated: false,
                 offset: landing.targetOffset,
@@ -1958,6 +1962,10 @@ function LegendListTranscriptRendererInner<TItem>(
             if (typeof believedOffset !== 'number' || !Number.isFinite(believedOffset)) return;
             if (Math.abs(displayedOffset - believedOffset) < 1) return;
             pendingViewportCauseRef.current = 'layout';
+            logScrollWrite('reveal-replay', legendListRef.current, {
+                animated: false,
+                offset: Math.max(0, displayedOffset),
+            });
             settleLegendScroll(legendListRef.current?.scrollToOffset({
                 animated: false,
                 offset: Math.max(0, displayedOffset),
@@ -2656,6 +2664,7 @@ function LegendListTranscriptRendererInner<TItem>(
             invalidateNativePhysicalViewportCapture();
             invalidateUserInertiaContinuation();
             pendingViewportCauseRef.current = 'command';
+            logScrollWrite('imperative', legendListRef.current, params);
             settleLegendScroll(legendListRef.current?.scrollToOffset(params));
         },
     }), [advanceMovementEpoch, armVisibleAnchorHold, beginExplicitJumpTakeover, cancelScheduledHeldIntentSettle, data, dataLength, holdWebEntryAnchor, invalidateNativePhysicalViewportCapture, invalidateUserInertiaContinuation, notifyViewportInput, observeNativePhysicalViewport, projectChronologicalIndex, props.keyExtractor, readVisibleSourceIndexRange, readWebScrollMetrics, releaseHeldScrollIntent, requestHeldIntentSettle, revalidateViewportAfterReveal, scrollRendererToEnd, setHeldScrollIntent]);
@@ -2961,3 +2970,16 @@ export const legendListRenderer: TranscriptListRenderer = {
     orientation: 'standard',
     Component: LegendListTranscriptRenderer,
 };
+
+// Device QA only (exp/row-calibration): every renderer-owned offset write.
+function logScrollWrite(source: string, list: unknown, params: unknown): void {
+    try {
+        const state = (list as { getState?: () => any } | null)?.getState?.();
+        console.log('HAPPIER_SCROLL_WRITE', JSON.stringify({
+            source, t: Date.now(), params, scroll: state?.scroll ?? null,
+            contentLength: state?.contentLength ?? null, scrollLength: state?.scrollLength ?? null,
+        }));
+    } catch {
+        // QA log only.
+    }
+}
