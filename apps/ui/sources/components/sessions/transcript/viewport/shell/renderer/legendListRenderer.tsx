@@ -59,10 +59,6 @@ import type {
 const LEGEND_LIST_STYLE = { flex: 1, minHeight: 0 } as const;
 // Compile-time constant: only its identity churned, and it is read on every Legend render.
 const LEGEND_MAINTAIN_VISIBLE_CONTENT_POSITION = { data: true, size: true } as const;
-// EXPERIMENT (exp/row-calibration): while held-end owns positioning on native, the native
-// content-position anchor shifts the offset by each growth and Legend's scrollToEnd lands one
-// frame later at a slightly different end: a 2-4 px twitch per streamed line on the 8T.
-const LEGEND_MAINTAIN_VISIBLE_CONTENT_POSITION_OFF = { data: false, size: false } as const;
 /**
  * The live shape of `maintainScrollAtEnd`. Unlike its sibling above it cannot be a module
  * constant: `isMaintainingScrollAtEnd` reads the INSTANCE's held-intent ref, so the object is
@@ -2896,11 +2892,7 @@ function LegendListTranscriptRendererInner<TItem>(
             ? maintainScrollAtEndOption
             : false,
         maintainScrollAtEndThreshold: props.frame.rendererOptions.continuousFollow.endThresholdRatio,
-        maintainVisibleContentPosition: !isWebFrame
-            && explicitJumpTakeoverOperationRef.current === null
-            && heldScrollIntentRef.current?.kind === 'end'
-            ? LEGEND_MAINTAIN_VISIBLE_CONTENT_POSITION_OFF
-            : LEGEND_MAINTAIN_VISIBLE_CONTENT_POSITION,
+        maintainVisibleContentPosition: LEGEND_MAINTAIN_VISIBLE_CONTENT_POSITION,
         onEndReached: props.onEndReached,
         onEndReachedThreshold: props.onEndReachedThreshold,
         onItemSizeChanged: handleLegendItemSizeChanged,
