@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 
+import { CONSUMED_SESSION_ENV_KEYS } from '@/agent/runtime/createSessionMetadata';
 import { logger } from '@/ui/logger';
 
 import { HAPPIER_DAEMON_PENDING_FIRST_INPUT_ENV_KEY } from './pendingFirstInput';
@@ -17,6 +18,7 @@ const SESSION_LAZY_ENV_KEYS: ReadonlySet<string> = new Set([
   // Read and deleted from the environment when the runner resolves its directory.
   'HAPPIER_SESSION_REQUESTED_DIRECTORY',
   'HAPPIER_SESSION_MACHINE_WORKSPACE_PATH',
+  ...CONSUMED_SESSION_ENV_KEYS,
 ]);
 
 type RunnerProgram = Readonly<{

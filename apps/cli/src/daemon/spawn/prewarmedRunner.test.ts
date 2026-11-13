@@ -68,14 +68,14 @@ describe('prewarmed runner slot', () => {
       filePath: '/bin/node',
       baseArgs: BASE.baseArgs,
       userArgs: ['pi', '--started-by', 'daemon'],
-      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json' },
+      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json', HAPPIER_SESSION_MCP_SELECTION_JSON: '{}' },
       cwd: '/work',
     });
 
     expect(taken).toBe(children[0]);
     expect(JSON.parse(children[0]!.written())).toEqual({
       args: ['pi', '--started-by', 'daemon'],
-      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json' },
+      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json', HAPPIER_SESSION_MCP_SELECTION_JSON: '{}' },
       cwd: '/work',
     });
     expect(children[0]!.stdin.writableEnded).toBe(true);
