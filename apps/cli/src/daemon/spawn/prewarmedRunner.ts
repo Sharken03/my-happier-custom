@@ -14,6 +14,9 @@ const SESSION_LAZY_ENV_KEYS: ReadonlySet<string> = new Set([
   HAPPIER_RUNNER_PREWARM_ENV_KEY,
   HAPPIER_DAEMON_PENDING_FIRST_INPUT_ENV_KEY,
   'HAPPIER_SESSION_ATTACH_FILE',
+  // Read and deleted from the environment when the runner resolves its directory.
+  'HAPPIER_SESSION_REQUESTED_DIRECTORY',
+  'HAPPIER_SESSION_MACHINE_WORKSPACE_PATH',
 ]);
 
 type RunnerProgram = Readonly<{
