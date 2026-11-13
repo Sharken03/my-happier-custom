@@ -1469,14 +1469,21 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     }), [resolveThinkingExpanded, sessionThinkingDisplayMode, sessionThinkingInlineChrome]);
     const getEstimatedItemSize = React.useCallback((item: ChatTranscriptListItem): number | undefined => {
         const signature = buildRowShellSignature(item);
-        return estimateTranscriptRowHeightFromCache({
+        const fromCache = estimateTranscriptRowHeightFromCache({
             reconciler: measurementReconciler,
             signature,
             // A committed user row can inherit the bubble height the pending block just painted for
             // the same utterance, so the send crossover is placed from a measurement rather than a
             // wrap heuristic that undershoots by whole lines.
             committedUtteranceIdentity: resolveCommittedUtteranceIdentityForEstimate(item, getTurnMessageById),
-        }) ?? estimateTranscriptRowHeightFromContent({
+        });
+        // Device QA only (exp/row-calibration): a row that has a measured height but gets a
+        // content estimate.
+        const lastMeasuredForQa = measurementReconciler.resolveLastMeasuredHeight(signature);
+        if (fromCache === undefined && lastMeasuredForQa !== undefined) {
+            console.log('HAPPIER_EST_FALLBACK', JSON.stringify({ t: Date.now(), id: item.id, kind: signature.kind, rowState: signature.rowState, lastMeasured: lastMeasuredForQa }));
+        }
+        return fromCache ?? estimateTranscriptRowHeightFromContent({
             getMessageById: getTurnMessageById,
             item,
             toolCallsGroupChromeVariant,
