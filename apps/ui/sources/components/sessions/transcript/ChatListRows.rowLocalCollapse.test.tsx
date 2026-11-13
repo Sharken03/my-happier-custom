@@ -73,7 +73,8 @@ describe('TranscriptRowShell row-local collapse', () => {
 
         await notify('collapse');
 
-        expect(reservedMinHeight(screen)).toBeUndefined();
+        // Only the empty-row floor is left (see the 'empty row' test below).
+        expect(reservedMinHeight(screen)).toBe(1);
     });
 
     it('does not reserve an opened body height for the row after it remounts collapsed', async () => {
@@ -115,6 +116,20 @@ describe('TranscriptRowShell row-local collapse', () => {
         await act(async () => screen.update(<></>));
         await act(async () => screen.update(row(1)));
 
-        expect(reservedMinHeight(screen)).toBeUndefined();
+        expect(reservedMinHeight(screen)).toBe(1);
+    });
+
+    // Device capture 2026-11-13 (8T, streamed reply): a hidden thinking row paints 0 px. Legend
+    // never keeps 0 as a known size, so each pass placed the row at its 1 px estimate and then
+    // measured 0 px: the whole tail moved 1 dp up and down while the reply streamed.
+    it('lays out an empty row at 1 px, the size its estimate and measurement use', async () => {
+        const reconciler = createTestTranscriptMeasurementReconciler({ cache: createTestTranscriptItemHeightCache() });
+        const screen = await renderScreen(
+            <TranscriptRowShell reconciler={reconciler} itemId={SIGNATURE.itemId} signature={SIGNATURE}>
+                {null}
+            </TranscriptRowShell>,
+        );
+
+        expect(reservedMinHeight(screen)).toBe(1);
     });
 });
