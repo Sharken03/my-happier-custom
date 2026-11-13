@@ -1847,13 +1847,19 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         }
         handleRowLayoutMutation(rowMutation);
     }, [handleRowLayoutMutation, mainTranscriptRendererOwnerPolicy.localHeightChangeRestore]);
+    const calibrationLoggedRowsRef = React.useRef(new Set<string>());
     const handleRowShellMeasuredWithCalibration = React.useCallback((row: Readonly<{
         itemId: string;
         rowKind: string;
         heightPx: number;
     }>) => {
-        handleRowShellMeasured(row);
         const item = listDataRef.current.find((candidate) => candidate.id === row.itemId);
+        // Device QA only: the size the list held for this row before its first measurement.
+        if (item && !calibrationLoggedRowsRef.current.has(row.itemId)) {
+            calibrationLoggedRowsRef.current.add(row.itemId);
+            console.log('HAPPIER_ROW_ALL', JSON.stringify({ kind: row.rowKind, est: getEstimatedItemSize(item) ?? null, h: row.heightPx }));
+        }
+        handleRowShellMeasured(row);
         if (!item || item.kind !== 'message') return;
         const message = getTurnMessageById(item.messageId);
         const text = message?.kind === 'user-text' || (message?.kind === 'agent-text' && message.isThinking !== true)
