@@ -134,7 +134,11 @@ export async function serveToolCalls(
             envelope: errorEnvelope('bridge_output_limit', 'Happier tools bridge output exceeded its bounded transport limit'),
           });
         }
-        writeLine(text);
+        try {
+          writeLine(text);
+        } catch {
+          // The caller is gone (its pipe closed); there is no one to send the result to.
+        }
       }).finally(() => {
         pending -= 1;
         if (closed && pending === 0) finish();

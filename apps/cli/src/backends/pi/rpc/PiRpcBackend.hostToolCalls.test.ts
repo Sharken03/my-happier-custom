@@ -100,4 +100,42 @@ describe('PiRpcBackend host tool calls', () => {
       },
     ]);
   }, 20_000);
+
+  it('closes the host pipe at once when the host cannot serve, and keeps the session', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-host-tools-fail-'));
+    dirs.push(dir);
+    const reportPath = join(dir, 'report.json');
+    const script = join(dir, 'fake-pi-host-closed.js');
+    writeFileSync(script, `
+const fs = require('node:fs');
+const net = require('node:net');
+const readline = require('node:readline');
+const out = (value) => process.stdout.write(JSON.stringify(value) + '\\n');
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  const command = JSON.parse(line);
+  const base = { id: command.id, type: 'response', command: command.type, success: true };
+  if (command.type === 'get_state') return out({ ...base, data: { sessionId: 'pi-host-closed', model: { id: 'm', provider: 'p' } } });
+  out({ ...base, data: command.type === 'get_available_models' ? { models: [] } : command.type === 'get_commands' ? { commands: [] } : {} });
+});
+const channel = new net.Socket({ fd: 3, readable: true, writable: true });
+let data = '';
+channel.on('data', (chunk) => { data += chunk; });
+channel.on('error', () => {});
+channel.on('close', () => fs.writeFileSync(${JSON.stringify(reportPath)}, JSON.stringify({ closed: true, data })));
+`);
+    const backend = new PiRpcBackend({
+      cwd: dir,
+      command: process.execPath,
+      args: [script],
+      env: { PI_CODING_AGENT_DIR: dir },
+      serveHostToolCalls: () => {
+        throw new Error('host tool calls unavailable');
+      },
+    });
+    backends.push(backend);
+
+    await expect(backend.startSession()).resolves.toEqual({ sessionId: 'pi-host-closed' });
+    await vi.waitFor(() => expect(() => readFileSync(reportPath, 'utf8')).not.toThrow(), { timeout: 3_000 });
+    expect(JSON.parse(readFileSync(reportPath, 'utf8'))).toEqual({ closed: true, data: '' });
+  }, 20_000);
 });

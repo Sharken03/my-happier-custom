@@ -532,6 +532,77 @@ await emit('session_shutdown', {});
     }
   }, 20_000);
 
+  it('falls back to a tools serve process when the host pipe stays silent, and says so on stderr', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-host-silent-'));
+    try {
+      const launchesPath = join(dir, 'launches.log');
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+const { appendFileSync } = require('node:fs');
+const readline = require('node:readline');
+appendFileSync(${JSON.stringify(launchesPath)}, process.argv.slice(2, 4).join(' ') + '\\n');
+process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-ready' }) + '\\n');
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  const request = JSON.parse(line);
+  const envelope = { ok: true, data: { output: 'served ' + request.args.input.value } };
+  process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-result', id: request.id, envelope }) + '\\n');
+});
+`, 'utf8');
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-host-silent',
+        directTools: [{
+          name: 'host_resolved_tool',
+          title: 'Host resolved tool',
+          description: 'Resolved by the canonical catalog',
+          inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+          call: { toolName: 'action_execute', actionId: 'memory.search' },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+        hostToolsFd: PI_BRIDGE_HOST_TOOLS_FD,
+      }));
+      const extensionPath = join(dir, 'extension.mjs');
+      writeFileSync(extensionPath, buildPiBridgeExtensionSource(), 'utf8');
+      const piPath = join(dir, 'fake-pi.mjs');
+      writeFileSync(piPath, `
+const tools = [];
+const handlers = new Map();
+const pi = {
+  registerFlag() {},
+  registerTool: (def) => tools.push(def),
+  getFlag: (name) => name === ${JSON.stringify(PI_BRIDGE_CONFIG_PATH_FLAG)} ? ${JSON.stringify(configPath)} : undefined,
+  on: (event, handler) => handlers.set(event, [...(handlers.get(event) ?? []), handler]),
+};
+const emit = async (event, value) => { for (const handler of handlers.get(event) ?? []) await handler(value, {}); };
+const extension = (await import(${JSON.stringify(pathToFileURL(extensionPath).href)})).default;
+extension(pi);
+await emit('session_start', {});
+const result = await tools[0].execute('call-1', { value: 'one' }, new AbortController().signal, undefined, { cwd: process.cwd() });
+process.stdout.write(result.content[0].text + '\\n');
+await emit('session_shutdown', {});
+process.exit(0);
+`, 'utf8');
+
+      // The host keeps the pipe open and never answers on it.
+      const child = spawn(process.execPath, [piPath], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe', 'pipe'] });
+      (child.stdio[PI_BRIDGE_HOST_TOOLS_FD] as Duplex).on('error', () => {});
+      let stdout = '';
+      let stderr = '';
+      child.stdout!.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+      child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
+      const code = await new Promise<number | null>((resolve) => child.once('close', resolve));
+
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout.trim())).toBe('served one');
+      expect(stderr).toContain('host tool-call pipe unavailable');
+      expect(readFileSync(launchesPath, 'utf8').trim().split('\n')).toEqual(['tools serve']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('falls back to a tools serve process when the host pipe cannot be used', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-host-missing-'));
     try {

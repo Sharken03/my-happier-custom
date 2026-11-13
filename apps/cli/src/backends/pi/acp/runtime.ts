@@ -152,6 +152,11 @@ export function createPiAcpRuntime(params: {
             input: channel.input,
             writeLine: channel.writeLine,
             idleExitMs: null,
+          }).catch((error: unknown) => {
+            // The pipe failed under the server; the extension falls back to tools serve.
+            logger.warnFile('[pi] Host tool-call server ended with an error', {
+              error: error instanceof Error ? error.message : String(error),
+            });
           });
         },
         happyToolsBridge: {

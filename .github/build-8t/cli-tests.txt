@@ -27,3 +27,4 @@ src/backends/pi/rpc/warmPiProcess.test.ts
 src/rpc/handlers/registerSessionHandlers.previewEnv.test.ts
 src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
 src/backends/pi/acp/backend.test.ts
+src/cli/commands/toolsServe.test.ts

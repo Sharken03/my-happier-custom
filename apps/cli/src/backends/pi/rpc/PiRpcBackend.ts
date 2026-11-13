@@ -1605,12 +1605,21 @@ export class PiRpcBackend implements AgentBackend {
     if (!this.serveHostToolCalls || !(channel instanceof Duplex)) return;
     // The pipe closes with Pi; a write after that is not an error of the turn.
     channel.on('error', () => {});
-    this.serveHostToolCalls({
-      input: channel,
-      writeLine: (line) => {
-        if (!channel.writableEnded && !channel.destroyed) channel.write(`${line}\n`);
-      },
-    });
+    try {
+      this.serveHostToolCalls({
+        input: channel,
+        writeLine: (line) => {
+          if (!channel.writableEnded && !channel.destroyed) channel.write(`${line}\n`);
+        },
+      });
+    } catch (error) {
+      // Tool calls are not the session: close the pipe so the extension falls back to its own
+      // `tools serve` process at once, and keep Pi running.
+      logger.warnFile('[pi] Host tool-call channel failed; the bridge falls back to tools serve', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      channel.destroy();
+    }
   }
 
   private spawnRpcProcess(params: Readonly<{ args: string[] }>): void {
