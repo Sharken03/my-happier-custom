@@ -4705,7 +4705,13 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
               // A prewarmed runner can take this launch when it is the plain spawn below: same
               // program and flags, and an environment that differs only in the session's own keys.
               const prewarmLaunch = (() => {
-                if (cgroupSelfMigratingLaunchSpec || !prewarmedRunnerSlot.isEnabled()) return null;
+                if (cgroupSelfMigratingLaunchSpec || !prewarmedRunnerSlot.isEnabled()) {
+                  logger.debug('[DAEMON RUN] Prewarm: not used for this launch', {
+                    cgroupLaunch: Boolean(cgroupSelfMigratingLaunchSpec),
+                    enabled: prewarmedRunnerSlot.isEnabled(),
+                  });
+                  return null;
+                }
                 const launchSpec = buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
                 const baseArgs = launchSpec.args.slice(0, launchSpec.args.length - args.length);
                 const userArgs = launchSpec.args.slice(baseArgs.length);
