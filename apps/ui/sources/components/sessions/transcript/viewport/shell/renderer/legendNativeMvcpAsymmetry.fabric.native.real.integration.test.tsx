@@ -260,6 +260,26 @@ describe('native MVCP contracts across a data change', () => {
         });
     });
 
+    it('leaves a held-end append below the reader to end maintenance on Android', async () => {
+        // Device capture 2026-11-13 (8T, Fabric): at a data commit the end geometry was computed
+        // from Legend's own content size, which already held the new rows, while native had not
+        // laid them out yet. The adjust ran past native's end and native clamped it back: -508 dp
+        // for one frame when a sent message replaced its pending block, and 0.67-1.33 dp at each
+        // new row while a reply streamed. Native's own content-position anchor keeps the reader
+        // still across the append; `doMaintainScrollAtEnd` follows the tail one frame later.
+        if (Platform.OS !== 'android') return;
+        const options = { heldAtEnd: true } as const;
+        const list = await mountList(buildRows(20), options);
+        await observeScroll(list, 1700);
+
+        await setData(list, [...buildRows(20), ...buildRows(1, 20)], options);
+
+        expect({ band: state().ignoreScrollFromMVCP, scroll: state().scroll }).toEqual({
+            band: undefined,
+            scroll: 1700,
+        });
+    });
+
     it('defines the ignore band by the most recent adjust direction alone', async () => {
         // `state.ignoreScrollFromMVCP` is a REUSED object, so two opposite-direction adjusts inside
         // one window leave both bounds set and the accept set collapses to the interval [lt, gt].
