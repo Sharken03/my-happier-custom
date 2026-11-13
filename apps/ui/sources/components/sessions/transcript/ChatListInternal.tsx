@@ -1480,6 +1480,14 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         // Device QA only (exp/row-calibration): a row that has a measured height but gets a
         // content estimate.
         const lastMeasuredForQa = measurementReconciler.resolveLastMeasuredHeight(signature);
+        if (fromCache !== undefined && lastMeasuredForQa !== undefined && Math.abs(fromCache - lastMeasuredForQa) > 20) {
+            const reservationForQa = measurementReconciler.resolveReservation(signature);
+            console.log('HAPPIER_EST_STALE', JSON.stringify({
+                t: Date.now(), id: item.id, kind: signature.kind, rowState: signature.rowState, fromCache,
+                lastMeasured: lastMeasuredForQa, reservation: reservationForQa ?? null,
+                persistedKey: signature.persistedKey ?? null, structuralKey: signature.structuralKey.slice(0, 40),
+            }));
+        }
         if (fromCache === undefined && lastMeasuredForQa !== undefined) {
             console.log('HAPPIER_EST_FALLBACK', JSON.stringify({ t: Date.now(), id: item.id, kind: signature.kind, rowState: signature.rowState, lastMeasured: lastMeasuredForQa }));
         }
