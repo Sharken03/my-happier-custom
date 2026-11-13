@@ -159,6 +159,7 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
                 }),
             ].join('|'),
             rowState,
+            ...buildMessagePersistedKey(message, base, params.resolveThinkingExpanded(item.messageId)),
         };
     }
 
@@ -635,6 +636,34 @@ function resolveMessageRowType(message: Message | null, activeThinkingMessageId:
         return 'message:user';
     }
     return 'message:agent';
+}
+
+/**
+ * The on-disk height key of a message row. The reducer gives a message a new random `id` at every
+ * app start, and its revision counts writes in this process, so neither names the row after a
+ * restart. The server id and block index do. The text length stands in for the revision: it
+ * changes when the painted text does.
+ */
+function buildMessagePersistedKey(
+    message: Message | null,
+    base: Readonly<{ kind: string; widthBucket: string; fontScaleKey: string; groupingMode: string; forkContextKey: string }>,
+    thinkingExpanded: boolean,
+): { persistedKey?: string } {
+    if (!message || !('realID' in message) || typeof message.realID !== 'string' || message.realID.length === 0) return {};
+    if (!('text' in message) || typeof message.text !== 'string') return {};
+    return {
+        persistedKey: [
+            message.realID,
+            message.transcriptBlockIndex ?? 0,
+            message.text.length,
+            base.kind,
+            base.widthBucket,
+            base.fontScaleKey,
+            base.groupingMode,
+            base.forkContextKey,
+            thinkingExpanded ? 'expanded' : 'collapsed',
+        ].join('|'),
+    };
 }
 
 function buildMessageShellStructuralKey(
