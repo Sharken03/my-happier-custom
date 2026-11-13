@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { reconcileAcpCatalogRows } from '@/agent/acp/reconcileAcpCatalogRows';
 
+import { logStartupStep } from '@/utils/startupTiming';
 import { logger } from '@/ui/logger';
 import type { AgentBackend, AgentMessage, McpServerConfig } from '@/agent';
 import type { AgentPromptPayload } from '@/agent/core/AgentPromptPayload';
@@ -2190,7 +2191,9 @@ export function createAcpRuntime(params: {
     if (backend) return backend;
     if (backendPromise) return await backendPromise;
     backendPromise = (async () => {
+      logStartupStep('backend start begins');
       const created = await params.ensureBackend();
+      logStartupStep('backend process ready');
       created.setPlanStatePublisher?.(async (snapshot) => {
         await Promise.resolve(params.session.updateMetadata((metadata) => (
           applyAcpPlanSnapshotToMetadata({
@@ -2621,7 +2624,11 @@ export function createAcpRuntime(params: {
             identityContext.assertCurrent();
             const sessionOpenSignal = params.getSessionOpenAbortSignal?.();
             const sessionOpenOptions = sessionOpenSignal ? { signal: sessionOpenSignal } : undefined;
-            if (!hasResumeIntent) return await b.startSession(undefined, sessionOpenOptions);
+            if (!hasResumeIntent) {
+              const opened = await b.startSession(undefined, sessionOpenOptions);
+              logStartupStep('ACP session opened');
+              return opened;
+            }
             if (!b.loadSession && !b.loadSessionWithReplayCapture) {
               throw new Error(`${params.provider} ACP backend does not support loading sessions`);
             }
@@ -2654,6 +2661,7 @@ export function createAcpRuntime(params: {
         await applyStartupModeOverride();
         assertRuntimeGeneration(operationGeneration);
         await applyStartupModelOverride();
+        logStartupStep('startup mode and model applied');
         assertRuntimeGeneration(operationGeneration);
         if (params.pendingQueue?.drainAfterStartOrLoad === true && opts.deferPendingDrain !== true) {
           const controller = new AbortController();
