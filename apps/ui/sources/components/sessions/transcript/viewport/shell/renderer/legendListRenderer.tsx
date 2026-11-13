@@ -2064,6 +2064,8 @@ function LegendListTranscriptRendererInner<TItem>(
 
     const recordVisualBottomSlotHeight = React.useCallback((nextHeight: number) => {
         const previousHeight = lastVisualBottomSlotHeightRef.current;
+        // Device QA only (exp/row-calibration).
+        if (previousHeight !== nextHeight) console.log('HAPPIER_FOOTER', JSON.stringify({ t: Date.now(), previousHeight, nextHeight }));
         lastVisualBottomSlotHeightRef.current = nextHeight;
         if (previousHeight === null || Math.abs(previousHeight - nextHeight) < 1) return;
         advanceMovementEpoch();
