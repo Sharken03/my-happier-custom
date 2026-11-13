@@ -2751,6 +2751,26 @@ describe('ApiSessionClient pending-queue turn-end drain', () => {
   });
 
 
+  it('does not hold a provider-claimed prompt for a transcript seq that commits only after acceptance', async () => {
+    const client = await createClient({
+      latestTurnStatus: 'completed',
+      pendingCount: 1,
+      pendingVersion: 1,
+      metadata: { deliveredUserMessageSeqV1: 0 },
+    });
+    client.onUserMessage(() => {});
+    materializeNextMock.mockResolvedValue(createProviderDeliveryMaterializeResult('first-turn-local'));
+    await client.materializeNextPendingMessageSafely({ reconcileWhenEmpty: 'force' });
+
+    const tooLate = Symbol('timeout');
+    const seq = await Promise.race([
+      client.waitForCommittedUserMessageSeq('first-turn-local', { timeoutMs: 5_000 }),
+      new Promise((resolve) => setTimeout(() => resolve(tooLate), 200)),
+    ]);
+
+    expect(seq).toBeNull();
+  });
+
   it('waits for in-flight accepted pending-delivery resolution before closing', async () => {
     const deliveryState = { mode: 'provider' as const, unresolved: true };
     const client = await createClient({

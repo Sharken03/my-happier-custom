@@ -6011,6 +6011,17 @@ export class ApiSessionClient extends EventEmitter {
         localId: string,
         options?: CommittedUserMessageSeqWaitOptions,
     ): Promise<number | null> {
+        // A provider-claimed pending row commits its transcript row when the accepted delivery
+        // settles, which follows provider acceptance of this prompt. Before acceptance no seq
+        // can arrive, so a caller that waits before it sends the prompt only loses its timeout.
+        const known = this.committedUserMessageSeqTracker.get(localId);
+        if (
+            known === null
+            && this.canonicalPendingDeliveryByLocalId.has(localId)
+            && this.providerInputTerminalOutcomeByLocalId.get(localId) !== 'accepted'
+        ) {
+            return Promise.resolve(null);
+        }
         return this.committedUserMessageSeqTracker.wait(localId, options);
     }
 
@@ -6718,6 +6729,18 @@ export class ApiSessionClient extends EventEmitter {
         if (materializedLocalId) {
             this.pendingQueueMaterializedLocalIds.add(materializedLocalId);
         }
+        // Record a committed row before the prompt reaches the prompt loop, which waits for it.
+        if (
+            materializeResult.didWrite
+            && materializedMessage?.messageRole === 'user'
+            && materializedMessage.localId
+        ) {
+            this.recordCommittedUserMessageSeq(
+                materializedMessage.localId,
+                materializedMessage.seq,
+            );
+        }
+
         reportPendingMaterializationDiagnosticPhase(opts.onDiagnosticPhase, 'materialize.provider_handoff');
         const deliveredMaterializedMessage = await this.deliverPendingQueueMessage(materializedMessage, {
             providerAcceptancePending: isProviderDeliveryHandoff,
@@ -6752,17 +6775,6 @@ export class ApiSessionClient extends EventEmitter {
         ) {
             reportPendingMaterializationDiagnosticPhase(opts.onDiagnosticPhase, 'materialize.delivery_settlement');
             await this.blockCanonicalPendingDeliveries([materializedMessage.localId], 'invalid_prompt_text');
-        }
-
-        if (
-            materializeResult.didWrite
-            && materializedMessage?.messageRole === 'user'
-            && materializedMessage.localId
-        ) {
-            this.recordCommittedUserMessageSeq(
-                materializedMessage.localId,
-                materializedMessage.seq,
-            );
         }
 
         const message = materializedMessage;
