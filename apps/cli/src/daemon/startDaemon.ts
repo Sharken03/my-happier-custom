@@ -4702,17 +4702,14 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     launchOptions: runnerLaunchOptions,
                   })
                   : null;
-              // A prewarmed runner can take this launch when it is the plain spawn below: same
-              // program and flags, and an environment that differs only in the session's own keys.
+              // A prewarmed runner can take this launch: same program and flags, and an
+              // environment that differs only in the per-session variables. The cgroup launch is
+              // the same shell command with the runner's arguments last, so the prewarmed process
+              // joins its cgroup when it starts.
               const prewarmLaunch = (() => {
-                if (cgroupSelfMigratingLaunchSpec || !prewarmedRunnerSlot.isEnabled()) {
-                  logger.debug('[DAEMON RUN] Prewarm: not used for this launch', {
-                    cgroupLaunch: Boolean(cgroupSelfMigratingLaunchSpec),
-                    enabled: prewarmedRunnerSlot.isEnabled(),
-                  });
-                  return null;
-                }
-                const launchSpec = buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
+                if (!prewarmedRunnerSlot.isEnabled()) return null;
+                const launchSpec = cgroupSelfMigratingLaunchSpec
+                  ?? buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
                 const baseArgs = launchSpec.args.slice(0, launchSpec.args.length - args.length);
                 const userArgs = launchSpec.args.slice(baseArgs.length);
                 if (userArgs.length !== args.length || userArgs.some((arg, index) => arg !== args[index])) {
@@ -4728,7 +4725,7 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
               const prewarmedRunner = prewarmLaunch
                 ? prewarmedRunnerSlot.take({ ...prewarmLaunch, userArgs: args, cwd: resolvedDirectory })
                 : null;
-              const happyProcess = cgroupSelfMigratingLaunchSpec
+              const happyProcess = prewarmedRunner ?? (cgroupSelfMigratingLaunchSpec
                 ? spawnChildProcess(
                   cgroupSelfMigratingLaunchSpec.filePath,
                   cgroupSelfMigratingLaunchSpec.args,
@@ -4740,12 +4737,15 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     },
                   },
                 )
-                : prewarmedRunner ?? spawnHappyCLI(args, spawnOptions, runnerLaunchOptions);
+                : spawnHappyCLI(args, spawnOptions, runnerLaunchOptions));
               if (prewarmedRunner) {
                 logger.debug(`[DAEMON RUN] Using the prewarmed runner process ${prewarmedRunner.pid}`);
               }
               if (prewarmLaunch) {
                 prewarmedRunnerSlot.rememberLaunch({ ...prewarmLaunch, cwd: configuration.happyHomeDir });
+                // The next chat is likely to follow: load its runner now. The app asks for a
+                // preview only once per app session, so the daemon cannot wait for it.
+                prewarmedRunnerSlot.prewarm();
               }
 
               if (!happyProcess.pid) {
