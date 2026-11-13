@@ -167,6 +167,22 @@ describe('prewarmed runner assignment', () => {
     expect(proc.chdir).toHaveBeenCalledWith('/work');
   });
 
+  it('reports no launch when none comes within its time limit', async () => {
+    vi.useFakeTimers();
+    try {
+      const proc = fakeProcess();
+      let settled: boolean | null = null;
+      void awaitPrewarmedRunnerAssignment(proc, { maxWaitMs: 1_000 }).then((value) => { settled = value; });
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reports no launch when its input closes empty or holds no valid launch', async () => {
     const closed = fakeProcess();
     const pendingClosed = awaitPrewarmedRunnerAssignment(closed);

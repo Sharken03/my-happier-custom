@@ -33,7 +33,8 @@ async function main() {
     // that is not a Pi chat lets it go.
     const warmPi = await import('@/backends/pi/rpc/warmPiProcess');
     warmPi.prewarmPiProcess();
-    if (!(await awaitPrewarmedRunnerAssignment(process))) process.exit(0);
+    const maxWaitMs = configuration.runnerPrewarmMaxWaitMs;
+    if (!(await awaitPrewarmedRunnerAssignment(process, { maxWaitMs }))) process.exit(0);
     setTimeout(warmPi.releaseWarmPiProcess, 30_000).unref();
   }
   applyStackSessionPriority();

@@ -275,6 +275,8 @@ class Configuration {
 
   public readonly pendingQueueStateReconcileThrottleMs: number
   public readonly promptLoopUserMessageSeqWaitTimeoutMs: number
+  /** How long a prewarmed runner waits for its launch before it exits; 0 means no limit. */
+  public readonly runnerPrewarmMaxWaitMs: number
 
   // Codex app-server terminal notification settle time (allows slightly late item notifications to land before flushing).
   public readonly codexAppServerTurnCompletionSettleMs: number
@@ -631,6 +633,12 @@ class Configuration {
     this.promptLoopUserMessageSeqWaitTimeoutMs = resolveIntEnvWithBounds(
       'HAPPIER_PROMPT_LOOP_USER_MESSAGE_SEQ_WAIT_TIMEOUT_MS',
       { min: 0, max: 10_000, default: 1_000 },
+    );
+    // The daemon releases an unused prewarmed runner after 2 minutes; this limit is a little
+    // longer and ends the process also when the daemon hangs.
+    this.runnerPrewarmMaxWaitMs = resolveIntEnvWithBounds(
+      'HAPPIER_RUNNER_PREWARM_MAX_WAIT_MS',
+      { min: 0, max: 86_400_000, default: 180_000 },
     );
 
     this.codexAppServerTurnCompletionSettleMs = resolveIntEnvWithBounds(
