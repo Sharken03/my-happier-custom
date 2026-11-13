@@ -39,3 +39,4 @@ sources/sync/engine/sessions/sessionMessagesPagePipeline.test.ts
 sources/sync/store/domains/sessionListRenderableStoreUpdate.test.ts
 sources/components/sessions/new/hooks/useCreateNewSession.daemonUnavailable.test.ts
 sources/sync/sync.appStatePauseResume.test.ts
+sources/components/sessions/new/hooks/screenModel/useNewSessionPromptAutomationState.test.tsx

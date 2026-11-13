@@ -9,6 +9,7 @@ import { useHeaderHeight } from '@/utils/platform/responsive';
 import { useChromeSafeAreaInsets } from '@/components/ui/layout/useChromeSafeAreaInsets';
 import { Modal } from '@/modal';
 import { sync } from '@/sync/sync';
+import { machinePreviewEnv } from '@/sync/ops';
 import { getTempData, type NewSessionData } from '@/utils/sessions/tempDataStore';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 import { tryShowDaemonUnavailableAlertForRpcError } from '@/utils/errors/daemonUnavailableAlert';
@@ -907,6 +908,17 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     // Path selection
     //
 
+    // The daemon prewarms a session runner when the app previews the spawn environment. The
+    // first keystroke shows that a new session is likely, so it asks for a preview of no keys;
+    // the environment presence probe above caches its own preview for minutes.
+    const prewarmTargetRef = React.useRef({ machineId: selectedMachineId, serverId: capabilityServerId });
+    prewarmTargetRef.current = { machineId: selectedMachineId, serverId: capabilityServerId };
+    const requestRunnerPrewarm = React.useCallback(() => {
+        const { machineId: targetMachineId, serverId } = prewarmTargetRef.current;
+        if (!targetMachineId) return;
+        void machinePreviewEnv(targetMachineId, { keys: [] }, { serverId });
+    }, []);
+
     const {
         promptStore,
         setSessionPrompt,
@@ -931,6 +943,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         persistedDraftEntryIntent: scopedPersistedDraft?.entryIntent,
         hydratedTempAuthoringDraft,
         hydratedPersistedAuthoringDraft: hydratedPersistedContentAuthoringDraft,
+        onFirstUserEdit: requestRunnerPrewarm,
     });
     const [isCreatingLocally, setIsCreating] = React.useState(false);
     const accountActionOperations = useAllActionOperations(draftScope?.accountId ?? '');
