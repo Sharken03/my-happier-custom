@@ -20,6 +20,7 @@ const ENTRY_COUNT_KEY = '#count';
 export function createPersistedTranscriptItemHeightStore(options: Readonly<{ maxEntries: number }>): TranscriptItemHeightStore {
     const storage = new MMKV({ id: STORE_ID });
     let entryCount = storage.getNumber(ENTRY_COUNT_KEY) ?? 0;
+    console.log('HAPPIER_HEIGHT_STORE_OPEN', JSON.stringify({ entryCount, keys: storage.getAllKeys().length, maxEntries: options.maxEntries }));
 
     return {
         get(key) {

@@ -95,6 +95,7 @@ export function createDefaultTranscriptItemHeightCache(
             // Device QA only (exp/row-calibration).
             storeReads[storedHeightPx === undefined ? 'miss' : 'hit'] += 1;
             if ((storeReads.hit + storeReads.miss) % 20 === 1) console.log('HAPPIER_HEIGHT_STORE', JSON.stringify(storeReads));
+            if (storedHeightPx === undefined) logStoreKey('miss', signature);
             if (storedHeightPx === undefined || !isValidHeight(storedHeightPx)) return undefined;
             const restored = { heightPx: storedHeightPx };
             entries.set(key, restored);
@@ -104,7 +105,7 @@ export function createDefaultTranscriptItemHeightCache(
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
             if (!isValidHeight(entry.heightPx)) return false;
             const key = buildTranscriptItemHeightSignatureKey(signature);
-            if (entries.get(key)?.heightPx !== entry.heightPx) { store?.set(key, entry.heightPx); if (store) storeReads.write += 1; }
+            if (entries.get(key)?.heightPx !== entry.heightPx) { store?.set(key, entry.heightPx); if (store) { storeReads.write += 1; logStoreKey('write', signature, entry.heightPx); } }
             entries.set(key, {
                 heightPx: entry.heightPx,
             });
@@ -127,6 +128,20 @@ export function createTestTranscriptItemHeightCache(
 }
 
 const storeReads = { hit: 0, miss: 0, write: 0 };
+const storeKeyLogs = { miss: 0, write: 0 };
+// Device QA only: ids and numbers, never message text (a JSON structural key is logged as its length).
+function logStoreKey(kind: 'miss' | 'write', signature: TranscriptItemHeightValiditySignature, heightPx?: number): void {
+    if (storeKeyLogs[kind] >= 12) return;
+    storeKeyLogs[kind] += 1;
+    const structural = signature.structuralKey.startsWith('{') || signature.structuralKey.startsWith('[')
+        ? `json:${signature.structuralKey.length}`
+        : signature.structuralKey.slice(0, 80);
+    console.log('HAPPIER_HEIGHT_KEY', JSON.stringify({
+        kind, heightPx: heightPx ?? null, itemId: signature.itemId.slice(0, 60), rowKind: signature.kind, structural,
+        width: signature.widthBucket, font: signature.fontScaleKey, grouping: signature.groupingMode,
+        fork: signature.forkContextKey.slice(0, 40), expansion: signature.expansionKey.slice(0, 60),
+    }));
+}
 
 let defaultCacheInstance: TranscriptItemHeightCache | null = null;
 
