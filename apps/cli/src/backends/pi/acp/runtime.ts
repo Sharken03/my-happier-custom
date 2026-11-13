@@ -1,3 +1,6 @@
+import { callBuiltInHappierTool } from '@/agent/tools/happierTools/callBuiltInHappierTool';
+import type { PiHostToolCallChannel } from '@/backends/pi/rpc/PiRpcBackend';
+import { serveToolCalls } from '@/cli/commands/toolsServe';
 import type { McpServerConfig } from '@/agent';
 import type { AcpPermissionHandler } from '@/agent/acp/AcpBackend';
 import { createCatalogProviderAcpRuntime } from '@/agent/acp/runtime/createCatalogProviderAcpRuntime';
@@ -140,6 +143,17 @@ export function createPiAcpRuntime(params: {
       const promptFragments = [happyToolsBridge.sessionConfig.promptAddition, resolvedPromptText]
         .filter((fragment): fragment is string => typeof fragment === 'string' && fragment.trim().length > 0);
       return {
+        // The runner already holds the CLI and the account credentials; it answers the
+        // bridge's tool calls itself instead of a separate `tools serve` process.
+        serveHostToolCalls: (channel: PiHostToolCallChannel) => {
+          void serveToolCalls({ sessionId: session.sessionId }, {
+            readCredentials: async () => params.credentials,
+            callBuiltInHappierTool,
+            input: channel.input,
+            writeLine: channel.writeLine,
+            idleExitMs: null,
+          });
+        },
         happyToolsBridge: {
           ...happyToolsBridge,
           sessionConfig: {

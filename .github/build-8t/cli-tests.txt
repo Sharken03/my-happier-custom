@@ -25,3 +25,5 @@ src/api/machine/rpcHandlers.sourceContextSpawn.test.ts
 src/daemon/spawn/prewarmedRunner.test.ts
 src/backends/pi/rpc/warmPiProcess.test.ts
 src/rpc/handlers/registerSessionHandlers.previewEnv.test.ts
+src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
+src/backends/pi/acp/backend.test.ts

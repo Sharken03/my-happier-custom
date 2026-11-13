@@ -30,6 +30,12 @@ export const PiBridgeSessionConfigSchema = lazySchema(() => z.object({
     argPrefix: z.array(z.string()),
     env: z.record(z.string(), z.string()),
   }).strict(),
+  /**
+   * Pi's file descriptor of a pipe on which the host serves the tool calls itself
+   * (PI_BRIDGE_HOST_TOOLS_FD). Absent means the extension starts `happier tools serve` from
+   * `launch`, which also stays the fallback when the pipe fails.
+   */
+  hostToolsFd: z.number().int().min(3).optional(),
 }).strict());
 
 export type PiBridgeSessionConfig = z.infer<typeof PiBridgeSessionConfigSchema>;

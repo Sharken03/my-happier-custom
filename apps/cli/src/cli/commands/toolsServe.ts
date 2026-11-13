@@ -21,7 +21,8 @@ export type ToolsServeDeps = Readonly<{
   callBuiltInHappierTool: typeof callBuiltInHappierTool;
   input?: NodeJS.ReadableStream;
   writeLine?: (line: string) => void;
-  idleExitMs?: number;
+  /** Time without calls before the server ends; null keeps it until its input closes. */
+  idleExitMs?: number | null;
 }>;
 
 function errorEnvelope(code: string, message?: string, candidates?: readonly string[]): Envelope {
@@ -115,7 +116,8 @@ export async function serveToolCalls(
     };
     const armIdle = () => {
       if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = pending === 0 ? setTimeout(finish, deps.idleExitMs ?? TOOLS_SERVE_IDLE_EXIT_MS) : null;
+      const idleExitMs = deps.idleExitMs === undefined ? TOOLS_SERVE_IDLE_EXIT_MS : deps.idleExitMs;
+      idleTimer = pending === 0 && idleExitMs !== null ? setTimeout(finish, idleExitMs) : null;
     };
 
     reader.on('line', (line) => {

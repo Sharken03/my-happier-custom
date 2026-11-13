@@ -20,3 +20,10 @@ export const PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE = 'happy-pi-token-count';
 
 /** Structured payload carried by Pi's public RPC UI notification channel. */
 export const PI_BRIDGE_USER_INPUT_MARKER_TYPE = 'happy-pi-user-input';
+
+/**
+ * Pi's file descriptor for the host tool-call pipe. When the host serves the bridge's Happier
+ * tool calls itself, it spawns Pi with this extra pipe and names it in the protected session
+ * configuration (`hostToolsFd`); the extension then uses it instead of a `tools serve` process.
+ */
+export const PI_BRIDGE_HOST_TOOLS_FD = 3;

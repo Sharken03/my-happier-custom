@@ -1,5 +1,6 @@
 import { takeWarmPiProcess } from '@/backends/pi/rpc/warmPiProcess';
-import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process';
+import { Duplex } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { open, readdir, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
@@ -22,7 +23,7 @@ import {
 import { abortPendingAcpPermissionRequests } from '@/agent/acp/backend/permissions/acpPermissionFinalization';
 import { killProcessTree } from '@/agent/runtime/process/killProcessTree';
 import { materializeProtectedTempTextArtifact, type ProtectedTempTextArtifact } from '@/utils/fs/protectedTempTextArtifact';
-import { PI_BRIDGE_CONFIG_PATH_FLAG } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
+import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
 import { logger } from '@/ui/logger';
 import { materializePiModelDiscoveryExtension, parsePiModelDiscoveryLine } from '../models/piModelDiscoveryExtension';
 import {
@@ -667,7 +668,19 @@ export type PiRpcSpawnOptions = {
   appendSystemPromptText?: string | null;
   toolsBridgeConfigText?: string | null;
   permissionHandler?: AcpPermissionHandler;
+  /**
+   * Serves the bridge extension's Happier tool calls in this process. When set, Pi gets one more
+   * pipe (PI_BRIDGE_HOST_TOOLS_FD) that carries the `tools serve` line protocol, and the
+   * extension uses it instead of starting its own `happier tools serve` process.
+   */
+  serveHostToolCalls?: ((channel: PiHostToolCallChannel) => void) | null;
 };
+
+/** The host end of the bridge extension's tool-call pipe. */
+export type PiHostToolCallChannel = Readonly<{
+  input: NodeJS.ReadableStream;
+  writeLine: (line: string) => void;
+}>;
 
 export class PiRpcBackend implements AgentBackend {
   readonly options: Readonly<{
@@ -679,6 +692,7 @@ export class PiRpcBackend implements AgentBackend {
     appendSystemPromptText: string | null;
     toolsBridgeConfigText: string | null;
   }>;
+  private readonly serveHostToolCalls: ((channel: PiHostToolCallChannel) => void) | null;
 
   private process: ChildProcessWithoutNullStreams | null = null;
   private appendSystemPromptArtifact: ProtectedTempTextArtifact | null = null;
@@ -739,6 +753,7 @@ export class PiRpcBackend implements AgentBackend {
 
   constructor(options: PiRpcSpawnOptions) {
     this.permissionHandler = options.permissionHandler ?? null;
+    this.serveHostToolCalls = options.serveHostToolCalls ?? null;
     this.options = {
       cwd: options.cwd,
       command: options.command,
@@ -1584,6 +1599,20 @@ export class PiRpcBackend implements AgentBackend {
     }
   }
 
+  /** Serves the extension's tool calls on the extra pipe, when the host provides a handler. */
+  private attachHostToolCallChannel(child: ChildProcess): void {
+    const channel = this.serveHostToolCalls ? child.stdio[PI_BRIDGE_HOST_TOOLS_FD] : null;
+    if (!this.serveHostToolCalls || !(channel instanceof Duplex)) return;
+    // The pipe closes with Pi; a write after that is not an error of the turn.
+    channel.on('error', () => {});
+    this.serveHostToolCalls({
+      input: channel,
+      writeLine: (line) => {
+        if (!channel.writableEnded && !channel.destroyed) channel.write(`${line}\n`);
+      },
+    });
+  }
+
   private spawnRpcProcess(params: Readonly<{ args: string[] }>): void {
     this.refreshPiBrokerLoadNonceForNextSpawn();
     const childEnv = { ...process.env, ...this.options.env };
@@ -1595,9 +1624,10 @@ export class PiRpcBackend implements AgentBackend {
     }) ?? spawn(this.options.command, params.args, {
       cwd: this.options.cwd,
       env: childEnv,
-      stdio: 'pipe',
+      stdio: ['pipe', 'pipe', 'pipe', ...(this.serveHostToolCalls ? ['pipe' as const] : [])],
       windowsHide: true,
     });
+    this.attachHostToolCallChannel(child);
 
     if (!child.stdin || !child.stdout || !child.stderr) {
       throw new Error('Failed to start Pi RPC process with piped stdio');

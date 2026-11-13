@@ -128,12 +128,14 @@ export function prewarmPiProcess(deps: Readonly<{
     const launch = deps.resolveLaunch?.() ?? requireProviderCliLaunchSpec('pi', { processEnv: process.env });
     const program = resolvePiProgram(launch.command, launch.args);
     if (!program) return;
+    // The fourth pipe is the bridge's host tool-call pipe (PI_BRIDGE_HOST_TOOLS_FD); a launch
+    // without a host handler leaves it unused.
     const child = spawn(process.execPath, [materializeLoader(), program.runtimePath], {
       cwd: homedir(),
       env: { ...process.env, ...PI_FIXED_ENV },
-      stdio: 'pipe',
+      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       windowsHide: true,
-    });
+    }) as ChildProcessWithoutNullStreams;
     if (!child.pid) return;
     child.stdin.on('error', () => {});
     const entry: WarmPi = { child, runtimePath: program.runtimePath };

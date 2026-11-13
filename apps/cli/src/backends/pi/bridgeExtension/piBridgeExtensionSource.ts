@@ -6,7 +6,7 @@ import {
 } from '@/cli/commands/toolsServe';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE, PI_BRIDGE_USER_INPUT_MARKER_TYPE } from './piBridgeExtensionEnv';
 
-export const PI_BRIDGE_EXTENSION_VERSION = '6';
+export const PI_BRIDGE_EXTENSION_VERSION = '7';
 
 function jsString(value: string): string {
   return JSON.stringify(value);
@@ -17,6 +17,7 @@ export function buildPiBridgeExtensionSource(): string {
 // Generic adapter: the host-owned protected session manifest owns tool policy and prompt guidance.
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { Socket } from "node:net";
 
 const CONFIG_PATH_FLAG = ${jsString(PI_BRIDGE_CONFIG_PATH_FLAG)};
 const TOKEN_COUNT_MARKER_TYPE = ${jsString(PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE)};
@@ -31,6 +32,10 @@ const SERVE_READY_TYPE = ${jsString(TOOLS_SERVE_READY_TYPE)};
 const SERVE_REQUEST_TYPE = ${jsString(TOOLS_SERVE_REQUEST_TYPE)};
 const SERVE_RESULT_TYPE = ${jsString(TOOLS_SERVE_RESULT_TYPE)};
 const SERVE_RESULT_MAX_BYTES = ${TOOLS_SERVE_RESULT_MAX_BYTES};
+// The host writes its ready line as soon as it attaches the pipe. A pipe that stays silent
+// this long is not served (a platform where the descriptor does not carry the pipe), and the
+// call goes to a "tools serve" process instead.
+const HOST_PIPE_READY_TIMEOUT_MS = 5000;
 
 function readFlagString(pi, name) {
   try {
@@ -64,7 +69,9 @@ function readSessionConfig(pi) {
       if (tool.call.actionId !== null && (typeof tool.call.actionId !== "string" || !tool.call.actionId.trim())) return null;
       directTools.push(tool);
     }
-    return { ...parsed, sessionId: parsed.sessionId.trim(), directTools };
+    // The host pipe is optional: a host that serves tool calls itself names its file descriptor.
+    const hostToolsFd = Number.isSafeInteger(parsed.hostToolsFd) && parsed.hostToolsFd > 2 ? parsed.hostToolsFd : null;
+    return { ...parsed, sessionId: parsed.sessionId.trim(), directTools, hostToolsFd };
   } catch {
     return null;
   }
@@ -242,15 +249,37 @@ async function callHappierTool(config, toolName, args, toolCallId, signal, cwd) 
   return parseEnvelope(result.stdout);
 }
 
-// One long-lived "tools serve" process per session pays the CLI start-up once; a
-// process per call pays it on every call (about 4 s on a phone). The serve process ends
-// itself after a time without calls, and the next call starts a new one. call() returns
-// null when no serve process can answer (an older CLI exits without the ready line, or
-// the process ended during the call), and the caller then spawns "tools call" for it.
+// The host can serve tool calls itself on a pipe it opened for this process (hostToolsFd):
+// no extra process, and no start-up per call. Otherwise one long-lived "tools serve" process
+// per session pays the CLI start-up once; a process per call pays it on every call (about 4 s
+// on a phone). The serve process ends itself after a time without calls, and the next call
+// starts a new one. A host pipe that fails before its ready line is not tried again; the next
+// start spawns "tools serve". call() returns null when no server can answer (an older CLI exits
+// without the ready line, or the server ended during the call), and the caller then spawns
+// "tools call" for it.
 function createToolsServeClient(config) {
   let current = null;
   let unavailable = false;
-  const start = () => {
+  let hostPipeFailed = config.hostToolsFd === null;
+  const openHostPipe = () => {
+    let socket;
+    try {
+      socket = new Socket({ fd: config.hostToolsFd, readable: true, writable: true });
+    } catch {
+      hostPipeFailed = true;
+      return null;
+    }
+    return {
+      host: true,
+      input: socket,
+      output: socket,
+      onEnd: (handler) => { socket.once("error", handler); socket.once("close", handler); },
+      close: () => { try { socket.destroy(); } catch {} },
+      ref: () => { socket.ref?.(); },
+      unref: () => { socket.unref?.(); },
+    };
+  };
+  const spawnServe = () => {
     let child;
     try {
       child = spawn(config.launch.filePath, [...config.launch.argPrefix, "tools", "serve", "--session-id", config.sessionId], {
@@ -263,23 +292,44 @@ function createToolsServeClient(config) {
       unavailable = true;
       return null;
     }
-    const server = { child, pending: new Map(), nextId: 1, alive: true, wasReady: false };
+    return {
+      host: false,
+      input: child.stdout,
+      output: child.stdin,
+      onEnd: (handler) => { child.stdin.on("error", handler); child.once("error", handler); child.once("close", handler); },
+      close: () => { try { child.kill("SIGTERM"); } catch {} },
+      ref: () => { child.ref?.(); child.stdin.ref?.(); child.stdout.ref?.(); },
+      // Pi must be able to exit while the serve process waits; Pi's exit closes its stdin and stops it.
+      unref: () => { child.unref?.(); child.stdin.unref?.(); child.stdout.unref?.(); },
+    };
+  };
+  const start = () => {
+    const io = (!hostPipeFailed ? openHostPipe() : null) ?? spawnServe();
+    if (!io) return null;
+    const server = { io, pending: new Map(), nextId: 1, alive: true, wasReady: false };
     let markReady = () => {};
     server.ready = new Promise((resolve) => { markReady = resolve; });
     let buffer = "";
     server.stop = () => {
       if (!server.alive) return;
       server.alive = false;
-      if (!server.wasReady) unavailable = true;
+      // A host pipe is used once: its descriptor is closed now. A serve process that never got
+      // ready means this CLI has no "tools serve".
+      if (io.host) {
+        hostPipeFailed = true;
+        if (!server.wasReady) {
+          try { process.stderr.write("happier tools bridge: host tool-call pipe unavailable; using tools serve\\n"); } catch {}
+        }
+      } else if (!server.wasReady) unavailable = true;
       markReady(false);
       if (current === server) current = null;
       for (const finish of server.pending.values()) {
         finish(null);
       }
       server.pending.clear();
-      try { child.kill("SIGTERM"); } catch {}
+      io.close();
     };
-    child.stdout.on("data", (data) => {
+    io.input.on("data", (data) => {
       buffer += data.toString("utf8");
       let index;
       while ((index = buffer.indexOf("\\n")) !== -1) {
@@ -303,36 +353,54 @@ function createToolsServeClient(config) {
       // A result line is at most SERVE_RESULT_MAX_BYTES; more without a newline is a broken stream.
       if (Buffer.byteLength(buffer, "utf8") > SERVE_RESULT_MAX_BYTES + 1024) server.stop();
     });
-    child.stdin.on("error", () => server.stop());
-    child.once("error", () => server.stop());
-    child.once("close", () => server.stop());
-    // Pi must be able to exit while the serve process waits; Pi's exit closes its stdin and stops it.
-    child.unref?.();
-    child.stdin.unref?.();
-    child.stdout.unref?.();
+    io.onEnd(() => server.stop());
+    if (io.host) {
+      const readyTimer = setTimeout(() => { if (!server.wasReady) server.stop(); }, HOST_PIPE_READY_TIMEOUT_MS);
+      readyTimer.unref?.();
+      server.ready.then(() => clearTimeout(readyTimer));
+    }
+    io.unref();
     return server;
+  };
+  // A host pipe that ends before it is ready leaves the call to a "tools serve" process.
+  const readyServer = async () => {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!current && !unavailable) current = start();
+      const server = current;
+      if (!server) return null;
+      // A call waits for the ready line; keep the server referenced while it does.
+      server.io.ref();
+      const ready = await server.ready;
+      if (server.pending.size === 0) server.io.unref();
+      if (ready && server.alive) return server;
+      if (!server.io.host) return null;
+    }
+    return null;
   };
   return {
     warm() {
       if (!current && !unavailable) current = start();
     },
     async call(toolName, args, toolCallId, signal) {
-      if (!current && !unavailable) current = start();
-      const server = current;
-      if (!server || !(await server.ready) || !server.alive) return null;
+      const server = await readyServer();
+      if (!server) return null;
       if (signal?.aborted) return { ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } };
       return await new Promise((resolve) => {
         const id = server.nextId++;
         const onAbort = () => {
           server.pending.delete(id);
+          if (server.pending.size === 0) server.io.unref();
           resolve({ ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } });
         };
+        // An open call keeps the server referenced, so Pi waits for its result.
+        server.io.ref();
         server.pending.set(id, (envelope) => {
           signal?.removeEventListener?.("abort", onAbort);
+          if (server.pending.size === 0) server.io.unref();
           resolve(envelope);
         });
         signal?.addEventListener?.("abort", onAbort, { once: true });
-        server.child.stdin.write(JSON.stringify({
+        server.io.output.write(JSON.stringify({
           type: SERVE_REQUEST_TYPE,
           id,
           tool: toolName,

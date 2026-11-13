@@ -2,7 +2,8 @@ import { mkdtempSync, readFileSync, realpathSync, writeFileSync, rmSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import type { Duplex } from 'node:stream';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -12,7 +13,8 @@ import {
   buildPiBridgeExtensionSource,
   PI_BRIDGE_EXTENSION_VERSION,
 } from './piBridgeExtensionSource';
-import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE } from './piBridgeExtensionEnv';
+import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_HOST_TOOLS_FD, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE } from './piBridgeExtensionEnv';
+import { serveToolCalls } from '@/cli/commands/toolsServe';
 
 type ToolDef = {
   name: string;
@@ -447,6 +449,131 @@ if (argv[0] === 'tools' && argv[1] === 'serve') {
       expect(await call('call-3', 'die')).toBe('spawned per call');
 
       expect(readFileSync(launchesPath, 'utf8').trim().split('\n')).toEqual(['tools serve', 'tools serve', 'tools call']);
+      await harness.emit('session_shutdown', {});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('serves tool calls through the host pipe named in the config, without a tools serve process', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-host-'));
+    try {
+      const launchesPath = join(dir, 'launches.log');
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+require('node:fs').appendFileSync(${JSON.stringify(launchesPath)}, process.argv.slice(2, 4).join(' ') + '\\n');
+`, 'utf8');
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-host',
+        directTools: [{
+          name: 'host_resolved_tool',
+          title: 'Host resolved tool',
+          description: 'Resolved by the canonical catalog',
+          inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+          call: { toolName: 'action_execute', actionId: 'memory.search' },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+        hostToolsFd: PI_BRIDGE_HOST_TOOLS_FD,
+      }));
+      const extensionPath = join(dir, 'extension.mjs');
+      writeFileSync(extensionPath, buildPiBridgeExtensionSource(), 'utf8');
+      // Pi stand-in: loads the extension in its own process, where fd 3 is the host pipe.
+      const piPath = join(dir, 'fake-pi.mjs');
+      writeFileSync(piPath, `
+const tools = [];
+const handlers = new Map();
+const pi = {
+  registerFlag() {},
+  registerTool: (def) => tools.push(def),
+  getFlag: (name) => name === ${JSON.stringify(PI_BRIDGE_CONFIG_PATH_FLAG)} ? ${JSON.stringify(configPath)} : undefined,
+  on: (event, handler) => handlers.set(event, [...(handlers.get(event) ?? []), handler]),
+};
+const emit = async (event, value) => { for (const handler of handlers.get(event) ?? []) await handler(value, {}); };
+const extension = (await import(${JSON.stringify(pathToFileURL(extensionPath).href)})).default;
+extension(pi);
+await emit('session_start', {});
+const call = async (id, value) => JSON.parse((await tools[0].execute(id, { value }, new AbortController().signal, undefined, { cwd: process.cwd() })).content[0].text);
+const results = await Promise.all([call('call-1', 'one'), call('call-2', 'two')]);
+process.stdout.write(JSON.stringify(results) + '\\n');
+await emit('session_shutdown', {});
+`, 'utf8');
+
+      const child = spawn(process.execPath, [piPath], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe', 'pipe'] });
+      const channel = child.stdio[PI_BRIDGE_HOST_TOOLS_FD] as Duplex;
+      // The pipe resets when the Pi stand-in exits.
+      channel.on('error', () => {});
+      void serveToolCalls({ sessionId: 'host-session' }, {
+        readCredentials: async () => ({ token: 'token' }) as never,
+        callBuiltInHappierTool: (async (params: { sessionId: string; args: unknown; toolCallId?: string | null }) => ({
+          ok: true as const,
+          result: { session: params.sessionId, args: params.args, toolCallId: params.toolCallId },
+        })) as never,
+        input: channel,
+        writeLine: (line) => { channel.write(line + '\n'); },
+        idleExitMs: null,
+      });
+      let stdout = '';
+      let stderr = '';
+      child.stdout!.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+      child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
+      const code = await new Promise<number | null>((resolve) => child.once('close', resolve));
+
+      expect({ code, stderr }).toEqual({ code: 0, stderr: '' });
+      expect(JSON.parse(stdout.trim())).toEqual([
+        { session: 'host-session', args: { actionId: 'memory.search', input: { value: 'one' } }, toolCallId: 'call-1' },
+        { session: 'host-session', args: { actionId: 'memory.search', input: { value: 'two' } }, toolCallId: 'call-2' },
+      ]);
+      expect(() => readFileSync(launchesPath, 'utf8')).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it('falls back to a tools serve process when the host pipe cannot be used', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-host-missing-'));
+    try {
+      const launchesPath = join(dir, 'launches.log');
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+const { appendFileSync } = require('node:fs');
+const readline = require('node:readline');
+appendFileSync(${JSON.stringify(launchesPath)}, process.argv.slice(2, 4).join(' ') + '\\n');
+process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-ready' }) + '\\n');
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  const request = JSON.parse(line);
+  const envelope = { ok: true, data: { output: 'served ' + request.args.input.value } };
+  process.stdout.write(JSON.stringify({ type: 'happier-tools-serve-result', id: request.id, envelope }) + '\\n');
+});
+`, 'utf8');
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-host-missing',
+        directTools: [{
+          name: 'host_resolved_tool',
+          title: 'Host resolved tool',
+          description: 'Resolved by the canonical catalog',
+          inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+          call: { toolName: 'action_execute', actionId: 'memory.search' },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+        // No pipe of this number exists in the test process.
+        hostToolsFd: 987,
+      }));
+      const factory = await loadExtensionFactory();
+      const harness = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: configPath });
+      factory(harness.pi);
+      await harness.emit('session_start', {});
+
+      const result = await harness.tools[0]!.execute(
+        'call-1', { value: 'one' }, new AbortController().signal, undefined, { cwd: dir },
+      ) as { content: Array<{ text: string }> };
+      expect(JSON.parse(result.content[0]!.text)).toBe('served one');
+      expect(readFileSync(launchesPath, 'utf8').trim().split('\n')).toEqual(['tools serve']);
       await harness.emit('session_shutdown', {});
     } finally {
       rmSync(dir, { recursive: true, force: true });
