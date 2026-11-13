@@ -396,6 +396,7 @@ export async function runPermissionModePromptLoop(opts: {
     if (!message) continue;
     if (!wasStarted) logStartupStep('first message taken from the queue');
 
+    if (!wasStarted) logStartupStep('permission mode set');
     opts.permissionHandler.setPermissionMode(message.mode.permissionMode);
 
     if (wasStarted && currentModeHash && message.hash !== currentModeHash) {
@@ -427,10 +428,14 @@ export async function runPermissionModePromptLoop(opts: {
     }
 
     currentModeHash = message.hash;
+    if (!wasStarted) logStartupStep('snapshot refresh begins');
     await ensureFreshSessionSnapshotBeforeTurnBestEffort();
+    if (!wasStarted) logStartupStep('snapshot refresh done');
     syncPermissionModeFromMetadata();
     overrideSync.syncFromMetadata();
+    if (!wasStarted) logStartupStep('metadata sync done');
     await overrideSync.flushPendingAfterStart();
+    if (!wasStarted) logStartupStep('override flush done');
     opts.messageBuffer.addMessage(message.message.text, 'user');
 
     const special = parseSpecialCommand(message.message.text);
@@ -503,6 +508,7 @@ export async function runPermissionModePromptLoop(opts: {
       opts.runtime.beginTurn();
       didBeginRuntimeTurn = true;
       if (!wasStarted) {
+        logStartupStep('before ensureRuntimeStarted');
         const runtimeStart = await ensureRuntimeStarted();
         if (opts.shouldExit()) {
           shouldSendReady = false;

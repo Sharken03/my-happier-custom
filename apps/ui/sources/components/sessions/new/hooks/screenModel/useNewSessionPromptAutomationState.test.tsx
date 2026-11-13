@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { flushHookEffects, renderHook } from '@/dev/testkit';
 import { act } from 'react-test-renderer';
@@ -187,5 +187,38 @@ describe('useNewSessionPromptAutomationState', () => {
 
         await hook.rerender();
         expect(hook.getCurrent().automationDraft.enabled).toBe(true);
+    });
+
+    it('reports the first user edit of the prompt once', async () => {
+        const { useNewSessionPromptAutomationState } = await import('./useNewSessionPromptAutomationState');
+        const onFirstUserEdit = vi.fn();
+
+        const hook = await renderHook(() => useNewSessionPromptAutomationState({
+            prompt: undefined,
+            dataId: undefined,
+            automationParam: undefined,
+            automationEnabledParam: undefined,
+            automationNameParam: undefined,
+            automationDescriptionParam: undefined,
+            automationScheduleKindParam: undefined,
+            automationEveryMinutesParam: undefined,
+            automationCronExprParam: undefined,
+            automationTimezoneParam: undefined,
+            automationEditIdParam: undefined,
+            automationFeatureEnabled: false,
+            persistedDraftEntryIntent: null,
+            hydratedTempAuthoringDraft: null,
+            hydratedPersistedAuthoringDraft: null,
+            onFirstUserEdit,
+        }));
+
+        expect(onFirstUserEdit).not.toHaveBeenCalled();
+        await act(async () => {
+            hook.getCurrent().setSessionPrompt('H');
+            hook.getCurrent().setSessionPrompt('He');
+        });
+
+        expect(onFirstUserEdit).toHaveBeenCalledTimes(1);
+        expect(hook.getCurrent().hasUserEditedSessionPrompt()).toBe(true);
     });
 });

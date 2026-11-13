@@ -38,12 +38,29 @@ function parseAssignment(line: string): PrewarmedRunnerAssignment | null {
  * cold spawn would have been: same arguments, environment and working directory. Resolves
  * `false` when stdin closes with no valid launch (the daemon let the process go).
  */
-export async function awaitPrewarmedRunnerAssignment(proc: AssignableProcess): Promise<boolean> {
-  let buffered = '';
-  for await (const chunk of proc.stdin) {
-    buffered += typeof chunk === 'string' ? chunk : (chunk as Buffer).toString('utf8');
-    if (buffered.includes('\n')) break;
-  }
+export async function awaitPrewarmedRunnerAssignment(
+  proc: AssignableProcess,
+  opts: Readonly<{ maxWaitMs?: number }> = {},
+): Promise<boolean> {
+  const readFirstLine = async (): Promise<string> => {
+    let buffered = '';
+    for await (const chunk of proc.stdin) {
+      buffered += typeof chunk === 'string' ? chunk : (chunk as Buffer).toString('utf8');
+      if (buffered.includes('\n')) break;
+    }
+    return buffered;
+  };
+  // The daemon lets an unused process go by closing its input. The time limit ends the process
+  // also when the daemon cannot (it hangs); 0 or no value means no limit.
+  const maxWaitMs = opts.maxWaitMs ?? 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const buffered = maxWaitMs > 0
+    ? await Promise.race([
+      readFirstLine(),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), maxWaitMs); }),
+    ]).finally(() => clearTimeout(timer))
+    : await readFirstLine();
+  if (buffered === null) return false;
   const assignment = parseAssignment(buffered.split('\n', 1)[0] ?? '');
   if (!assignment) return false;
 
