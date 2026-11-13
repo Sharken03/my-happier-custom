@@ -105,7 +105,10 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
 
     /** Starts the prewarmed process, unless one waits already. */
     prewarm(): void {
-      if (!isEnabled() || !remembered || warm) return;
+      if (!isEnabled() || !remembered || warm) {
+        logDebug('[DAEMON RUN] Prewarm skipped', { enabled: isEnabled(), remembered: Boolean(remembered), waiting: Boolean(warm) });
+        return;
+      }
       const launch = remembered;
       const child = spawnChild(launch.filePath, launch.baseArgs, {
         cwd: launch.cwd,
@@ -115,6 +118,7 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
         windowsHide: true,
       });
       if (!child.pid || !child.stdin) return;
+      logDebug('[DAEMON RUN] Prewarmed runner started', { pid: child.pid });
       child.stdin.on('error', () => {});
       const entry: WarmEntry = {
         child,
@@ -141,12 +145,24 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
      * when none waits or the launch does not fit; the caller then spawns a cold runner.
      */
     take(launch: RunnerLaunch): ChildProcess | null {
-      if (!warm) return null;
+      if (!warm) {
+        logDebug('[DAEMON RUN] No prewarmed runner waits for this launch', {});
+        return null;
+      }
       const { child, launch: warmLaunch } = warm;
-      if (child.exitCode !== null || !child.stdin || child.stdin.writableEnded) return null;
-      if (launch.filePath !== warmLaunch.filePath || !sameArgs(launch.baseArgs, warmLaunch.baseArgs)) return null;
+      if (child.exitCode !== null || !child.stdin || child.stdin.writableEnded) {
+        logDebug('[DAEMON RUN] The prewarmed runner has ended', { exitCode: child.exitCode });
+        return null;
+      }
+      if (launch.filePath !== warmLaunch.filePath || !sameArgs(launch.baseArgs, warmLaunch.baseArgs)) {
+        logDebug('[DAEMON RUN] The prewarmed runner has another program', {});
+        return null;
+      }
       // The configuration reads a runtime-context prefix when the modules load.
-      if (launch.userArgs.includes('--runtime-context')) return null;
+      if (launch.userArgs.includes('--runtime-context')) {
+        logDebug('[DAEMON RUN] The launch has a runtime context', {});
+        return null;
+      }
       const env = definedEnv(launch.env);
       const comparable = withoutLazyKeys(env);
       if (!sameRecord(comparable, warmLaunch.env)) {

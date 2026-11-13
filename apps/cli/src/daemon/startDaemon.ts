@@ -4709,7 +4709,10 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                 const launchSpec = buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
                 const baseArgs = launchSpec.args.slice(0, launchSpec.args.length - args.length);
                 const userArgs = launchSpec.args.slice(baseArgs.length);
-                if (userArgs.length !== args.length || userArgs.some((arg, index) => arg !== args[index])) return null;
+                if (userArgs.length !== args.length || userArgs.some((arg, index) => arg !== args[index])) {
+                  logger.debug('[DAEMON RUN] Prewarm: the launch arguments differ from the spawn arguments');
+                  return null;
+                }
                 return {
                   filePath: launchSpec.filePath,
                   baseArgs,
