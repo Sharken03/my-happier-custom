@@ -52,7 +52,9 @@ function performNativeStandardPinBottomCommand(
     // Bottom placement is a semantic intent, not a one-shot offset. Legend's renderer-owned
     // settle transaction must receive it so late item measurements can repair the landing.
     if (typeof node.scrollToEnd === 'function') {
+        logLegendEndTarget('before', command.reason, node);
         node.scrollToEnd({ animated: command.animated ?? false });
+        logLegendEndTarget('after', command.reason, node);
     } else if (typeof node.scrollToOffset === 'function') {
         node.scrollToOffset({ offset: targetOffsetY, animated: command.animated ?? false });
     } else {
@@ -175,4 +177,21 @@ function performNativeStandardIndexCommand(
         nativeMountSettleStable: deps.nativeMountSettleStable,
     });
     return true;
+}
+
+// Device QA only (exp/row-calibration): Legend's own numbers behind a scrollToEnd.
+function logLegendEndTarget(phase: string, reason: unknown, node: unknown): void {
+    try {
+        const state = (node as { getState?: () => any }).getState?.();
+        if (!state) return;
+        const last = Math.max(0, (state.data?.length ?? 0) - 1);
+        const position = state.positionAtIndex?.(last);
+        const size = state.sizeAtIndex?.(last);
+        console.log('HAPPIER_END_TARGET', JSON.stringify({
+            phase, reason, t: Date.now(), last, position, size, scroll: state.scroll, scrollLength: state.scrollLength,
+            contentLength: state.contentLength ?? null, end: typeof position === 'number' && typeof size === 'number' ? position + size - state.scrollLength : null,
+        }));
+    } catch {
+        // QA log only.
+    }
 }
