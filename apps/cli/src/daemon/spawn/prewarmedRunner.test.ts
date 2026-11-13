@@ -1,4 +1,7 @@
 import { EventEmitter } from 'node:events';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,7 +31,7 @@ describe('prewarmed runner slot', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  function setup(enabled = true) {
+  function setup(enabled = true, persistence: Readonly<{ statePath?: string; baseEnv?: Record<string, string> }> = {}) {
     const children: ReturnType<typeof fakeChild>[] = [];
     const spawnChild = vi.fn((_file: string, _args: readonly string[], _options: unknown) => {
       const child = fakeChild();
@@ -36,9 +39,34 @@ describe('prewarmed runner slot', () => {
       return child as never;
     });
     const logDebug = vi.fn();
-    const slot = createPrewarmedRunnerSlot({ spawnChild, ttlMs: 60_000, isEnabled: () => enabled, logDebug });
+    const slot = createPrewarmedRunnerSlot({ spawnChild, ttlMs: 60_000, isEnabled: () => enabled, logDebug, ...persistence });
     return { slot, spawnChild, children, logDebug };
   }
+
+  it('prewarms after a daemon restart from the launch the previous daemon remembered', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'prewarm-state-'));
+    try {
+      const statePath = join(dir, 'launch.json');
+      const daemonEnv = { PATH: '/bin', HOME: '/home' };
+      const launchEnv = { PATH: '/bin', HAPPIER_HOME_DIR: '/h', HAPPIER_SESSION_ATTACH_FILE: '/a.json' };
+
+      const before = setup(true, { statePath, baseEnv: daemonEnv });
+      before.slot.rememberLaunch({ ...BASE, filePath: process.execPath, env: launchEnv });
+      expect(statSync(statePath).mode & 0o777).toBe(0o600);
+
+      const after = setup(true, { statePath, baseEnv: daemonEnv });
+      after.slot.prewarm();
+
+      expect(after.spawnChild).toHaveBeenCalledTimes(1);
+      const [file, args, options] = after.spawnChild.mock.calls[0]! as [string, string[], { env: Record<string, string>; cwd: string }];
+      expect(file).toBe(process.execPath);
+      expect(args).toEqual(BASE.baseArgs);
+      expect(options.cwd).toBe(BASE.cwd);
+      expect(options.env).toEqual({ PATH: '/bin', HAPPIER_HOME_DIR: '/h', [HAPPIER_RUNNER_PREWARM_ENV_KEY]: '1' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   it('starts no process before an ordinary launch was remembered, or when disabled', () => {
     const off = setup(false);

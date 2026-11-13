@@ -1,6 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { CONSUMED_SESSION_ENV_KEYS } from '@/agent/runtime/createSessionMetadata';
+import { configuration } from '@/configuration';
 import { logger } from '@/ui/logger';
 
 import { HAPPIER_DAEMON_PENDING_FIRST_INPUT_ENV_KEY } from './pendingFirstInput';
@@ -61,6 +64,43 @@ function sameRecord(a: Readonly<Record<string, string>>, b: Readonly<Record<stri
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
 }
 
+/**
+ * The remembered launch as a difference from the daemon's own environment, so a restarted
+ * daemon can prewarm before its first launch. Values the daemon already has are not stored.
+ * A stale entry only fails `take`'s comparison: that launch starts cold and is remembered anew.
+ */
+type StoredLaunch = Readonly<{
+  v: 1;
+  filePath: string;
+  baseArgs: string[];
+  cwd: string;
+  set: Record<string, string>;
+  unset: string[];
+}>;
+
+function toStoredLaunch(launch: RememberedLaunch, baseEnv: Readonly<Record<string, string>>): StoredLaunch {
+  const set: Record<string, string> = {};
+  for (const [key, value] of Object.entries(launch.env)) {
+    if (baseEnv[key] !== value) set[key] = value;
+  }
+  const unset = Object.keys(baseEnv).filter((key) => !(key in launch.env) && !SESSION_LAZY_ENV_KEYS.has(key));
+  return { v: 1, filePath: launch.filePath, baseArgs: [...launch.baseArgs], cwd: launch.cwd, set, unset };
+}
+
+function fromStoredLaunch(text: string, baseEnv: Readonly<Record<string, string>>): RememberedLaunch | null {
+  const stored = JSON.parse(text) as Partial<StoredLaunch>;
+  if (stored.v !== 1 || typeof stored.filePath !== 'string' || typeof stored.cwd !== 'string') return null;
+  if (!Array.isArray(stored.baseArgs) || !stored.baseArgs.every((arg) => typeof arg === 'string')) return null;
+  if (!stored.set || typeof stored.set !== 'object' || !Array.isArray(stored.unset)) return null;
+  if (!existsSync(stored.filePath)) return null;
+  const env: Record<string, string> = { ...baseEnv };
+  for (const key of stored.unset) delete env[key];
+  for (const [key, value] of Object.entries(stored.set)) {
+    if (typeof value === 'string') env[key] = value;
+  }
+  return { filePath: stored.filePath, baseArgs: stored.baseArgs, env: withoutLazyKeys(env), cwd: stored.cwd };
+}
+
 function sameArgs(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((arg, index) => arg === b[index]);
 }
@@ -78,6 +118,10 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
   ttlMs?: number;
   isEnabled?: () => boolean;
   logDebug?: (message: string, context: Readonly<Record<string, unknown>>) => void;
+  /** Where the remembered launch is kept across daemon restarts; none when omitted. */
+  statePath?: string;
+  /** The daemon's own environment, which the stored launch is a difference from. */
+  baseEnv?: NodeJS.ProcessEnv;
 }> = {}) {
   const logDebug = deps.logDebug ?? ((message, context) => logger.debug(message, context));
   const spawnChild = deps.spawnChild ?? ((filePath, args, options) => spawn(filePath, [...args], options));
@@ -87,6 +131,32 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
   type WarmEntry = { child: ChildProcess; launch: RememberedLaunch; timer: ReturnType<typeof setTimeout> };
   let remembered: RememberedLaunch | null = null;
   let warm: WarmEntry | null = null;
+  let storedText: string | null = null;
+  let storeRead = false;
+  const baseEnv = () => definedEnv(deps.baseEnv ?? process.env);
+
+  const readStoredLaunch = (): void => {
+    if (storeRead || !deps.statePath) return;
+    storeRead = true;
+    try {
+      storedText = readFileSync(deps.statePath, 'utf8');
+      remembered ??= fromStoredLaunch(storedText, baseEnv());
+    } catch {
+      // no stored launch: the first launch is cold and is remembered
+    }
+  };
+
+  const storeLaunch = (launch: RememberedLaunch): void => {
+    if (!deps.statePath) return;
+    const text = JSON.stringify(toStoredLaunch(launch, baseEnv()));
+    if (text === storedText) return;
+    try {
+      writeFileSync(deps.statePath, text, { mode: 0o600 });
+      storedText = text;
+    } catch (error) {
+      logDebug('[DAEMON RUN] Could not store the remembered launch', { error: String(error) });
+    }
+  };
 
   const release = () => {
     if (!warm) return;
@@ -100,16 +170,19 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
 
     /** Records an ordinary runner launch as the model for the next prewarmed process. */
     rememberLaunch(launch: RunnerProgram & Readonly<{ env: NodeJS.ProcessEnv; cwd: string }>): void {
+      storeRead = true;
       remembered = {
         filePath: launch.filePath,
         baseArgs: [...launch.baseArgs],
         env: withoutLazyKeys(definedEnv(launch.env)),
         cwd: launch.cwd,
       };
+      storeLaunch(remembered);
     },
 
     /** Starts the prewarmed process, unless one waits already. */
     prewarm(): void {
+      if (isEnabled()) readStoredLaunch();
       if (!isEnabled() || !remembered || warm) {
         logDebug('[DAEMON RUN] Prewarm skipped', { enabled: isEnabled(), remembered: Boolean(remembered), waiting: Boolean(warm) });
         return;
@@ -193,4 +266,6 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
 }
 
 /** The daemon's one slot. Session runners never remember a launch, so theirs stays empty. */
-export const prewarmedRunnerSlot = createPrewarmedRunnerSlot();
+export const prewarmedRunnerSlot = createPrewarmedRunnerSlot({
+  statePath: join(configuration.happyHomeDir, 'daemon-prewarm-launch.json'),
+});
