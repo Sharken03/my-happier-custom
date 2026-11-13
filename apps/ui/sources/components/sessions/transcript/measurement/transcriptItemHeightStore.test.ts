@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultTranscriptItemHeightCache, type TranscriptItemHeightValiditySignature } from './transcriptItemHeightCache';
 import { createPersistedTranscriptItemHeightStore } from './transcriptItemHeightStore';
 
-const signature = (itemId: string): TranscriptItemHeightValiditySignature => ({
-    itemId,
+const signature = (serverId: string, localId = serverId): TranscriptItemHeightValiditySignature => ({
+    itemId: localId,
+    persistedKey: `server:${serverId}`,
     kind: 'message',
     structuralKey: 's',
     widthBucket: 'w360',
@@ -21,8 +22,17 @@ describe('persisted transcript item heights', () => {
         first.set(signature('m1'), { heightPx: 155 });
 
         const afterRestart = createDefaultTranscriptItemHeightCache({ store: createPersistedTranscriptItemHeightStore({ maxEntries: 10 }) });
-        expect(afterRestart.get(signature('m1'))).toEqual({ heightPx: 155 });
+        // The restart gave the row a new local id; the persisted key still names it.
+        expect(afterRestart.get(signature('m1', 'local-after-restart'))).toEqual({ heightPx: 155 });
         expect(afterRestart.get(signature('m2'))).toBeUndefined();
+    });
+
+    it('stores nothing for a row without a persisted key', () => {
+        const { persistedKey: _persistedKey, ...unnamed } = signature('m1');
+        createDefaultTranscriptItemHeightCache({ store: createPersistedTranscriptItemHeightStore({ maxEntries: 10 }) }).set(unnamed, { heightPx: 155 });
+
+        const afterRestart = createDefaultTranscriptItemHeightCache({ store: createPersistedTranscriptItemHeightStore({ maxEntries: 10 }) });
+        expect(afterRestart.get(unnamed)).toBeUndefined();
     });
 
     it('forgets an invalidated height', () => {

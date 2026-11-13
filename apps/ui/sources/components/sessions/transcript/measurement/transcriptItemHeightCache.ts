@@ -22,6 +22,12 @@ export type TranscriptItemHeightValiditySignature = Readonly<{
     forkContextKey: string;
     expansionKey: string;
     rowState: TranscriptItemHeightRowState;
+    /**
+     * The row's key in the on-disk height store, built from ids that survive an app restart.
+     * Absent for a row with no such identity, which is then kept in memory only. Not part of
+     * {@link buildTranscriptItemHeightSignatureKey}: the in-memory key stays the local one.
+     */
+    persistedKey?: string;
 }>;
 
 export type TranscriptItemHeightCacheEntry = Readonly<{
@@ -82,16 +88,15 @@ export function createDefaultTranscriptItemHeightCache(
     return {
         delete(signature) {
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
-            const key = buildTranscriptItemHeightSignatureKey(signature);
-            store?.delete(key);
-            return entries.delete(key);
+            if (signature.persistedKey !== undefined) store?.delete(signature.persistedKey);
+            return entries.delete(buildTranscriptItemHeightSignatureKey(signature));
         },
         get(signature) {
             if (!isTranscriptItemHeightSignatureStable(signature)) return undefined;
             const key = buildTranscriptItemHeightSignatureKey(signature);
             const inMemory = entries.get(key);
-            if (inMemory !== undefined || store === undefined) return inMemory;
-            const storedHeightPx = store.get(key);
+            if (inMemory !== undefined || store === undefined || signature.persistedKey === undefined) return inMemory;
+            const storedHeightPx = store.get(signature.persistedKey);
             if (storedHeightPx === undefined || !isValidHeight(storedHeightPx)) return undefined;
             const restored = { heightPx: storedHeightPx };
             entries.set(key, restored);
@@ -101,7 +106,9 @@ export function createDefaultTranscriptItemHeightCache(
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
             if (!isValidHeight(entry.heightPx)) return false;
             const key = buildTranscriptItemHeightSignatureKey(signature);
-            if (entries.get(key)?.heightPx !== entry.heightPx) store?.set(key, entry.heightPx);
+            if (signature.persistedKey !== undefined && entries.get(key)?.heightPx !== entry.heightPx) {
+                store?.set(signature.persistedKey, entry.heightPx);
+            }
             entries.set(key, {
                 heightPx: entry.heightPx,
             });
