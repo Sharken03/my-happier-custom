@@ -34,7 +34,7 @@ import {
 } from '@/sync/domains/models/favoriteModelSelections';
 import { resolveNewSessionConnectedServicesBindingsForAgent } from '@/components/sessions/new/modules/connectedServicesNewSessionBindings';
 import { stableJsonStringify } from '@/utils/json/stableJsonStringify';
-import { StarIcon } from '@/components/ui/icons/StarIcon';
+import { Icon } from '@/components/ui/icons/Icon';
 import {
     readNonBlankSessionControlIdentifier,
     readSessionControlValueId,
@@ -113,22 +113,22 @@ const ENGINE_FAVORITE_RAIL_ICON_SIZE = 14;
 
 function FavoriteModelsPickerIcon(props: Readonly<{ size?: number }>) {
     const { theme } = useUnistyles();
-    const isDark = theme.dark;
     return (
-        <StarIcon
+        <Icon
+            name="star"
             size={props.size ?? 12}
-            color={isDark ? theme.colors.text.primary : theme.colors.button.primary.background}
-            weight={isDark ? 'fill' : 'regular'}
+            color={theme.dark ? theme.colors.text.primary : theme.colors.button.primary.background}
+            weight={theme.dark ? 'fill' : 'regular'}
         />
     );
 }
 
 function EngineFavoritePickerIcon(props: Readonly<{ favorite: boolean }>) {
     const { theme } = useUnistyles();
-    const isDark = theme.dark;
-    const selectedColor = isDark ? theme.colors.text.primary : theme.colors.button.primary.background;
+    const selectedColor = theme.dark ? theme.colors.text.primary : theme.colors.button.primary.background;
     return (
-        <StarIcon
+        <Icon
+            name="star"
             size={ENGINE_FAVORITE_RAIL_ICON_SIZE}
             color={props.favorite ? selectedColor : theme.colors.text.secondary}
             weight={props.favorite ? 'fill' : 'regular'}

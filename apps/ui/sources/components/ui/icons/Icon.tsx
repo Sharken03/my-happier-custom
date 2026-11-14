@@ -2,8 +2,11 @@ import * as React from 'react';
 import { useUnistyles } from 'react-native-unistyles';
 import { View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { HugeiconsIcon } from '@hugeicons/react-native';
+
+import { STAR_GLYPH_PATH } from './iconStarGlyph';
 
 import { ICON_REGISTRY, type IconName } from './iconRegistry.generated';
 import { HUGE_ICON_REGISTRY, type HugeIconName } from './iconRegistryHuge.generated';
@@ -90,20 +93,7 @@ const ICON_INK_SCALE: Partial<Record<IconName, number>> = {
 };
 
 /**
- * Concepts pinned to Phosphor regardless of the selected family.
- *
- * Not a fallback for a missing glyph — these are ones where Phosphor's drawing was judged better on
- * the actual surface. Keep this short: every entry is a second family loaded into the bundle and a
- * glyph that will not match its neighbours' grid.
- */
-const PHOSPHOR_PINNED = new Set<IconName>([
-    // HugeIcons' star is a thin, wide five-point outline that reads as a rating widget next to the
-    // dense favourite rows it sits in; Phosphor's is tighter and more compact.
-    'star',
-]);
-
-/**
- * The stroke, in HugeIcons' 24-unit grid, that a glyph of `size` should draw with.
+ * The stroke, in the glyph's own 24-unit grid, that a glyph of `size` should draw with.
  *
  * HugeIcons scales its stroke with the glyph: a fixed 2 units renders 1.33px at 16 and 2.33px at 28,
  * so the large settings-row icons came out visibly heavier than everything around them. Above the
@@ -124,9 +114,46 @@ export const Icon = React.memo((props: IconProps) => {
     const nominal = props.size ?? DEFAULT_SIZE_PX;
     const scale = ICON_INK_SCALE[props.name] ?? 1;
 
+    // The star is painted here instead of by either family.
+    //
+    // Both vendored families hand it to `react-native-svg` as `fill="currentColor"` — a keyword
+    // the browser's CSS resolves and the native renderer does not. On Android the favourite star
+    // in the model picker's rail came out as a blank tile and vanished outright from the model
+    // rows, while the identical markup drew a correct star in the web build. Painting the path
+    // ourselves with the colour the caller asked for is the same glyph on both platforms, and the
+    // outline state is a real stroke, so a 12 px star still reads as a star.
+    if (props.name === 'star') {
+        const starSize = Math.round(nominal * scale);
+        const starColor = props.color ?? theme.colors.text.secondary;
+        const filled = props.weight === 'fill' || props.weight === 'bold' || props.weight === 'duotone';
+        return (
+            <Svg
+                viewBox="0 0 24 24"
+                width={starSize}
+                height={starSize}
+                style={props.style as StyleProp<ViewStyle>}
+                testID={props.testID}
+                color={starColor}
+                {...(props.accessibilityLabel
+                    ? { accessibilityLabel: props.accessibilityLabel, accessible: true }
+                    : { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const })}
+            >
+                <Path
+                    d={STAR_GLYPH_PATH}
+                    fill={filled ? starColor : 'none'}
+                    stroke={filled ? 'none' : starColor}
+                    // The stroke is read in the glyph's own 24-unit grid, the same way HugeIcons
+                    // reads it, so a star sits in a row beside its neighbours at one weight.
+                    strokeWidth={strokeWidth}
+                    strokeLinejoin="round"
+                />
+            </Svg>
+        );
+    }
+
     // HugeIcons draws outline only. `fill` is a Phosphor capability, so a filled request always goes
     // there regardless of the chosen family — and so does any concept HugeIcons has no glyph for.
-    const hugeGlyph = props.weight === 'fill' || PHOSPHOR_PINNED.has(props.name)
+    const hugeGlyph = props.weight === 'fill'
         ? undefined
         : HUGE_ICON_REGISTRY[props.name as HugeIconName];
     if (family === 'hugeicons' && hugeGlyph) {
