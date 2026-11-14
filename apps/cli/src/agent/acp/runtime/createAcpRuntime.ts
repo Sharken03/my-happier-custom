@@ -356,6 +356,11 @@ export type AcpRuntimeBackend = Omit<AgentBackend, 'waitForResponseComplete' | '
     prompt: string,
     options?: AcpRuntimeSteerPromptOptions,
   ) => Promise<AcpPromptSubmissionEvidence>;
+  /**
+   * Optional: false while the provider cannot take steering inside the current turn window,
+   * for example after the provider ended its run but before the turn settles.
+   */
+  isInFlightSteerOpen?: () => boolean;
   setPlanStatePublisher?: (
     publisher: (snapshot: NormalizedAcpPlanSnapshot) => Promise<void>,
   ) => void;
@@ -2475,7 +2480,7 @@ export function createAcpRuntime(params: {
 
   return {
     getSessionId: () => sessionId,
-    supportsInFlightSteer: () => inFlightSteerEnabled,
+    supportsInFlightSteer: () => inFlightSteerEnabled && backend?.isInFlightSteerOpen?.() !== false,
     isTurnInFlight: () => turnState.turnInFlight,
 
     async isProviderNativeCommand(prompt: string): Promise<boolean> {

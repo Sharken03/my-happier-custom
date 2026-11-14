@@ -1350,6 +1350,14 @@ export class PiRpcBackend implements AgentBackend {
     }
   }
 
+  /**
+   * Pi queues a steer without starting a run once its run has ended, so steering closes at
+   * the final `agent_end` and input goes through the pending queue as the next prompt.
+   */
+  isInFlightSteerOpen(): boolean {
+    return this.pendingTurn?.agentEndObserved !== true;
+  }
+
   async sendSteerPrompt(sessionId: SessionId, prompt: string): Promise<void> {
     this.assertSession(sessionId);
     const maybeRestart = this.maybeRestartForUpdatedAuthJson();

@@ -786,6 +786,34 @@ describe('PiRpcBackend pending turn lifecycle', () => {
     }
   });
 
+  it('closes in-flight steering from Pi agent_end until the turn settles or Pi starts again', async () => {
+    // Pi queues a steer without starting a run when its run has ended, so a steer sent
+    // after agent_end waits until the next prompt and then arrives twice with it.
+    const workDir = makeTempDir('happier-pi-rpc-steer-window-');
+    tempDirs.push(workDir);
+    const backend = createBackend({
+      workDir,
+      scriptPath: writeFakePiRpcScript(workDir, 'fake-pi-rpc-steer-window.js', ''),
+    });
+    const backendWithPrivate = backend as unknown as PrivatePendingTurnBackend & PrivateEventBackend;
+    const turn = backendWithPrivate.createPendingTurn(10_000);
+    turn.promise.catch(() => undefined);
+
+    try {
+      backendWithPrivate.handleEvent({ type: 'agent_start' });
+      expect(backend.isInFlightSteerOpen()).toBe(true);
+
+      backendWithPrivate.handleEvent({ type: 'agent_end', messages: [] });
+      expect(backend.isInFlightSteerOpen()).toBe(false);
+
+      backendWithPrivate.handleEvent({ type: 'agent_start' });
+      expect(backend.isInFlightSteerOpen()).toBe(true);
+    } finally {
+      await backend.dispose();
+      await turn.promise.catch(() => undefined);
+    }
+  });
+
   it('synthesizes distinct lifecycle ids for separate anonymous Pi compactions', async () => {
     const workDir = makeTempDir('happier-pi-rpc-compaction-lifecycle-');
     tempDirs.push(workDir);
