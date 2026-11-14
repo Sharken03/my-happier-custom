@@ -25,6 +25,10 @@ export type ToolCallsGroupChromeVariant = 'cards' | 'feed' | 'feed_background';
 export type ToolCallsGroupUnitPosition = 'header' | 'middle' | 'footer';
 export type ToolCallsGroupStatus = 'running' | 'completed' | 'error';
 
+export function isToolCallsGroupSheetMode(toolChromeCommon: TranscriptToolChromeCommon): boolean {
+    return toolChromeCommon.transcriptToolCallsGroupOpenMode === 'sheet';
+}
+
 export function resolveToolCallsGroupChromeVariant(
     toolChromeCommon: TranscriptToolChromeCommon,
 ): ToolCallsGroupChromeVariant {
@@ -154,9 +158,12 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
     status: ToolCallsGroupStatus;
     toolMessages: readonly ToolCallMessage[];
     expanded: boolean;
+    /** Sheet mode: the header opens the Tool calls sheet, shows a right caret and never reports an expansion state. */
+    sheetMode?: boolean;
     onToggle: () => void;
 }>) {
     const { theme } = useUnistyles();
+    const sheetMode = props.sheetMode === true;
     const count = props.toolMessages.length;
     const summary = React.useMemo(
         () => summarizeToolCallsGroup(props.toolMessages.map((message) => message.tool?.name ?? '')),
@@ -169,8 +176,7 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
             onPress={props.onToggle}
             accessibilityRole="button"
             accessibilityLabel={summary ?? `${t('session.toolCalls')}: ${count}`}
-            accessibilityState={{ expanded: props.expanded }}
-            aria-expanded={props.expanded}
+            {...(sheetMode ? {} : { accessibilityState: { expanded: props.expanded }, 'aria-expanded': props.expanded })}
             style={({ pressed }) => [
                 chromeStyles.header,
                 Platform.OS === 'web' && !readCoarsePrimaryPointer() ? chromeStyles.headerDesktop : null,
@@ -199,7 +205,7 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
                     )}
                 </View>
                 <Icon
-                    name={props.expanded ? 'caret-up' : 'caret-down'}
+                    name={sheetMode ? 'caret-right' : props.expanded ? 'caret-up' : 'caret-down'}
                     size={16}
                     color={theme.colors.text.secondary}
                 />

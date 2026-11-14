@@ -1,9 +1,11 @@
 import * as React from 'react';
 import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import type { ToolCallMessage } from '@/sync/domains/messages/messageTypes';
 import { useSessionTurnWorking } from '@/sync/store/hooks';
 
+import { toolCallsSheetHref } from '@/components/sessions/transcript/toolCallsSheet/toolCallsSheetRoute';
 import { TranscriptEnterWrapper } from '@/components/sessions/transcript/motion/TranscriptEnterWrapper';
 import { TRANSCRIPT_WEB_TOOL_GROUP_PREPEND_ANCHOR_TEST_ID_PREFIX } from '@/components/sessions/transcript/viewport/prepend/webTranscriptPrependAnchor';
 import {
@@ -12,6 +14,7 @@ import {
 } from '@/components/sessions/transcript/transcriptSessionCommon';
 
 import {
+    isToolCallsGroupSheetMode,
     resolveToolCallsGroupChromeVariant,
     resolveToolCallsGroupStatus,
     toolCallsGroupChromeModeForVariant,
@@ -50,7 +53,17 @@ export const ToolCallsGroupUnitHeaderRowWithSessionCommon = React.memo(function 
     const variant = resolveToolCallsGroupChromeVariant(props.toolChromeCommon);
     const chromeMode = toolCallsGroupChromeModeForVariant(variant);
     const { setExpanded } = props;
-    const onToggle = React.useCallback(() => setExpanded(!props.expanded), [setExpanded, props.expanded]);
+    const router = useRouter();
+    const sheetMode = isToolCallsGroupSheetMode(props.toolChromeCommon);
+    const { sessionId } = props;
+    const firstToolMessageId = props.toolMessages[0]?.id ?? null;
+    const onToggle = React.useCallback(() => {
+        if (sheetMode) {
+            if (firstToolMessageId) router.push(toolCallsSheetHref(sessionId, firstToolMessageId) as never);
+            return;
+        }
+        setExpanded(!props.expanded);
+    }, [firstToolMessageId, props.expanded, router, sessionId, setExpanded, sheetMode]);
 
     const status = resolveToolCallsGroupStatus({
         toolMessages: props.toolMessages,
@@ -75,7 +88,8 @@ export const ToolCallsGroupUnitHeaderRowWithSessionCommon = React.memo(function 
                         chromeMode={chromeMode}
                         status={status}
                         toolMessages={props.toolMessages}
-                        expanded={props.expanded}
+                        expanded={sheetMode ? false : props.expanded}
+                        sheetMode={sheetMode}
                         onToggle={onToggle}
                     />
                 </ToolCallsGroupUnitRowFrame>

@@ -35,6 +35,7 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'transcriptStreamingSmoothingEnabled'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
+    | 'transcriptToolCallsGroupOpenMode'
 >;
 
 export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSettings,
@@ -91,6 +92,7 @@ export type TranscriptToolChromeCommon = Pick<TranscriptSessionCommonSettings,
     | 'toolViewTimelineChromeMode'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
+    | 'transcriptToolCallsGroupOpenMode'
 >;
 
 export type TranscriptToolRouteCommon = Readonly<{
@@ -155,6 +157,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const transcriptStreamingSmoothingEnabled = useSetting('transcriptStreamingSmoothingEnabled');
     const transcriptToolCallsCollapsedPreviewCount = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupShowBackground = useSetting('transcriptToolCallsGroupShowBackground');
+    const transcriptToolCallsGroupOpenMode = useSetting('transcriptToolCallsGroupOpenMode');
 
     const fork = React.useMemo<TranscriptForkCommon>(() => ({
             agentSwitchingEnabled,
@@ -208,10 +211,12 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             toolViewTimelineChromeMode,
             transcriptToolCallsCollapsedPreviewCount,
             transcriptToolCallsGroupShowBackground,
+            transcriptToolCallsGroupOpenMode,
         }), [
             toolViewTimelineChromeMode,
             transcriptToolCallsCollapsedPreviewCount,
             transcriptToolCallsGroupShowBackground,
+            transcriptToolCallsGroupOpenMode,
         ]);
 
     const toolRoute = React.useMemo<TranscriptToolRouteCommon>(() => ({

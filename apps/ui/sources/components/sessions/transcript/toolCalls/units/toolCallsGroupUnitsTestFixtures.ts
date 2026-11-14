@@ -36,6 +36,7 @@ export function createTranscriptSessionCommonPropsFixture(overrides?: Readonly<{
             toolViewTimelineChromeMode: 'activity_feed',
             transcriptToolCallsCollapsedPreviewCount: 3,
             transcriptToolCallsGroupShowBackground: false,
+            transcriptToolCallsGroupOpenMode: 'inline',
             ...(overrides?.toolChromeCommon ?? {}),
         },
         toolRouteCommon: {

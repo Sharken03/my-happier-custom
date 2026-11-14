@@ -141,6 +141,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptToolCallsGroupOpenMode: {
+        schema: z.enum(['inline', 'sheet']),
+        default: 'inline',
+        description: 'Open a Tool calls group inline in the transcript, or in a sheet from a one-line group header',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptMessageTimestampDisplayMode: {
         schema: z.enum(TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES),
         default: 'hover_web_hidden_mobile' satisfies TranscriptMessageTimestampDisplayMode,

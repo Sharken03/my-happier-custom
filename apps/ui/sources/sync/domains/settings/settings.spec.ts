@@ -1079,6 +1079,9 @@ describe('settings', () => {
             expect((parsed as any).transcriptToolCallsCollapsedPreviewCount).toBe(0);
             expect((parsed as any).transcriptToolCallsGroupShowBackground).toBe(false);
             expect((settingsParse({ transcriptToolCallsGroupShowBackground: true }) as any).transcriptToolCallsGroupShowBackground).toBe(true);
+            expect((parsed as any).transcriptToolCallsGroupOpenMode).toBe('inline');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet' }) as any).transcriptToolCallsGroupOpenMode).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'bogus' }) as any).transcriptToolCallsGroupOpenMode).toBe('inline');
             expect((parsed as any).transcriptMessageTimestampDisplayMode).toBe('hover_web_hidden_mobile');
             expect((parsed as any).transcriptMessageTimestampsEnabled).toBeUndefined();
             expect((parsed as any).transcriptTurnGroupToolCalls).toBeUndefined();

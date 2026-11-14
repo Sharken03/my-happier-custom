@@ -100,6 +100,9 @@ const ALLOW_SAME_STRING_KEYS = new Set<string>([
     // Provider/model examples in replay resume settings are identifiers, not localized UI copy.
     'settingsSession.replayResume.summaryRunner.backendPlaceholder',
     'settingsSession.replayResume.summaryRunner.modelPlaceholder',
+    // The Tool calls sheet setting is English only for now; the other locales use the English text.
+    'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
+    'settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle',
     // Claude debug category ids should remain stable because they map to provider-native categories.
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.hooks.title',
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.1p.title',

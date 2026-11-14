@@ -35,6 +35,11 @@ vi.mock('@/components/sessions/transcript/motion/TranscriptEnterWrapper', () => 
     TranscriptEnterWrapper: (props: any) => React.createElement('TranscriptEnterWrapper', props, props.children),
 }));
 
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock('expo-router', () => ({
+    useRouter: () => ({ push: routerPush, back: vi.fn(), replace: vi.fn(), setParams: vi.fn() }),
+}));
+
 const interaction = { canSendMessages: true, canApprovePermissions: true } as const;
 
 async function renderHeaderRow(props: Record<string, unknown>) {
@@ -261,6 +266,47 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
         });
 
         expect(screen.findByTestId('transcript-anchor-tool-group-m2')).not.toBeNull();
+    });
+
+    it('in sheet mode shows a right caret, opens the sheet route and never expands inline', async () => {
+        routerPush.mockClear();
+        const setExpanded = vi.fn();
+        const screen = await renderHeaderRow({
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { name: 'Diff', state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { name: 'Diff', state: 'completed' } as any }),
+            ],
+            expanded: true,
+            setExpanded,
+            ...createTranscriptSessionCommonPropsFixture({
+                toolChromeCommon: { transcriptToolCallsGroupOpenMode: 'sheet' },
+            }),
+        });
+
+        expect(screen.findByTestId('icon:caret-right')).not.toBeNull();
+        expect(screen.findByTestId('icon:caret-up')).toBeNull();
+        expect(screen.findByTestId('icon:caret-down')).toBeNull();
+        expect(screen.findByTestId('icon:check-circle')).not.toBeNull();
+        const header = screen.findByTestId('transcript-tool-calls-header') as any;
+        expect(header?.props.accessibilityState).toBeUndefined();
+        expect(header?.props['aria-expanded']).toBeUndefined();
+
+        await screen.pressByTestIdAsync('transcript-tool-calls-header');
+        expect(routerPush).toHaveBeenCalledWith('/session/s1/toolCalls/m1');
+        expect(setExpanded).not.toHaveBeenCalled();
+    });
+
+    it('in inline mode keeps the caret pair and does not open the sheet', async () => {
+        routerPush.mockClear();
+        const screen = await renderHeaderRow({
+            toolMessages: [createToolCallMessageFixture({ id: 'm1', createdAt: 1 })],
+            expanded: false,
+        });
+
+        expect(screen.findByTestId('icon:caret-down')).not.toBeNull();
+        expect(screen.findByTestId('icon:caret-right')).toBeNull();
+        await screen.pressByTestIdAsync('transcript-tool-calls-header');
+        expect(routerPush).not.toHaveBeenCalled();
     });
 
     it('renders nothing for an empty group', async () => {

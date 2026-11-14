@@ -293,6 +293,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
     const isCatchingUpNewer = useSessionCatchingUpNewer(props.sessionId);
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
+    const transcriptToolCallsGroupSheetMode = useSetting('transcriptToolCallsGroupOpenMode') === 'sheet';
 
     // Tool-group expansion state is keyed by anchor message ids (declared before the
     // items memo: N2c per-unit decomposition derives the list rows from it).
@@ -311,6 +312,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                 isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
                 collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
                 bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
+                toolCallsGroupSheetMode: transcriptToolCallsGroupSheetMode,
             });
         }
         return linearCache?.items ?? buildChatListItems({
@@ -321,7 +323,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
             actionDrafts: [],
             groupConsecutiveToolCalls: groupToolCalls,
         });
-    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, transcriptToolCallsCollapsedPreviewCountSetting, transcriptToolCallsGroupBottomCollapse, turnsCache]);
+    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, transcriptToolCallsCollapsedPreviewCountSetting, transcriptToolCallsGroupBottomCollapse, transcriptToolCallsGroupSheetMode, turnsCache]);
     const renderedItems = React.useMemo<ChainTranscriptListItem[]>(() => {
         if (shellFrame.dataOrder === 'newest-first') {
             return [...items].reverse();

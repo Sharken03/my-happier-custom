@@ -14,6 +14,7 @@ import { installToolCallsGroupViewCommonModuleMocks } from './toolCallsGroupView
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 let collapsedPreviewCount: number | null = 1;
+let groupOpenMode: 'inline' | 'sheet' | null = null;
 const stableMessagesById = {};
 const stableReducerState = createReducer();
 const flashListCompatMockState = vi.hoisted(() => ({
@@ -60,6 +61,7 @@ installToolCallsGroupViewCommonModuleMocks({
                     storageHookCalls.push(`useSetting:${key}`);
                     if (key === 'toolViewTimelineChromeMode') return 'activity_feed';
                     if (key === 'transcriptToolCallsCollapsedPreviewCount') return collapsedPreviewCount;
+                    if (key === 'transcriptToolCallsGroupOpenMode') return groupOpenMode;
                     return null;
                 },
                 useSessionMessagesById: () => {
@@ -121,6 +123,7 @@ vi.mock('@/components/ui/lists/flashListCompat/FlashListCompat', () => ({
 
 describe('ToolCallsGroupView (collapsed preview)', () => {
     beforeEach(() => {
+        groupOpenMode = null;
         flashListCompatMockState.mappingKeyCalls = [];
         storageHookCalls.length = 0;
         messageViewMockState.messageViewCalls = [];
@@ -323,6 +326,27 @@ describe('ToolCallsGroupView (collapsed preview)', () => {
         expect(screen.findAllByTestId('transcript-anchor-tool-call-m2')).toHaveLength(1);
         expect(screen.findAllByTestId('transcript-anchor-tool-call-m3')).toHaveLength(1);
         expect(screen.findAllByTestId('transcript-tool-calls-preview-row')).toHaveLength(2);
+    });
+
+    it('in sheet mode shows only the header line: no preview rows, no more row, no expanded body', async () => {
+        collapsedPreviewCount = 3;
+        groupOpenMode = 'sheet';
+
+        const screen = await renderToolCallsGroupView({
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1 }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2 }),
+                createToolCallMessageFixture({ id: 'm3', createdAt: 3 }),
+                createToolCallMessageFixture({ id: 'm4', createdAt: 4 }),
+            ],
+            expanded: true,
+            setExpanded: vi.fn(),
+        });
+
+        expect(screen.findAllByTestId('transcript-tool-calls-header')).toHaveLength(1);
+        expect(screen.findAllByTestId('transcript-tool-calls-preview-row')).toHaveLength(0);
+        expect(screen.findAllByTestId('transcript-tool-calls-preview-more')).toHaveLength(0);
+        expect(screen.findAllByTestId('transcript-tool-calls-tool-row')).toHaveLength(0);
     });
 
     it('defaults to the newest three tool previews when the setting is unavailable', async () => {

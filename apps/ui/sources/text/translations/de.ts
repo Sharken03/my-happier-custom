@@ -8342,6 +8342,8 @@ settingsSession: {
             toolCallsGroupBackgroundSubtitle: 'Im Tool-Feed einen Hintergrund hinter Gruppen von Tool-Aufrufen zeigen.',
             toolCallsGroupBottomCollapseTitle: 'Einklappen am unteren Rand',
             toolCallsGroupBottomCollapseSubtitle: 'Zeigt am unteren Rand einer aufgeklappten Tool-Aufruf-Gruppe ein Steuerelement zum Einklappen.',
+            toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+            toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Tool-Aussehen',
             toolAppearanceSubtitle: 'Anpassen, wie Tools im Transkript aussehen.',
             motionTitle: 'Bewegung',

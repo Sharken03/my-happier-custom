@@ -119,6 +119,7 @@ export type TranscriptItemsPipelineDeps = Readonly<{
     transcriptNativeHotTailItemCount: number;
     transcriptToolCallsCollapsedPreviewCountSetting: unknown;
     transcriptToolCallsGroupBottomCollapse: boolean;
+    transcriptToolCallsGroupSheetMode: boolean;
     transcriptWebHotTailItemCount: number;
     webHotColdCountsRef: Ref<{ coldCount: number; hotCount: number }>;
 }>;
@@ -163,6 +164,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         transcriptNativeHotTailItemCount,
         transcriptToolCallsCollapsedPreviewCountSetting,
         transcriptToolCallsGroupBottomCollapse,
+        transcriptToolCallsGroupSheetMode,
         transcriptWebHotTailItemCount,
         webHotColdCountsRef,
     } = deps;
@@ -202,6 +204,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
             isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
             collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
             bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
+            toolCallsGroupSheetMode: transcriptToolCallsGroupSheetMode,
         });
     }, [
         expandedToolCallsAnchorMessageIds,
@@ -210,6 +213,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         items,
         transcriptToolCallsCollapsedPreviewCountSetting,
         transcriptToolCallsGroupBottomCollapse,
+        transcriptToolCallsGroupSheetMode,
     ]);
 
     const jumpWindowFacts = useTranscriptJumpWindowFacts({

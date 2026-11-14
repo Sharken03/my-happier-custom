@@ -8819,6 +8819,8 @@ settingsSession: {
           "Muestra un fondo detrás de los grupos de llamadas en el modo de feed de herramientas.",
         toolCallsGroupBottomCollapseTitle: 'Contraer en la parte inferior',
         toolCallsGroupBottomCollapseSubtitle: 'Muestra un control para contraer en la parte inferior de un grupo de llamadas a herramientas expandido.',
+        toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+        toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Apariencia de herramientas",
         toolAppearanceSubtitle:
           "Personaliza cómo se ven las herramientas en la transcripción.",

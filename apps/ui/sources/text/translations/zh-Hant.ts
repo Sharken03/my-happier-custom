@@ -7494,6 +7494,8 @@ settingsSession: {
             toolCallsGroupBackgroundSubtitle: '在工具流模式下為工具呼叫群組顯示背景。',
             toolCallsGroupBottomCollapseTitle: '底部摺疊',
             toolCallsGroupBottomCollapseSubtitle: '在展開的工具呼叫群組底部顯示摺疊按鈕。',
+            toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+            toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: '工具外觀',
             toolAppearanceSubtitle: '自訂工具在逐字稿中的外觀。',
             motionTitle: '動畫',

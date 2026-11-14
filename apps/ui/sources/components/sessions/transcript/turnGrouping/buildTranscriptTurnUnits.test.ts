@@ -820,4 +820,29 @@ describe('buildTranscriptTurnUnits', () => {
         expect(beforeIds).not.toContain('msg:t1');
         expect(t1Index).toBeLessThan(t2Index);
     });
+
+    it('in sheet mode emits only the header and footer of a group, even when it is expanded', () => {
+        const messages: Message[] = [toolMessage('t1', 1), toolMessage('t2', 2), toolMessage('t3', 3), toolMessage('t4', 4)];
+        const items = [turnItem({
+            id: 'turn-1',
+            userMessageId: null,
+            content: [{ kind: 'tool_calls', id: 'g1', toolMessageIds: ['t1', 't2', 't3', 't4'] }],
+        })];
+        const build = (toolCallsGroupSheetMode: boolean, isGroupExpanded: () => boolean) => buildTranscriptTurnUnits({
+            items,
+            getMessageById: lookupIn(indexMessages(messages)),
+            isGroupExpanded,
+            collapsedPreviewCount: 2,
+            toolCallsGroupSheetMode,
+        });
+
+        expect(build(false, collapsedAlways).map((unit) => unit.kind))
+            .toEqual(['tool-group-header', 'tool-group-expand', 'tool-group-tool', 'tool-group-tool', 'tool-group-footer']);
+        for (const isExpanded of [collapsedAlways, expandedAlways]) {
+            const units = build(true, isExpanded);
+            expect(units.map((unit) => unit.kind)).toEqual(['tool-group-header', 'tool-group-footer']);
+            expect(units[0]).toMatchObject({ expanded: false, hiddenCount: 0, toolMessageIds: ['t1', 't2', 't3', 't4'] });
+            expect(units[1]).toMatchObject({ hasVisibleTools: false });
+        }
+    });
 });

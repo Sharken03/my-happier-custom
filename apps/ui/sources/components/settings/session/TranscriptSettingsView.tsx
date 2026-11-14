@@ -49,6 +49,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptToolCallsCollapsedPreviewCount, setTranscriptToolCallsCollapsedPreviewCount] = useSettingMutable('transcriptToolCallsCollapsedPreviewCount');
     const [transcriptToolCallsGroupShowBackground, setTranscriptToolCallsGroupShowBackground] = useSettingMutable('transcriptToolCallsGroupShowBackground');
     const [transcriptToolCallsGroupBottomCollapse, setTranscriptToolCallsGroupBottomCollapse] = useSettingMutable('transcriptToolCallsGroupBottomCollapse');
+    const [transcriptToolCallsGroupOpenMode, setTranscriptToolCallsGroupOpenMode] = useSettingMutable('transcriptToolCallsGroupOpenMode');
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
     const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
@@ -721,6 +722,21 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     }
                                     showChevron={false}
                                     onPress={() => setTranscriptToolCallsGroupBottomCollapse(transcriptToolCallsGroupBottomCollapse !== true)}
+                                />
+
+                                <Item
+                                    title={t('settingsSession.transcript.toolCallsGroupOpenInSheetTitle')}
+                                    subtitle={t('settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle')}
+                                    icon={<Icon name="caret-right" size={29} color={theme.colors.text.secondary} />}
+                                    testID="settings-session-transcript-tool-calls-group-open-in-sheet"
+                                    rightElement={
+                                        <Switch
+                                            value={transcriptToolCallsGroupOpenMode === 'sheet'}
+                                            onValueChange={(v) => setTranscriptToolCallsGroupOpenMode(v ? 'sheet' : 'inline')}
+                                        />
+                                    }
+                                    showChevron={false}
+                                    onPress={() => setTranscriptToolCallsGroupOpenMode(transcriptToolCallsGroupOpenMode === 'sheet' ? 'inline' : 'sheet')}
                                 />
                             </>
                         ) : null}
