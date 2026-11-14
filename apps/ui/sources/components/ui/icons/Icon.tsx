@@ -119,13 +119,14 @@ export const Icon = React.memo((props: IconProps) => {
     // Both vendored families hand it to `react-native-svg` as `fill="currentColor"` — a keyword
     // the browser's CSS resolves and the native renderer does not. On Android the favourite star
     // in the model picker's rail came out as a blank tile and vanished outright from the model
-    // rows, while the identical markup drew a correct star in the web build. Painting the path
-    // ourselves with the colour the caller asked for is the same glyph on both platforms, and the
-    // outline state is a real stroke, so a 12 px star still reads as a star.
+    // rows, while the identical markup drew a correct star in the web build.
+    //
+    // It is drawn as a solid black mark: the star is a favourite indicator, not a rating widget,
+    // so the outline weight read as an empty box at the 12–14 px these pickers use. Dark surfaces
+    // take the theme's primary text colour, where pure black would be invisible.
     if (props.name === 'star') {
         const starSize = Math.round(nominal * scale);
-        const starColor = props.color ?? theme.colors.text.secondary;
-        const filled = props.weight === 'fill' || props.weight === 'bold' || props.weight === 'duotone';
+        const starColor = theme.dark ? theme.colors.text.primary : '#000000';
         return (
             <Svg
                 viewBox="0 0 24 24"
@@ -138,15 +139,7 @@ export const Icon = React.memo((props: IconProps) => {
                     ? { accessibilityLabel: props.accessibilityLabel, accessible: true }
                     : { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const })}
             >
-                <Path
-                    d={STAR_GLYPH_PATH}
-                    fill={filled ? starColor : 'none'}
-                    stroke={filled ? 'none' : starColor}
-                    // The stroke is read in the glyph's own 24-unit grid, the same way HugeIcons
-                    // reads it, so a star sits in a row beside its neighbours at one weight.
-                    strokeWidth={strokeWidth}
-                    strokeLinejoin="round"
-                />
+                <Path d={STAR_GLYPH_PATH} fill={starColor} stroke="none" />
             </Svg>
         );
     }
