@@ -48,6 +48,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptTurnToolCallsGroupStrategy, setTranscriptTurnToolCallsGroupStrategy] = useSettingMutable('transcriptTurnToolCallsGroupStrategy');
     const [transcriptToolCallsCollapsedPreviewCount, setTranscriptToolCallsCollapsedPreviewCount] = useSettingMutable('transcriptToolCallsCollapsedPreviewCount');
     const [transcriptToolCallsGroupShowBackground, setTranscriptToolCallsGroupShowBackground] = useSettingMutable('transcriptToolCallsGroupShowBackground');
+    const [transcriptToolCallsGroupBottomCollapse, setTranscriptToolCallsGroupBottomCollapse] = useSettingMutable('transcriptToolCallsGroupBottomCollapse');
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
     const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
@@ -705,6 +706,21 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     }
                                     showChevron={false}
                                     onPress={() => setTranscriptToolCallsGroupShowBackground((transcriptToolCallsGroupShowBackground !== true) as any)}
+                                />
+
+                                <Item
+                                    title={t('settingsSession.transcript.toolCallsGroupBottomCollapseTitle')}
+                                    subtitle={t('settingsSession.transcript.toolCallsGroupBottomCollapseSubtitle')}
+                                    icon={<Icon name="caret-up" size={29} color={theme.colors.text.secondary} />}
+                                    testID="settings-session-transcript-tool-calls-group-bottom-collapse"
+                                    rightElement={
+                                        <Switch
+                                            value={transcriptToolCallsGroupBottomCollapse === true}
+                                            onValueChange={(v) => setTranscriptToolCallsGroupBottomCollapse(Boolean(v))}
+                                        />
+                                    }
+                                    showChevron={false}
+                                    onPress={() => setTranscriptToolCallsGroupBottomCollapse(transcriptToolCallsGroupBottomCollapse !== true)}
                                 />
                             </>
                         ) : null}

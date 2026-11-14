@@ -351,9 +351,17 @@ export function useTranscriptItemRenderer(deps: TranscriptItemRendererDeps) {
         }
         if (item.kind === 'tool-group-footer') {
             const interaction = deriveReadOnlyTranscriptInteraction(transcriptInteraction, item.isReadOnlyContext === true);
+            const footerGroupId = item.groupId;
+            const footerToolMessageIds = item.toolMessageIds;
             return wrapTranscriptItemForAnchor(item, (
                 <ToolCallsGroupUnitFooterRowWithSessionCommon
                     hasVisibleTools={item.hasVisibleTools}
+                    collapseControl={item.collapseControl === true}
+                    setExpanded={(expanded: boolean) => setToolCallsGroupExpanded({
+                        toolCallsGroupId: footerGroupId,
+                        toolMessageIds: footerToolMessageIds,
+                        expanded,
+                    })}
                     sessionId={sessionId}
                     groupId={item.groupId}
                     metadata={metadata}

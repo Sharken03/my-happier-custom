@@ -8795,6 +8795,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Фон групп вызовов",
         toolCallsGroupBackgroundSubtitle:
           "Показывать фон за группами вызовов в режиме ленты инструментов.",
+        toolCallsGroupBottomCollapseTitle: 'Свернуть внизу',
+        toolCallsGroupBottomCollapseSubtitle: 'Показывает кнопку «Свернуть» внизу развёрнутой группы вызовов инструментов.',
         toolAppearanceTitle: "Вид инструментов",
         toolAppearanceSubtitle:
           "Настройте, как инструменты выглядят в стенограмме.",

@@ -61,6 +61,8 @@ export type TranscriptToolGroupUnitItem =
         toolMessageIds: string[];
         expanded: boolean;
         createdAt: number;
+        /** Set when the expanded group shows a collapse control in its footer. */
+        collapseControl?: true;
         originSessionId?: string;
         isReadOnlyContext?: boolean;
     };
@@ -127,6 +129,7 @@ function appendToolGroupUnits(params: Readonly<{
     groupItemMetadata: ForkMessageMetadata | null;
     isGroupExpanded: (toolMessageIds: readonly string[]) => boolean;
     collapsedPreviewCount: number;
+    bottomCollapseControl: boolean;
 }>): void {
     if (params.toolMessageIds.length === 0) return;
 
@@ -194,6 +197,9 @@ function appendToolGroupUnits(params: Readonly<{
         toolMessageIds,
         expanded,
         createdAt,
+        ...(params.bottomCollapseControl && expanded && visibleToolMessageIds.length > 0
+            ? { collapseControl: true as const }
+            : {}),
         ...capMetadataFields,
     });
 }
@@ -204,7 +210,10 @@ export function buildTranscriptTurnUnits(params: Readonly<{
     metadataByMessageId?: Readonly<Record<string, { originSessionId: string; isReadOnlyContext: boolean }>>;
     isGroupExpanded: (toolMessageIds: readonly string[]) => boolean;
     collapsedPreviewCount: number; // already-resolved K; <= 0 means no preview tail
+    /** Account setting: expanded groups show a collapse control in their footer. */
+    bottomCollapseControl?: boolean;
 }>): TranscriptTurnUnitListItem[] {
+    const bottomCollapseControl = params.bottomCollapseControl === true;
     const collapsedPreviewCount = normalizeCollapsedPreviewCount(params.collapsedPreviewCount);
     const output: TranscriptTurnUnitListItem[] = [];
 
@@ -235,6 +244,7 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                     groupItemMetadata: null,
                     isGroupExpanded: params.isGroupExpanded,
                     collapsedPreviewCount,
+                    bottomCollapseControl,
                 });
             }
             continue;
@@ -254,6 +264,7 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                 groupItemMetadata,
                 isGroupExpanded: params.isGroupExpanded,
                 collapsedPreviewCount,
+                bottomCollapseControl,
             });
             continue;
         }

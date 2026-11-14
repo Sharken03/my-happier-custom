@@ -681,6 +681,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptScrollAutoFollowWhenPinned = useSetting('transcriptScrollAutoFollowWhenPinned');
     const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
+    const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
     const transcriptChatFont = useSetting('transcriptChatFont');
     const transcriptUiFontScale = useLocalSetting('uiFontScale');
     const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');
@@ -1284,6 +1285,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         targetWindowActiveRef,
         transcriptNativeHotTailItemCount: tuning.transcriptNativeHotTailItemCount,
         transcriptToolCallsCollapsedPreviewCountSetting,
+        transcriptToolCallsGroupBottomCollapse,
         transcriptWebHotTailItemCount: tuning.transcriptWebHotTailItemCount,
         webHotColdCountsRef,
     });

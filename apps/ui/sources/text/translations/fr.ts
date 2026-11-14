@@ -8327,6 +8327,8 @@ settingsSession: {
             toolCallsGroupSubtitle: 'Regroupe les appels d’outils dans une section « Appels d’outils » à l’intérieur de chaque tour.',
             toolCallsGroupBackgroundTitle: 'Fond du groupe d’appels d’outils',
             toolCallsGroupBackgroundSubtitle: 'Affiche un fond derrière les groupes d’appels d’outils en mode flux d’outils.',
+            toolCallsGroupBottomCollapseTitle: 'Réduire en bas',
+            toolCallsGroupBottomCollapseSubtitle: 'Affiche un bouton Réduire en bas d’un groupe d’appels d’outils développé.',
             toolAppearanceTitle: 'Apparence des outils',
             toolAppearanceSubtitle: 'Personnalise l’apparence des outils dans le transcript.',
             motionTitle: 'Animations',

@@ -8344,6 +8344,8 @@ settingsSession: {
               toolCallsGroupSubtitle: 'Compacta crides d’eines en una secció de crides d’eines dins de cada torn.',
               toolCallsGroupBackgroundTitle: 'Fons del grup de crides',
               toolCallsGroupBackgroundSubtitle: 'Mostra un fons darrere dels grups de crides en mode feed d’eines.',
+              toolCallsGroupBottomCollapseTitle: 'Control per plegar a la part inferior',
+              toolCallsGroupBottomCollapseSubtitle: 'Mostra un control per plegar a la part inferior d’un grup de crides d’eines desplegat.',
               toolAppearanceTitle: 'Aparença d’eines',
               toolAppearanceSubtitle: 'Personalitza com es veuen les eines a la transcripció.',
               motionTitle: 'Moviment',

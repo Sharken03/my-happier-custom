@@ -118,6 +118,7 @@ export type TranscriptItemsPipelineDeps = Readonly<{
     targetWindowState?: TranscriptTargetWindowState;
     transcriptNativeHotTailItemCount: number;
     transcriptToolCallsCollapsedPreviewCountSetting: unknown;
+    transcriptToolCallsGroupBottomCollapse: boolean;
     transcriptWebHotTailItemCount: number;
     webHotColdCountsRef: Ref<{ coldCount: number; hotCount: number }>;
 }>;
@@ -161,6 +162,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         targetWindowState,
         transcriptNativeHotTailItemCount,
         transcriptToolCallsCollapsedPreviewCountSetting,
+        transcriptToolCallsGroupBottomCollapse,
         transcriptWebHotTailItemCount,
         webHotColdCountsRef,
     } = deps;
@@ -199,6 +201,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
             metadataByMessageId: forkMessageMetadataById ?? undefined,
             isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
             collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
+            bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
         });
     }, [
         expandedToolCallsAnchorMessageIds,
@@ -206,6 +209,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         getTurnMessageById,
         items,
         transcriptToolCallsCollapsedPreviewCountSetting,
+        transcriptToolCallsGroupBottomCollapse,
     ]);
 
     const jumpWindowFacts = useTranscriptJumpWindowFacts({

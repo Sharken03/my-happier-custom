@@ -9,12 +9,16 @@ import {
 
 import {
     resolveToolCallsGroupChromeVariant,
+    ToolCallsGroupCollapseChrome,
     ToolCallsGroupUnitRowFrame,
 } from './toolCallsGroupChrome';
 import type { ToolCallsGroupUnitRowCommonProps } from './unitRowProps';
 
 type ToolCallsGroupUnitFooterRowProps = ToolCallsGroupUnitRowCommonProps & Readonly<{
     hasVisibleTools: boolean;
+    /** Show the bottom collapse control (set by the unit builder for expanded groups). */
+    collapseControl?: boolean;
+    setExpanded?: (expanded: boolean) => void;
 }>;
 
 export const ToolCallsGroupUnitFooterRow = React.memo(function ToolCallsGroupUnitFooterRow(
@@ -41,6 +45,8 @@ export const ToolCallsGroupUnitFooterRowWithSessionCommon = React.memo(function 
     props: ToolCallsGroupUnitFooterRowProps & TranscriptSessionCommonProps,
 ) {
     const variant = resolveToolCallsGroupChromeVariant(props.toolChromeCommon);
+    const { setExpanded } = props;
+    const onCollapse = React.useCallback(() => setExpanded?.(false), [setExpanded]);
 
     return (
         <ToolCallsGroupUnitRowFrame
@@ -49,6 +55,9 @@ export const ToolCallsGroupUnitFooterRowWithSessionCommon = React.memo(function 
             hasVisibleTools={props.hasVisibleTools}
             unitTestID="transcript-tool-calls-unit-footer"
         >
+            {props.collapseControl === true && setExpanded ? (
+                <ToolCallsGroupCollapseChrome onCollapse={onCollapse} />
+            ) : null}
             <View style={variant === 'cards' ? styles.footerBodyCards : variant === 'feed' && !props.hasVisibleTools ? styles.footerBodyPlainFeed : styles.footerBodyFeed} />
         </ToolCallsGroupUnitRowFrame>
     );

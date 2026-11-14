@@ -292,6 +292,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
     // whenever sync is catching this session up to newer activity (fail-closed signal).
     const isCatchingUpNewer = useSessionCatchingUpNewer(props.sessionId);
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
+    const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
 
     // Tool-group expansion state is keyed by anchor message ids (declared before the
     // items memo: N2c per-unit decomposition derives the list rows from it).
@@ -309,6 +310,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                 getMessageById: (messageId) => messagesById[messageId] ?? null,
                 isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
                 collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
+                bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
             });
         }
         return linearCache?.items ?? buildChatListItems({
@@ -319,7 +321,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
             actionDrafts: [],
             groupConsecutiveToolCalls: groupToolCalls,
         });
-    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, transcriptToolCallsCollapsedPreviewCountSetting, turnsCache]);
+    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, transcriptToolCallsCollapsedPreviewCountSetting, transcriptToolCallsGroupBottomCollapse, turnsCache]);
     const renderedItems = React.useMemo<ChainTranscriptListItem[]>(() => {
         if (shellFrame.dataOrder === 'newest-first') {
             return [...items].reverse();
@@ -1022,9 +1024,17 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
         }
 
         if (item.kind === 'tool-group-footer') {
+            const footerGroupId = item.groupId;
+            const footerToolMessageIds = item.toolMessageIds;
             return (
                 <ToolCallsGroupUnitFooterRowWithSessionCommon
                     hasVisibleTools={item.hasVisibleTools}
+                    collapseControl={item.collapseControl === true}
+                    setExpanded={(expanded: boolean) => setToolCallsGroupExpanded({
+                        toolCallsGroupId: footerGroupId,
+                        toolMessageIds: footerToolMessageIds,
+                        expanded,
+                    })}
                     sessionId={props.sessionId}
                     groupId={item.groupId}
                     metadata={props.metadata}

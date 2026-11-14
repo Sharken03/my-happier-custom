@@ -8569,6 +8569,8 @@ settingsSession: {
       toolCallsGroupSubtitle: "在每个回合内将工具调用压缩为「工具调用」部分。",
       toolCallsGroupBackgroundTitle: "工具调用分组背景",
       toolCallsGroupBackgroundSubtitle: "在工具信息流模式下为工具调用分组显示背景。",
+      toolCallsGroupBottomCollapseTitle: '底部折叠',
+      toolCallsGroupBottomCollapseSubtitle: '在展开的工具调用组底部显示折叠按钮。',
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",
       motionTitle: "动效",

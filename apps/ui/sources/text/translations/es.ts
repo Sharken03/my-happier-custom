@@ -8817,6 +8817,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Fondo del grupo de llamadas",
         toolCallsGroupBackgroundSubtitle:
           "Muestra un fondo detrás de los grupos de llamadas en el modo de feed de herramientas.",
+        toolCallsGroupBottomCollapseTitle: 'Contraer en la parte inferior',
+        toolCallsGroupBottomCollapseSubtitle: 'Muestra un control para contraer en la parte inferior de un grupo de llamadas a herramientas expandido.',
         toolAppearanceTitle: "Apariencia de herramientas",
         toolAppearanceSubtitle:
           "Personaliza cómo se ven las herramientas en la transcripción.",

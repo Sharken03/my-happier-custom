@@ -134,6 +134,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptToolCallsGroupBottomCollapse: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show a Collapse control at the bottom of an expanded Tool calls group',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptMessageTimestampDisplayMode: {
         schema: z.enum(TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES),
         default: 'hover_web_hidden_mobile' satisfies TranscriptMessageTimestampDisplayMode,

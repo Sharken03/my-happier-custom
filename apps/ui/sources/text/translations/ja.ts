@@ -9065,6 +9065,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "ツール呼び出しグループの背景",
         toolCallsGroupBackgroundSubtitle:
           "ツールフィード表示で、ツール呼び出しグループの背景を表示します。",
+        toolCallsGroupBottomCollapseTitle: '下部に折りたたみ',
+        toolCallsGroupBottomCollapseSubtitle: '展開したツール呼び出しグループの下部に折りたたみボタンを表示します。',
         toolAppearanceTitle: "ツールの見た目",
         toolAppearanceSubtitle:
           "トランスクリプト内のツール表示をカスタマイズします。",

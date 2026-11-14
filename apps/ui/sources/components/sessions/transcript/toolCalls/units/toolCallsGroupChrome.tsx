@@ -18,6 +18,7 @@ import { resolveToolStatusIndicatorKind } from '@/components/tools/shell/present
 import type { GroupedToolCallChromeMode } from './groupedToolCallRowRenderDecision';
 import { Icon } from '@/components/ui/icons/Icon';
 import { summarizeToolCallsGroup } from './toolCallsGroupSummary';
+import { TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT } from './toolCallsGroupCollapseControlLayout';
 import { ICON_SIZE } from '@/components/ui/icons/Icon';
 
 export type ToolCallsGroupChromeVariant = 'cards' | 'feed' | 'feed_background';
@@ -232,6 +233,36 @@ export const ToolCallsGroupExpandMoreChrome = React.memo(function ToolCallsGroup
     );
 });
 
+/**
+ * The collapse control at the bottom of an expanded group. It toggles the same expansion state as
+ * the header chevron, so a long group can be closed without scrolling back to its header.
+ */
+export const ToolCallsGroupCollapseChrome = React.memo(function ToolCallsGroupCollapseChrome(props: Readonly<{
+    onCollapse: () => void;
+}>) {
+    const { theme } = useUnistyles();
+    return (
+        <Pressable
+            testID="transcript-tool-calls-collapse-bottom"
+            accessibilityRole="button"
+            accessibilityLabel={t('common.collapse')}
+            onPress={props.onCollapse}
+            hitSlop={8}
+            style={({ pressed }) => [
+                chromeStyles.collapseControl,
+                pressed && chromeStyles.previewMorePressed,
+            ]}
+        >
+            <Icon
+                name="caret-up"
+                size={TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.iconSizePx}
+                color={theme.colors.text.secondary}
+            />
+            <Text style={[chromeStyles.previewMoreText, chromeStyles.collapseControlText]}>{t('common.collapse')}</Text>
+        </Pressable>
+    );
+});
+
 const GROUP_STATUS_ICON_SIZE_PX = ICON_SIZE.sm;
 
 const chromeStyles = StyleSheet.create((theme) => ({
@@ -285,6 +316,16 @@ const chromeStyles = StyleSheet.create((theme) => ({
     },
     previewMoreDesktop: {
         paddingTop: 2,
+    },
+    collapseControl: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 6,
+        paddingVertical: TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.paddingVerticalPx,
+    },
+    collapseControlText: {
+        lineHeight: TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.textLineHeightPx,
     },
     previewMorePressed: {
         opacity: 0.9,

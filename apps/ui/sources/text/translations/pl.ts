@@ -8812,6 +8812,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Tło grup wywołań",
         toolCallsGroupBackgroundSubtitle:
           "Pokaż tło za grupami wywołań w trybie feed narzędzi.",
+        toolCallsGroupBottomCollapseTitle: 'Zwijanie na dole',
+        toolCallsGroupBottomCollapseSubtitle: 'Pokazuje przycisk zwijania na dole rozwiniętej grupy wywołań narzędzi.',
         toolAppearanceTitle: "Wygląd narzędzi",
         toolAppearanceSubtitle:
           "Dostosuj wygląd narzędzi w transkrypcie.",

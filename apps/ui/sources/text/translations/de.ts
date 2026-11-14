@@ -8340,6 +8340,8 @@ settingsSession: {
             toolCallsGroupSubtitle: 'Tool-Aufrufe in jedem Turn zu einem Bereich „Tool-Aufrufe“ zusammenfassen.',
             toolCallsGroupBackgroundTitle: 'Hintergrund für Tool-Aufruf-Gruppen',
             toolCallsGroupBackgroundSubtitle: 'Im Tool-Feed einen Hintergrund hinter Gruppen von Tool-Aufrufen zeigen.',
+            toolCallsGroupBottomCollapseTitle: 'Einklappen am unteren Rand',
+            toolCallsGroupBottomCollapseSubtitle: 'Zeigt am unteren Rand einer aufgeklappten Tool-Aufruf-Gruppe ein Steuerelement zum Einklappen.',
             toolAppearanceTitle: 'Tool-Aussehen',
             toolAppearanceSubtitle: 'Anpassen, wie Tools im Transkript aussehen.',
             motionTitle: 'Bewegung',

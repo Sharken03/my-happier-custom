@@ -9150,6 +9150,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Sfondo gruppo chiamate",
         toolCallsGroupBackgroundSubtitle:
           "Mostra uno sfondo dietro i gruppi di chiamate in modalità feed strumenti.",
+        toolCallsGroupBottomCollapseTitle: 'Comprimi in basso',
+        toolCallsGroupBottomCollapseSubtitle: 'Mostra un controllo Comprimi in fondo a un gruppo di chiamate agli strumenti espanso.',
         toolAppearanceTitle: "Aspetto strumenti",
         toolAppearanceSubtitle:
           "Personalizza come appaiono gli strumenti nella trascrizione.",

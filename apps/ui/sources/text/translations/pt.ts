@@ -8930,6 +8930,8 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Fundo do grupo de chamadas",
         toolCallsGroupBackgroundSubtitle:
           "Mostrar um fundo atrás de grupos de chamadas no modo de feed de ferramentas.",
+        toolCallsGroupBottomCollapseTitle: 'Recolher na parte inferior',
+        toolCallsGroupBottomCollapseSubtitle: 'Mostra um controle para recolher na parte inferior de um grupo de chamadas de ferramentas expandido.',
         toolAppearanceTitle: "Aparência das ferramentas",
         toolAppearanceSubtitle:
           "Personalize como as ferramentas aparecem na transcrição.",

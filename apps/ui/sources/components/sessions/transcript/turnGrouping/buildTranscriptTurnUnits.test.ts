@@ -381,6 +381,26 @@ describe('buildTranscriptTurnUnits', () => {
         ]);
     });
 
+    it('marks the footer of an expanded group for the bottom collapse control only when it is on', () => {
+        const messagesById = indexMessages([toolMessage('t1', 3), toolMessage('t2', 4)]);
+        const build = (params: { expanded: boolean; bottomCollapseControl?: boolean }) => buildTranscriptTurnUnits({
+            items: [turnItem({
+                id: 'turn:x',
+                userMessageId: null,
+                content: [{ kind: 'tool_calls', id: 'toolCalls:turn:x:t1', toolMessageIds: ['t1', 't2'] }],
+            })],
+            getMessageById: lookupIn(messagesById),
+            isGroupExpanded: () => params.expanded,
+            collapsedPreviewCount: 1,
+            ...(params.bottomCollapseControl !== undefined ? { bottomCollapseControl: params.bottomCollapseControl } : {}),
+        }).find((item) => item.kind === 'tool-group-footer');
+
+        expect(build({ expanded: true, bottomCollapseControl: true })).toMatchObject({ collapseControl: true });
+        expect(build({ expanded: true, bottomCollapseControl: false })).not.toHaveProperty('collapseControl');
+        expect(build({ expanded: true })).not.toHaveProperty('collapseControl');
+        expect(build({ expanded: false, bottomCollapseControl: true })).not.toHaveProperty('collapseControl');
+    });
+
     it('emits header, expand unit, last-K preview tail, and footer for a collapsed group', () => {
         const messagesById = indexMessages([
             toolMessage('t1', 1, 1),

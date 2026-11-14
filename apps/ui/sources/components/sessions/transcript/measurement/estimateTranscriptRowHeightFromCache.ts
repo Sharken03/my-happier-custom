@@ -25,6 +25,7 @@ import type { PendingMessage } from '@/sync/domains/state/storageTypes';
 // (the renderer's own owner) and threaded in by `ChatListInternal`. This estimate consumes the
 // decision; it never re-derives one from the underlying settings.
 import type { ToolCallsGroupChromeVariant } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupChrome';
+import { resolveToolCallsGroupCollapseControlHeightPx } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupCollapseControlLayout';
 
 import type { TranscriptItemHeightValiditySignature } from './transcriptItemHeightCache';
 import {
@@ -749,7 +750,10 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
         return unitRowHeights?.header;
     }
     if (item.kind === 'tool-group-footer') {
-        return toolCallsGroupChromeVariant === 'feed' && item.hasVisibleTools ? 28 : unitRowHeights?.footer;
+        const footerPx = toolCallsGroupChromeVariant === 'feed' && item.hasVisibleTools ? 28 : unitRowHeights?.footer;
+        return item.collapseControl === true && footerPx !== undefined
+            ? footerPx + resolveToolCallsGroupCollapseControlHeightPx()
+            : footerPx;
     }
     if (
         item.kind === 'pending-user-action'

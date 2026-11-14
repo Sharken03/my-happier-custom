@@ -8372,6 +8372,8 @@ settingsSession: {
             toolCallsGroupSubtitle: 'Compact tool calls into a Tool calls section inside each turn.',
             toolCallsGroupBackgroundTitle: 'Tool calls group background',
             toolCallsGroupBackgroundSubtitle: 'Show a background behind Tool calls groups in tool feed mode.',
+            toolCallsGroupBottomCollapseTitle: 'Collapse control at the bottom',
+            toolCallsGroupBottomCollapseSubtitle: 'Show a Collapse control at the bottom of an expanded Tool calls group.',
             toolAppearanceTitle: 'Tool appearance',
             toolAppearanceSubtitle: 'Customize how tools look in the transcript.',
             motionTitle: 'Motion',
