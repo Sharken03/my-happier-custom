@@ -54,6 +54,10 @@ env:
   EXPO_PUBLIC_HAPPIER_SOCKET_FORCE_WEBSOCKET: "1"
   EXPO_PUBLIC_HAPPIER_SYNC_TUNING_JSON: '{"sessionMessagesPageSize":50,"messageMaxIncrementalPagesOnResume":9}'
   EXPO_UNSTABLE_WEB_MODAL: "1"
+  # Device QA (exp/subview-measure): babel strips console.* from release bundles, and the row
+  # sub-view heights are logged with console.log for `adb logcat -s ReactNativeJS`. Drop this
+  # again when the measurement is done.
+  HAPPIER_UI_KEEP_CONSOLE_IN_RELEASE: "1"
   YARN_PRODUCTION: "false"
   npm_config_production: "false"
   CI: "1"

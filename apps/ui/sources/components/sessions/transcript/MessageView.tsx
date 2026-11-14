@@ -60,6 +60,7 @@ import {
 } from '@/components/sessions/transcript/messageSelection/resolveSelectableMessageText';
 import { TranscriptRollbackActionButton } from '@/components/sessions/transcript/TranscriptRollbackActionButton';
 import { MessageActionRow } from '@/components/sessions/transcript/messageActions/MessageActionRow';
+import { createRowSubviewProbe } from '@/components/sessions/transcript/measurement/rowSubviewMeasureLog';
 import { RowActionDeferredIcon } from '@/components/sessions/transcript/messageActions/RowActionRevealSlot';
 import { MessagePinButton } from '@/components/sessions/transcript/messageActions/MessagePinButton';
 import { resolveMessagePinAvailability } from '@/components/sessions/transcript/messageActions/resolveMessagePinAvailability';
@@ -1007,6 +1008,12 @@ function AgentTextBlock(props: {
 }) {
   const { isHovered: isMessageHovered, hoverProps } = useRowActionHoverHost();
   const quoteMarkdownProps = useTranscriptQuoteMarkdownProps(props.sessionId, props.historical !== true && !props.message.isThinking);
+  // Device QA only (exp/subview-measure): heights of the row's parts, to name the 1 dp drift.
+  const subviewProbes = React.useMemo(() => ({
+    row: createRowSubviewProbe(props.message.id, 'row'),
+    text: createRowSubviewProbe(props.message.id, 'text'),
+    actions: createRowSubviewProbe(props.message.id, 'actions'),
+  }), [props.message.id]);
   const [isCopyButtonHovered, setIsCopyButtonHovered] = React.useState(false);
   const [isActionRowFocused, setIsActionRowFocused] = React.useState(false);
   const handleActionsFocus = React.useCallback(() => setIsActionRowFocused(true), []);
@@ -1271,7 +1278,7 @@ function AgentTextBlock(props: {
   });
 
   return (
-    <View {...hoverProps}>
+    <View {...hoverProps} onLayout={subviewProbes.row}>
       <TranscriptJumpAttention
         sessionId={props.sessionId}
         routeMessageId={buildMessageRouteId(props.message)}
@@ -1393,6 +1400,7 @@ function AgentTextBlock(props: {
                   />
                 </PeerMessageRow>
               ) : (
+                <View onLayout={subviewProbes.text}>
                 <MarkdownView
                   {...quoteMarkdownProps}
                   markdown={markdown}
@@ -1406,6 +1414,7 @@ function AgentTextBlock(props: {
                   textStyle={props.message.isThinking ? styles.thinkingMarkdownText : styles.transcriptMarkdownText}
                   staticRenderPlaceholderEnabled={staticRenderPlaceholderEnabled}
                 />
+                </View>
               )
             )
           )
@@ -1427,6 +1436,7 @@ function AgentTextBlock(props: {
           />
         ) : null}
         <SessionMediaUnavailableItems items={unavailableSessionMedia} />
+        <View onLayout={subviewProbes.actions}>
         <MessageActionRow
           messageId={props.message.id}
           timestampText={timestampText}
@@ -1501,6 +1511,7 @@ function AgentTextBlock(props: {
             invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
           />
         </MessageActionRow>
+        </View>
       </TranscriptJumpAttention>
     </View>
   );
