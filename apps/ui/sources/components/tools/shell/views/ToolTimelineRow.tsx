@@ -67,6 +67,10 @@ export const ToolTimelineRow = React.memo((props: {
     approvalRequests?: readonly OpenApprovalArtifactForSession[];
     forcePermissionPromptsInTranscript?: boolean;
     interaction?: TranscriptInteraction;
+    /** Forces the one-line title level, whatever the detail-level settings say. */
+    titleOnly?: boolean;
+    /** Replaces the tap action (expand or open route) and hides the open and disclosure controls. */
+    onPressOverride?: () => void;
 }) => {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -146,7 +150,7 @@ export const ToolTimelineRow = React.memo((props: {
         setIsExpanded(next);
     }, [forceExpandedForPendingUserAction, isExpanded]);
 
-    const onPress = primaryTapAction === 'open' ? handleOpen : handleToggleExpand;
+    const onPress = props.onPressOverride ?? (primaryTapAction === 'open' ? handleOpen : handleToggleExpand);
 
     const normalizedToolName = headerModel.normalizedToolName;
     const title = headerModel.title;
@@ -181,7 +185,7 @@ export const ToolTimelineRow = React.memo((props: {
     });
 
     const collapsedDetailLevel =
-        toolForRendering.name.startsWith('mcp__') || shouldCollapseUnknownToolByDefault
+        props.titleOnly === true || toolForRendering.name.startsWith('mcp__') || shouldCollapseUnknownToolByDefault
             ? 'title'
             : resolveToolViewDetailLevel({
                   toolName: normalizedToolName,
@@ -275,7 +279,7 @@ export const ToolTimelineRow = React.memo((props: {
 
     const headerSubtitle = effectiveDetailLevel === 'title' ? null : subtitle;
     const disclosure =
-        primaryTapAction === 'expand' && !forceExpandedForPendingUserAction
+        primaryTapAction === 'expand' && !forceExpandedForPendingUserAction && !props.onPressOverride
             ? isExpanded
                 ? ({ behavior: 'persistent', state: 'expanded' } as const)
                 : ({ behavior: 'hover', state: 'collapsed' } as const)
@@ -344,7 +348,7 @@ export const ToolTimelineRow = React.memo((props: {
                 subtitle={headerSubtitle}
                 statusText={headerStatusText}
                 onPress={onPress}
-                canOpen={canOpen}
+                canOpen={canOpen && !props.onPressOverride}
                 onOpen={handleOpen}
                 rightElement={headerRightElement}
                 revealAction={props.headerAction?.node ?? null}
