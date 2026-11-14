@@ -45,6 +45,8 @@ type LegendMvcpState = {
 };
 
 let capturedState: LegendMvcpState | null = null;
+type LegendSignalContext = { listeners: Map<string, Set<(value: unknown) => void>>; values: Map<string, unknown> };
+let capturedContext: LegendSignalContext | null = null;
 
 /**
  * Reads the list's own internal state through the library's published `internal.useStateContext`.
@@ -57,9 +59,10 @@ let capturedState: LegendMvcpState | null = null;
  */
 function StateProbe(): null {
     const ctx = (
-        LegendNative as unknown as { internal: { useStateContext: () => { state: LegendMvcpState } } }
+        LegendNative as unknown as { internal: { useStateContext: () => LegendSignalContext & { state: LegendMvcpState } } }
     ).internal.useStateContext();
     capturedState = ctx.state;
+    capturedContext = ctx;
     return null;
 }
 
@@ -80,6 +83,7 @@ afterEach(() => {
         mounted = null;
     }
     capturedState = null;
+    capturedContext = null;
     vi.useRealTimers();
 });
 
@@ -278,6 +282,35 @@ describe('native MVCP contracts across a data change', () => {
             band: undefined,
             scroll: 1700,
         });
+    });
+
+    it('publishes only the settled content size of one task on Android', async () => {
+        // Device capture 2026-11-13 (8T, Fabric): when a sent message replaced its pending block,
+        // one row's size went 343 dp down and back up within 1 ms. Each step was published to
+        // `totalSize`, an Animated value that reaches native at once, so for one frame native held
+        // a content 343 dp shorter: the offset clamped up and the transcript flashed.
+        if (Platform.OS !== 'android') return;
+        const list = await mountList(buildRows(20), { heldAtEnd: true });
+        await observeScroll(list, 1700);
+        const context = capturedContext;
+        if (!context) throw new Error('state probe never rendered');
+        const settled = context.values.get('totalSize') as number;
+        const published: number[] = [];
+        const listeners = context.listeners.get('totalSize') ?? new Set();
+        listeners.add((value) => published.push(value as number));
+        context.listeners.set('totalSize', listeners);
+        const rowLayouts = list.screen.root.findAll(
+            (node) => typeof node.props.onLayout === 'function' && node.type !== ('ScrollView' as never),
+        );
+        const row = rowLayouts[rowLayouts.length - 2];
+
+        await act(async () => {
+            row.props.onLayout({ nativeEvent: { layout: { height: ROW_HEIGHT - 50, width: 800, x: 0, y: 0 } } });
+            row.props.onLayout({ nativeEvent: { layout: { height: ROW_HEIGHT, width: 800, x: 0, y: 0 } } });
+            await Promise.resolve();
+        });
+
+        expect(published.filter((value) => value < settled)).toEqual([]);
     });
 
     it('defines the ignore band by the most recent adjust direction alone', async () => {
