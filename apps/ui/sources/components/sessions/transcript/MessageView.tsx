@@ -757,6 +757,7 @@ function UserTextBlock(props: {
               <AttachmentsMessageRow
                 attachments={nonImageAttachments}
                 onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
+                sessionId={props.sessionId}
               />
             ) : null}
             {isDiscarded ? (
@@ -891,6 +892,7 @@ function UserTextBlock(props: {
                   <AttachmentsMessageRow
                     attachments={nonImageAttachments}
                     onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
+                    sessionId={props.sessionId}
                   />
                 ) : null}
                 {structuredReferences.length > 0 ? (

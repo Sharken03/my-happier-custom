@@ -1,10 +1,14 @@
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Text } from '@/components/ui/text/Text';
 import * as FlashListCompat from '@/components/ui/lists/flashListCompat/FlashListCompat';
 import { Icon, type IconName } from '@/components/ui/icons/Icon';
+import { ActivitySpinner, iconMatchedSpinnerSize } from '@/components/ui/feedback/ActivitySpinner';
+import { useWorkspaceFileTransfers } from '@/hooks/session/files/useWorkspaceFileTransfers';
+import { Modal } from '@/modal';
+import { t } from '@/text';
 
 export type MessageAttachmentSummary = Readonly<{
     name: string;
@@ -69,16 +73,66 @@ function formatBytes(bytes: number): string {
     return `${gb.toFixed(gb >= 100 ? 0 : 1)} GB`;
 }
 
+export function isPdfAttachment(attachment: Pick<MessageAttachmentSummary, 'name' | 'mimeType'>): boolean {
+    if (attachment.mimeType?.toLowerCase() === 'application/pdf') return true;
+    return attachment.name.toLowerCase().endsWith('.pdf');
+}
+
 function resolveAttachmentIconName(mimeType?: string): IconName {
     if (!mimeType) return 'file';
+    if (mimeType.toLowerCase() === 'application/pdf') return 'file-text';
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('text/')) return 'file-text';
     return 'file';
 }
 
+/**
+ * A PDF chip on Android. A tap hands the file to the system viewer, as the file screen's
+ * "Open with" does, so the user does not pass through the file screen. Only PDF chips mount
+ * the transfer hook. The spinner replaces the icon at the same size, so the chip keeps its height.
+ */
+const PdfAttachmentChip = React.memo(function PdfAttachmentChip(props: Readonly<{
+    sessionId: string;
+    attachment: MessageAttachmentSummary;
+    style: StyleProp<ViewStyle>;
+    textStyle: StyleProp<TextStyle>;
+    metaStyle: StyleProp<TextStyle>;
+}>) {
+    const { theme } = useUnistyles();
+    const transfers = useWorkspaceFileTransfers({ sessionId: props.sessionId });
+    const busy = transfers.downloadState.status === 'downloading';
+    const { startDownload } = transfers;
+    const path = props.attachment.path;
+    const onPress = React.useCallback(async () => {
+        const result = await startDownload({ path, asZip: false, action: 'open' });
+        if (!result.ok && !result.canceled) Modal.alert(t('common.error'), result.error);
+    }, [path, startDownload]);
+
+    return (
+        <Pressable
+            testID="message-attachment-pdf-chip"
+            accessibilityRole="button"
+            accessibilityLabel={t('files.repositoryTree.actions.openWith')}
+            disabled={busy}
+            onPress={() => { void onPress(); }}
+            style={props.style}
+        >
+            {busy ? (
+                <ActivitySpinner size={iconMatchedSpinnerSize(14)} color={theme.colors.text.secondary} />
+            ) : (
+                <Icon name="file-text" size={14} color={theme.colors.text.secondary} />
+            )}
+            <Text numberOfLines={1} style={props.textStyle}>{props.attachment.name}</Text>
+            <Text style={props.metaStyle}>{formatBytes(props.attachment.sizeBytes)}</Text>
+        </Pressable>
+    );
+});
+
 export const AttachmentsMessageRow = React.memo(function AttachmentsMessageRow(props: Readonly<{
     attachments: readonly MessageAttachmentSummary[];
     onOpenPath?: (path: string) => void;
+    /** With a session id, a PDF chip on Android opens the system viewer instead of the file screen. */
+    sessionId?: string;
 }>) {
     const { theme } = useUnistyles();
     const styles = stylesheet;
@@ -90,6 +144,18 @@ export const AttachmentsMessageRow = React.memo(function AttachmentsMessageRow(p
         <View testID="message-attachments-row" style={styles.container}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
                 {props.attachments.map((a, index) => {
+                    if (Platform.OS === 'android' && props.sessionId && props.onOpenPath && isPdfAttachment(a)) {
+                        return (
+                            <PdfAttachmentChip
+                                key={getMappingKey(`${a.path}:${a.name}`, index)}
+                                sessionId={props.sessionId}
+                                attachment={a}
+                                style={styles.attachmentChip}
+                                textStyle={styles.attachmentText}
+                                metaStyle={styles.attachmentMeta}
+                            />
+                        );
+                    }
                     const content = (
                         <>
                         <Icon name={resolveAttachmentIconName(a.mimeType)} size={14} color={theme.colors.text.secondary} />
