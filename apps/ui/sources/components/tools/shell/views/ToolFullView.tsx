@@ -215,7 +215,9 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
     }
 
     return (
-        <ScrollView style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
+        // nestedScrollEnabled: inside the Tool calls sheet on Android, a swipe down at the top
+        // moves the sheet instead of being lost.
+        <ScrollView nestedScrollEnabled style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
             <View style={styles.contentWrapper}>
                 {/* Tool-specific content or generic fallback */}
                 {SpecializedFullView ? (

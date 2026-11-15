@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { BackHandler, FlatList, Pressable, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ToolCallMessage } from '@/sync/domains/messages/messageTypes';
 import type { Session } from '@/sync/domains/state/storageTypes';
@@ -39,6 +40,7 @@ type ToolCallsSheetViewProps = Readonly<{
 /** The Tool calls sheet content: the list of calls, or the detail of the selected call. */
 export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: ToolCallsSheetViewProps) {
     const { theme } = useUnistyles();
+    const insets = useSafeAreaInsets();
     const { calls, onClose } = props;
     const [state, setState] = React.useState<ToolCallsSheetState>(() =>
         createToolCallsSheetState(calls.map((call) => call.id)),
@@ -164,7 +166,10 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 data={calls}
                 keyExtractor={(call) => call.id}
                 renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
+                // Android: the list hands its scroll to the sheet. At the top of the list a
+                // swipe down moves the sheet from full to half height, and then closes it.
+                nestedScrollEnabled
+                contentContainerStyle={[styles.listContent, { paddingBottom: 24 + insets.bottom }]}
             />
         </View>
     );
