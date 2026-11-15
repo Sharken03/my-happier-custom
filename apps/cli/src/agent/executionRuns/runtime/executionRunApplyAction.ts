@@ -13,6 +13,7 @@ import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildRev
 import { VoiceAgentError, type VoiceAgentManager } from '@/agent/voice/agent/VoiceAgentManager';
 import { buildExecutionRunProfileStartParams } from '@/agent/executionRuns/runtime/buildExecutionRunProfileStartParams';
 import type {
+  ExecutionRunActionDeps,
   ExecutionRunActionParams,
   ExecutionRunActionResult,
   ExecutionRunManagerStartParams,
@@ -20,6 +21,7 @@ import type {
   ExecutionRunState,
 } from '@/agent/executionRuns/runtime/executionRunTypes';
 import type { ExecutionRunController } from '@/agent/executionRuns/controllers/types';
+import { publishReviewFindings } from '@/agent/executionRuns/runtime/executionRunReviewPublish';
 
 export async function applyExecutionRunAction(args: Readonly<{
   runId: string;
@@ -35,6 +37,7 @@ export async function applyExecutionRunAction(args: Readonly<{
     opts: { localId: string; meta?: Record<string, unknown> },
   ) => Promise<void>;
   parentProvider: ACPProvider;
+  deps?: ExecutionRunActionDeps;
 }>): Promise<ExecutionRunActionResult> {
   const run = args.runs.get(args.runId);
   if (!run) return { ok: false, errorCode: 'execution_run_not_found', error: 'Not found' };
@@ -110,6 +113,23 @@ export async function applyExecutionRunAction(args: Readonly<{
     });
 
     return { ok: true, result: { threadId, ...started } };
+  }
+
+  if (run.intent === 'review' && String(args.params.actionId ?? '').trim() === 'review.publish') {
+    const deps = args.deps;
+    if (!deps?.cwd || !deps?.connectedAccounts) {
+      return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review publishing is not wired yet' };
+    }
+    return publishReviewFindings({
+      run,
+      input: args.params.input,
+      deps: {
+        cwd: deps.cwd,
+        connectedAccounts: deps.connectedAccounts,
+        ...(deps.featureDecision ? { featureDecision: deps.featureDecision } : {}),
+      },
+      runs: args.runs,
+    });
   }
 
   if (run.intent === 'voice_agent') {

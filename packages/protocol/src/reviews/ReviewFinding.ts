@@ -35,6 +35,14 @@ export const ReviewFindingSchema = lazySchema(() => z.object({
   confidence: z.number().min(0).max(1).optional(),
   suggestion: z.string().min(1).optional(),
   patch: z.string().min(1).optional(),
+  // Opaque hash of the anchored line, used only to re-anchor the finding after
+  // the file moved. It is the workspace anchor hash (`line-content-hash-v1`,
+  // `lh1:` + 16 hex, FNV-1a) so a finding re-verifies with the same code as a
+  // workspace anchor; callers must still treat it as an opaque token.
+  lineHash: z.string().min(1).optional(),
+  // Algorithm identifier for `lineHash`. Currently `line-content-hash-v1`,
+  // i.e. `computeLineContentHashV1` from workspace/anchors/v1.
+  lineHashAlgorithm: z.string().min(1).optional(),
 }).passthrough());
 
 export type ReviewFinding = z.infer<typeof ReviewFindingSchema>;

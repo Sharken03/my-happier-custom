@@ -23,6 +23,7 @@ import {
 
 import { ExecutionRunManager } from '@/agent/executionRuns/runtime/ExecutionRunManager';
 import type { ExecutionRunStartResult } from '@/agent/executionRuns/runtime/executionRunTypes';
+import type { ScmConnectedAccountCredentialResolver } from '@/scm/types';
 import type { SessionRuntimeActivityContributionHandle } from '@/session/runtimeActivity/types';
 import {
   ExecutionRunConnectedServicesUnavailableError,
@@ -113,6 +114,7 @@ export function registerExecutionRunHandlers(
     enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
     onExecutionRunPublicStateUpdated?: (run: ExecutionRunPublicState) => void;
     resolveAccountSettings?: () => Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
+    connectedAccounts?: ScmConnectedAccountCredentialResolver;
   }>,
 ): Readonly<{ dispose: () => Promise<void> }> {
   const resolveCwd = ctx.resolveCwd ?? (() => ctx.cwd);
@@ -636,6 +638,11 @@ export function registerExecutionRunHandlers(
     const acted = await manager.applyAction(parsed.data.runId, {
       actionId: parsed.data.actionId,
       input: parsed.data.input,
+    }, {
+      cwd: resolveCwd(),
+      ...(ctx.resolveAccountSettings ? { accountSettings: await ctx.resolveAccountSettings() } : {}),
+      ...(ctx.connectedAccounts ? { connectedAccounts: ctx.connectedAccounts } : {}),
+      featureDecision: resolveCliFeatureDecision({ featureId: 'scm.writeOperations', env: process.env }),
     });
     if (!acted.ok) return { ok: false, error: acted.error ?? 'Unsupported', errorCode: acted.errorCode ?? 'execution_run_action_not_supported' };
     return {

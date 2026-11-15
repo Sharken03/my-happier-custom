@@ -12,6 +12,9 @@ export const ReviewPublishRequestV1Schema = lazySchema(() => z.object({
   findingIds: z.array(z.string().min(1)).min(1),
   publishedFindings: z.array(ReviewFindingSchema).min(1),
   threadRefs: z.array(z.string().min(1)).optional(),
+  // Explicit target when publishing to a PR other than the one the current
+  // branch matches. Never used to create a PR.
+  pullRequestNumber: z.number().int().positive().optional(),
 }).passthrough());
 
 export type ReviewPublishRequestV1 = z.infer<typeof ReviewPublishRequestV1Schema>;

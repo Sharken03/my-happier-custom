@@ -1466,6 +1466,90 @@ describe('ExecutionRunManager (review intent)', () => {
   });
 });
 
+describe('ExecutionRunManager.applyAction dependency threading', () => {
+  function createReviewManager() {
+    const sent: Array<{ provider: string; body: unknown; meta?: Record<string, unknown> }> = [];
+    const manager = new ExecutionRunManager({
+      parentProvider: 'claude',
+      cwd: process.cwd(),
+      createBackend: (_opts: { backendId: string; permissionMode: string }) =>
+        createStaticJsonBackend(
+          JSON.stringify({
+            findings: [{ id: 'f1', title: 'Example', severity: 'low', category: 'style', summary: 'One paragraph.' }],
+            summary: 'Summary.',
+          }),
+        ),
+      sendAcp: (provider: string, body: ACPMessageData, opts?: { meta?: Record<string, unknown> }) => {
+        sent.push({ provider, body, meta: opts?.meta });
+      },
+      getNowMs: () => 1_700_000_000_000,
+    });
+    return { manager, sent };
+  }
+
+  async function startReviewRun(manager: ExecutionRunManager): Promise<string> {
+    const started = await manager.start({
+      sessionId: 'parent_session_1',
+      intent: 'review',
+      backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
+      instructions: 'Review this repo.',
+      permissionMode: 'read_only',
+      retentionPolicy: 'ephemeral',
+      runClass: 'bounded',
+      ioMode: 'request_response',
+    });
+    await manager.waitForTerminal(started.runId);
+    return started.runId;
+  }
+
+  it('keeps working for existing callers that omit the deps argument', async () => {
+    const { manager } = createReviewManager();
+    const runId = await startReviewRun(manager);
+    try {
+      // Two-argument call shape: no deps object is supplied.
+      const result = await manager.applyAction(runId, {
+        actionId: 'review.triage',
+        input: { findings: [{ id: 'f1', status: 'accept', comment: 'Ship it.' }] },
+      });
+      expect(result.ok).toBe(true);
+    } finally {
+      await manager.dispose();
+    }
+  });
+
+  it('returns not-wired-yet when review.publish is invoked without deps', async () => {
+    const { manager } = createReviewManager();
+    const runId = await startReviewRun(manager);
+    try {
+      const result = await manager.applyAction(runId, { actionId: 'review.publish', input: {} });
+      expect(result).toEqual({
+        ok: false,
+        errorCode: 'execution_run_action_not_supported',
+        error: 'Review publishing is not wired yet',
+      });
+    } finally {
+      await manager.dispose();
+    }
+  });
+
+  it('fails closed when review.publish runs with deps but no feature decision', async () => {
+    const { manager } = createReviewManager();
+    const runId = await startReviewRun(manager);
+    try {
+      // With deps present the call reaches the runtime branch, which fails closed because
+      // scm.writeOperations was not resolved as enabled. This is the behavioural difference
+      // between "no deps at all" (not wired) and "deps, feature off" (refused).
+      const result = await manager.applyAction(runId, { actionId: 'review.publish', input: {} }, {
+        cwd: process.cwd(),
+        connectedAccounts: { resolveCredential: async () => null },
+      });
+      expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_not_allowed' });
+    } finally {
+      await manager.dispose();
+    }
+  });
+});
+
 describe('ExecutionRunManager (memory_hints intent)', () => {
   it('does not materialize tool-call/tool-result or sidechain messages in the carrier transcript', async () => {
     const sent: Array<{ provider: string; body: unknown; meta?: Record<string, unknown> }> = [];
