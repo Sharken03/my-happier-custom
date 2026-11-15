@@ -731,6 +731,57 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     }
   });
 
+  it('names the Pi session after the Happier title and after each title call that succeeds', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-config-'));
+    try {
+      // Happier CLI stand-in: the title call fails for "fail" and succeeds for other titles.
+      const executableScript = join(dir, 'fake-happier-cli.cjs');
+      writeFileSync(executableScript, `
+const argsIndex = process.argv.indexOf('--args-json');
+if (argsIndex >= 0) {
+  const args = JSON.parse(process.argv[argsIndex + 1]);
+  process.stdout.write(JSON.stringify(args.title === 'fail'
+    ? { ok: false, error: { code: 'action_failed', message: 'expected failure' } }
+    : { ok: true, data: { output: 'ok' } }) + '\\n');
+}
+`, 'utf8');
+      const configPath = join(dir, 'named.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-1',
+        directTools: [{
+          name: 'change_title',
+          title: 'Change Chat Title',
+          description: 'Change the title of the current chat session',
+          inputSchema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+          call: { toolName: 'change_title', actionId: null },
+        }],
+        promptAddition: '',
+        sessionName: { title: 'Feature comparison', toolName: 'change_title' },
+        launch: { filePath: process.execPath, argPrefix: [executableScript], env: {} },
+      }));
+      const factory = await loadExtensionFactory();
+      const harness = createFakePi({ [PI_BRIDGE_CONFIG_PATH_FLAG]: configPath });
+      let name: string | undefined;
+      const setSessionName = vi.fn((value: string) => { name = value; });
+      Object.assign(harness.pi, { setSessionName, getSessionName: () => name });
+      factory(harness.pi);
+      await harness.emit('session_start', {});
+      expect(name).toBe('Feature comparison');
+      await harness.emit('session_start', {});
+      expect(setSessionName).toHaveBeenCalledTimes(1);
+
+      const call = (title: string) => harness.tools[0]!.execute(title, { title }, new AbortController().signal, undefined, { cwd: dir });
+      await expect(call('fail')).rejects.toThrow('expected failure');
+      expect(name).toBe('Feature comparison');
+      await call('New title');
+      expect(name).toBe('New title');
+      await harness.emit('session_shutdown', {});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('stays inert without a valid protected config binding', async () => {
     const factory = await loadExtensionFactory();
     const harness = createFakePi({});

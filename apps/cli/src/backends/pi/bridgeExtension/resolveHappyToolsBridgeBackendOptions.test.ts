@@ -163,6 +163,9 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
       memoryRecallGuidanceEnabled: false,
     });
     expect(alreadyTitled?.sessionConfig.sessionTitleReminder).toBeUndefined();
+    expect(alreadyTitled?.sessionConfig.sessionName).toEqual({ toolName: 'change_title', title: 'A title' });
+    expect(initial?.sessionConfig.sessionName).toEqual({ toolName: 'change_title' });
+    expect(disabled?.sessionConfig.sessionName).toBeUndefined();
   });
 
   it('does not expose a user-promoted title action when the effective profile disables titles', async () => {

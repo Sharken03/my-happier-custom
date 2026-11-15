@@ -464,6 +464,14 @@ export default function HappierPiToolsBridgeExtension(pi) {
     const sessionTitleToolName = typeof reminderConfig?.toolName === "string" ? reminderConfig.toolName : "";
     let sessionTitleReminder = typeof reminderConfig?.text === "string" ? reminderConfig.text.trim() : "";
 
+    // Pi's session name follows the Happier title, so tools that list Pi sessions show it.
+    const sessionNameConfig = config.sessionName && typeof config.sessionName === "object" ? config.sessionName : null;
+    const followTitle = (title) => {
+      const name = typeof title === "string" ? title.trim() : "";
+      if (name && typeof pi.setSessionName === "function" && pi.getSessionName?.() !== name) pi.setSessionName(name);
+    };
+    if (sessionNameConfig) followTitle(sessionNameConfig.title);
+
     pi.on("before_agent_start", async (event) => {
       const addition = config.promptAddition.trim();
       const result = {};
@@ -491,7 +499,9 @@ export default function HappierPiToolsBridgeExtension(pi) {
             ? args
             : { actionId: tool.call.actionId, input: args };
           const served = await toolsServe.call(tool.call.toolName, callArgs, toolCallId, signal);
-          return envelopeToToolResult(served ?? await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
+          const result = envelopeToToolResult(served ?? await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
+          if (tool.name === sessionNameConfig?.toolName) followTitle(args?.title);
+          return result;
         },
       });
     }

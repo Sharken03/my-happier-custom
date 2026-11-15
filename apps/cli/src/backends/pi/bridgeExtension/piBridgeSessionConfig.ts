@@ -25,6 +25,14 @@ export const PiBridgeSessionConfigSchema = lazySchema(() => z.object({
     text: z.string().min(1),
     toolName: z.string().min(1),
   }).strict().optional(),
+  /**
+   * Pi's session name follows the Happier title, so tools that list Pi sessions show it.
+   * `title` is the title at spawn; a call of `toolName` sets a new one. Absent means no sync.
+   */
+  sessionName: z.object({
+    title: z.string().min(1).optional(),
+    toolName: z.string().min(1),
+  }).strict().optional(),
   launch: z.object({
     filePath: z.string().min(1),
     argPrefix: z.array(z.string()),
