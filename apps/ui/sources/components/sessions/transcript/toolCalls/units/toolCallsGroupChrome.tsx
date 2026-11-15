@@ -22,6 +22,8 @@ import { computeToolCallsGroupDiffStats } from './toolCallsGroupDiffStats';
 import { ToolCallsGroupDiffStatsText } from './toolCallsGroupDiffStatsText';
 import { TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT } from './toolCallsGroupCollapseControlLayout';
 import { ICON_SIZE } from '@/components/ui/icons/Icon';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 
 export type ToolCallsGroupChromeVariant = 'cards' | 'feed' | 'feed_background';
 export type ToolCallsGroupUnitPosition = 'header' | 'middle' | 'footer';
@@ -178,6 +180,15 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
             : null),
         [props.toolMessages, sheetMode],
     );
+    const imageCount = React.useMemo(
+        () => props.toolMessages.reduce(
+            (total, message) => total + countSessionMediaImages(parseSessionMediaMessageMeta(message.meta).inlineImages),
+            0,
+        ),
+        [props.toolMessages],
+    );
+    // An expanded inline group shows each call's own count, so the header shows it only when collapsed.
+    const showImageCount = imageCount > 0 && (sheetMode || !props.expanded);
 
     return (
         <Pressable
@@ -205,6 +216,18 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
             )}
             {diffStats ? <ToolCallsGroupDiffStatsText stats={diffStats} /> : null}
             <View style={chromeStyles.headerRight}>
+                {showImageCount ? (
+                    // Smaller than the header's minimum height, so the count never changes the row height.
+                    <View
+                        testID="transcript-tool-calls-header-images"
+                        style={chromeStyles.imageCount}
+                        accessible
+                        accessibilityLabel={t('files.sessionMedia.imageCountA11y', { count: imageCount })}
+                    >
+                        <Icon name="image" size={14} color={theme.colors.text.secondary} />
+                        <Text style={chromeStyles.imageCountText} numberOfLines={1}>{String(imageCount)}</Text>
+                    </View>
+                ) : null}
                 <View style={chromeStyles.statusIconRight}>
                     {props.status === 'running' ? (
                         <ActivitySpinner size={iconMatchedSpinnerSize(GROUP_STATUS_ICON_SIZE_PX)} color={theme.colors.text.secondary} />
@@ -318,6 +341,17 @@ const chromeStyles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+    },
+    imageCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        height: 16,
+    },
+    imageCountText: {
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.text.secondary,
     },
     statusIconRight: {
         width: GROUP_STATUS_ICON_SIZE_PX,

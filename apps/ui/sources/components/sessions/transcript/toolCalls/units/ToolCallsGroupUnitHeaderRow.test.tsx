@@ -309,6 +309,43 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
         expect(routerPush).not.toHaveBeenCalled();
     });
 
+    it('counts result images in the header only while the inline group is collapsed', async () => {
+        const imageMeta = (id: string) => ({
+            happier: {
+                kind: 'session_media.v1',
+                payload: {
+                    media: [{
+                        id,
+                        role: 'output',
+                        category: 'tool-artifact',
+                        mediaKind: 'image',
+                        name: `${id}.png`,
+                        path: `.happier/uploads/generated/${id}.png`,
+                        mimeType: 'image/png',
+                        sizeBytes: 10,
+                        sha256: 'a'.repeat(64),
+                        origin: { source: 'tool-output', toolCallId: id },
+                    }],
+                },
+            },
+        });
+        const toolMessages = [
+            createToolCallMessageFixture({ id: 'm1', createdAt: 1, meta: imageMeta('a') } as any),
+            createToolCallMessageFixture({ id: 'm2', createdAt: 2, meta: imageMeta('b') } as any),
+            createToolCallMessageFixture({ id: 'm3', createdAt: 3 }),
+        ];
+
+        const collapsed = await renderHeaderRow({ toolMessages, expanded: false });
+        expect(collapsed.findByTestId('transcript-tool-calls-header-images')).not.toBeNull();
+        expect(collapsed.getTextContent()).toContain('2');
+
+        const expanded = await renderHeaderRow({ toolMessages, expanded: true });
+        expect(expanded.findByTestId('transcript-tool-calls-header-images')).toBeNull();
+
+        const withoutImages = await renderHeaderRow({ toolMessages: [toolMessages[2]], expanded: false });
+        expect(withoutImages.findByTestId('transcript-tool-calls-header-images')).toBeNull();
+    });
+
     it('renders nothing for an empty group', async () => {
         const screen = await renderHeaderRow({ toolMessages: [] });
         expect(screen.findByTestId('transcript-tool-calls-header')).toBeNull();
