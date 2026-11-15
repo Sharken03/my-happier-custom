@@ -74,6 +74,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-yarn-dependencies
         with:
+          save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
 
       - name: Typecheck apps/ui

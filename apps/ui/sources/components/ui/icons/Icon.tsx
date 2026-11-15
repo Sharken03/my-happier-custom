@@ -116,16 +116,15 @@ export const Icon = React.memo((props: IconProps) => {
 
     // The star is painted here instead of by either family.
     //
-    // Both vendored families hand it to `react-native-svg` as `fill="currentColor"` — a keyword
-    // the browser's CSS resolves and the native renderer does not. On Android the favourite star
-    // in the model picker's rail came out as a blank tile and vanished outright from the model
-    // rows, while the identical markup drew a correct star in the web build.
+    // On native Android the family glyphs drew a wrong symbol in the model picker's rail and no
+    // star at all in the model rows, while the web build drew them correctly (8T, 14/11-2026). The
+    // cause in the family path is not established: Phosphor gives the colour to its paths as an
+    // explicit fill, and its other glyphs render on Android.
     //
-    // It is drawn solid, not as an outline: the star marks a favourite, and at the 12–14 px these
-    // pickers use the outline weight read as an empty box. The colour still comes from the caller
-    // (text.primary, the primary button's ink, text.secondary for "not a favourite yet"), because a
-    // fixed black would vanish on a dark theme profile — the app ships several, and the surfaces
-    // behind these stars follow the profile rather than the system scheme.
+    // It is always drawn solid and `weight` is ignored: the user chose a filled star for every
+    // state. The state shows only through the caller's colour (text.primary, the primary button's
+    // ink, text.secondary for "not a favourite yet"). A fixed black would vanish on a dark theme
+    // profile, because the surfaces behind these stars follow the profile, not the system scheme.
     if (props.name === 'star') {
         const starSize = Math.round(nominal * scale);
         const starColor = props.color ?? theme.colors.text.primary;

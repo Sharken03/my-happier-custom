@@ -92,6 +92,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-yarn-dependencies
         with:
+          save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
 
       # The fork's CLI changes are written on the phone, which has no dependencies to check them.
