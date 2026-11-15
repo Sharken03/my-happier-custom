@@ -7535,6 +7535,8 @@ localTailscale: {
     payloadTruncated: "パフォーマンスのため大きなペイロードを切り詰めました。",
     showFullPayload: "完全なペイロードを表示",
     showLessPayload: "少なく表示",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {

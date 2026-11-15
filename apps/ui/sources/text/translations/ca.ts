@@ -6854,6 +6854,8 @@ deps: {
         payloadTruncated: 'Càrrega gran truncada per rendiment.',
         showFullPayload: 'Mostra la càrrega completa',
         showLessPayload: 'Mostra menys',
+        formatJson: 'Format',
+        showRaw: 'Raw',
     },
 
       tools: {

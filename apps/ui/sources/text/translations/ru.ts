@@ -7258,6 +7258,8 @@ export const ru: TranslationStructure = {
     payloadTruncated: "Большая нагрузка обрезана для производительности.",
     showFullPayload: "Показать полную нагрузку",
     showLessPayload: "Показать меньше",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {

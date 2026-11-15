@@ -6855,6 +6855,8 @@ export const de: TranslationStructure = {
         payloadTruncated: 'Großer Payload aus Performance-Gründen gekürzt.',
         showFullPayload: 'Vollständigen Payload zeigen',
         showLessPayload: 'Weniger zeigen',
+        formatJson: 'Format',
+        showRaw: 'Raw',
     },
 
     tools: {

@@ -7606,6 +7606,8 @@ export const it: TranslationStructure = {
     payloadTruncated: "Payload grande troncato per prestazioni.",
     showFullPayload: "Mostra payload completo",
     showLessPayload: "Mostra meno",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
     tools: {

@@ -7050,6 +7050,8 @@ export const zhHans: TranslationStructure = {
     payloadTruncated: "为保证性能，已截断大型负载。",
     showFullPayload: "显示完整负载",
     showLessPayload: "显示较少",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ScrollView, Platform, useWindowDimensions, type ScrollViewProps } from 'react-native';
+import { View, ScrollView, Platform, Pressable, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { ToolCall, Message } from '@/sync/domains/messages/messageTypes';
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Metadata } from '@/sync/domains/state/storageTypes';
@@ -24,6 +24,7 @@ import { ToolError } from '@/components/tools/shell/presentation/ToolError';
 import { resolveToolPermissionTerminalErrorMessage } from '../permissions/resolveToolPermissionTerminalErrorMessage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
 import { Icon } from '@/components/ui/icons/Icon';
+import { formatToolResultJson, stripInternalToolInputKeys } from './formatToolResultJson';
 import { useHistoricalTranscriptAgentId } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
 
 
@@ -38,6 +39,21 @@ interface ToolFullViewProps {
     interaction?: TranscriptInteraction;
     /** Replaces the ScrollView of the generic view, for example with the scroll view of the Tool calls sheet. */
     ScrollComponent?: React.ComponentType<ScrollViewProps>;
+}
+
+/** Result code block with a toggle that pretty-prints JSON text. */
+function FormattableResult({ code, canFormat }: { code: string; canFormat: boolean }) {
+    const [formatted, setFormatted] = React.useState(false);
+    const formattedCode = React.useMemo(() => (canFormat ? formatToolResultJson(code) : null), [canFormat, code]);
+    if (formattedCode === null) return <CodeView code={code} />;
+    return (
+        <View>
+            <Pressable onPress={() => setFormatted((value) => !value)} style={styles.formatButton} accessibilityRole="button">
+                <Text style={styles.formatButtonText}>{formatted ? t('toolView.showRaw') : t('toolView.formatJson')}</Text>
+            </Pressable>
+            <CodeView code={formatted ? formattedCode : code} />
+        </View>
+    );
 }
 
 export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction, ScrollComponent }: ToolFullViewProps) {
@@ -253,7 +269,7 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                                         <Icon name="sign-in" size={20} color={theme.colors.accent.indigo} />
                                         <Text style={styles.sectionTitle}>{t('tools.fullView.inputParams')}</Text>
                                     </View>
-                                    <CodeView code={JSON.stringify(toolForRendering.input, null, 2)} />
+                                    <CodeView code={JSON.stringify(stripInternalToolInputKeys(toolForRendering.input), null, 2)} />
                                 </View>
                             )}
 
@@ -264,8 +280,9 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                                         <Icon name="sign-out" size={20} color={theme.colors.state.success.foreground} />
                                         <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
                                     </View>
-                                    <CodeView
+                                    <FormattableResult
                                         code={typeof toolForRendering.result === 'string' ? toolForRendering.result : JSON.stringify(toolForRendering.result, null, 2)}
+                                        canFormat={typeof toolForRendering.result === 'string'}
                                     />
                                 </View>
                             )}
@@ -353,6 +370,19 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 17,
         fontWeight: '600',
         color: theme.colors.text.primary,
+    },
+    formatButton: {
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.text.secondary,
+    },
+    formatButtonText: {
+        fontSize: 13,
+        color: theme.colors.text.secondary,
     },
     description: {
         fontSize: 14,

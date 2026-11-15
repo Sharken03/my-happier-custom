@@ -6114,6 +6114,8 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         payloadTruncated: '為了效能，已截斷大型負載。',
         showFullPayload: '顯示完整負載',
         showLessPayload: '顯示較少',
+        formatJson: 'Format',
+        showRaw: 'Raw',
     },
 
     tools: {

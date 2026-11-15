@@ -103,6 +103,9 @@ const ALLOW_SAME_STRING_KEYS = new Set<string>([
     // The Tool calls sheet setting is English only for now; the other locales use the English text.
     'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
     'settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle',
+    // The Format toggle in a tool detail is English only for now, as the setting above.
+    'toolView.formatJson',
+    'toolView.showRaw',
     // Claude debug category ids should remain stable because they map to provider-native categories.
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.hooks.title',
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.1p.title',

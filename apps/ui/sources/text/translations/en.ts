@@ -6887,6 +6887,8 @@ export const en = {
         payloadTruncated: 'Large payload truncated for performance.',
         showFullPayload: 'Show full payload',
         showLessPayload: 'Show less',
+        formatJson: 'Format',
+        showRaw: 'Raw',
     },
 
     tools: {
