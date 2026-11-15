@@ -9,6 +9,7 @@ import {
 } from '@/dev/testkit';
 import type { ToolCallMessage } from '@/sync/domains/messages/messageTypes';
 import { createReducer } from '@/sync/reducer/reducer';
+import { DEFAULT_TRANSCRIPT_TOOL_CALLS_COLLAPSED_PREVIEW_COUNT } from '@/sync/domains/settings/transcriptToolCallsCollapsedPreviewCount';
 import { installToolCallsGroupViewCommonModuleMocks } from './toolCallsGroupViewTestHelpers';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -349,7 +350,7 @@ describe('ToolCallsGroupView (collapsed preview)', () => {
         expect(screen.findAllByTestId('transcript-tool-calls-tool-row')).toHaveLength(0);
     });
 
-    it('defaults to the newest three tool previews when the setting is unavailable', async () => {
+    it('uses the default preview count when the setting is unavailable', async () => {
         collapsedPreviewCount = null;
 
         const toolMessages = [
@@ -369,8 +370,9 @@ describe('ToolCallsGroupView (collapsed preview)', () => {
             .map((p) => (p.props as any).children?.props?.messageId)
             .filter(Boolean);
 
-        expect(previewIds).toEqual(['m2', 'm3', 'm4']);
-        expect(screen.findAllByTestId('transcript-tool-calls-preview-more')).toHaveLength(1);
+        expect(DEFAULT_TRANSCRIPT_TOOL_CALLS_COLLAPSED_PREVIEW_COUNT).toBe(0);
+        expect(previewIds).toEqual([]);
+        expect(screen.findAllByTestId('transcript-tool-calls-preview-more')).toHaveLength(0);
     });
 
     it('updates collapsed previews to the newest tools when a tool is appended', async () => {
