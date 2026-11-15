@@ -207,9 +207,12 @@ const styles = StyleSheet.create((theme) => ({
         ...Typography.default('semiBold'),
         flexShrink: 1,
     },
+    // The tool detail view has no side padding on phones (the message route is full width), so
+    // the sheet adds it.
     detailContent: {
         flex: 1,
         minHeight: 0,
+        paddingHorizontal: 16,
     },
     listContent: {
         paddingBottom: 24,
