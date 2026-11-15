@@ -24,6 +24,8 @@ const SETTLE_DURATION_MS = 220;
 // The settle spring starts at the speed of the finger and does not overshoot the detent.
 const SETTLE_SPRING = { damping: 40, stiffness: 400, overshootClamping: true } as const;
 const BACKDROP_OPACITY = 0.4;
+/** A flick in the list or a detail stops a little sooner than the Android default (0.985). */
+export const TOOL_CALLS_SHEET_DECELERATION_RATE = 0.98;
 
 type SheetScroll = Readonly<{
     listRef: AnimatedRef<FlatList>;
@@ -68,6 +70,7 @@ export function ToolCallsSheetScrollView(props: ScrollViewProps) {
                 onScroll={scroll.onScroll}
                 scrollEventThrottle={16}
                 scrollEnabled={scroll.scrollEnabled}
+                decelerationRate={TOOL_CALLS_SHEET_DECELERATION_RATE}
                 overScrollMode="never"
             />
         </GestureDetector>
@@ -103,9 +106,10 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
     const closing = React.useRef(false);
     // The content scrolls only while the sheet rests at full height.
     const [atFull, setAtFull] = React.useState(false);
-    // Text is not selectable while the sheet moves: the text moves with the finger, so Android
-    // would see a long press. A long press with a still finger selects text at any height.
-    const [moving, setMoving] = React.useState(false);
+    // Text is not selectable during a swipe, whether it scrolls the content or moves the sheet.
+    // Else Android can start a selection mid-swipe, and the swipe cuts it off (the magnifier stays
+    // on screen). A long press with a still finger starts no swipe, so it selects text.
+    const [swiping, setSwiping] = React.useState(false);
 
     const listRef = useAnimatedRef<FlatList>();
     const detailRef = useAnimatedRef<ScrollView>();
@@ -147,6 +151,7 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
         .failOffsetX([-24, 24])
         .simultaneousWithExternalGesture(nativeGesture)
         .onStart(() => {
+            runOnJS(setSwiping)(true);
             sheetMoves.value = false;
             previousTranslation.value = 0;
         })
@@ -160,7 +165,6 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 if (!takes) return;
                 sheetMoves.value = true;
                 runOnJS(setAtFull)(false);
-                runOnJS(setMoving)(true);
                 startY.value = translateY.value;
                 startTranslation.value = event.translationY - delta;
                 lockedOffset.value = Math.max(0, scrollY.value);
@@ -172,7 +176,6 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
             locked.value = false;
             if (!sheetMoves.value) return;
             sheetMoves.value = false;
-            runOnJS(setMoving)(false);
             const target = resolveToolCallsSheetSnap(translateY.value, event.velocityY, half, closed);
             if (target >= closed) {
                 runOnJS(close)();
@@ -184,11 +187,8 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
         })
         .onFinalize(() => {
             locked.value = false;
-            if (sheetMoves.value) {
-                // A cancelled swipe: the sheet stays where it is, and text is selectable again.
-                sheetMoves.value = false;
-                runOnJS(setMoving)(false);
-            }
+            sheetMoves.value = false;
+            runOnJS(setSwiping)(false);
         }), [close, closed, half, lockedOffset, locked, nativeGesture, previousTranslation, scrollY, sheetMoves, startTranslation, startY, translateY]);
 
     const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
@@ -210,7 +210,7 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]} testID="tool-calls-sheet">
                     <View style={styles.grabber} />
                     <ToolCallsSheetControlsContext.Provider value={controls}>
-                        <NativeTextSelectionSuppressionScope suppressed={moving}>
+                        <NativeTextSelectionSuppressionScope suppressed={swiping}>
                             {props.children}
                         </NativeTextSelectionSuppressionScope>
                     </ToolCallsSheetControlsContext.Provider>

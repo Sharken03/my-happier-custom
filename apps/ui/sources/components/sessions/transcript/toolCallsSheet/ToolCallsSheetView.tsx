@@ -28,7 +28,7 @@ import {
     type ToolCallsSheetState,
 } from './toolCallsSheetState';
 import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
-import { ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
+import { TOOL_CALLS_SHEET_DECELERATION_RATE, ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
 
 const EMPTY_CALLS: readonly ToolCallMessage[] = [];
 
@@ -193,6 +193,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                     onScroll={scroll.onScroll}
                     scrollEventThrottle={16}
                     scrollEnabled={scroll.scrollEnabled}
+                    decelerationRate={TOOL_CALLS_SHEET_DECELERATION_RATE}
                     overScrollMode="never"
                     data={callList}
                     keyExtractor={(call) => call.id}
