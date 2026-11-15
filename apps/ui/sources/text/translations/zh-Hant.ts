@@ -6536,7 +6536,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         inferredSuppressed: ({ count }: { count: number }) => `已有 ${count} 個推斷檔案保留在僅儲存庫變更中。`,
         otherRepositoriesTitle: "其他儲存庫",
         outsideGitTitle: "不在 git 中",
-        externalChangeCommitted: "已提交：這是代理所做的修改。",
+        externalChangeNotInWorkingTree: "工作樹中目前未變更（已提交或已復原）：這是代理所做的修改。",
         externalChangeNoDiff: "沒有差異：代理的工具呼叫未包含變更的文字。",
         noSessionAttributedChanges: '目前未偵測到工作階段歸因的變更。',
         noLatestTurnChanges: '目前未偵測到最近一輪的變更。',

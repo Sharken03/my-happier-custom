@@ -7879,7 +7879,7 @@ export const pt: TranslationStructure = {
       `${count} arquivo${count === 1 ? "" : "s"} inferido${count === 1 ? "" : "s"} mantido${count === 1 ? "" : "s"} nas alterações apenas do repositório.`,
     otherRepositoriesTitle: "Outros repositórios",
     outsideGitTitle: "Fora do git",
-    externalChangeCommitted: "Já confirmado: esta é a alteração do agente.",
+    externalChangeNotInWorkingTree: "Já não alterado na árvore de trabalho (confirmado ou desfeito): esta é a alteração do agente.",
     externalChangeNoDiff: "Sem diff: a chamada de ferramenta do agente não incluía o texto alterado.",
     noSessionAttributedChanges:
       "Nenhuma alteração atribuída à sessão foi detectada no momento.",

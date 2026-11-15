@@ -110,3 +110,13 @@ export function resolveAgentChangeView(change: Readonly<{
     }
     return { kind: 'none' };
 }
+
+/** The paths (inside the repository) that the working tree has changed now, renames from both sides. */
+export function workingTreeChangedPaths(entries: ReadonlyArray<Readonly<{ path: string; previousPath?: string | null }>>): ReadonlySet<string> {
+    const paths = new Set<string>();
+    for (const entry of entries) {
+        paths.add(entry.path);
+        if (entry.previousPath) paths.add(entry.previousPath);
+    }
+    return paths;
+}
