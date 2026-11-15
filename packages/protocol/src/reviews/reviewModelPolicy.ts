@@ -125,3 +125,33 @@ export function resolveReviewCallSitePolicyFlagMapping(params: Readonly<{
   }
   return { ok: true, kind: 'inherit' };
 }
+
+/**
+ * The subset of the account review-model settings the resolver reads: the account default and
+ * the per-engine overrides. Kept structural so this module does not depend on the account-settings
+ * owner (which imports `ReviewModelPolicySchema` back).
+ */
+export type ReviewModelPolicySettings = Readonly<{
+  modelPolicy?: ReviewModelPolicy | null;
+  engines?: Readonly<Record<string, Readonly<{ modelPolicy?: ReviewModelPolicy | null }>>>;
+}>;
+
+/**
+ * The fast/deep refs a call-site `--depth` flag borrows from the configured account/engine
+ * policies. First `depth` policy wins: account default, then any engine override. Null when no
+ * depth policy is configured anywhere, in which case a bare `--depth` flag cannot name a pair.
+ */
+export function resolveReviewModelPolicyDepthRefs(
+  settings: ReviewModelPolicySettings | null | undefined,
+): Readonly<{ fast: ReviewModelRef; deep: ReviewModelRef }> | null {
+  const account = settings?.modelPolicy;
+  if (account?.kind === 'depth') return { fast: account.fast, deep: account.deep };
+  const engines = settings?.engines;
+  if (engines) {
+    for (const engineId of Object.keys(engines)) {
+      const policy = engines[engineId]?.modelPolicy;
+      if (policy?.kind === 'depth') return { fast: policy.fast, deep: policy.deep };
+    }
+  }
+  return null;
+}

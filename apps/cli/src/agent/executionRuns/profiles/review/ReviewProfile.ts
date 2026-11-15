@@ -2,6 +2,9 @@ import {
   ReviewFindingsV1Schema,
   ReviewFindingsV2Schema,
   ReviewTriageOverlaySchema,
+  ReviewResolutionUpdateSchema,
+  mergeReviewResolutionUpdate,
+  type ReviewFindingsV2,
 } from '@happier-dev/protocol';
 
 import type {
@@ -21,6 +24,8 @@ export const ReviewProfile: ExecutionRunIntentProfile = {
       ? [
         'review.triage',
         'review.publish',
+        'review.finding.apply',
+        ...(structuredMeta.kind === 'review_findings.v2' ? ['review.resolve'] : []),
         ...(start.retentionPolicy === 'resumable' ? ['review.follow_up'] : []),
       ]
       : [],
@@ -46,7 +51,7 @@ export const ReviewProfile: ExecutionRunIntentProfile = {
     if (actionId === 'review.follow_up') {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Follow-up orchestration is handled by the execution-run runtime' };
     }
-    if (actionId !== 'review.triage') {
+    if (actionId !== 'review.triage' && actionId !== 'review.resolve') {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Unsupported action' };
     }
     const existing = structuredMeta?.kind === 'review_findings.v1' || structuredMeta?.kind === 'review_findings.v2'
@@ -55,10 +60,9 @@ export const ReviewProfile: ExecutionRunIntentProfile = {
     if (!existing) {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Not a review run' };
     }
-
-    const parsed = ReviewTriageOverlaySchema.safeParse(input ?? {});
-    if (!parsed.success) {
-      return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid triage overlay' };
+    // Resolution lives only on review_findings.v2; v1 has no resolution overlay.
+    if (actionId === 'review.resolve' && existing.kind !== 'review_findings.v2') {
+      return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Resolution is not available on review_findings.v1' };
     }
 
     const existingPayload = existing.kind === 'review_findings.v2'
@@ -78,10 +82,23 @@ export const ReviewProfile: ExecutionRunIntentProfile = {
         });
       })();
 
-    const updatedPayload = {
-      ...existingPayload,
-      triage: parsed.data,
-    };
+    let updatedPayload: ReviewFindingsV2;
+    if (actionId === 'review.triage') {
+      const parsed = ReviewTriageOverlaySchema.safeParse(input ?? {});
+      if (!parsed.success) {
+        return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid triage overlay' };
+      }
+      updatedPayload = {
+        ...existingPayload,
+        triage: parsed.data,
+      };
+    } else {
+      const parsed = ReviewResolutionUpdateSchema.safeParse(input ?? {});
+      if (!parsed.success) {
+        return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid resolution update' };
+      }
+      updatedPayload = mergeReviewResolutionUpdate(existingPayload, parsed.data);
+    }
 
     const updatedStructured: ExecutionRunStructuredMeta = { kind: 'review_findings.v2', payload: updatedPayload };
     return {

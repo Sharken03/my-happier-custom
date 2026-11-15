@@ -1,0 +1,23 @@
+{
+  "name": "pi-review",
+  "version": "0.1.0",
+  "description": "Offline code review for Pi: gather a git diff, ask the model, emit ReviewFindingsV2-compatible findings.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "review",
+    "code-review"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  }
+}

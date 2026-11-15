@@ -22,6 +22,7 @@ import type {
 } from '@/agent/executionRuns/runtime/executionRunTypes';
 import type { ExecutionRunController } from '@/agent/executionRuns/controllers/types';
 import { publishReviewFindings } from '@/agent/executionRuns/runtime/executionRunReviewPublish';
+import { applyReviewFindingFix } from '@/agent/executionRuns/runtime/executionRunReviewFindingApply';
 
 export async function applyExecutionRunAction(args: Readonly<{
   runId: string;
@@ -37,6 +38,10 @@ export async function applyExecutionRunAction(args: Readonly<{
     opts: { localId: string; meta?: Record<string, unknown> },
   ) => Promise<void>;
   parentProvider: ACPProvider;
+  /** Send a user input into the originating (parent) session. Reused by `review.finding.apply`. */
+  enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
+  /** Spawn a new session in the same workspace. Reused by `review.finding.apply`. */
+  spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>;
   deps?: ExecutionRunActionDeps;
 }>): Promise<ExecutionRunActionResult> {
   const run = args.runs.get(args.runId);
@@ -129,6 +134,20 @@ export async function applyExecutionRunAction(args: Readonly<{
         ...(deps.featureDecision ? { featureDecision: deps.featureDecision } : {}),
       },
       runs: args.runs,
+    });
+  }
+
+  if (run.intent === 'review' && String(args.params.actionId ?? '').trim() === 'review.finding.apply') {
+    const deps = args.deps;
+    const sendToSession = args.enqueueParentSessionInput;
+    const spawnSession = args.spawnSession;
+    if (!deps?.cwd || !sendToSession || !spawnSession) {
+      return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review finding apply is not wired yet' };
+    }
+    return applyReviewFindingFix({
+      run,
+      input: args.params.input,
+      deps: { cwd: deps.cwd, sendToSession, spawnSession },
     });
   }
 

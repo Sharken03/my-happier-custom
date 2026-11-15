@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ActionIdSchema, type ActionId } from './actionIds.js';
 import { ActionUiPlacementSchema, type ActionUiPlacement } from './actionUiPlacements.js';
 import { ReviewStartInputSchema } from '../reviews/reviewStart.js';
+import { ReviewFindingApplyInputSchema } from '../reviews/reviewFindingApply.js';
 import { ActionInputPredicateSchema, type ActionInputPredicate } from './actionInputPredicates.js';
 import { MemorySearchQueryV1Schema } from '../memory/memorySearch.js';
 import { ApprovalRequestCreatedBySchema, ApprovalRequestOriginV1Schema } from '../approvals/approvalRequestV1.js';
@@ -1293,6 +1294,66 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
       cli: true,
     },
     inputSchema: ReviewStartInputSchema,
+  },
+  {
+    id: 'review.finding.apply',
+    title: 'Apply review findings',
+    description: 'Hand selected review findings to a write session: send a fix prompt into the originating session or spawn a new session in the same workspace.',
+    safety: 'danger',
+    approval: APPROVAL_RESULT_REQUIRED,
+    placements: ['run_card'],
+    bindings: { mcpToolName: 'review_finding_apply' },
+    examples: {
+      mcp: { argsExample: '{"runId":"run_123","findingIds":["f1","f2"],"mode":"send_to_session"}' },
+    },
+    surfaces: {
+      ui_button: false,
+      ui_slash_command: false,
+      voice_tool: true,
+      voice_action_block: true,
+      session_agent: true,
+      mcp: true,
+      cli: true,
+    },
+    inputHints: {
+      title: 'Apply review findings',
+      fields: [
+        { path: 'runId', title: 'Run id', description: 'The review run whose findings to fix.', widget: 'text', required: true },
+        {
+          path: 'findingIds',
+          title: 'Finding ids',
+          description: 'One or more finding ids to fix.',
+          widget: 'text_list',
+          listSeparator: 'comma',
+          required: true,
+        },
+        {
+          path: 'mode',
+          title: 'Delivery mode',
+          description: 'Send the fix prompt into the originating session or spawn a new session in the same workspace.',
+          widget: 'select',
+          required: true,
+          options: [
+            { value: 'send_to_session', label: 'Send to originating session' },
+            { value: 'spawn_session', label: 'Spawn a new session' },
+          ],
+        },
+        {
+          path: 'includePatch',
+          title: 'Include proposed patch text',
+          description: 'Embed each finding.patch as proposed text to read (never applied mechanically).',
+          widget: 'toggle',
+        },
+        {
+          path: 'permissionMode',
+          title: 'Permission mode',
+          description: EXECUTION_RUN_ACTION_PERMISSION_MODE_DESCRIPTION,
+          widget: 'select',
+          options: EXECUTION_RUN_ACTION_PERMISSION_INPUTS.map((value) => ({ value, label: value })),
+        },
+      ],
+    },
+    inputSchema: ReviewFindingApplyInputSchema,
   },
   {
     id: 'subagents.plan.start',

@@ -1,0 +1,19 @@
+{
+  "runRef": {
+    "runId": "run-1",
+    "callId": "call-1",
+    "backendId": "pi"
+  },
+  "summary": "Minimal review.",
+  "overviewMarkdown": "Nothing to report.",
+  "findings": [
+    {
+      "id": "f-1",
+      "title": "Example finding",
+      "severity": "low",
+      "category": "maintainability",
+      "summary": "An example finding."
+    }
+  ],
+  "generatedAtMs": 1700000000000
+}

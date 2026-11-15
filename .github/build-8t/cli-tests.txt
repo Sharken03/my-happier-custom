@@ -42,3 +42,4 @@ src/backends/pi/rpc/piTurnChangeTracker.test.ts
 src/agent/tools/diff/turnDiffEmitter.test.ts
 src/agent/tools/happierTools/dispatchBuiltInHappierTool.test.ts
 src/agent/tools/happierTools/listBuiltInHappierTools.test.ts
+src/agent/executionRuns/runtime/executionRunReviewFindingApply.test.ts

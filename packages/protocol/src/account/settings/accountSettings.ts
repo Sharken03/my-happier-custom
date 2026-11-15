@@ -26,6 +26,7 @@ import { SESSION_PERMISSION_MODES } from '../../sessionMetadata/sessionPermissio
 import { ClientEncryptionRequirementSchema } from '../../encryption/clientEncryptionRequirement.js';
 import { lazySchema } from '../../lazySchema.js';
 import { ClaudeSessionRetentionPolicyV1Schema } from '../../providers/claude/sessionRetention.js';
+import { ReviewModelPolicySchema } from '../../reviews/reviewModelPolicy.js';
 
 function rekeyLegacyBuiltInAgentMap<T>(raw: unknown): Record<string, T> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
@@ -134,6 +135,37 @@ export type SessionAgentSpawnPolicyV1 = z.infer<typeof SessionAgentSpawnPolicyV1
 
 export const DEFAULT_SESSION_AGENT_SPAWN_POLICY_V1: SessionAgentSpawnPolicyV1 =
   SessionAgentSpawnPolicyV1Schema.parse({});
+
+/**
+ * Which model a review run uses: `inherit` (backend default), `fixed` (one model), or `depth`
+ * (a fast/deep pair chosen by the caller). Precedence between sources is implemented once, in
+ * `resolveReviewModelPolicy`: call-site > engine override > account default > inherit.
+ */
+export const ReviewModelPolicySettingsV1Schema = lazySchema(() => z
+  .object({
+    v: z.literal(1).default(1),
+    // Account default. `inherit` is the shipped default and keeps today's behavior: every review
+    // run keeps the backend's default model (in practice the model that asked).
+    modelPolicy: ReviewModelPolicySchema.default({ kind: 'inherit' }),
+    // Per-engine overrides. A depth policy here supplies the fast/deep refs that a CLI `--depth`
+    // flag borrows (the flag names only the side, never the pair).
+    engines: z
+      .record(z.string().min(1), z.object({
+        modelPolicy: ReviewModelPolicySchema,
+      }).passthrough())
+      .default({}),
+  })
+  .passthrough()
+  .catch({
+    v: 1,
+    modelPolicy: { kind: 'inherit' },
+    engines: {},
+  }));
+
+export type ReviewModelPolicySettingsV1 = z.infer<typeof ReviewModelPolicySettingsV1Schema>;
+
+export const DEFAULT_REVIEW_MODEL_POLICY_SETTINGS_V1: ReviewModelPolicySettingsV1 =
+  ReviewModelPolicySettingsV1Schema.parse({});
 
 export const DEFAULT_ACTIONS_SETTINGS_V1: ActionsSettingsV1 = ActionsSettingsV1Schema.parse({
   v: 1,
@@ -385,6 +417,9 @@ export const AccountSettingsSchema = lazySchema(() => z.preprocess(
         DEFAULT_SESSION_PENDING_QUEUE_DELIVERY_TIMING,
       ),
       sessionAgentSpawnPolicyV1: SessionAgentSpawnPolicyV1Schema.default(DEFAULT_SESSION_AGENT_SPAWN_POLICY_V1),
+      reviewModelPolicySettingsV1: ReviewModelPolicySettingsV1Schema.default(
+        DEFAULT_REVIEW_MODEL_POLICY_SETTINGS_V1,
+      ),
       connectedServicesDefaultAuthByAgentIdV1: ConnectedServicesDefaultAuthByAgentIdV1Schema.default(
         DEFAULT_CONNECTED_SERVICES_DEFAULT_AUTH_BY_AGENT_ID_V1,
       ),
@@ -415,6 +450,15 @@ export function getNotificationsSettingsV1FromAccountSettings(settingsLike: unkn
     ? (settingsLike as Record<string, unknown>)
     : null;
   return NotificationsSettingsV1Schema.parse(rec?.notificationsSettingsV1);
+}
+
+export function getReviewModelPolicySettingsV1FromAccountSettings(
+  settingsLike: unknown,
+): ReviewModelPolicySettingsV1 {
+  const rec = settingsLike && typeof settingsLike === 'object' && !Array.isArray(settingsLike)
+    ? (settingsLike as Record<string, unknown>)
+    : null;
+  return ReviewModelPolicySettingsV1Schema.parse(rec?.reviewModelPolicySettingsV1);
 }
 
 export function resolveNotificationChannelsV1FromAccountSettings(settingsLike: unknown): NotificationChannelsV1 {

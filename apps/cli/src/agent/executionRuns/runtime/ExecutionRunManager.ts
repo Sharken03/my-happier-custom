@@ -129,6 +129,7 @@ export class ExecutionRunManager {
   private readonly budgetRegistry: ExecutionBudgetRegistry | null;
   private readonly runtimeActivityContributionHandle: SessionRuntimeActivityContributionHandle | null;
   private readonly enqueueParentSessionInput: ((input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>) | null;
+  private readonly spawnSession: ((input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>) | null;
   private readonly runs = new Map<string, ExecutionRunState>();
   private readonly controllers = new Map<string, ExecutionRunController>();
   private readonly markerWriteChains = new Map<string, Promise<void>>();
@@ -329,6 +330,7 @@ export class ExecutionRunManager {
     budgetRegistry?: ExecutionBudgetRegistry;
     runtimeActivityContributionHandle?: SessionRuntimeActivityContributionHandle | null;
     enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
+    spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>;
     resolveAccountSettings?: () => Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
     /**
      * Canonical connected-services owner used to RE-materialize a run's account on resume, driven by
@@ -366,6 +368,7 @@ export class ExecutionRunManager {
     this.budgetRegistry = opts.budgetRegistry ?? null;
     this.runtimeActivityContributionHandle = opts.runtimeActivityContributionHandle ?? null;
     this.enqueueParentSessionInput = opts.enqueueParentSessionInput ?? null;
+    this.spawnSession = opts.spawnSession ?? null;
     this.onPublicStateUpdated = typeof opts.onPublicStateUpdated === 'function' ? opts.onPublicStateUpdated : null;
     const resolveAccountSettings = opts.resolveAccountSettings ?? (async () => null);
     this.resolveAccountSettings = resolveAccountSettings;
@@ -1080,6 +1083,8 @@ export class ExecutionRunManager {
       sendAcp: this.sendAcp,
       sendCommittedAcp: this.streamedTranscriptSession?.sendAgentMessageCommitted,
       parentProvider: this.parentProvider,
+      ...(this.enqueueParentSessionInput ? { enqueueParentSessionInput: this.enqueueParentSessionInput } : {}),
+      ...(this.spawnSession ? { spawnSession: this.spawnSession } : {}),
       ...(deps ? { deps } : {}),
     });
   }
