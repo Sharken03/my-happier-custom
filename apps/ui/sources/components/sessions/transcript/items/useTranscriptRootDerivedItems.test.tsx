@@ -70,6 +70,7 @@ function buildHookParams(messages: readonly Message[]) {
         pendingMessages: [],
         pendingUserActionRequests: [],
         sessionId: 'tail-window-hook-test',
+        thinkingDisplayMode: 'inline' as unknown,
         toolCallsGroupStrategy: 'consecutive_tools' as const,
     };
 }
@@ -108,5 +109,27 @@ describe('useTranscriptRootDerivedItems', () => {
         expect(finalUserIds).toHaveLength(70);
 
         await hook.unmount();
+    });
+
+    it.each(['turns', 'linear'] as const)('derives no %s item for a hidden thinking message', async (groupingMode) => {
+        const thinking: AgentTextMessage = { ...agentMessage('t1', 2), isThinking: true };
+        const messages: Message[] = [userMessage('u1', 1), thinking, agentMessage('a1', 3)];
+        const params = { ...buildHookParams(messages), groupingMode, sessionId: `hidden-thinking-${groupingMode}` };
+
+        const shown = await renderHook(
+            (p: typeof params) => useTranscriptRootDerivedItems(p),
+            { initialProps: params },
+        );
+        expect(JSON.stringify(shown.getCurrent().groupedItems)).toContain('t1');
+        await shown.unmount();
+
+        const hidden = await renderHook(
+            (p: typeof params) => useTranscriptRootDerivedItems(p),
+            { initialProps: { ...params, thinkingDisplayMode: 'hidden', sessionId: `${params.sessionId}-hidden` } },
+        );
+        const serialized = JSON.stringify(hidden.getCurrent().groupedItems);
+        expect(serialized).not.toContain('t1');
+        expect(serialized).toContain('a1');
+        await hidden.unmount();
     });
 });

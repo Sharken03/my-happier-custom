@@ -59,6 +59,7 @@ export function useChatListRootState(props: ChatListProps) {
     const transcriptGroupingMode = useSetting('transcriptGroupingMode');
     const transcriptGroupToolCalls = useSetting('transcriptGroupToolCalls');
     const transcriptTurnToolCallsGroupStrategy = useSetting('transcriptTurnToolCallsGroupStrategy');
+    const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const transcriptSessionCommon = useTranscriptSessionCommon(props.session.id);
     const toolViewTimelineChromeMode = transcriptSessionCommon.toolChrome.toolViewTimelineChromeMode;
 
@@ -105,6 +106,7 @@ export function useChatListRootState(props: ChatListProps) {
         pendingMessages,
         pendingUserActionRequests,
         sessionId: props.session.id,
+        thinkingDisplayMode: sessionThinkingDisplayMode,
         toolCallsGroupStrategy,
     });
 
