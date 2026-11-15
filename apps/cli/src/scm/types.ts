@@ -29,6 +29,8 @@ import type {
     ScmPullRequestGetResponse,
     ScmPullRequestCheckoutRequest,
     ScmPullRequestCheckoutResponse,
+    ScmPullRequestCreateReviewRequest,
+    ScmPullRequestCreateReviewResponse,
     ScmPullRequestListRequest,
     ScmPullRequestListResponse,
     ScmPullRequestOpenComposeRequest,
@@ -239,6 +241,10 @@ export type ScmPullRequestBackend = Readonly<{
         context: ScmBackendContext;
         request: ScmPullRequestRunStackedRequest;
     }): Promise<ScmPullRequestRunStackedResponse>;
+    createReview?(input: {
+        context: ScmBackendContext;
+        request: ScmPullRequestCreateReviewRequest;
+    }): Promise<ScmPullRequestCreateReviewResponse>;
 }>;
 
 export type ScmRepositoryProvisioningBackend = Readonly<{

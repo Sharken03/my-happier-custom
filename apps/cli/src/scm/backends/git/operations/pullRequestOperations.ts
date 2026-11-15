@@ -4,6 +4,8 @@ import {
     type ScmPullRequestGetResponse,
     type ScmPullRequestCheckoutRequest,
     type ScmPullRequestCheckoutResponse,
+    type ScmPullRequestCreateReviewRequest,
+    type ScmPullRequestCreateReviewResponse,
     type ScmPullRequestListRequest,
     type ScmPullRequestListResponse,
     type ScmPullRequestOpenComposeRequest,
@@ -550,6 +552,148 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
         });
     }
 
+    async function createReview(input: {
+        context: ScmBackendContext;
+        request: ScmPullRequestCreateReviewRequest;
+    }): Promise<ScmPullRequestCreateReviewResponse> {
+        const snapshot = await readSnapshot(input.context);
+        const provider = snapshot?.hostingProvider ?? null;
+        if (!snapshot || !provider) return providerUnavailableResponse<ScmPullRequestCreateReviewResponse & { success: false }>();
+
+        // Resolve the target PR without ever creating one: a head branch uses the same
+        // lookup-only path as `list` (cache-first, then provider list), anything else resolves
+        // to a concrete PR number.
+        const referenceHead = resolvePullRequestReferenceHead(input.request.prReference);
+        let number: number | null = null;
+        if (referenceHead) {
+            const response = await list({
+                context: input.context,
+                request: {
+                    cwd: input.request.cwd,
+                    head: referenceHead,
+                },
+            });
+            if (!response.success || response.pullRequests[0] == null) {
+                return {
+                    success: false,
+                    errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                    error: `No open pull request found for head branch "${referenceHead}".`,
+                };
+            }
+            number = response.pullRequests[0].number;
+        } else {
+            number = resolvePullRequestReferenceNumber(input.request.prReference);
+        }
+
+        if (number == null) {
+            return {
+                success: false,
+                errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                error: 'No pull request number could be resolved from the provided reference.',
+            };
+        }
+
+        if (provider.kind === 'github') {
+            let restFailure: RestPullRequestFailure | null = null;
+            const githubConnectedAccountAuth = await resolveGithubConnectedAccountAuth({
+                context: input.context,
+                providerBaseUrl: provider.baseUrl,
+                requireDotComHost: true,
+            });
+            if (githubConnectedAccountAuth.kind === 'available' && githubRestAdapter.createPullRequestReview) {
+                try {
+                    const result = await githubRestAdapter.createPullRequestReview({
+                        provider,
+                        token: githubConnectedAccountAuth.token,
+                        number,
+                        event: input.request.event,
+                        body: input.request.body,
+                        comments: input.request.comments,
+                    });
+                    return {
+                        success: true,
+                        reviewId: result.reviewId,
+                        url: result.url,
+                    };
+                } catch (error) {
+                    restFailure = toRestFailure(error, 'GitHub REST pull request review failed.');
+                }
+            }
+            const cliAuth = await detectCliAuth({ providerBaseUrl: provider.baseUrl });
+            if (cliAuth.kind === 'authenticated' && githubCliAdapter.createPullRequestReview) {
+                try {
+                    const result = await githubCliAdapter.createPullRequestReview({
+                        provider,
+                        number,
+                        event: input.request.event,
+                        body: input.request.body,
+                        comments: input.request.comments,
+                    });
+                    return {
+                        success: true,
+                        reviewId: result.reviewId,
+                        url: result.url,
+                    };
+                } catch (error) {
+                    return {
+                        success: false,
+                        errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                        error: error instanceof Error ? error.message : 'GitHub CLI pull request review failed.',
+                    };
+                }
+            }
+            if (restFailure) {
+                return {
+                    success: false,
+                    errorCode: restFailure.errorCode,
+                    error: restFailure.error,
+                };
+            }
+            return {
+                success: false,
+                errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                error: 'No authenticated GitHub account or gh CLI is available to create the pull request review.',
+            };
+        }
+
+        if (provider.kind === 'gitlab') {
+            const cliAuth = await detectGitlabAuth({ providerBaseUrl: provider.baseUrl });
+            if (cliAuth.kind === 'authenticated' && gitlabCliAdapter.createPullRequestReview) {
+                try {
+                    const result = await gitlabCliAdapter.createPullRequestReview({
+                        provider,
+                        number,
+                        event: input.request.event,
+                        body: input.request.body,
+                        comments: input.request.comments,
+                    });
+                    return {
+                        success: true,
+                        reviewId: result.reviewId,
+                        url: result.url,
+                    };
+                } catch (error) {
+                    return {
+                        success: false,
+                        errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                        error: error instanceof Error ? error.message : 'GitLab CLI merge request review failed.',
+                    };
+                }
+            }
+            return {
+                success: false,
+                errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+                error: 'No authenticated glab CLI is available to create the merge request review.',
+            };
+        }
+
+        return {
+            success: false,
+            errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+            error: 'The selected hosting provider does not support creating pull request reviews.',
+        };
+    }
+
     const checkoutOperations = createGitPullRequestCheckoutOperations({
         readSnapshot,
         getPullRequest: get,
@@ -590,6 +734,7 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
         get,
         openCompose,
         openOrReuse,
+        createReview,
         checkout,
         prepareWorktree,
         runStacked,
@@ -602,6 +747,7 @@ export const gitPullRequestOpenCompose = defaultGitPullRequestBackend.openCompos
 export const gitPullRequestList = defaultGitPullRequestBackend.list;
 export const gitPullRequestGet = defaultGitPullRequestBackend.get;
 export const gitPullRequestOpenOrReuse = defaultGitPullRequestBackend.openOrReuse;
+export const gitPullRequestCreateReview = defaultGitPullRequestBackend.createReview;
 export const gitPullRequestCheckout = defaultGitPullRequestBackend.checkout;
 export const gitPullRequestPrepareWorktree = defaultGitPullRequestBackend.prepareWorktree;
 export const gitPullRequestRunStacked = defaultGitPullRequestBackend.runStacked;

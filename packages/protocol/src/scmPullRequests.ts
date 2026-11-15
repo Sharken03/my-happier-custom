@@ -94,6 +94,39 @@ export const ScmPullRequestGetResponseSchema = lazySchema(() => z.union([
 ]));
 export type ScmPullRequestGetResponse = z.infer<typeof ScmPullRequestGetResponseSchema>;
 
+export const ScmPullRequestReviewEventSchema = lazySchema(() => z.enum([
+  'comment',
+  'request_changes',
+  'approve',
+]));
+export type ScmPullRequestReviewEvent = z.infer<typeof ScmPullRequestReviewEventSchema>;
+
+export const ScmPullRequestReviewCommentSchema = lazySchema(() => z.object({
+  path: z.string().min(1),
+  line: z.number().int().positive(),
+  side: z.enum(['old', 'new']).default('new'),
+  body: z.string(),
+}));
+export type ScmPullRequestReviewComment = z.infer<typeof ScmPullRequestReviewCommentSchema>;
+
+export const ScmPullRequestCreateReviewRequestSchema = lazySchema(() => ScmPullRequestRequestBaseSchema.extend({
+  prReference: ScmPullRequestReferenceSchema,
+  event: ScmPullRequestReviewEventSchema.default('comment'),
+  body: z.string(),
+  comments: z.array(ScmPullRequestReviewCommentSchema).max(100).default([]),
+}));
+export type ScmPullRequestCreateReviewRequest = z.infer<typeof ScmPullRequestCreateReviewRequestSchema>;
+
+export const ScmPullRequestCreateReviewResponseSchema = lazySchema(() => z.union([
+  z.object({
+    success: z.literal(true),
+    reviewId: z.string().min(1),
+    url: z.string().url().nullable(),
+  }),
+  ScmPullRequestErrorResponseSchema,
+]));
+export type ScmPullRequestCreateReviewResponse = z.infer<typeof ScmPullRequestCreateReviewResponseSchema>;
+
 export const ScmPullRequestOpenComposeRequestSchema = lazySchema(() => ScmPullRequestRequestBaseSchema.extend({
   base: z.string().min(1),
   head: z.string().min(1),

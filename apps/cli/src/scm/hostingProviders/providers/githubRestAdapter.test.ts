@@ -199,4 +199,79 @@ describe('githubRestAdapter', () => {
       description: 'A calmer coding workspace.',
     });
   });
+
+  it('creates a pull request review through GitHub REST with LEFT/RIGHT side mapping', async () => {
+    const mod = await import('./githubRestAdapter').catch(() => null);
+    expect(mod).not.toBeNull();
+    if (!mod) throw new Error('expected GitHub REST adapter module');
+
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({
+        id: 7,
+        html_url: 'https://github.com/happier-dev/happier/pull/42#pullrequestreview-7',
+      }),
+      text: async () => '',
+    }));
+
+    const adapter = mod.createGithubRestAdapter({ fetcher });
+    if (!adapter.createPullRequestReview) throw new Error('expected GitHub REST review adapter');
+
+    await expect(adapter.createPullRequestReview({
+      provider,
+      token: 'ghp_token',
+      number: 42,
+      event: 'request_changes',
+      body: 'Please fix the diff.',
+      comments: [
+        { path: 'src/a.ts', line: 3, body: 'Use a named constant.' },
+        { path: 'src/b.ts', line: 9, side: 'old', body: 'Revert this.' },
+      ],
+    })).resolves.toEqual({
+      reviewId: '7',
+      url: 'https://github.com/happier-dev/happier/pull/42#pullrequestreview-7',
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe('https://api.github.com/repos/happier-dev/happier/pulls/42/reviews');
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: 'Bearer ghp_token',
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      body: 'Please fix the diff.',
+      event: 'REQUEST_CHANGES',
+      comments: [
+        { path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'Use a named constant.' },
+        { path: 'src/b.ts', line: 9, side: 'LEFT', body: 'Revert this.' },
+      ],
+    });
+  });
+
+  it('throws when GitHub REST review creation fails', async () => {
+    const mod = await import('./githubRestAdapter').catch(() => null);
+    expect(mod).not.toBeNull();
+    if (!mod) throw new Error('expected GitHub REST adapter module');
+
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: async () => ({}),
+      text: async () => 'Validation failed',
+    }));
+
+    const adapter = mod.createGithubRestAdapter({ fetcher });
+    if (!adapter.createPullRequestReview) throw new Error('expected GitHub REST review adapter');
+
+    await expect(adapter.createPullRequestReview({
+      provider,
+      token: 'ghp_token',
+      number: 42,
+      event: 'comment',
+      body: '',
+      comments: [],
+    })).rejects.toThrow('GitHub request failed (422): Validation failed');
+  });
 });

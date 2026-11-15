@@ -8,10 +8,13 @@ import type {
 import type {
     ScmHostingProviderAdapter,
     ScmHostingProviderCreatePullRequestInput,
+    ScmHostingProviderCreatePullRequestReviewInput,
+    ScmHostingProviderCreatePullRequestReviewResult,
     ScmHostingProviderCreateRepositoryInput,
     ScmHostingProviderGetPullRequestInput,
     ScmHostingProviderListRepositoryPublishTargetsInput,
     ScmHostingProviderListOpenPullRequestsInput,
+    ScmHostingProviderReviewComment,
 } from '../types';
 import { githubScmHostingProviderAdapter } from './github';
 import { mapGithubPullRequest } from './githubPullRequestMapping';
@@ -60,6 +63,13 @@ function buildCreatePullUrl(input: ScmHostingProviderCreatePullRequestInput): st
     return `${resolveGitHubApiBaseUrl(input.provider.baseUrl)}/repos/${input.provider.nameWithOwner}/pulls`;
 }
 
+function buildCreateReviewUrl(input: ScmHostingProviderCreatePullRequestReviewInput): string {
+    if (!input.provider.nameWithOwner) {
+        throw new Error('GitHub repository owner/name is unavailable.');
+    }
+    return `${resolveGitHubApiBaseUrl(input.provider.baseUrl)}/repos/${input.provider.nameWithOwner}/pulls/${input.number}/reviews`;
+}
+
 function buildAuthenticatedUserUrl(input: ScmHostingProviderListRepositoryPublishTargetsInput): string {
     return `${resolveGitHubApiBaseUrl(input.providerBaseUrl)}/user`;
 }
@@ -80,6 +90,32 @@ function buildHeaders(token: string): Record<string, string> {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
+    };
+}
+
+const GITHUB_REVIEW_EVENT_BY_EVENT = {
+    comment: 'COMMENT',
+    request_changes: 'REQUEST_CHANGES',
+    approve: 'APPROVE',
+} as const;
+
+function mapGithubReviewSide(side: ScmHostingProviderReviewComment['side']): 'LEFT' | 'RIGHT' {
+    return side === 'old' ? 'LEFT' : 'RIGHT';
+}
+
+function mapGithubReview(value: unknown): ScmHostingProviderCreatePullRequestReviewResult {
+    if (!value || typeof value !== 'object') {
+        throw new Error('GitHub returned an invalid review payload.');
+    }
+    const record = value as Record<string, unknown>;
+    const id = record.id;
+    const url = record.html_url;
+    if (typeof id !== 'number' && typeof id !== 'string') {
+        throw new Error('GitHub returned an invalid review payload.');
+    }
+    return {
+        reviewId: String(id),
+        url: typeof url === 'string' ? url : null,
     };
 }
 
@@ -221,6 +257,23 @@ export function createGithubRestAdapter(params?: Readonly<{
                 }
             }
             return targets;
+        },
+        async createPullRequestReview(input) {
+            const json = await readGithubResponseJson(await fetcher(buildCreateReviewUrl(input), {
+                method: 'POST',
+                headers: buildHeaders(requireToken(input.token)),
+                body: JSON.stringify({
+                    body: input.body,
+                    event: GITHUB_REVIEW_EVENT_BY_EVENT[input.event],
+                    comments: input.comments.map((comment) => ({
+                        path: comment.path,
+                        line: comment.line,
+                        side: mapGithubReviewSide(comment.side),
+                        body: comment.body,
+                    })),
+                }),
+            }));
+            return mapGithubReview(json);
         },
         async createRepository(input) {
             const body: Record<string, unknown> = {

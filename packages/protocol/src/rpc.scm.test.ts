@@ -46,6 +46,7 @@ describe('RPC_METHODS scm surface', () => {
         expect(RPC_METHODS.SCM_PULL_REQUEST_CHECKOUT).toBe('scm.pullRequest.checkout');
         expect(RPC_METHODS.SCM_PULL_REQUEST_PREPARE_WORKTREE).toBe('scm.pullRequest.prepareWorktree');
         expect(RPC_METHODS.SCM_PULL_REQUEST_RUN_STACKED).toBe('scm.pullRequest.runStacked');
+        expect(RPC_METHODS.SCM_PULL_REQUEST_CREATE_REVIEW).toBe('scm.pullRequest.createReview');
     });
 
     it('does not expose git method constants', () => {

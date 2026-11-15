@@ -191,4 +191,78 @@ describe('scm pull request protocol contracts', () => {
       errorCode: SCM_OPERATION_ERROR_CODES.FEATURE_UNSUPPORTED,
     });
   });
+
+  it('parses create-review requests and responses', async () => {
+    const protocol = await import('./scmPullRequests.js').catch(() => null);
+    expect(protocol).not.toBeNull();
+    if (!protocol) {
+      throw new Error('expected scm pull request protocol module');
+    }
+
+    const request = protocol.ScmPullRequestCreateReviewRequestSchema.parse({
+      cwd: '/repo',
+      prReference: { number: 42 },
+      body: 'Looks good',
+    });
+    expect(request.event).toBe('comment');
+    expect(request.comments).toEqual([]);
+
+    const withComment = protocol.ScmPullRequestCreateReviewRequestSchema.parse({
+      cwd: '/repo',
+      prReference: { number: 42 },
+      event: 'approve',
+      body: 'Looks good',
+      comments: [{ path: 'src/a.ts', line: 3, body: '' }],
+    });
+    expect(withComment.event).toBe('approve');
+    expect(withComment.comments[0].side).toBe('new');
+    expect(withComment.comments[0].body).toBe('');
+
+    for (const prReference of [
+      { number: 42 },
+      { url: 'https://github.com/happier-dev/happier/pull/42' },
+      { headBranch: 'feature/pr-review' },
+    ]) {
+      const parsed = protocol.ScmPullRequestCreateReviewRequestSchema.parse({ prReference, body: 'Looks good' });
+      expect(parsed.prReference).toEqual(prReference);
+    }
+
+    const nonPositiveLine = protocol.ScmPullRequestCreateReviewRequestSchema.safeParse({
+      prReference: { number: 42 },
+      body: 'Looks good',
+      comments: [{ path: 'src/a.ts', line: 0, body: 'x' }],
+    });
+    expect(nonPositiveLine.success).toBe(false);
+
+    const tooManyComments = protocol.ScmPullRequestCreateReviewRequestSchema.safeParse({
+      prReference: { number: 42 },
+      body: 'Looks good',
+      comments: Array.from({ length: 101 }, (_, i) => ({ path: 'src/a.ts', line: i + 1, body: 'x' })),
+    });
+    expect(tooManyComments.success).toBe(false);
+
+    const successNullUrl = protocol.ScmPullRequestCreateReviewResponseSchema.parse({
+      success: true,
+      reviewId: 'review-1',
+      url: null,
+    });
+    expect(successNullUrl).toMatchObject({ success: true, url: null });
+
+    const successWithUrl = protocol.ScmPullRequestCreateReviewResponseSchema.parse({
+      success: true,
+      reviewId: 'review-1',
+      url: 'https://github.com/happier-dev/happier/pull/42#discussion_r1',
+    });
+    expect(successWithUrl.url).toBe('https://github.com/happier-dev/happier/pull/42#discussion_r1');
+
+    const errorResponse = protocol.ScmPullRequestCreateReviewResponseSchema.parse({
+      success: false,
+      error: 'Review failed',
+      errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+    });
+    expect(errorResponse).toMatchObject({
+      success: false,
+      errorCode: SCM_OPERATION_ERROR_CODES.COMMAND_FAILED,
+    });
+  });
 });

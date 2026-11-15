@@ -176,6 +176,7 @@ export const RPC_METHODS = {
   SCM_PULL_REQUEST_CHECKOUT: 'scm.pullRequest.checkout',
   SCM_PULL_REQUEST_PREPARE_WORKTREE: 'scm.pullRequest.prepareWorktree',
   SCM_PULL_REQUEST_RUN_STACKED: 'scm.pullRequest.runStacked',
+  SCM_PULL_REQUEST_CREATE_REVIEW: 'scm.pullRequest.createReview',
   KILL_SESSION: 'killSession',
   CAPABILITIES_DESCRIBE: 'capabilities.describe',
   CAPABILITIES_DETECT: 'capabilities.detect',

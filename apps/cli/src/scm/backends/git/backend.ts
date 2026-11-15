@@ -30,6 +30,7 @@ import { gitCommitBackout, gitCommitCreate } from './operations/commitOperations
 import { gitRemotePublish } from './operations/publishOperations';
 import {
     gitPullRequestCheckout,
+    gitPullRequestCreateReview,
     gitPullRequestGet,
     gitPullRequestList,
     gitPullRequestOpenCompose,
@@ -108,6 +109,7 @@ export function createGitBackend(): ScmBackend {
             get: gitPullRequestGet,
             openCompose: gitPullRequestOpenCompose,
             openOrReuse: gitPullRequestOpenOrReuse,
+            createReview: gitPullRequestCreateReview,
             checkout: gitPullRequestCheckout,
             prepareWorktree: gitPullRequestPrepareWorktree,
             runStacked: gitPullRequestRunStacked,

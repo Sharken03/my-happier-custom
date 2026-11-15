@@ -9,10 +9,13 @@ import type {
 import type {
     ScmHostingProviderAdapter,
     ScmHostingProviderCreatePullRequestInput,
+    ScmHostingProviderCreatePullRequestReviewInput,
+    ScmHostingProviderCreatePullRequestReviewResult,
     ScmHostingProviderCreateRepositoryInput,
     ScmHostingProviderGetPullRequestInput,
     ScmHostingProviderListRepositoryPublishTargetsInput,
     ScmHostingProviderListOpenPullRequestsInput,
+    ScmHostingProviderReviewComment,
 } from '../types';
 import { githubScmHostingProviderAdapter } from './github';
 import {
@@ -48,6 +51,57 @@ function buildGithubApiArgs(providerBaseUrl: string, path: string): string[] {
     return host === 'github.com'
         ? ['api', path]
         : ['api', '--hostname', host, path];
+}
+
+const GITHUB_REVIEW_EVENT_BY_EVENT = {
+    comment: 'COMMENT',
+    request_changes: 'REQUEST_CHANGES',
+    approve: 'APPROVE',
+} as const;
+
+function mapGithubReviewSide(side: ScmHostingProviderReviewComment['side']): 'LEFT' | 'RIGHT' {
+    return side === 'old' ? 'LEFT' : 'RIGHT';
+}
+
+function buildCreateReviewArgs(input: ScmHostingProviderCreatePullRequestReviewInput): string[] {
+    if (!input.provider.nameWithOwner) {
+        throw new Error('GitHub repository owner/name is unavailable.');
+    }
+    const host = resolveGithubCliHost(input.provider.baseUrl);
+    return [
+        'api',
+        ...(host === 'github.com' ? [] : ['--hostname', host]),
+        '--method',
+        'POST',
+        `repos/${input.provider.nameWithOwner}/pulls/${input.number}/reviews`,
+        '--raw-field',
+        `body=${input.body}`,
+        '--raw-field',
+        `event=${GITHUB_REVIEW_EVENT_BY_EVENT[input.event]}`,
+        '--field',
+        `comments=${JSON.stringify(input.comments.map((comment) => ({
+            path: comment.path,
+            line: comment.line,
+            side: mapGithubReviewSide(comment.side),
+            body: comment.body,
+        })))}`,
+    ];
+}
+
+function mapGithubReview(value: unknown): ScmHostingProviderCreatePullRequestReviewResult {
+    if (!value || typeof value !== 'object') {
+        throw new Error('GitHub CLI returned an invalid review payload.');
+    }
+    const record = value as Record<string, unknown>;
+    const id = record.id;
+    const url = record.html_url;
+    if (typeof id !== 'number' && typeof id !== 'string') {
+        throw new Error('GitHub CLI returned an invalid review payload.');
+    }
+    return {
+        reviewId: String(id),
+        url: typeof url === 'string' ? url : null,
+    };
 }
 
 function readJsonOutput(stdout: string): unknown {
@@ -290,6 +344,13 @@ export function createGithubCliAdapter(params?: Readonly<{
                 providerBaseUrl: input.providerBaseUrl,
                 runCommand,
             });
+        },
+        async createPullRequestReview(input: ScmHostingProviderCreatePullRequestReviewInput) {
+            const stdout = await runRequiredGithubCliCommand({
+                runCommand,
+                args: buildCreateReviewArgs(input),
+            });
+            return mapGithubReview(readJsonOutput(stdout));
         },
         async createRepository(input: ScmHostingProviderCreateRepositoryInput) {
             const nameWithOwner = `${input.owner}/${input.repositoryName}`;

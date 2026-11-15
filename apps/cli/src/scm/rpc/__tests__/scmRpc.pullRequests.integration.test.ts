@@ -7,6 +7,8 @@ import { RPC_METHODS } from '@happier-dev/protocol/rpc';
 import type {
   ScmPullRequestCheckoutRequest,
   ScmPullRequestCheckoutResponse,
+  ScmPullRequestCreateReviewRequest,
+  ScmPullRequestCreateReviewResponse,
   ScmPullRequestOpenComposeRequest,
   ScmPullRequestOpenComposeResponse,
   ScmPullRequestListRequest,
@@ -91,7 +93,7 @@ function createGithubForkPullRefFixture(): { workspace: string; featureHead: str
 }
 
 describe('git pull request RPC handlers', () => {
-  const envKeys = ['PATH', 'HOME', 'USERPROFILE'] as const;
+  const envKeys = ['PATH', 'HOME', 'USERPROFILE', 'HAPPIER_BUILD_FEATURES_DENY'] as const;
   let envScope = createEnvKeyScope(envKeys);
 
   afterEach(() => {
@@ -698,5 +700,88 @@ describe('git pull request RPC handlers', () => {
     ]);
     expect(git(workspace, ['status', '--short'])).toBe('');
     expect(git(bare, ['rev-parse', 'feature/stacked-rpc'])).toBe(git(workspace, ['rev-parse', 'HEAD']));
+  });
+
+  it('rejects pull request review creation when scm.writeOperations is disabled', async () => {
+    const workspace = mkdtempSync(join(tmpdir(), 'happier-git-rpc-pr-review-disabled-'));
+    git(workspace, ['init']);
+    git(workspace, ['config', 'user.email', 'test@example.com']);
+    git(workspace, ['config', 'user.name', 'Test User']);
+    writeFileSync(join(workspace, 'base.txt'), 'base\n');
+    git(workspace, ['add', 'base.txt']);
+    git(workspace, ['commit', '-m', 'base']);
+    git(workspace, ['remote', 'add', 'origin', 'https://github.com/happier-dev/happier.git']);
+
+    envScope.patch({ HAPPIER_BUILD_FEATURES_DENY: 'scm.writeOperations' });
+
+    const { call } = createTestRpcManager({ workingDirectory: workspace });
+    const response = await call<ScmPullRequestCreateReviewResponse, ScmPullRequestCreateReviewRequest>(
+      RPC_METHODS.SCM_PULL_REQUEST_CREATE_REVIEW,
+      {
+        cwd: '.',
+        prReference: { number: 42 },
+        event: 'comment',
+        body: 'Looks good.',
+        comments: [],
+      },
+    );
+
+    expect(response).toEqual({
+      success: false,
+      errorCode: SCM_OPERATION_ERROR_CODES.FEATURE_UNSUPPORTED,
+      error: 'Pull request review creation is not enabled.',
+    });
+  });
+
+  it('creates a pull request review through authenticated local gh', async () => {
+    const workspace = mkdtempSync(join(tmpdir(), 'happier-git-rpc-pr-review-gh-'));
+    git(workspace, ['init']);
+    git(workspace, ['config', 'user.email', 'test@example.com']);
+    git(workspace, ['config', 'user.name', 'Test User']);
+    writeFileSync(join(workspace, 'base.txt'), 'base\n');
+    git(workspace, ['add', 'base.txt']);
+    git(workspace, ['commit', '-m', 'base']);
+    git(workspace, ['remote', 'add', 'origin', 'https://github.com/happier-dev/happier.git']);
+
+    await writeExecutableShim({
+      dir: workspace,
+      fileName: process.platform === 'win32' ? 'gh.cmd' : 'gh',
+      contents: process.platform === 'win32'
+        ? [
+          '@echo off',
+          'if "%1"=="auth" if "%2"=="status" exit /b 0',
+          'if "%1"=="api" (echo {"id":123,"html_url":"https://github.com/happier-dev/happier/pull/42#pullrequestreview-123"}& exit /b 0)',
+          'exit /b 1',
+        ].join('\r\n')
+        : [
+          '#!/bin/sh',
+          'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi',
+          'if [ "$1" = "api" ]; then echo \'{"id":123,"html_url":"https://github.com/happier-dev/happier/pull/42#pullrequestreview-123"}\'; exit 0; fi',
+          'exit 1',
+        ].join('\n'),
+    });
+    envScope.patch({
+      PATH: [workspace, process.env.PATH].filter(Boolean).join(process.platform === 'win32' ? ';' : ':'),
+      HOME: workspace,
+      USERPROFILE: workspace,
+    });
+
+    const { call } = createTestRpcManager({ workingDirectory: workspace });
+    const response = await call<ScmPullRequestCreateReviewResponse, ScmPullRequestCreateReviewRequest>(
+      RPC_METHODS.SCM_PULL_REQUEST_CREATE_REVIEW,
+      {
+        cwd: '.',
+        prReference: { number: 42 },
+        event: 'comment',
+        body: 'Looks good.',
+        comments: [],
+      },
+    );
+
+    expect(response).toEqual({
+      success: true,
+      reviewId: '123',
+      url: 'https://github.com/happier-dev/happier/pull/42#pullrequestreview-123',
+    });
   });
 });
