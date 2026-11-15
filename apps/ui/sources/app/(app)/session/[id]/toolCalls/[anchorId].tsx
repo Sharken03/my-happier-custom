@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSession } from '@/sync/domains/state/storage';
 import { sync } from '@/sync/sync';
 import { SessionInvalidLinkFallback } from '@/components/sessions/shell/SessionInvalidLinkFallback';
+import { ToolCallsBottomSheet } from '@/components/sessions/transcript/toolCallsSheet/ToolCallsBottomSheet';
 import { ToolCallsSheetView } from '@/components/sessions/transcript/toolCallsSheet/ToolCallsSheetView';
 import { useToolCallsGroup } from '@/components/sessions/transcript/toolCallsSheet/useToolCallsGroup';
 import { useSessionRouteServerScope, type SessionRouteServerScope } from '@/hooks/session/sessionRouteServerScope';
@@ -78,15 +79,15 @@ function SessionToolCallsRouteLoaded(props: {
         return <SessionInvalidLinkFallback />;
     }
 
-    // The sheet view shows its own spinner while the group loads. It must render its list from the
-    // start, so the Android sheet finds the list (see ToolCallsSheetView).
+    // The sheet opens at once; it shows its own spinner while the group loads.
     return (
-        <ToolCallsSheetView
-            sessionId={props.sessionId}
-            session={session ?? null}
-            calls={group.isLoaded ? group.calls ?? null : null}
-            isTranscriptTail={group.isTranscriptTail}
-            onClose={handleClose}
-        />
+        <ToolCallsBottomSheet onClosed={handleClose}>
+            <ToolCallsSheetView
+                sessionId={props.sessionId}
+                session={session ?? null}
+                calls={group.isLoaded ? group.calls ?? null : null}
+                isTranscriptTail={group.isTranscriptTail}
+            />
+        </ToolCallsBottomSheet>
     );
 }

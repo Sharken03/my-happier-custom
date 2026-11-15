@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { BackHandler, FlatList, Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { BackHandler, Pressable, View } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +28,7 @@ import {
     type ToolCallsSheetState,
 } from './toolCallsSheetState';
 import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
+import { ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
 
 const EMPTY_CALLS: readonly ToolCallMessage[] = [];
 
@@ -38,21 +41,17 @@ type ToolCallsSheetViewProps = Readonly<{
     session: Session | null;
     calls: readonly ToolCallMessage[] | null;
     isTranscriptTail: boolean;
-    onClose: () => void;
 }>;
 
 /**
- * The Tool calls sheet content: the list of calls, with the detail of the selected call on top.
- *
- * Android: the bottom sheet finds its scroll view only when the sheet is laid out, and React Native
- * does not lay out the sheet again when its content changes. So the list is in the first render,
- * also while the group loads, and it stays mounted while the detail shows. Else a swipe on the
- * list does not move the sheet.
+ * The Tool calls sheet content: the list of calls, or the detail of the selected call. It renders
+ * inside ToolCallsBottomSheet, which moves the sheet on a swipe on the list or the detail.
  */
 export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: ToolCallsSheetViewProps) {
     const { theme } = useUnistyles();
     const insets = useSafeAreaInsets();
-    const { session, onClose } = props;
+    const { session } = props;
+    const { close: onClose, scroll } = useToolCallsSheetControls();
     const calls = props.session ? props.calls : null;
     const callList = calls ?? EMPTY_CALLS;
     const [state, setState] = React.useState<ToolCallsSheetState | null>(() =>
@@ -84,24 +83,15 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         setState(result.state);
     }, [callList.length, onClose, selectedCall]);
 
-    // In detail mode the hardware back button goes to the list. In the list it falls through to the
-    // navigator, which closes the sheet.
+    // The hardware back button goes from a detail to the list, and from the list it closes the
+    // sheet with its animation.
     React.useEffect(() => {
-        if (!selectedCall || callList.length <= 1) return;
         const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
             handleBack();
             return true;
         });
         return () => subscription.remove();
-    }, [callList.length, handleBack, selectedCall]);
-
-    // Android: a scroll view that cannot scroll never takes the touch, and the sheet ignores touches
-    // on its scroll view. So with a short list no swipe on the list moves the sheet. The content is
-    // always 1 px taller than the list, so the list always takes the swipe and hands it to the sheet.
-    const [listHeight, setListHeight] = React.useState(0);
-    const handleListLayout = React.useCallback((event: LayoutChangeEvent) => {
-        setListHeight(event.nativeEvent.layout.height);
-    }, []);
+    }, [handleBack]);
 
     const turnWorking = useSessionTurnWorking(props.sessionId, props.isTranscriptTail);
     const groupStatus = resolveToolCallsGroupStatus({
@@ -140,8 +130,9 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         );
     }, [callList.length, interaction, session?.metadata, props.sessionId, theme.colors.border.default]);
 
-    const detail = selectedCall && session ? (
-            <View style={[styles.container, styles.detailOverlay]} testID="tool-calls-sheet-detail">
+    if (selectedCall && session) {
+        return (
+            <View style={styles.container} testID="tool-calls-sheet-detail">
                 <View style={styles.header}>
                     <Pressable
                         testID="tool-calls-sheet-back"
@@ -166,11 +157,13 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                             sessionId={props.sessionId}
                             session={session}
                             jumpChildId={null}
+                            ScrollComponent={ToolCallsSheetScrollView}
                         />
                     </Deferred>
                 </View>
             </View>
-    ) : null;
+        );
+    }
 
     return (
         <View style={styles.container} testID="tool-calls-sheet-list">
@@ -194,25 +187,23 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                     <Icon name="x" size={22} color={theme.colors.text.primary} />
                 </Pressable>
             </View>
-            <FlatList
-                data={callList}
-                keyExtractor={(call) => call.id}
-                renderItem={renderItem}
-                // Android: the list hands its scroll to the sheet. At the top of the list a
-                // swipe down moves the sheet from full to half height, and then closes it.
-                nestedScrollEnabled
-                onLayout={handleListLayout}
-                contentContainerStyle={[
-                    styles.listContent,
-                    { paddingBottom: 24 + insets.bottom, minHeight: listHeight > 0 ? listHeight + 1 : undefined },
-                ]}
-                ListEmptyComponent={calls ? null : (
-                    <View style={styles.loading}>
-                        <ActivitySpinner size="small" color={theme.colors.text.secondary} />
-                    </View>
-                )}
-            />
-            {detail}
+            <GestureDetector gesture={scroll.nativeGesture}>
+                <Animated.FlatList
+                    ref={scroll.listRef}
+                    onScroll={scroll.onScroll}
+                    scrollEventThrottle={16}
+                    overScrollMode="never"
+                    data={callList}
+                    keyExtractor={(call) => call.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={[styles.listContent, { paddingBottom: 24 + insets.bottom }]}
+                    ListEmptyComponent={calls ? null : (
+                        <View style={styles.loading}>
+                            <ActivitySpinner size="small" color={theme.colors.text.secondary} />
+                        </View>
+                    )}
+                />
+            </GestureDetector>
         </View>
     );
 });
@@ -253,14 +244,6 @@ const styles = StyleSheet.create((theme) => ({
         textAlign: 'center',
         ...Typography.default('semiBold'),
         flexShrink: 1,
-    },
-    // The detail covers the list, so the list keeps its place in the sheet (see the view comment).
-    detailOverlay: {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
     },
     loading: {
         paddingVertical: 32,

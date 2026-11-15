@@ -348,13 +348,11 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
                 name="session/[id]/toolCalls/[anchorId]"
                 options={{
                     headerShown: false,
-                    // Native: a bottom sheet that opens at half height (first detent). Swiping up
-                    // gives full height and swiping down closes it.
-                    presentation: Platform.OS === 'web' ? 'modal' : 'formSheet',
-                    sheetAllowedDetents: [0.5, 1],
-                    sheetInitialDetentIndex: 0,
-                    sheetGrabberVisible: true,
-                    gestureEnabled: true,
+                    // The route is see-through: ToolCallsBottomSheet draws the sheet and its
+                    // animation over the chat.
+                    presentation: 'transparentModal',
+                    animation: 'none',
+                    contentStyle: { backgroundColor: 'transparent' },
                 }}
             />
             <Stack.Screen

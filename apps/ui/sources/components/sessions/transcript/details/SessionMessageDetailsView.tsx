@@ -1,7 +1,7 @@
 import { isSubAgentTranscriptToolName, type ParticipantRecipientV1 } from '@happier-dev/protocol';
 import * as React from 'react';
 import { View } from 'react-native';
-import type { TextStyle, ViewStyle } from 'react-native';
+import type { ScrollViewProps, TextStyle, ViewStyle } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { useSessionAgentInputRoutingControls } from '@/components/sessions/agentInput/routing/useSessionAgentInputRoutingControls';
@@ -148,6 +148,7 @@ function ToolCallDetailsView(props: Readonly<{
     session: Session;
     jumpChildId: string | null;
     showComposer: boolean;
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
 }>) {
     const { theme } = useUnistyles();
     const styles = React.useMemo(() => createSessionMessageDetailsStyles(theme), [theme]);
@@ -253,6 +254,7 @@ function ToolCallDetailsView(props: Readonly<{
                 interaction={interaction}
                 jumpChildId={props.jumpChildId}
                 forcePermissionFooterInTranscript={forcePermissionFooterInTranscript}
+                ScrollComponent={props.ScrollComponent}
             />
 
             {shouldShowComposer ? (
@@ -277,6 +279,8 @@ export const SessionMessageDetailsView = React.memo((props: Readonly<{
     message: Message;
     jumpChildId?: string | null;
     showComposer?: boolean;
+    /** Replaces the scroll view of a tool call's generic detail (see ToolFullView). */
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
 }>) => {
     const { theme } = useUnistyles();
     const styles = React.useMemo(() => createSessionMessageDetailsStyles(theme), [theme]);
@@ -291,6 +295,7 @@ export const SessionMessageDetailsView = React.memo((props: Readonly<{
                         session={props.session}
                         jumpChildId={props.jumpChildId ?? null}
                         showComposer={props.showComposer ?? true}
+                        ScrollComponent={props.ScrollComponent}
                     />
                 ) : props.message.kind === 'agent-text' || props.message.kind === 'user-text' ? (
                     <TextFullView text={props.message.text} />

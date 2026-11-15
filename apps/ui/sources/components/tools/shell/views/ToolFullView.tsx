@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Platform, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { ToolCall, Message } from '@/sync/domains/messages/messageTypes';
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Metadata } from '@/sync/domains/state/storageTypes';
@@ -36,9 +36,12 @@ interface ToolFullViewProps {
     jumpChildId?: string | null;
     forcePermissionFooterInTranscript?: boolean;
     interaction?: TranscriptInteraction;
+    /** Replaces the ScrollView of the generic view, for example with the scroll view of the Tool calls sheet. */
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
 }
 
-export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction }: ToolFullViewProps) {
+export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction, ScrollComponent }: ToolFullViewProps) {
+    const Scroll = ScrollComponent ?? ScrollView;
     const { theme } = useUnistyles();
     // This view opens one historical row on its own screen, so the row's own
     // Agent — published by the opener — outranks the Session's current one.
@@ -215,9 +218,7 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
     }
 
     return (
-        // nestedScrollEnabled: inside the Tool calls sheet on Android, a swipe down at the top
-        // moves the sheet instead of being lost.
-        <ScrollView nestedScrollEnabled style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
+        <Scroll style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
             <View style={styles.contentWrapper}>
                 {/* Tool-specific content or generic fallback */}
                 {SpecializedFullView ? (
@@ -314,7 +315,7 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                 {permissionFooter}
                 {debugSection}
             </View>
-        </ScrollView>
+        </Scroll>
     );
 }
 
