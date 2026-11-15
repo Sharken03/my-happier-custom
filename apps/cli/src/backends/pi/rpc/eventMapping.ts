@@ -249,7 +249,8 @@ export function mapPiRpcEventToAgentMessages(event: unknown): AgentMessage[] {
       source: 'pi-tool-result',
       originSource: 'tool-output',
       toolCallId: callId,
-      dedupePrefix: 'pi:tool-result',
+      // Same key as the runtime's tool-result extraction, so the image is stored once, on the tool call.
+      dedupePrefix: 'acp:tool-result',
     }).media;
     if (media.length > 0) {
       messages.push({ type: 'session-media', source: 'pi-tool-result', media });
