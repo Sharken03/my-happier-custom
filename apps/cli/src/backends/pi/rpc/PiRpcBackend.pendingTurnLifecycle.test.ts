@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -2104,4 +2105,50 @@ describe('PiRpcBackend pending turn lifecycle', () => {
       await backend.dispose();
     }
   });
+
+  it('reports a file a bash command changed in a git repository', async () => {
+    const workDir = makeTempDir('happier-pi-rpc-shell-changes-');
+    tempDirs.push(workDir);
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: workDir, stdio: 'ignore' });
+    writeFileSync(join(workDir, 'a.txt'), 'one\n');
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'test');
+    git('add', 'a.txt');
+    git('commit', '-q', '-m', 'init');
+    const target = join(workDir, 'a.txt');
+    const fakeScript = writeFakePiRpcScript(
+      workDir,
+      'fake-pi-rpc-shell-changes.js',
+      `
+      out({ type: 'agent_start' });
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'bash-1', toolName: 'bash', args: { command: "sed -i 's/one/uno/' ${target}" } }), 5);
+      setTimeout(() => { require('node:fs').writeFileSync(${JSON.stringify(target)}, 'uno\\n'); out({ type: 'tool_execution_end', toolCallId: 'bash-1', toolName: 'bash', result: { content: [{ type: 'text', text: '' }] } }); }, 10);
+      setTimeout(() => out({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'done' }] } }), 15);
+      setTimeout(() => out({ type: 'agent_end' }), 20);
+`,
+    );
+    const backend = createBackend({ workDir, scriptPath: fakeScript });
+    const messages: AgentMessage[] = [];
+    backend.onMessage((message) => messages.push(message));
+
+    try {
+      const session = await backend.startSession();
+      await backend.sendPrompt(session.sessionId, 'change a file with bash');
+      const diffFiles = async () => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const diffCall = messages.find((message) => message.type === 'tool-call' && message.toolName === 'Diff') as
+            | Extract<AgentMessage, { type: 'tool-call' }>
+            | undefined;
+          if (diffCall) return ((diffCall.args as { files?: Array<{ file_path?: string }> }).files ?? []).map((file) => file.file_path);
+          await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+        }
+        return [];
+      };
+      expect(await diffFiles()).toEqual([target]);
+    } finally {
+      await backend.dispose();
+    }
+  });
 });
+

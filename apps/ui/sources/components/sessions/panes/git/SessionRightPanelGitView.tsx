@@ -7,7 +7,8 @@ import { ActivitySpinner } from '@/components/ui/feedback/ActivitySpinner';
 
 import { Text } from '@/components/ui/text/Text';
 import { useAppPaneScope } from '@/components/appShell/panes/hooks/useAppPaneScope';
-import { NotSourceControlRepositoryState, SourceControlSessionInactiveState, SourceControlUnavailableState } from '@/components/sessions/sourceControl/states';
+import { SourceControlSessionInactiveState, SourceControlUnavailableState } from '@/components/sessions/sourceControl/states';
+import { NotRepositoryGitState } from './externalChanges/NotRepositoryGitState';
 import { useSessionMachineReachability } from '@/components/sessions/model/useSessionMachineReachability';
 import { useSessionResumeAction } from '@/components/sessions/model/SessionResumeContext';
 import { emitSessionResumeRequest } from '@/components/sessions/model/sessionResumeRequests';
@@ -566,8 +567,9 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
 
     if (!effectiveScmSnapshot.repo.isRepo) {
         return (
-            <NotSourceControlRepositoryState
+            <NotRepositoryGitState
                 sessionId={props.sessionId}
+                scmSnapshot={effectiveScmSnapshot}
                 canInitializeRepository={effectiveScmSnapshot.capabilities?.writeRepositoryInit === true}
                 onInitialized={refreshScmData}
             />

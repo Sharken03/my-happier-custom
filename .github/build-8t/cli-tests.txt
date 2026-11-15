@@ -28,3 +28,4 @@ src/rpc/handlers/registerSessionHandlers.previewEnv.test.ts
 src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
 src/backends/pi/acp/backend.test.ts
 src/cli/commands/toolsServe.test.ts
+src/agent/tools/diff/shellCommandScmChanges.test.ts
