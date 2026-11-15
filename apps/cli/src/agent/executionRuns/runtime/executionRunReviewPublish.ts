@@ -252,17 +252,19 @@ export async function publishReviewFindings(params: Readonly<{
 }>): Promise<ExecutionRunActionResult> {
   const { run, input, deps, runs } = params;
 
-  const parsed = ReviewPublishRequestV1Schema.safeParse(input ?? {});
-  if (!parsed.success) {
-    return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid publish input' };
-  }
-
+  // The gate is checked before the input is even parsed: an outward write refuses first and explains
+  // nothing else, so a disabled machine cannot be probed with malformed payloads.
   if (deps.featureDecision?.state !== 'enabled') {
     return {
       ok: false,
       errorCode: 'execution_run_not_allowed',
       error: 'Review publishing is not enabled (feature: scm.writeOperations)',
     };
+  }
+
+  const parsed = ReviewPublishRequestV1Schema.safeParse(input ?? {});
+  if (!parsed.success) {
+    return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid publish input' };
   }
 
   const existingPayload = resolveExistingPayload(run.structuredMeta);
