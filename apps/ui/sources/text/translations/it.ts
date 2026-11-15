@@ -8099,7 +8099,7 @@ export const it: TranslationStructure = {
       `${count} file inferit${count === 1 ? "o" : "i"} mantenut${count === 1 ? "o" : "i"} nelle modifiche solo repository.`,
     otherRepositoriesTitle: "Altri repository",
     outsideGitTitle: "Fuori da git",
-    externalChangeCommitted: "Già committato: questa è la modifica dell’agente.",
+    externalChangeNotInWorkingTree: "Non più modificato nell’albero di lavoro (committato o annullato): questa è la modifica dell’agente.",
     externalChangeNoDiff: "Nessun diff: la chiamata allo strumento dell’agente non includeva il testo modificato.",
     noSessionAttributedChanges:
       "Nessuna modifica attribuita alla sessione rilevata.",

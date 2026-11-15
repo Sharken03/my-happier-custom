@@ -8023,7 +8023,7 @@ localTailscale: {
       `${count}件の推定ファイルを「リポジトリのみの変更」に残しました。`,
     otherRepositoriesTitle: "他のリポジトリ",
     outsideGitTitle: "git の外",
-    externalChangeCommitted: "コミット済み：エージェントによる変更を表示しています。",
+    externalChangeNotInWorkingTree: "作業ツリーでは現在変更されていません（コミット済みまたは取り消し済み）：エージェントによる変更を表示しています。",
     externalChangeNoDiff: "差分なし：エージェントのツール呼び出しに変更されたテキストが含まれていません。",
     noSessionAttributedChanges:
       "現在、セッションに紐づく変更は検出されていません。",

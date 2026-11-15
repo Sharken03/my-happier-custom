@@ -7747,7 +7747,7 @@ export const ru: TranslationStructure = {
       `${count} ${plural({ count, one: "выведенный файл оставлен", few: "выведенных файла оставлены", many: "выведенных файлов оставлены" })} в изменениях только репозитория.`,
     otherRepositoriesTitle: "Другие репозитории",
     outsideGitTitle: "Вне git",
-    externalChangeCommitted: "Уже закоммичено: это правка агента.",
+    externalChangeNotInWorkingTree: "Сейчас не изменено в рабочем дереве (закоммичено или отменено): это правка агента.",
     externalChangeNoDiff: "Нет диффа: вызов инструмента агентом не содержал изменённый текст.",
     noSessionAttributedChanges:
       "Изменения, привязанные к сессии, не обнаружены.",

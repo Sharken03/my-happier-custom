@@ -7286,7 +7286,7 @@ export const fr: TranslationStructure = {
               `${count} fichier inféré${count === 1 ? '' : 's'} dans les modifications propres au dépôt uniquement.`,
           otherRepositoriesTitle: "Autres dépôts",
           outsideGitTitle: "Hors de git",
-          externalChangeCommitted: "Déjà commité : voici la modification de l’agent.",
+          externalChangeNotInWorkingTree: "Plus modifié dans l’arbre de travail (commité ou annulé) : voici la modification de l’agent.",
           externalChangeNoDiff: "Pas de diff : l’appel d’outil de l’agent ne contenait pas le texte modifié.",
           noSessionAttributedChanges: 'Aucune modification attribuée à la session détectée pour l’instant.',
           noLatestTurnChanges: 'Aucune modification du dernier tour détectée pour l’instant.',

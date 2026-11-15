@@ -7299,7 +7299,7 @@ export const de: TranslationStructure = {
               `${count} abgeleitete Datei${count === 1 ? '' : 's'} bleibt bei den reinen Repository-Änderungen.`,
           otherRepositoriesTitle: "Andere Repositorys",
           outsideGitTitle: "Außerhalb von Git",
-          externalChangeCommitted: "Bereits committet: dies ist die Änderung des Agenten.",
+          externalChangeNotInWorkingTree: "Im Arbeitsverzeichnis jetzt nicht geändert (committet oder rückgängig gemacht): dies ist die Änderung des Agenten.",
           externalChangeNoDiff: "Keine Diff: Der Werkzeugaufruf des Agenten enthielt den geänderten Text nicht.",
           noSessionAttributedChanges: 'Derzeit sind keine dieser Session zugeordneten Änderungen erkennbar.',
           noLatestTurnChanges: 'Derzeit sind keine Änderungen des letzten Turns erkennbar.',

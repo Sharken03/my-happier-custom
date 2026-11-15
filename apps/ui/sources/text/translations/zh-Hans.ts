@@ -7527,7 +7527,7 @@ export const zhHans: TranslationStructure = {
       `已有 ${count} 个推断文件保留在仅仓库变更中。`,
     otherRepositoriesTitle: "其他仓库",
     outsideGitTitle: "不在 git 中",
-    externalChangeCommitted: "已提交：这是代理所做的修改。",
+    externalChangeNotInWorkingTree: "工作树中当前未更改（已提交或已撤销）：这是代理所做的修改。",
     externalChangeNoDiff: "没有差异：代理的工具调用未包含更改的文本。",
     noSessionAttributedChanges:
       "当前未检测到会话归因的变更。",

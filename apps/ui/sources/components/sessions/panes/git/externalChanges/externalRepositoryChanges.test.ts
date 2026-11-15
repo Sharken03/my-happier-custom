@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { groupByRepository, pathInside, resolveAgentChangeView, resolveRepositoryRoots } from './externalRepositoryChanges';
+import { groupByRepository, pathInside, resolveAgentChangeView, resolveRepositoryRoots, workingTreeChangedPaths } from './externalRepositoryChanges';
 
 describe('external repository changes', () => {
     it('asks once per folder that no found repository covers', async () => {
@@ -54,5 +54,12 @@ describe('resolveAgentChangeView', () => {
     it('gives a note when there is nothing to show', () => {
         expect(resolveAgentChangeView({ unifiedDiff: placeholder })).toEqual({ kind: 'none' });
         expect(resolveAgentChangeView({ oldText: 'same', newText: 'same' })).toEqual({ kind: 'none' });
+    });
+});
+
+describe('workingTreeChangedPaths', () => {
+    it('lists changed paths and both sides of a rename', () => {
+        const paths = workingTreeChangedPaths([{ path: 'a.ts' }, { path: 'new.ts', previousPath: 'old.ts' }]);
+        expect([...paths].sort()).toEqual(['a.ts', 'new.ts', 'old.ts']);
     });
 });

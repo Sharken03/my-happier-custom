@@ -18,16 +18,18 @@ import {
     isAbsoluteFilePath,
     resolveAgentChangeView,
     resolveRepositoryRoots,
+    workingTreeChangedPaths,
     type ExternalChangedFile,
     type ExternalRepositoryGroup,
 } from './externalRepositoryChanges';
 
 const NO_GROUPS: readonly ExternalRepositoryGroup<SessionChangeSetFile>[] = [];
+const NO_CHANGED_PATHS: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 
 /**
  * "Other repositories" below the chat's own changes: the files the chat's tool calls changed
  * outside its repository, grouped by the repository that holds each one, with the working-tree
- * diff on tap (the agent's own edit when the change is already committed or outside git).
+ * diff on tap (the agent's own edit when the working tree no longer has the change, or outside git).
  */
 export const SessionExternalRepositoryChanges = React.memo(function SessionExternalRepositoryChanges(props: Readonly<{
     sessionId: string;
@@ -42,6 +44,9 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
     const filesKey = externalFiles.map((file) => file.filePath).join('\n');
 
     const [groups, setGroups] = React.useState<readonly ExternalRepositoryGroup<SessionChangeSetFile>[]>(NO_GROUPS);
+    // Per repository root, the paths its working tree has changed now. A listed file outside it was
+    // committed or undone since the agent changed it.
+    const [changedPathsByRoot, setChangedPathsByRoot] = React.useState(NO_CHANGED_PATHS);
     const { sessionId } = props;
     React.useEffect(() => {
         if (externalFiles.length === 0) {
@@ -49,12 +54,16 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
             return;
         }
         let cancelled = false;
+        const changedPaths = new Map<string, ReadonlySet<string>>();
         void resolveRepositoryRoots(externalFiles.map((file) => file.filePath), async (folder) => {
             const response = await sessionScmStatusSnapshot(sessionId, { cwd: folder });
-            const repo = response.success ? response.snapshot?.repo : undefined;
-            return repo?.isRepo && repo.rootPath ? repo.rootPath : null;
+            const snapshot = response.success ? response.snapshot : undefined;
+            const root = snapshot?.repo?.isRepo && snapshot.repo.rootPath ? snapshot.repo.rootPath : null;
+            if (root && snapshot) changedPaths.set(root, workingTreeChangedPaths(snapshot.entries));
+            return root;
         }).then((roots) => {
             if (cancelled) return;
+            setChangedPathsByRoot(changedPaths);
             setGroups(groupByRepository(externalFiles.map((file) => ({ filePath: file.filePath, change: file })), roots));
         });
         return () => { cancelled = true; };
@@ -72,7 +81,13 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
                         {group.rootPath ?? t('files.outsideGitTitle')}
                     </Text>
                     {group.files.map((file) => (
-                        <ExternalChangedFileRow key={file.filePath} sessionId={sessionId} rootPath={group.rootPath} file={file} />
+                        <ExternalChangedFileRow
+                            key={file.filePath}
+                            sessionId={sessionId}
+                            rootPath={group.rootPath}
+                            file={file}
+                            inWorkingTree={group.rootPath ? changedPathsByRoot.get(group.rootPath)?.has(file.displayPath) ?? true : true}
+                        />
                     ))}
                 </View>
             ))}
@@ -80,12 +95,14 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
     );
 });
 
-type DiffState = Readonly<{ kind: 'loading' }> | Readonly<{ kind: 'ready'; unifiedDiff: string | null; committed: boolean }>;
+type DiffState = Readonly<{ kind: 'loading' }> | Readonly<{ kind: 'ready'; unifiedDiff: string | null; notInWorkingTree: boolean }>;
 
 function ExternalChangedFileRow(props: Readonly<{
     sessionId: string;
     rootPath: string | null;
     file: ExternalChangedFile<SessionChangeSetFile>;
+    /** False when the repository's working tree does not have the file changed now. */
+    inWorkingTree: boolean;
 }>) {
     const { theme } = useUnistyles();
     const [expanded, setExpanded] = React.useState(false);
@@ -97,13 +114,13 @@ function ExternalChangedFileRow(props: Readonly<{
         setExpanded(next);
         if (!next || diff) return;
         if (!rootPath) {
-            setDiff({ kind: 'ready', unifiedDiff: null, committed: false });
+            setDiff({ kind: 'ready', unifiedDiff: null, notInWorkingTree: false });
             return;
         }
         setDiff({ kind: 'loading' });
         void sessionScmDiffFile(sessionId, { cwd: rootPath, path: file.displayPath, area: 'both' }).then((response) => {
             const text = response.success && typeof response.diff === 'string' ? response.diff.trim() : '';
-            setDiff({ kind: 'ready', unifiedDiff: text || null, committed: response.success && !text });
+            setDiff({ kind: 'ready', unifiedDiff: text || null, notInWorkingTree: response.success && !text });
         });
     }, [diff, expanded, file.displayPath, rootPath, sessionId]);
 
@@ -119,14 +136,14 @@ function ExternalChangedFileRow(props: Readonly<{
                 style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.colors.surface.pressed } : null]}
             >
                 <Icon name={expanded ? 'caret-down' : 'caret-right'} size={14} color={theme.colors.text.secondary} />
-                <Text style={[styles.rowText, { color: theme.colors.text.primary }]} numberOfLines={1} ellipsizeMode="head">
+                <Text style={[styles.rowText, { color: props.inWorkingTree ? theme.colors.text.primary : theme.colors.text.secondary }]} numberOfLines={1} ellipsizeMode="head">
                     {file.displayPath}
                 </Text>
             </Pressable>
             {expanded && diff?.kind === 'ready' ? (
                 <View style={styles.diff}>
-                    {diff.committed ? (
-                        <Text style={[styles.note, { color: theme.colors.text.secondary }]}>{t('files.externalChangeCommitted')}</Text>
+                    {diff.notInWorkingTree ? (
+                        <Text style={[styles.note, { color: theme.colors.text.secondary }]}>{t('files.externalChangeNotInWorkingTree')}</Text>
                     ) : null}
                     {diff.unifiedDiff ? (
                         <DiffViewer mode="unified" filePath={file.displayPath} unifiedDiff={diff.unifiedDiff} />

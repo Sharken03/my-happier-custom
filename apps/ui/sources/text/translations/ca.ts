@@ -7299,7 +7299,7 @@ deps: {
             `${count} fitxer${count === 1 ? '' : 's'} inferit${count === 1 ? '' : 's'} mantingut${count === 1 ? '' : 's'} en canvis només del repositori.`,
         otherRepositoriesTitle: "Altres repositoris",
         outsideGitTitle: "Fora de git",
-        externalChangeCommitted: "Ja confirmat: aquest és el canvi de l’agent.",
+        externalChangeNotInWorkingTree: "Ara no està canviat a l’arbre de treball (confirmat o desfet): aquest és el canvi de l’agent.",
         externalChangeNoDiff: "Sense diff: la crida d’eina de l’agent no incloïa el text canviat.",
         noSessionAttributedChanges: 'No s’han detectat canvis atribuïts a la sessió.',
         noLatestTurnChanges: 'No s’han detectat canvis de l’últim torn.',

@@ -7331,7 +7331,7 @@ export const en = {
               `${count} inferred file${count === 1 ? '' : 's'} kept in repository-only changes.`,
           otherRepositoriesTitle: "Other repositories",
           outsideGitTitle: "Outside git",
-          externalChangeCommitted: "Committed already: this is the agent's own edit.",
+          externalChangeNotInWorkingTree: "Not changed in the working tree now (committed or undone): this is the agent's own edit.",
           externalChangeNoDiff: "No diff: the agent's tool call did not include the changed text.",
           noSessionAttributedChanges: 'No session-attributed changes currently detected.',
           noLatestTurnChanges: 'No latest-turn changes currently detected.',
