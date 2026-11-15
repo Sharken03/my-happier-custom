@@ -34,10 +34,22 @@ env:
   CI: "1"
 
 jobs:
-  typecheck:
-    name: Typecheck apps/ui
+  # Two parallel jobs from one step list: the typecheck and the fork UI tests. Each installs on its
+  # own runner, so the run takes as long as the slower job instead of the sum of both.
+  # No "Free disk" step: this scoped install fits in the runner's default free space; the step
+  # cost about 2 min per run. The df line in "Report disk" shows the margin.
+  check:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - task: typecheck
+            name: Typecheck apps/ui
+          - task: ui-tests
+            name: Fork UI tests
     env:
       # Same scope as Build web, so the two share the node_modules cache.
       HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
@@ -47,9 +59,6 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Free disk
-        uses: ./.github/build-8t/free-disk
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -77,12 +86,17 @@ jobs:
           save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
 
+      - name: Report disk
+        run: df -h /
+
       - name: Typecheck apps/ui
+        if: ${{ matrix.task == 'typecheck' }}
         working-directory: apps/ui
         run: yarn -s typecheck
 
       # The same fork tests as Build web, so a fix branch is checked without a web build.
       - name: Run the fork UI tests
+        if: ${{ matrix.task == 'ui-tests' }}
         working-directory: apps/ui
         run: |
           set -euo pipefail
