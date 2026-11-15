@@ -7889,6 +7889,7 @@ export const es: TranslationStructure = {
           attachmentImageA11y: ({ name }: { name: string }) => `Abrir imagen adjunta ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Abrir imagen de artefacto de herramienta ${name}`,
           imageUnavailable: 'La imagen no está disponible',
+          imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 imagen' : `${count} imágenes`,
         },
         cannotDisplayBinary: "No se puede mostrar el contenido del archivo binario",
         diff: "Diferencias",

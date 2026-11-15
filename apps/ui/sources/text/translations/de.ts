@@ -7426,6 +7426,7 @@ export const de: TranslationStructure = {
                 attachmentImageA11y: ({ name }: { name: string }) => `Angehängtes Bild öffnen: ${name}`,
                 toolArtifactImageA11y: ({ name }: { name: string }) => `Bild-Artefakt des Tools öffnen: ${name}`,
                 imageUnavailable: 'Bild nicht verfügbar',
+                imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 Bild' : `${count} Bilder`,
             },
             cannotDisplayBinary: 'Der Inhalt einer Binärdatei lässt sich nicht anzeigen',
             diff: 'Diff',

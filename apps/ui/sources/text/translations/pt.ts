@@ -8020,6 +8020,7 @@ export const pt: TranslationStructure = {
           attachmentImageA11y: ({ name }: { name: string }) => `Abrir imagem anexada ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Abrir imagem de artefato da ferramenta ${name}`,
           imageUnavailable: 'A imagem não está disponível',
+          imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 imagem' : `${count} imagens`,
         },
         cannotDisplayBinary: "Não é possível exibir o conteúdo do arquivo binário",
         diff: "Diferenças",
