@@ -88,8 +88,8 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
 
     const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => (
         <View style={styles.listRow}>
-            {index > 0 ? <View style={[styles.timeline, styles.timelineAbove, { backgroundColor: theme.colors.divider }]} /> : null}
-            {index < calls.length - 1 ? <View style={[styles.timeline, styles.timelineBelow, { backgroundColor: theme.colors.divider }]} /> : null}
+            {index > 0 ? <View style={[styles.timeline, styles.timelineAbove, { backgroundColor: theme.colors.border.default }]} /> : null}
+            {index < calls.length - 1 ? <View style={[styles.timeline, styles.timelineBelow, { backgroundColor: theme.colors.border.default }]} /> : null}
             <ToolTimelineRow
                 tool={item.tool}
                 metadata={props.session.metadata}
@@ -102,7 +102,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 onPressOverride={() => setState((current) => selectToolCall(current, item.id))}
             />
         </View>
-    ), [calls.length, interaction, props.session.metadata, props.sessionId, theme.colors.divider]);
+    ), [calls.length, interaction, props.session.metadata, props.sessionId, theme.colors.border.default]);
 
     if (selectedCall) {
         return (

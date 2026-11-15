@@ -35,8 +35,9 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'transcriptStreamingSmoothingEnabled'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
-    | 'transcriptToolCallsGroupOpenMode'
->;
+>
+    // Optional: a chrome without the setting renders groups inline.
+    & Partial<Pick<TranscriptSessionCommonSettings, 'transcriptToolCallsGroupOpenMode'>>;
 
 export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSettings,
     | 'sessionThinkingDisplayMode'
@@ -92,8 +93,9 @@ export type TranscriptToolChromeCommon = Pick<TranscriptSessionCommonSettings,
     | 'toolViewTimelineChromeMode'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
-    | 'transcriptToolCallsGroupOpenMode'
->;
+>
+    // Optional: a chrome without the setting renders groups inline.
+    & Partial<Pick<TranscriptSessionCommonSettings, 'transcriptToolCallsGroupOpenMode'>>;
 
 export type TranscriptToolRouteCommon = Readonly<{
     messagesById: Readonly<Record<string, Message>>;
