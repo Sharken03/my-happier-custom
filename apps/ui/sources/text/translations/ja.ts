@@ -8162,6 +8162,7 @@ localTailscale: {
           attachmentImageA11y: ({ name }: { name: string }) => `添付画像 ${name} を開く`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `ツール成果物画像 ${name} を開く`,
           imageUnavailable: '画像は利用できません',
+          imageCountA11y: ({ count }: { count: number }) => `画像 ${count} 件`,
         },
         cannotDisplayBinary: "バイナリファイルの内容を表示できません",
         diff: "差分",

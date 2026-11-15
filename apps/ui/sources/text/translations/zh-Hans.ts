@@ -7664,6 +7664,7 @@ export const zhHans: TranslationStructure = {
           attachmentImageA11y: ({ name }: { name: string }) => `打开附件图片 ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `打开工具产物图片 ${name}`,
           imageUnavailable: '图像不可用',
+          imageCountA11y: ({ count }: { count: number }) => `${count} 张图像`,
         },
         cannotDisplayBinary: "无法显示二进制文件内容",
         diff: "差异",

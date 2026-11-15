@@ -87,7 +87,7 @@ describe('mapPiRpcEventToAgentMessages', () => {
               toolCallId: 'call-1',
               contentIndex: 1,
             },
-            dedupeKey: expect.stringMatching(/^pi:tool-result:call-1:[a-f0-9]{64}$/),
+            dedupeKey: expect.stringMatching(/^acp:tool-result:call-1:[a-f0-9]{64}$/),
           },
         ],
       },

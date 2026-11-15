@@ -4,7 +4,6 @@ import {
     Platform,
     Pressable,
     View,
-    type ImageLoadEvent,
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -26,7 +25,6 @@ import {
     SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
     resolveImageDimensions,
     resolveThumbnailSize,
-    type ImageDimensions,
 } from './sessionMediaThumbnailLayout';
 import { Icon } from '@/components/ui/icons/Icon';
 
@@ -91,23 +89,8 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
 }>): React.ReactElement {
     const { theme } = useUnistyles();
     const styles = stylesheet;
-    const metadataDimensions = resolveImageDimensions(props.media);
-    const [loadedDimensions, setLoadedDimensions] = React.useState<ImageDimensions | null>(null);
-    const thumbnailSize = resolveThumbnailSize(metadataDimensions ?? loadedDimensions);
-
-    React.useEffect(() => {
-        setLoadedDimensions(null);
-    }, [props.media.path, props.media.sha256]);
-
-    const handleImageLoad = React.useCallback((event: ImageLoadEvent) => {
-        const dimensions = resolveImageDimensions(event.nativeEvent.source);
-        if (!dimensions) return;
-        setLoadedDimensions((current) => (
-            current?.width === dimensions.width && current.height === dimensions.height
-                ? current
-                : dimensions
-        ));
-    }, []);
+    // Sized from the metadata only, as the transcript estimate is: the size never changes on load.
+    const thumbnailSize = resolveThumbnailSize(resolveImageDimensions(props.media));
 
     const preview = useSessionImagePreview({
         sessionId: props.sessionId,
@@ -145,7 +128,6 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
                         testID={`${props.previewTestIDPrefix}:${props.media.path}`}
                         source={{ uri: preview.uri }}
                         resizeMode="contain"
-                        onLoad={handleImageLoad}
                         style={styles.image}
                     />
                 )

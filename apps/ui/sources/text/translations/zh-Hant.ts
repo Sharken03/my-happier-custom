@@ -6662,6 +6662,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
           attachmentImageA11y: ({ name }: { name: string }) => `開啟附件圖片 ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `開啟工具產物圖片 ${name}`,
           imageUnavailable: '圖片無法使用',
+          imageCountA11y: ({ count }: { count: number }) => `${count} 張圖片`,
         },
         cannotDisplayBinary: '無法顯示二進位檔案內容',
         diff: '差異',

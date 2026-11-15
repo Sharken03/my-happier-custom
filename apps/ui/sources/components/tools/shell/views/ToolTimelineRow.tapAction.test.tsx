@@ -542,4 +542,25 @@ describe('ToolTimelineRow (tap action)', () => {
             .filter((color) => color != null);
         expect(spinnerColors).toContain('#555555');
     });
+
+    it('shows an image count while the result images are hidden, and drops it once they show', async () => {
+        const screen = await renderToolTimelineRow({
+            sessionId: 's1',
+            messageId: 'm1',
+            imageCount: 2,
+            children: React.createElement('View', { testID: 'tool-images' }),
+        });
+
+        expect(screen.findByTestId('tool-timeline-row-images')).toBeTruthy();
+        expect(screen.getTextContent()).toContain('2');
+        expect(screen.findByTestId('tool-images')).toBeNull();
+
+        await act(async () => {
+            screen.pressByTestId('tool-timeline-row');
+        });
+        await flushHookEffects();
+
+        expect(screen.findByTestId('tool-images')).toBeTruthy();
+        expect(screen.findByTestId('tool-timeline-row-images')).toBeNull();
+    });
 });

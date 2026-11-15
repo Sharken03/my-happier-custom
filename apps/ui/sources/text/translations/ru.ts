@@ -7888,6 +7888,7 @@ export const ru: TranslationStructure = {
           attachmentImageA11y: ({ name }: { name: string }) => `Открыть прикрепленное изображение ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Открыть изображение артефакта инструмента ${name}`,
           imageUnavailable: 'Изображение недоступно',
+          imageCountA11y: ({ count }: { count: number }) => `Изображений: ${count}`,
         },
         cannotDisplayBinary: "Невозможно отобразить содержимое бинарного файла",
         diff: "Различия",

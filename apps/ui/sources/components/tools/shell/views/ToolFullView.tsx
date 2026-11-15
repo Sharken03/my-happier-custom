@@ -1,6 +1,9 @@
 import * as React from 'react';
 import { View, ScrollView, Platform, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { ToolCall, Message } from '@/sync/domains/messages/messageTypes';
+import type { MessageMeta } from '@/sync/domains/messages/messageMetaTypes';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { ToolResultMedia } from '@/components/sessions/sessionMedia/ToolResultMedia';
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Metadata } from '@/sync/domains/state/storageTypes';
 import { getToolViewComponent } from '@/components/tools/renderers/core/_registry';
@@ -40,6 +43,8 @@ interface ToolFullViewProps {
     interaction?: TranscriptInteraction;
     /** Replaces the ScrollView of the generic view, for example with the scroll view of the Tool calls sheet. */
     ScrollComponent?: React.ComponentType<ScrollViewProps>;
+    /** The tool call message's meta. Its session media (result images) shows under the result. */
+    meta?: MessageMeta;
 }
 
 /** Result code block with a toggle that pretty-prints JSON text. */
@@ -54,7 +59,7 @@ function FormattableResult({ code, canFormat }: { code: string; canFormat: boole
     );
 }
 
-export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction, ScrollComponent }: ToolFullViewProps) {
+export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction, ScrollComponent, meta }: ToolFullViewProps) {
     const Scroll = ScrollComponent ?? ScrollView;
     const { theme } = useUnistyles();
     // This view opens one historical row on its own screen, so the row's own
@@ -75,6 +80,8 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
             historicalAgentId,
         });
     }, [historicalAgentId, interaction?.permissionDisabledReason, metadata, toolForRendering]);
+
+    const resultMedia = React.useMemo(() => parseSessionMediaMessageMeta(meta), [meta]);
 
     const permissionTerminalError = permissionTerminalErrorMessage ? (
         <TextSelectabilityScope selectable>
@@ -326,6 +333,11 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                     </TextSelectabilityScope>
                 )}
 
+                {sessionId ? (
+                    <View style={styles.resultMedia}>
+                        <ToolResultMedia sessionId={sessionId} media={resultMedia} interaction={interaction} />
+                    </View>
+                ) : null}
                 {permissionTerminalError}
                 {permissionFooter}
                 {debugSection}
@@ -335,6 +347,9 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
 }
 
 const styles = StyleSheet.create((theme) => ({
+    resultMedia: {
+        paddingHorizontal: 16,
+    },
     container: {
         flex: 1,
         backgroundColor: theme.colors.surface.base,

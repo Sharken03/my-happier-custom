@@ -7428,6 +7428,7 @@ deps: {
                 attachmentImageA11y: ({ name }: { name: string }) => `Obre la imatge adjunta ${name}`,
                 toolArtifactImageA11y: ({ name }: { name: string }) => `Obre la imatge d'artefacte d'eina ${name}`,
                 imageUnavailable: 'La imatge no està disponible',
+                imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 imatge' : `${count} imatges`,
             },
             cannotDisplayBinary: 'No es pot mostrar el contingut del fitxer binari',
             diff: 'Diferències',

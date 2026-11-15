@@ -41,6 +41,8 @@ import { AttachmentsMessageRow } from '@/components/sessions/attachments/message
 import { SessionMediaInlineImages } from '@/components/sessions/sessionMedia/SessionMediaInlineImages';
 import { SessionMediaUnavailableItems } from '@/components/sessions/sessionMedia/SessionMediaUnavailableItems';
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
+import { ToolResultMedia } from '@/components/sessions/sessionMedia/ToolResultMedia';
 import { canForkFromMessage } from '@/sync/domains/sessionFork/forkUiSupport';
 import { resolveForkFromMessageSemantics } from '@/sync/domains/sessionFork/forkFromMessageSemantics';
 import { openSessionForkStrategyFlow } from '@/components/sessions/fork/openSessionForkStrategyFlow';
@@ -1685,28 +1687,13 @@ function ToolCallBlock(props: {
   toolChromeCommon: TranscriptToolChromeCommon;
   toolRouteCommon: TranscriptToolRouteCommon;
 }) {
-  const router = useRouter();
   const sessionMedia = React.useMemo(
     () => parseSessionMediaMessageMeta(props.message.meta),
     [props.message.meta],
   );
-  const handleOpenMediaPath = React.useCallback((filePath: string) => {
-    pushSessionFileDeepLink(router, { sessionId: props.sessionId, filePath });
-  }, [props.sessionId, router]);
   const hasToolMedia = sessionMedia.inlineImages.length > 0 || sessionMedia.unavailableMedia.length > 0;
   const toolMedia = hasToolMedia ? (
-    <>
-      {sessionMedia.inlineImages.length > 0 ? (
-        <SessionMediaInlineImages
-          sessionId={props.sessionId}
-          media={sessionMedia.inlineImages}
-          onOpenPath={handleOpenMediaPath}
-          fileOpenEnabled={props.interaction.canOpenFiles === true}
-          mediaPreviewEnabled={props.interaction.canPreviewMedia === true}
-        />
-      ) : null}
-      <SessionMediaUnavailableItems items={sessionMedia.unavailableMedia} />
-    </>
+    <ToolResultMedia sessionId={props.sessionId} media={sessionMedia} interaction={props.interaction} />
   ) : null;
 
   const handleJumpToAnchor = useStructuredMessageJumpHandler(
@@ -1764,6 +1751,7 @@ function ToolCallBlock(props: {
           approvalRequests={props.approvalRequests}
           forcePermissionPromptsInTranscript={props.forcePermissionPromptsInTranscript}
           interaction={props.interaction}
+          imageCount={countSessionMediaImages(sessionMedia.inlineImages)}
         >
           {structuredNode}
           {toolMedia}

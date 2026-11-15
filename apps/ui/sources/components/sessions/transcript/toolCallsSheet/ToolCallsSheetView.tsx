@@ -23,6 +23,8 @@ import { computeToolCallsGroupDiffStats } from '@/components/sessions/transcript
 import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
 import { summarizeToolCallsGroup } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary';
 import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveTranscriptInteraction';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 import {
     createToolCallsSheetState,
     resolveToolCallsSheetBack,
@@ -128,6 +130,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 jumpHighlightSeq={item.seq ?? null}
                 interaction={interaction}
                 titleOnly
+                imageCount={countSessionMediaImages(parseSessionMediaMessageMeta(item.meta).inlineImages)}
                 label={{
                     title: t('session.toolCallsSheetVerb', { kind: label.kind, running: label.running, toolName: label.toolName }),
                     subtitle: label.target,
