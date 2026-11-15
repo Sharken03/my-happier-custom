@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { BackHandler, FlatList, Pressable, View } from 'react-native';
+import { BackHandler, FlatList, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -95,6 +95,14 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         return () => subscription.remove();
     }, [callList.length, handleBack, selectedCall]);
 
+    // Android: a scroll view that cannot scroll never takes the touch, and the sheet ignores touches
+    // on its scroll view. So with a short list no swipe on the list moves the sheet. The content is
+    // always 1 px taller than the list, so the list always takes the swipe and hands it to the sheet.
+    const [listHeight, setListHeight] = React.useState(0);
+    const handleListLayout = React.useCallback((event: LayoutChangeEvent) => {
+        setListHeight(event.nativeEvent.layout.height);
+    }, []);
+
     const turnWorking = useSessionTurnWorking(props.sessionId, props.isTranscriptTail);
     const groupStatus = resolveToolCallsGroupStatus({
         toolMessages: callList,
@@ -166,8 +174,15 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
 
     return (
         <View style={styles.container} testID="tool-calls-sheet-list">
-            {/* As in the Claude app: close on the left, the title centred. */}
+            {/* The title centred, close on the right. */}
             <View style={styles.header}>
+                <View style={styles.headerButtonSpace} />
+                <View style={styles.headerCenter}>
+                    <Text style={styles.title} numberOfLines={2}>{title}</Text>
+                    {groupStatus === 'running' ? (
+                        <ActivitySpinner testID="tool-calls-sheet-running" size="small" color={theme.colors.text.secondary} />
+                    ) : null}
+                </View>
                 <Pressable
                     testID="tool-calls-sheet-close"
                     onPress={onClose}
@@ -178,13 +193,6 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 >
                     <Icon name="x" size={22} color={theme.colors.text.primary} />
                 </Pressable>
-                <View style={styles.headerCenter}>
-                    <Text style={styles.title} numberOfLines={2}>{title}</Text>
-                    {groupStatus === 'running' ? (
-                        <ActivitySpinner testID="tool-calls-sheet-running" size="small" color={theme.colors.text.secondary} />
-                    ) : null}
-                </View>
-                <View style={styles.headerButtonSpace} />
             </View>
             <FlatList
                 data={callList}
@@ -193,7 +201,11 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 // Android: the list hands its scroll to the sheet. At the top of the list a
                 // swipe down moves the sheet from full to half height, and then closes it.
                 nestedScrollEnabled
-                contentContainerStyle={[styles.listContent, { paddingBottom: 24 + insets.bottom }]}
+                onLayout={handleListLayout}
+                contentContainerStyle={[
+                    styles.listContent,
+                    { paddingBottom: 24 + insets.bottom, minHeight: listHeight > 0 ? listHeight + 1 : undefined },
+                ]}
                 ListEmptyComponent={calls ? null : (
                     <View style={styles.loading}>
                         <ActivitySpinner size="small" color={theme.colors.text.secondary} />
