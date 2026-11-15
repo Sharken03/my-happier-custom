@@ -92,7 +92,7 @@ export const BashView = React.memo((props: { tool: ToolCall; metadata: Metadata 
                     <Text style={styles.commandDiffHint} numberOfLines={3}>
                         {t('tools.bashView.commandDiffHint')}
                     </Text>
-                    <CodeView code={rawCommandTrimmed} />
+                    <CodeView code={rawCommandTrimmed} language="bash" />
                 </ToolSectionView>
             ) : null}
         </>

@@ -7,9 +7,27 @@ import { CodeView } from '@/components/ui/media/CodeView';
 import { maybeParseJson } from '@happier-dev/protocol';
 import { Text } from '@/components/ui/text/Text';
 import { t } from '@/text';
+import { getFileLanguageFromPath } from '@/utils/code/fileLanguage';
 
 const TEXT_ELLIPSIS = '…';
 
+/**
+ * The Read result usually carries only the file body, so the language for syntax
+ * highlighting has to come from the tool input. Claude-style tools use
+ * `file_path`; Gemini uses `locations[0].path`.
+ */
+function resolveReadLanguage(input: unknown): string | null {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+    const obj = input as Record<string, unknown>;
+    const direct = typeof obj.file_path === 'string' ? obj.file_path : null;
+    const locations = Array.isArray(obj.locations) ? obj.locations : null;
+    const fromLocations = locations && typeof locations[0] === 'object' && locations[0] !== null
+        ? (locations[0] as Record<string, unknown>).path
+        : null;
+    const path = direct ?? (typeof fromLocations === 'string' ? fromLocations : null);
+    if (!path) return null;
+    return getFileLanguageFromPath(path);
+}
 
 function extractReadContent(result: unknown): { content: string; numLines?: number } | null {
     const parsed = maybeParseJson(result);
@@ -54,10 +72,11 @@ export const ReadView = React.memo<ToolViewProps>(({ tool, detailLevel }) => {
     // Protect the UI from extremely large reads; keep `_raw` for debugging.
     const maxLines = detailLevel === 'full' ? 400 : 20;
     const { text, truncated } = truncateLines(extracted.content, maxLines);
+    const language = resolveReadLanguage(tool.input);
     return (
         <ToolSectionView fullWidth>
             <View style={styles.container}>
-                <CodeView code={text} />
+                <CodeView code={text} language={language ?? undefined} />
                 {truncated ? <Text style={styles.more}>{TEXT_ELLIPSIS}</Text> : null}
             </View>
         </ToolSectionView>
