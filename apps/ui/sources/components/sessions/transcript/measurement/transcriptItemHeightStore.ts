@@ -9,7 +9,8 @@ export type TranscriptItemHeightStore = Readonly<{
 }>;
 
 // v2: image tiles no longer grow when the preview loads, so heights measured before that are wrong.
-const STORE_ID = 'transcript-item-heights.v2';
+// v3: a user bubble with file chips no longer gets a too-tall wrapper on Android.
+const STORE_ID = 'transcript-item-heights.v3';
 const ENTRY_COUNT_KEY = '#count';
 
 /**

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Platform, Pressable, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Text } from '@/components/ui/text/Text';
@@ -25,6 +25,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     row: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 8,
     },
     attachmentChip: {
@@ -142,7 +143,12 @@ export const AttachmentsMessageRow = React.memo(function AttachmentsMessageRow(p
 
     return (
         <View testID="message-attachments-row" style={styles.container}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+            {/*
+              A wrapping row, not a horizontal ScrollView. In a bubble that takes its width from its
+              content, the ScrollView's default flexGrow/flexShrink made Yoga give the bubble's
+              wrapper a taller height than the bubble on Android, which left a gap under the row.
+            */}
+            <View style={styles.row}>
                 {props.attachments.map((a, index) => {
                     if (Platform.OS === 'android' && props.sessionId && props.onOpenPath && isPdfAttachment(a)) {
                         return (
@@ -177,7 +183,7 @@ export const AttachmentsMessageRow = React.memo(function AttachmentsMessageRow(p
                         </View>
                     );
                 })}
-            </ScrollView>
+            </View>
         </View>
     );
 });
