@@ -2,8 +2,10 @@ import {
   ReviewFindingApplyInputSchema,
   ReviewFindingsV1Schema,
   ReviewFindingsV2Schema,
+  type ExecutionRunActionPermissionMode,
   type ReviewFinding,
   type ReviewFindingsV2,
+  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
 import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
@@ -28,8 +30,31 @@ import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildRev
 export type ReviewFindingApplyDeps = Readonly<{
   cwd: string;
   sendToSession: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
-  spawnSession: (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>;
+  spawnSession: (input: Readonly<{
+    text: string;
+    directory: string;
+    permissionMode: SessionPermissionMode;
+  }>) => Promise<unknown>;
 }>;
+
+/**
+ * Action permission intents are a smaller vocabulary than session permission modes
+ * (`read_only | default | workspace_write | yolo` vs
+ * `default | acceptEdits | bypassPermissions | plan | read-only | safe-yolo | yolo`), and a spawned
+ * session speaks the latter. This is the inverse of `normalizeExecutionRunActionPermissionMode`.
+ */
+export function toSessionPermissionMode(mode: ExecutionRunActionPermissionMode): SessionPermissionMode {
+  switch (mode) {
+    case 'read_only':
+      return 'read-only';
+    case 'workspace_write':
+      return 'acceptEdits';
+    case 'yolo':
+      return 'yolo';
+    case 'default':
+      return 'default';
+  }
+}
 
 function resolveExistingPayload(structuredMeta: ExecutionRunStructuredMeta | null | undefined): ReviewFindingsV2 | null {
   if (!structuredMeta) return null;
@@ -163,7 +188,7 @@ export async function applyReviewFindingFix(params: Readonly<{
     const spawnResult = await deps.spawnSession({
       text: prompt,
       directory: deps.cwd,
-      permissionMode: parsed.data.permissionMode,
+      permissionMode: toSessionPermissionMode(parsed.data.permissionMode),
     });
     return { ok: true, result: { mode: 'spawn_session', findingIds: requestedIds, spawned: spawnResult } };
   } catch (error) {

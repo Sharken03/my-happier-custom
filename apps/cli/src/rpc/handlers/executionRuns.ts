@@ -21,6 +21,7 @@ import {
   ExecutionRunTurnStreamCancelRequestSchema,
   getReviewModelPolicySettingsV1FromAccountSettings,
   resolveReviewModelPolicy,
+  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
 import { ExecutionRunManager } from '@/agent/executionRuns/runtime/ExecutionRunManager';
@@ -141,7 +142,11 @@ export function registerExecutionRunHandlers(
   // `review.finding.apply`'s `spawn_session` mode creates a session in the same
   // workspace without a new RPC. The fix prompt rides the canonical
   // `pendingFirstInput` seam.
-  const spawnReviewFixSession = (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => {
+  const spawnReviewFixSession = (input: Readonly<{
+    text: string;
+    directory: string;
+    permissionMode: SessionPermissionMode;
+  }>) => {
     const spawnNonce = randomUUID();
     return spawnDaemonSession({
       directory: input.directory,

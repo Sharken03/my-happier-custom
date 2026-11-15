@@ -2044,6 +2044,12 @@ export {
   createSessionPermissionModeSchema,
   parseSessionPermissionModeAlias,
 } from './sessionMetadata/sessionPermissionModes.js';
+export {
+  EXECUTION_RUN_ACTION_PERMISSION_MODES,
+  EXECUTION_RUN_ACTION_PERMISSION_INPUTS,
+  ExecutionRunActionPermissionModeSchema,
+  type ExecutionRunActionPermissionMode,
+} from './actions/executionRunActionPermissionMode.js';
 
 export {
   SESSION_WORKSPACE_LOCATION_METADATA_KEY,

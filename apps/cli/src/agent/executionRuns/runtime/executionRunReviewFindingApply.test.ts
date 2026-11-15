@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ReviewFinding } from '@happier-dev/protocol';
+import type { ReviewFinding, SessionPermissionMode } from '@happier-dev/protocol';
 
 import type { ExecutionRunState } from '@/agent/executionRuns/runtime/executionRunTypes';
 import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildReviewFindingsV2Payload';
@@ -59,7 +59,7 @@ function makeDeps(overrides: Partial<ReviewFindingApplyDeps> = {}): ReviewFindin
   return {
     cwd: '/workspace',
     sendToSession: vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {}),
-    spawnSession: vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({ sessionId: 'spawned-1' })),
+    spawnSession: vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => ({ sessionId: 'spawned-1' })),
     ...overrides,
   };
 }
@@ -168,7 +168,7 @@ describe('applyReviewFindingFix', () => {
 
   it('routes send_to_session to the send helper', async () => {
     const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
-    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({}));
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => ({}));
     await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'send_to_session' },
@@ -185,7 +185,7 @@ describe('applyReviewFindingFix', () => {
 
   it('routes spawn_session to the spawn helper with the workspace and permission mode', async () => {
     const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
-    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({ sessionId: 'spawned-1' }));
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => ({ sessionId: 'spawned-1' }));
     const result = await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'spawn_session', permissionMode: 'workspace_write' },
@@ -196,19 +196,20 @@ describe('applyReviewFindingFix', () => {
     expect(sendToSession).not.toHaveBeenCalled();
     expect(spawnSession.mock.calls[0][0]).toMatchObject({
       directory: '/workspace',
-      permissionMode: 'workspace_write',
+      permissionMode: 'acceptEdits',
     });
     expect(result).toMatchObject({ ok: true, result: { mode: 'spawn_session' } });
   });
 
   it('defaults permission mode to read_only for spawn_session', async () => {
-    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({}));
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => ({}));
     await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'spawn_session' },
       deps: makeDeps({ spawnSession }),
     });
 
-    expect(spawnSession.mock.calls[0][0].permissionMode).toBe('read_only');
+    // The action's read_only intent reaches the spawned session as read-only.
+    expect(spawnSession.mock.calls[0][0].permissionMode).toBe('read-only');
   });
 });
