@@ -3,8 +3,8 @@
  *
  * The enriched renderer drops every markdown image on purpose (`applyEnrichedMarkdownImagePolicy`):
  * a remote image can track the reader, and its height is unknown until it loads. With the setting
- * on, a paragraph that is only one image from an allowed https host becomes its own segment, which
- * `MarkdownRemoteImage` paints in a fixed 16:9 box. Every other image stays dropped.
+ * on, a paragraph or a paragraph line that is only one image from an allowed https host becomes its
+ * own segment, which `MarkdownRemoteImage` paints in a fixed 16:9 box. Every other image stays dropped.
  */
 
 const HOST_PATTERN = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;

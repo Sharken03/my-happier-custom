@@ -63,6 +63,48 @@ function locateSources(markdown: string, sources: readonly MarkdownBlockSource[]
     });
 }
 
+/**
+ * An agent often writes an image on its own line inside a paragraph (single line breaks). Such a
+ * paragraph is split at those lines: the text lines around an image stay one paragraph each, and
+ * each allowed image line becomes its own block, which the loop then paints as a remote image.
+ */
+function splitParagraphsAtRemoteImageLines(
+    sources: readonly MarkdownBlockSource[],
+    hosts: readonly string[],
+): MarkdownBlockSource[] {
+    const result: MarkdownBlockSource[] = [];
+    for (const source of sources) {
+        if (source.blockType !== 'Paragraph' || source.container || source.codeBlock || source.incompleteKind
+            || !source.source.includes('\n') || !source.source.includes('![')) {
+            result.push(source);
+            continue;
+        }
+        const pieces: MarkdownBlockSource[] = [];
+        let textStart = -1;
+        let textEnd = 0;
+        const pushText = () => {
+            if (textStart < 0) return;
+            const text = source.source.slice(textStart, textEnd);
+            if (text.trim()) pieces.push({ ...source, source: text, sourceStart: source.sourceStart + textStart });
+            textStart = -1;
+        };
+        let offset = 0;
+        for (const line of source.source.split('\n')) {
+            if (readStandaloneMarkdownRemoteImage(line, hosts)) {
+                pushText();
+                pieces.push({ ...source, source: line, sourceStart: source.sourceStart + offset });
+            } else {
+                if (textStart < 0) textStart = offset;
+                textEnd = offset + line.length;
+            }
+            offset += line.length + 1;
+        }
+        pushText();
+        result.push(...(pieces.length > 1 ? pieces : [source]));
+    }
+    return result;
+}
+
 function isSpecialSource(source: LocatedMarkdownBlockSource): boolean {
     if (source.container || source.codeBlock) return true;
     if (source.incompleteKind) return true;
@@ -156,7 +198,11 @@ export function splitMarkdownRenderSegments(params: Readonly<{
         ? preprocessStreamingMarkdown(params.markdown)
         : params.markdown;
     const renderMarkdown = normalizeLooseListContinuations(repairedMarkdown);
-    const locatedSources = locateSources(renderMarkdown, splitMarkdownIntoBlockSources(renderMarkdown));
+    const blockSources = splitMarkdownIntoBlockSources(renderMarkdown);
+    const locatedSources = locateSources(
+        renderMarkdown,
+        remoteImageHosts.length > 0 ? splitParagraphsAtRemoteImageLines(blockSources, remoteImageHosts) : blockSources,
+    );
     const segments: DraftMarkdownRenderSegment[] = [];
     let pendingEnrichedSources: LocatedMarkdownBlockSource[] = [];
     let segmentOrdinal = 0;
