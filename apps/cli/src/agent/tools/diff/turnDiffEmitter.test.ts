@@ -16,6 +16,16 @@ describe('TurnDiffEmitter', () => {
     });
   });
 
+  it('keeps unrelated edit snippets apart instead of pairing one old snippet with another new one', () => {
+    const emitter = new TurnDiffEmitter();
+    emitter.beginTurn();
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'x1', newText: 'y1' });
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'x2', newText: 'y2' });
+    expect(emitter.flushTurn()).toEqual({
+      files: [{ file_path: 'foo.txt', oldText: 'x1\n⋯\nx2', newText: 'y1\n⋯\ny2' }],
+    });
+  });
+
   it('prefers text diffs over unified diffs for the same file', () => {
     const emitter = new TurnDiffEmitter();
     emitter.beginTurn();

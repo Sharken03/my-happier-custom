@@ -54,6 +54,20 @@ export type TurnDiffEmitterOptions = Readonly<{
 }>;
 
 /**
+ * Two text changes of one file as one: chained when the second starts from the text the first
+ * ended with (whole file contents), else both edit snippets one after the other with a separator
+ * line. Pairing the old snippet of one edit with the new snippet of another gives a false diff.
+ * Same rule as combineTextChanges in @happier-dev/protocol.
+ */
+function combineTextChanges(
+  first: Readonly<{ oldText: string; newText: string }>,
+  second: Readonly<{ oldText: string; newText: string }>,
+): { oldText: string; newText: string } {
+  if (first.newText === second.oldText) return { oldText: first.oldText, newText: second.newText };
+  return { oldText: `${first.oldText}\n⋯\n${second.oldText}`, newText: `${first.newText}\n⋯\n${second.newText}` };
+}
+
+/**
  * Shared "turn diff" coalescer.
  *
  * Goal: emit a reliable per-turn representation of file changes:
@@ -96,11 +110,12 @@ export class TurnDiffEmitter {
 
     if (existing.kind === 'text') {
       if (existing.newText === signal.newText) return;
+      const combined = combineTextChanges(existing, signal);
       this.byFilePath.set(filePath, {
         kind: 'text',
         filePath,
-        oldText: existing.oldText,
-        newText: signal.newText,
+        oldText: combined.oldText,
+        newText: combined.newText,
         description: signal.description ?? existing.description,
         order: existing.order,
       });
