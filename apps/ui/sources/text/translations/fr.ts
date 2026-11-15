@@ -7413,6 +7413,7 @@ export const fr: TranslationStructure = {
                 attachmentImageA11y: ({ name }: { name: string }) => `Ouvrir l’image jointe ${name}`,
                 toolArtifactImageA11y: ({ name }: { name: string }) => `Ouvrir l’image produite par l’outil ${name}`,
                 imageUnavailable: 'Image indisponible',
+                imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 image' : `${count} images`,
             },
             cannotDisplayBinary: 'Impossible d’afficher le contenu d’un fichier binaire',
             diff: 'Diff',

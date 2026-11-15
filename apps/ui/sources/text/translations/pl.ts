@@ -7903,6 +7903,7 @@ export const pl: TranslationStructure = {
           attachmentImageA11y: ({ name }: { name: string }) => `Otwórz załączony obraz ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Otwórz obraz artefaktu narzędzia ${name}`,
           imageUnavailable: 'Obraz jest niedostępny',
+          imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 obraz' : `Obrazy: ${count}`,
         },
         cannotDisplayBinary: "Nie można wyświetlić zawartości pliku binarnego",
         diff: "Różnice",

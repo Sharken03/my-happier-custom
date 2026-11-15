@@ -41,6 +41,7 @@ import { AttachmentsMessageRow } from '@/components/sessions/attachments/message
 import { SessionMediaInlineImages } from '@/components/sessions/sessionMedia/SessionMediaInlineImages';
 import { SessionMediaUnavailableItems } from '@/components/sessions/sessionMedia/SessionMediaUnavailableItems';
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 import { canForkFromMessage } from '@/sync/domains/sessionFork/forkUiSupport';
 import { resolveForkFromMessageSemantics } from '@/sync/domains/sessionFork/forkFromMessageSemantics';
 import { openSessionForkStrategyFlow } from '@/components/sessions/fork/openSessionForkStrategyFlow';
@@ -1764,6 +1765,7 @@ function ToolCallBlock(props: {
           approvalRequests={props.approvalRequests}
           forcePermissionPromptsInTranscript={props.forcePermissionPromptsInTranscript}
           interaction={props.interaction}
+          imageCount={countSessionMediaImages(sessionMedia.inlineImages)}
         >
           {structuredNode}
           {toolMedia}

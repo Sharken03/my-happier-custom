@@ -9,6 +9,8 @@ import { ToolView } from '@/components/tools/shell/views/ToolView';
 import { ToolTimelineRow } from '@/components/tools/shell/views/ToolTimelineRow';
 import { MessageViewWithSessionCommon } from '@/components/sessions/transcript/MessageView';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 import type { ToolRowPinAction } from '@/components/sessions/transcript/toolCalls/ToolCallPinAction';
 import type {
     TranscriptForkCommon,
@@ -73,6 +75,7 @@ export function renderGroupedToolCallRowContent(params: Readonly<{
                 forcePermissionPromptsInTranscript={params.forcePermissionPromptsInTranscript}
                 approvalRequests={params.approvalRequests}
                 interaction={params.interaction}
+                imageCount={countSessionMediaImages(parseSessionMediaMessageMeta(params.message.meta).inlineImages)}
             />
         );
     }

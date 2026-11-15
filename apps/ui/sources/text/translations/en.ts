@@ -7458,6 +7458,7 @@ export const en = {
                 attachmentImageA11y: ({ name }: { name: string }) => `Open attached image ${name}`,
                 toolArtifactImageA11y: ({ name }: { name: string }) => `Open tool artifact image ${name}`,
                 imageUnavailable: 'Image unavailable',
+                imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 image' : `${count} images`,
             },
             cannotDisplayBinary: 'Cannot display binary file content',
             diff: 'Diff',

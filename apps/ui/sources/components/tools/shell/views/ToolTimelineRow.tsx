@@ -21,6 +21,7 @@ import {
     shouldShowGenericPermissionPromptForRequest,
 } from '@/utils/sessions/permissions/permissionPromptPolicy';
 import { t } from '@/text';
+import { Text } from '@/components/ui/text/Text';
 import {
     resolveToolViewDetailLevelDefaultForChromeMode,
     resolveToolViewExpandedDetailLevelDefaultForChromeMode,
@@ -73,6 +74,8 @@ export const ToolTimelineRow = React.memo((props: {
     onPressOverride?: () => void;
     /** Replaces the header title and subtitle, such as "Ran" + "List files" in the Tool calls sheet. */
     label?: { title: string; subtitle: string | null };
+    /** Images in the call's result. The header counts them while `children` does not show them. */
+    imageCount?: number;
 }) => {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -246,7 +249,25 @@ export const ToolTimelineRow = React.memo((props: {
                 ? <ActivitySpinner testID="tool-timeline-row-running" size={iconMatchedSpinnerSize(18)} color={theme.colors.text.secondary} />
                 : null;
     const headerPrimaryActions = headerActions ?? null;
-    const headerRightElements = [headerStatusIndicator, headerPrimaryActions].filter(Boolean);
+    const isBodyVisible = inlineDetailLevel !== 'title' && inlineDetailLevel !== 'compact';
+    const imageCount = props.imageCount ?? 0;
+    const imagesShown = props.children != null
+        && effectiveIsExpanded
+        && isBodyVisible
+        && !shouldHideBodyPermanently;
+    // Smaller than the header's minimum height, so the count never changes the row height.
+    const headerImageCount = imageCount > 0 && !imagesShown ? (
+        <View
+            testID="tool-timeline-row-images"
+            style={styles.imageCount}
+            accessible
+            accessibilityLabel={t('files.sessionMedia.imageCountA11y', { count: imageCount })}
+        >
+            <Icon name="image" size={14} color={theme.colors.text.secondary} />
+            <Text style={styles.imageCountText} numberOfLines={1}>{String(imageCount)}</Text>
+        </View>
+    ) : null;
+    const headerRightElements = [headerImageCount, headerStatusIndicator, headerPrimaryActions].filter(Boolean);
     const headerRightElement =
         headerRightElements.length > 1 ? (
             <View style={styles.headerRightContent}>
@@ -256,7 +277,6 @@ export const ToolTimelineRow = React.memo((props: {
             </View>
         ) : (headerRightElements[0] ?? null);
 
-    const isBodyVisible = inlineDetailLevel !== 'title' && inlineDetailLevel !== 'compact';
     const bodyDetailLevel: 'summary' | 'full' = inlineDetailLevel === 'full' ? 'full' : 'summary';
     const sidechainHydrationStatus = transcriptSidechainId
         ? sidechainHydration.bySidechainId[transcriptSidechainId]?.status ?? sidechainHydration.status
@@ -411,6 +431,17 @@ const styles = StyleSheet.create((theme) => ({
         paddingRight: 10,
         paddingBottom: 12,
         paddingTop: 2,
+    },
+    imageCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        height: 16,
+    },
+    imageCountText: {
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.text.secondary,
     },
     headerRightContent: {
         flexDirection: 'row',
