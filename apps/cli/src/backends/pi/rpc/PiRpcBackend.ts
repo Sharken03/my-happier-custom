@@ -2,6 +2,7 @@ import { takeWarmPiProcess } from '@/backends/pi/rpc/warmPiProcess';
 import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process';
 import { Duplex } from 'node:stream';
 import { randomUUID } from 'node:crypto';
+import { homedir } from 'node:os';
 import { open, readdir, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
 
@@ -35,6 +36,7 @@ import { projectConnectedServiceRuntimeAuthRecoveryReport } from '@/daemon/conne
 import type { ConnectedServiceRuntimeFailureClassification } from '@/daemon/connectedServices/runtimeAuth/types';
 import { sanitizeConnectedServiceRuntimeFailureClassification } from '@/daemon/connectedServices/runtimeAuth/sanitizeConnectedServiceRuntimeFailureClassification';
 import { redactBugReportSensitiveText } from '@happier-dev/protocol';
+import type { TurnChangeSet } from '@happier-dev/protocol';
 
 import {
   PI_BROKER_LOAD_NONCE_ENV,
@@ -66,6 +68,7 @@ import {
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
 import { PiTurnChangeTracker } from './piTurnChangeTracker';
 import { emitCanonicalTurnDiffTool } from '@/agent/runtime/emitCanonicalTurnDiffTool';
+import { ShellCommandScmChangeTracker } from '@/agent/tools/diff/shellCommandScmChanges';
 import {
   createPiProviderFailureError,
   normalizePiProviderFailure,
@@ -711,6 +714,9 @@ export class PiRpcBackend implements AgentBackend {
   private readonly permissionHandler: AcpPermissionHandler | null;
   private pendingTurn: PendingTurn | null = null;
   private readonly turnChangeTracker = new PiTurnChangeTracker();
+  private readonly shellChangeTracker = new ShellCommandScmChangeTracker({ homeDir: process.env.HOME || homedir() });
+  private readonly shellTurnIdPrefix = `pi-shell-${randomUUID().slice(0, 8)}`;
+  private shellTurnOrdinal = 0;
   private pendingTurnBarrier: Deferred<void> | null = null;
   private sessionId: string | null = null;
   private sessionFile: string | null = null;
@@ -2650,6 +2656,9 @@ export class PiRpcBackend implements AgentBackend {
 
   private observeTurnChange(message: AgentMessage): void {
     if (message.type === 'tool-call') {
+      if (message.toolName === 'bash' && typeof message.args.command === 'string') {
+        this.shellChangeTracker.observeShellCommand({ command: message.args.command, cwd: this.options.cwd });
+      }
       this.turnChangeTracker.observePiToolCall({
         callId: message.callId,
         toolName: message.toolName,
@@ -2661,13 +2670,46 @@ export class PiRpcBackend implements AgentBackend {
     }
   }
 
-  /** Sends the files the finished turn changed as the canonical Diff tool call the app reads. */
+  /**
+   * Sends the files the finished turn changed as the canonical Diff tool call the app reads.
+   * After shell commands, git finds the files they changed; that Diff arrives after the turn ends.
+   */
   private emitTurnChanges(): void {
-    const turnChangeSet = this.turnChangeTracker.completeTurn({
-      sessionId: this.sessionId ?? 'pi',
-      status: 'completed',
+    const sessionId = this.sessionId ?? 'pi';
+    const turnChangeSet = this.turnChangeTracker.completeTurn({ sessionId, status: 'completed' });
+    if (!this.shellChangeTracker.hasShellCommands()) {
+      if (turnChangeSet) this.emitTurnChangeSet(turnChangeSet);
+      return;
+    }
+    void this.shellChangeTracker.completeTurn().then((shellFiles) => {
+      if (this.disposed) return;
+      const reported = new Set(turnChangeSet?.files.map((file) => file.filePath) ?? []);
+      const extraFiles = shellFiles
+        .filter((file) => !reported.has(file.filePath))
+        .map((file) => ({ ...file, provider: 'pi' }));
+      if (extraFiles.length === 0) {
+        if (turnChangeSet) this.emitTurnChangeSet(turnChangeSet);
+        return;
+      }
+      this.shellTurnOrdinal += 1;
+      this.emitTurnChangeSet(turnChangeSet
+        ? { ...turnChangeSet, files: [...turnChangeSet.files, ...extraFiles] }
+        : {
+          sessionId,
+          turnId: `${this.shellTurnIdPrefix}-${this.shellTurnOrdinal}`,
+          seqRange: { startSeqInclusive: this.shellTurnOrdinal, endSeqInclusive: this.shellTurnOrdinal },
+          status: 'completed',
+          files: extraFiles,
+          provider: 'pi',
+          derivedAt: Date.now(),
+        });
+    }, (error: unknown) => {
+      logger.debug('[pi] Shell change lookup failed', { error: error instanceof Error ? error.message : String(error) });
+      if (turnChangeSet && !this.disposed) this.emitTurnChangeSet(turnChangeSet);
     });
-    if (!turnChangeSet) return;
+  }
+
+  private emitTurnChangeSet(turnChangeSet: TurnChangeSet): void {
     emitCanonicalTurnDiffTool({
       turnChangeSet,
       protocol: 'acp',
@@ -2705,6 +2747,7 @@ export class PiRpcBackend implements AgentBackend {
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     pending.reject(error);
   }
 
@@ -2757,6 +2800,7 @@ export class PiRpcBackend implements AgentBackend {
     const error = new Error('Timed out waiting for Pi turn completion');
     this.pendingTurn = null;
     this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     this.emitMessage({ type: 'status', status: 'error', detail: error.message });
@@ -2772,6 +2816,7 @@ export class PiRpcBackend implements AgentBackend {
     });
     this.pendingTurn = null;
     this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     const error = this.createPiAssistantFailureError(detail, classification);
