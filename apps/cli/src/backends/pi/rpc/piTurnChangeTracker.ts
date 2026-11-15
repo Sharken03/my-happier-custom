@@ -69,6 +69,15 @@ export function toCanonicalPiFileToolCall(params: Readonly<{
     return { toolName: 'MultiEdit', args: { file_path: filePath, edits } };
 }
 
+/** The unified diff that Pi's `edit` result carries (`details.patch`), or null. */
+export function readPiEditPatch(result: unknown): string | null {
+    if (!result || typeof result !== 'object') return null;
+    const details = (result as { details?: unknown }).details;
+    if (!details || typeof details !== 'object') return null;
+    const patch = (details as { patch?: unknown }).patch;
+    return typeof patch === 'string' && patch.trim().length > 0 ? patch : null;
+}
+
 /** Collects the files a Pi turn changed, for the canonical turn Diff the app reads. */
 export class PiTurnChangeTracker extends NormalizedToolTurnChangeTracker {
     constructor() {

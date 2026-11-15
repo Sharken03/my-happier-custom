@@ -66,7 +66,7 @@ import {
   type PiContextTelemetry,
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
-import { PiTurnChangeTracker } from './piTurnChangeTracker';
+import { PiTurnChangeTracker, readPiEditPatch } from './piTurnChangeTracker';
 import { emitCanonicalTurnDiffTool } from '@/agent/runtime/emitCanonicalTurnDiffTool';
 import { ShellCommandScmChangeTracker } from '@/agent/tools/diff/shellCommandScmChanges';
 import {
@@ -2666,7 +2666,11 @@ export class PiRpcBackend implements AgentBackend {
         cwd: this.options.cwd,
       });
     } else if (message.type === 'tool-result') {
-      this.turnChangeTracker.observeToolResult({ callId: message.callId, isError: message.isError === true });
+      this.turnChangeTracker.observeToolResult({
+        callId: message.callId,
+        isError: message.isError === true,
+        result: { unifiedDiff: readPiEditPatch(message.result) },
+      });
     }
   }
 

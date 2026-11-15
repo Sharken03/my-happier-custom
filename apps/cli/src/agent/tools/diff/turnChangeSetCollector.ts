@@ -77,6 +77,8 @@ export class TurnChangeSetCollector {
         source: ChangeEvidenceSource;
         confidence: ChangeConfidence;
         description?: string;
+        /** The tool's own diff of this change, when it gave one. */
+        unifiedDiff?: string | null;
     }>): void {
         this.metadataByFilePath.set(params.filePath, {
             source: params.source,
@@ -88,6 +90,7 @@ export class TurnChangeSetCollector {
             oldText: params.oldText,
             newText: params.newText,
             ...(params.description ? { description: params.description } : {}),
+            ...(params.unifiedDiff ? { unifiedDiff: params.unifiedDiff } : {}),
         });
     }
 
@@ -97,6 +100,8 @@ export class TurnChangeSetCollector {
         source: ChangeEvidenceSource;
         confidence: ChangeConfidence;
         description?: string;
+        /** One more change after the earlier diff of the file in this turn. */
+        appendHunks?: boolean;
     }>): void {
         this.metadataByFilePath.set(params.filePath, {
             source: params.source,
@@ -107,6 +112,7 @@ export class TurnChangeSetCollector {
             filePath: params.filePath,
             unifiedDiff: params.unifiedDiff,
             ...(params.description ? { description: params.description } : {}),
+            ...(params.appendHunks ? { appendHunks: true } : {}),
         });
     }
 

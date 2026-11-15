@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { readTextBeforeWrite, toCanonicalPiFileToolCall } from './piTurnChangeTracker';
+import { PiTurnChangeTracker, readPiEditPatch, readTextBeforeWrite, toCanonicalPiFileToolCall } from './piTurnChangeTracker';
 
 const CWD = '/work/chat';
 
@@ -52,5 +52,29 @@ describe('readTextBeforeWrite', () => {
         expect(readTextBeforeWrite(file)).toBe('');
         writeFileSync(file, 'hello');
         expect(readTextBeforeWrite(file)).toBe('hello');
+    });
+});
+
+describe('PiTurnChangeTracker with the edit result', () => {
+    const patch = '--- /work/chat/a.md\n+++ /work/chat/a.md\n@@ -1,2 +1,2 @@\n line\n-old\n+new';
+
+    it('reads the patch from the edit result details', () => {
+        expect(readPiEditPatch({ content: [], details: { diff: 'x', patch } })).toBe(patch);
+        expect(readPiEditPatch({ content: [] })).toBeNull();
+        expect(readPiEditPatch(null)).toBeNull();
+    });
+
+    it("gives the turn Pi's own diff for an edit and for an edit of several snippets", () => {
+        const tracker = new PiTurnChangeTracker();
+        tracker.beginTurn();
+        tracker.observePiToolCall({ callId: 'c1', toolName: 'edit', args: { path: 'a.md', edits: [{ oldText: 'old', newText: 'new' }] }, cwd: CWD });
+        tracker.observeToolResult({ callId: 'c1', isError: false, result: { unifiedDiff: patch } });
+        tracker.observePiToolCall({ callId: 'c2', toolName: 'edit', args: { path: 'b.md', edits: [{ oldText: 'p', newText: 'q' }, { oldText: 'r', newText: 's' }] }, cwd: CWD });
+        tracker.observeToolResult({ callId: 'c2', isError: false, result: { unifiedDiff: patch.replaceAll('a.md', 'b.md') } });
+        const turn = tracker.completeTurn({ sessionId: 's1', status: 'completed' });
+        expect(turn?.files.map((file) => [file.filePath, file.unifiedDiff])).toEqual([
+            ['/work/chat/a.md', patch],
+            ['/work/chat/b.md', patch.replaceAll('a.md', 'b.md')],
+        ]);
     });
 });
