@@ -192,6 +192,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                     ref={scroll.listRef}
                     onScroll={scroll.onScroll}
                     scrollEventThrottle={16}
+                    scrollEnabled={scroll.scrollEnabled}
                     overScrollMode="never"
                     data={callList}
                     keyExtractor={(call) => call.id}

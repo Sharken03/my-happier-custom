@@ -8,22 +8,29 @@ import Animated, {
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
+    withSpring,
     withTiming,
     type AnimatedRef,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 
+import { NativeTextSelectionSuppressionScope } from '@/components/ui/text/nativeTextSelection';
+
 import { resolveToolCallsSheetSnap } from './toolCallsSheetSnap';
 
 const OPEN_DURATION_MS = 260;
 const SETTLE_DURATION_MS = 220;
+// The settle spring starts at the speed of the finger and does not overshoot the detent.
+const SETTLE_SPRING = { damping: 40, stiffness: 400, overshootClamping: true } as const;
 const BACKDROP_OPACITY = 0.4;
 
 type SheetScroll = Readonly<{
     listRef: AnimatedRef<FlatList>;
     detailRef: AnimatedRef<ScrollView>;
     onScroll: ReturnType<typeof useAnimatedScrollHandler>;
+    /** True only while the sheet rests at full height. Below it, a swipe moves the sheet only. */
+    scrollEnabled: boolean;
     nativeGesture: NativeGesture;
     /** Tells the sheet which scroll view shows now, so it can hold that one still. */
     setActiveScroll: (active: 'list' | 'detail') => void;
@@ -60,6 +67,7 @@ export function ToolCallsSheetScrollView(props: ScrollViewProps) {
                 ref={scroll.detailRef}
                 onScroll={scroll.onScroll}
                 scrollEventThrottle={16}
+                scrollEnabled={scroll.scrollEnabled}
                 overScrollMode="never"
             />
         </GestureDetector>
@@ -70,6 +78,7 @@ export function ToolCallsSheetScrollView(props: ScrollViewProps) {
  * The bottom sheet of the Tool calls route, drawn in JS so that a swipe anywhere on it moves it.
  * It opens at half height. A swipe up gives full height. At full height a list or detail scrolls
  * first; at its top a swipe down gives half height, and a second swipe down closes the sheet.
+ * Below full height every swipe moves the sheet, and the content does not scroll.
  */
 export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; children: React.ReactNode }>) {
     const { onClosed } = props;
@@ -91,6 +100,9 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
     const startTranslation = useSharedValue(0);
     const previousTranslation = useSharedValue(0);
     const closing = React.useRef(false);
+    // The content scrolls and its text is selectable only while the sheet rests at full height.
+    // While the sheet moves, the text moves with the finger, so Android would see a long press.
+    const [atFull, setAtFull] = React.useState(false);
 
     const listRef = useAnimatedRef<FlatList>();
     const detailRef = useAnimatedRef<ScrollView>();
@@ -144,26 +156,25 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 const takes = translateY.value > 0.5 || (scrollY.value <= 0 && delta > 0);
                 if (!takes) return;
                 sheetMoves.value = true;
+                runOnJS(setAtFull)(false);
                 startY.value = translateY.value;
                 startTranslation.value = event.translationY - delta;
                 lockedOffset.value = Math.max(0, scrollY.value);
                 locked.value = true;
             }
-            const next = Math.min(closed, Math.max(0, startY.value + event.translationY - startTranslation.value));
-            translateY.value = next;
-            if (next <= 0 && delta < 0) {
-                // Full height and the finger goes up: the content scrolls again.
-                sheetMoves.value = false;
-                locked.value = false;
-            }
+            translateY.value = Math.min(closed, Math.max(0, startY.value + event.translationY - startTranslation.value));
         })
         .onEnd((event) => {
             locked.value = false;
             if (!sheetMoves.value) return;
             sheetMoves.value = false;
             const target = resolveToolCallsSheetSnap(translateY.value, event.velocityY, half, closed);
-            translateY.value = withTiming(target, { duration: SETTLE_DURATION_MS }, (finished) => {
-                if (finished && target >= closed) runOnJS(close)();
+            if (target >= closed) {
+                runOnJS(close)();
+                return;
+            }
+            translateY.value = withSpring(target, { ...SETTLE_SPRING, velocity: event.velocityY }, (finished) => {
+                if (finished) runOnJS(setAtFull)(target <= 0);
             });
         })
         .onFinalize(() => {
@@ -177,8 +188,8 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
 
     const controls = React.useMemo<SheetControls>(() => ({
         close,
-        scroll: { listRef, detailRef, onScroll, nativeGesture, setActiveScroll },
-    }), [close, detailRef, listRef, nativeGesture, onScroll, setActiveScroll]);
+        scroll: { listRef, detailRef, onScroll, scrollEnabled: atFull, nativeGesture, setActiveScroll },
+    }), [atFull, close, detailRef, listRef, nativeGesture, onScroll, setActiveScroll]);
 
     return (
         <View style={styles.root}>
@@ -189,7 +200,9 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]} testID="tool-calls-sheet">
                     <View style={styles.grabber} />
                     <ToolCallsSheetControlsContext.Provider value={controls}>
-                        {props.children}
+                        <NativeTextSelectionSuppressionScope suppressed={!atFull}>
+                            {props.children}
+                        </NativeTextSelectionSuppressionScope>
                     </ToolCallsSheetControlsContext.Provider>
                 </Animated.View>
             </GestureDetector>
