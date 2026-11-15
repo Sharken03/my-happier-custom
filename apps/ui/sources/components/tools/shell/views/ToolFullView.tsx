@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ScrollView, Platform, Pressable, useWindowDimensions, type ScrollViewProps } from 'react-native';
+import { View, ScrollView, Platform, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { ToolCall, Message } from '@/sync/domains/messages/messageTypes';
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Metadata } from '@/sync/domains/state/storageTypes';
@@ -24,7 +24,8 @@ import { ToolError } from '@/components/tools/shell/presentation/ToolError';
 import { resolveToolPermissionTerminalErrorMessage } from '../permissions/resolveToolPermissionTerminalErrorMessage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
 import { Icon } from '@/components/ui/icons/Icon';
-import { formatToolResultJson, stripInternalToolInputKeys } from './formatToolResultJson';
+import { stripInternalToolInputKeys } from './formatToolResultJson';
+import { ToolResultFormatToggle, useToolResultFormat } from './ToolResultFormatToggle';
 import { useHistoricalTranscriptAgentId } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
 
 
@@ -43,15 +44,12 @@ interface ToolFullViewProps {
 
 /** Result code block with a toggle that pretty-prints JSON text. */
 function FormattableResult({ code, canFormat }: { code: string; canFormat: boolean }) {
-    const [formatted, setFormatted] = React.useState(false);
-    const formattedCode = React.useMemo(() => (canFormat ? formatToolResultJson(code) : null), [canFormat, code]);
-    if (formattedCode === null) return <CodeView code={code} />;
+    const format = useToolResultFormat(code, canFormat);
+    if (format.formatted === null) return <CodeView code={code} />;
     return (
         <View>
-            <Pressable onPress={() => setFormatted((value) => !value)} style={styles.formatButton} accessibilityRole="button">
-                <Text style={styles.formatButtonText}>{formatted ? t('toolView.showRaw') : t('toolView.formatJson')}</Text>
-            </Pressable>
-            <CodeView code={formatted ? formattedCode : code} />
+            <ToolResultFormatToggle on={format.on} onToggle={format.toggle} />
+            <CodeView code={format.shown ?? code} />
         </View>
     );
 }
@@ -370,19 +368,6 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 17,
         fontWeight: '600',
         color: theme.colors.text.primary,
-    },
-    formatButton: {
-        alignSelf: 'flex-start',
-        marginBottom: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme.colors.text.secondary,
-    },
-    formatButtonText: {
-        fontSize: 13,
-        color: theme.colors.text.secondary,
     },
     description: {
         fontSize: 14,
