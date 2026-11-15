@@ -50,11 +50,14 @@ export default function SessionGitScreenRoute() {
         activeDetailsKey: detailsState?.activeTabKey ?? null,
     }), [detailsState?.activeTabKey, detailsState?.tabs]);
     const detailsIsOpen = detailsState?.isOpen ?? false;
+    const initializedRightPaneSessionRef = React.useRef<string | null>(null);
 
     React.useEffect(() => {
         if (!isFocused) return;
         if (!sessionId) return;
         if (!sessionHydrated) return;
+        if (initializedRightPaneSessionRef.current === sessionId) return;
+        initializedRightPaneSessionRef.current = sessionId;
         openRight({ tabId: 'git' });
         if (pane.scopeState?.right?.activeTabId !== 'git') {
             setRightTab('git');
