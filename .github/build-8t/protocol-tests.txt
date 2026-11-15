@@ -1,0 +1,7 @@
+# Vitest files (relative to packages/protocol) for the fork's own protocol changes; build-cli.yml
+# runs them before the CLI check, because upstream's "CI — Tests" is off on this fork.
+src/reviews/reviewModelPolicy.test.ts
+src/reviews/reviewStart.test.ts
+src/rpc.scm.test.ts
+src/scmPullRequests.contract.test.ts
+src/sessionChanges/mergeTurnChangeSets.test.ts
