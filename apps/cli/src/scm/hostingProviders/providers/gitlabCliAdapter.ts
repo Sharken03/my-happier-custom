@@ -85,6 +85,14 @@ function readGitlabDiscussionId(value: unknown): string | null {
     return readGitlabString((value as Record<string, unknown>).id);
 }
 
+function readGitlabNoteId(value: unknown): string | null {
+    if (!value || typeof value !== 'object') return null;
+    // glab returns note ids as numbers, discussion ids as strings.
+    const id = (value as Record<string, unknown>).id;
+    if (typeof id === 'number' && Number.isFinite(id)) return String(id);
+    return readGitlabString(id);
+}
+
 function buildGitlabReviewPosition(input: Readonly<{
     diffRefs: Readonly<{ baseSha: string; headSha: string; startSha: string }>;
     comment: ScmHostingProviderReviewComment;
@@ -265,10 +273,14 @@ export function createGitlabCliAdapter(params?: Readonly<{
             const diffRefs = readGitlabDiffRefs(mergeRequestJson);
             const url = readGitlabWebUrl(mergeRequestJson);
 
-            // GitLab has no review object. A non-empty body on a non-comment event is posted as a
-            // plain MR note first; GitLab cannot request changes, so the event itself is ignored.
-            if (input.event !== 'comment' && input.body.trim()) {
-                await runRequiredGitlabCliCommand({
+            // GitLab has no review object. The body is posted as a plain MR note when it carries text and
+            // either the event is not a plain comment or there are no inline comments to carry it. GitLab
+            // cannot request changes, so the event itself is ignored.
+            const shouldPostBodyNote = input.body.trim().length > 0
+                && (input.event !== 'comment' || input.comments.length === 0);
+            let reviewId: string | null = null;
+            if (shouldPostBodyNote) {
+                const noteJson = readJsonOutput(await runRequiredGitlabCliCommand({
                     runCommand,
                     args: [
                         'api',
@@ -280,10 +292,9 @@ export function createGitlabCliAdapter(params?: Readonly<{
                         '--raw-field',
                         `body=${input.body}`,
                     ],
-                });
+                }));
+                reviewId = readGitlabNoteId(noteJson);
             }
-
-            let reviewId: string | null = null;
             for (const comment of input.comments) {
                 const discussionJson = readJsonOutput(await runRequiredGitlabCliCommand({
                     runCommand,

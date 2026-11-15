@@ -153,7 +153,7 @@ describe('gitlabCliAdapter', () => {
         if (!mod) throw new Error('expected GitLab CLI adapter module');
 
         const runCommand = vi.fn(async ({ args }: { args: readonly string[] }) => {
-            if (args[0] === 'api' && args[2] === 'projects/happier-dev%2Fmobile%2Fapp/merge_requests/17') {
+            if (args[0] === 'api' && args[3] === 'projects/happier-dev%2Fmobile%2Fapp/merge_requests/17') {
                 return {
                     success: true,
                     stdout: JSON.stringify({
@@ -254,7 +254,7 @@ describe('gitlabCliAdapter', () => {
         if (!mod) throw new Error('expected GitLab CLI adapter module');
 
         const runCommand = vi.fn(async ({ args }: { args: readonly string[] }) => {
-            if (args[0] === 'api' && args[2] === 'projects/happier-dev%2Fmobile%2Fapp/merge_requests/17') {
+            if (args[0] === 'api' && args[3] === 'projects/happier-dev%2Fmobile%2Fapp/merge_requests/17') {
                 return {
                     success: true,
                     stdout: JSON.stringify({
@@ -299,7 +299,8 @@ describe('gitlabCliAdapter', () => {
             body: 'Approving on behalf of the team.',
             comments: [{ path: 'src/a.ts', line: 1, body: 'ok' }],
         })).resolves.toEqual({
-            reviewId: 'disc-1',
+            // The MR-level note is the review artifact GitLab returns first; the discussion is per line.
+            reviewId: '9001',
             url: 'https://gitlab.com/happier-dev/mobile/app/-/merge_requests/17',
         });
 
@@ -316,6 +317,59 @@ describe('gitlabCliAdapter', () => {
             ],
             timeoutMs: expect.any(Number),
         });
+    });
+
+    it('posts a body-only review as a plain MR note when there are no inline comments', async () => {
+        const mod = await import('./gitlabCliAdapter').catch(() => null);
+        expect(mod).not.toBeNull();
+        if (!mod) throw new Error('expected GitLab CLI adapter module');
+
+        const runCommand = vi.fn(async ({ args }: { args: readonly string[] }) => {
+            if (args[0] === 'api' && args[3] === 'projects/happier-dev%2Fmobile%2Fapp/merge_requests/17') {
+                return {
+                    success: true,
+                    stdout: JSON.stringify({
+                        web_url: 'https://gitlab.com/happier-dev/mobile/app/-/merge_requests/17',
+                        diff_refs: { base_sha: 'base1', head_sha: 'head1', start_sha: 'start1' },
+                    }),
+                    stderr: '',
+                    exitCode: 0,
+                };
+            }
+            if (args.includes('projects/happier-dev%2Fmobile%2Fapp/merge_requests/17/notes')) {
+                return {
+                    success: true,
+                    stdout: JSON.stringify({ id: 4242 }),
+                    stderr: '',
+                    exitCode: 0,
+                };
+            }
+            return {
+                success: false,
+                stdout: '',
+                stderr: `unexpected glab args: ${args.join(' ')}`,
+                exitCode: 1,
+            };
+        });
+
+        const adapter = mod.createGitlabCliAdapter({ runCommand });
+        if (!adapter.createPullRequestReview) throw new Error('expected GitLab CLI review adapter');
+
+        await expect(adapter.createPullRequestReview({
+            provider,
+            number: 17,
+            event: 'comment',
+            body: 'Findings without a location go in the review body.',
+            comments: [],
+        })).resolves.toEqual({
+            reviewId: '4242',
+            url: 'https://gitlab.com/happier-dev/mobile/app/-/merge_requests/17',
+        });
+
+        expect(runCommand).toHaveBeenCalledTimes(2);
+        expect(runCommand).not.toHaveBeenCalledWith(expect.objectContaining({
+            args: expect.arrayContaining(['projects/happier-dev%2Fmobile%2Fapp/merge_requests/17/discussions']),
+        }));
     });
 
     it('throws when the GitLab MR fetch fails', async () => {

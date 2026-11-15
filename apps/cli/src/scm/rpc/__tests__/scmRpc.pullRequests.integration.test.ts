@@ -93,7 +93,7 @@ function createGithubForkPullRefFixture(): { workspace: string; featureHead: str
 }
 
 describe('git pull request RPC handlers', () => {
-  const envKeys = ['PATH', 'HOME', 'USERPROFILE', 'HAPPIER_BUILD_FEATURES_DENY'] as const;
+  const envKeys = ['PATH', 'HOME', 'USERPROFILE', 'HAPPIER_BUILD_FEATURES_DENY', 'HAPPIER_FEATURE_SCM_WRITE_OPERATIONS__ENABLED'] as const;
   let envScope = createEnvKeyScope(envKeys);
 
   afterEach(() => {
@@ -764,6 +764,8 @@ describe('git pull request RPC handlers', () => {
       PATH: [workspace, process.env.PATH].filter(Boolean).join(process.platform === 'win32' ? ';' : ':'),
       HOME: workspace,
       USERPROFILE: workspace,
+      // Source-control writes are opt-in on the machine (default off).
+      HAPPIER_FEATURE_SCM_WRITE_OPERATIONS__ENABLED: '1',
     });
 
     const { call } = createTestRpcManager({ workingDirectory: workspace });

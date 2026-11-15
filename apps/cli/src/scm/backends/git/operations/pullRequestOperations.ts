@@ -594,7 +594,6 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
         }
 
         if (provider.kind === 'github') {
-            let restFailure: RestPullRequestFailure | null = null;
             const githubConnectedAccountAuth = await resolveGithubConnectedAccountAuth({
                 context: input.context,
                 providerBaseUrl: provider.baseUrl,
@@ -616,7 +615,15 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
                         url: result.url,
                     };
                 } catch (error) {
-                    restFailure = toRestFailure(error, 'GitHub REST pull request review failed.');
+                    // No CLI fallback after a REST failure: a review that the REST call created but whose
+                    // response was lost would be posted a second time, and there is no idempotency key at
+                    // this layer. The gh CLI path is only for machines with no connected account.
+                    const failure = toRestFailure(error, 'GitHub REST pull request review failed.');
+                    return {
+                        success: false,
+                        errorCode: failure.errorCode,
+                        error: failure.error,
+                    };
                 }
             }
             const cliAuth = await detectCliAuth({ providerBaseUrl: provider.baseUrl });
@@ -641,13 +648,6 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
                         error: error instanceof Error ? error.message : 'GitHub CLI pull request review failed.',
                     };
                 }
-            }
-            if (restFailure) {
-                return {
-                    success: false,
-                    errorCode: restFailure.errorCode,
-                    error: restFailure.error,
-                };
             }
             return {
                 success: false,

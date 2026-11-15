@@ -17,6 +17,10 @@ const LOCAL_POLICY_BY_FEATURE: Readonly<Partial<Record<FeatureId, FeatureLocalPo
   // kill-switch restores the legacy restart-notice path.
   'providers.claude.unifiedTerminal.tuiRuntimeControl': (env) =>
     parseBooleanEnv(env.HAPPIER_FEATURE_CLAUDE_UNIFIED_TUI_RUNTIME_CONTROL__ENABLED, true),
+  // Source-control writes reach a remote (stage is local, but commit/push/review are outward), so the
+  // CLI path defaults OFF and has an explicit opt-in. The UI keeps its own settings toggle; this is the
+  // machine-side switch for anything the daemon performs on the user's behalf.
+  'scm.writeOperations': (env) => parseBooleanEnv(env.HAPPIER_FEATURE_SCM_WRITE_OPERATIONS__ENABLED, false),
 };
 
 export function resolveCliLocalFeaturePolicyEnabled(featureId: FeatureId, env: NodeJS.ProcessEnv): boolean {

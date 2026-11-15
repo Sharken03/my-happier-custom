@@ -1005,7 +1005,7 @@ describe('git pull request operations', () => {
     expect(restCreateReviewCalls).toBe(0);
   });
 
-  it('maps a connected-account review throw to COMMAND_FAILED', async () => {
+  it('maps a connected-account review throw to COMMAND_FAILED without retrying through the gh CLI', async () => {
     const mod = await import('./pullRequestOperations') as Record<string, unknown>;
     const createBackend = mod.createGitPullRequestBackend;
     expect(createBackend).toBeTypeOf('function');
@@ -1028,6 +1028,10 @@ describe('git pull request operations', () => {
         name: 'GitHub CLI',
         detectRemote: () => null,
         buildCompareUrl: () => null,
+        // A review that REST may already have created must never be posted a second time.
+        createPullRequestReview: async () => {
+          throw new Error('the gh CLI fallback must not run after a REST failure');
+        },
       },
       detectGithubCliAuth: async () => ({ kind: 'authenticated' }),
     });
