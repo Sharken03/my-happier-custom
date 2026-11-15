@@ -11,6 +11,8 @@ import { test } from "node:test";
 const PI = path.join(execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim(), "@earendil-works/pi-coding-agent");
 registerHooks({
   resolve(specifier, context, next) {
+    // typebox comes from Pi's own dependencies, as in Pi's loader.
+    if (specifier === "typebox") return next(specifier, { ...context, parentURL: pathToFileURL(path.join(PI, "dist/index.js")).href });
     if (specifier !== "@earendil-works/pi-coding-agent") return next(specifier, context);
     return { url: pathToFileURL(path.join(PI, "dist/index.js")).href, shortCircuit: true };
   },
@@ -54,4 +56,13 @@ test("grep that passes its CPU-time limit is stopped with a reason", async () =>
   const out = await run("head -c 3000000 /dev/urandom | base64 -w0 | PI_GUARD_GREP_CPU_S=1 grep -oE '.{0,2500}A.{0,2500}' | wc -c")
     .catch((error) => error.message);
   assert.match(out, /stopped by bash-guard after 1 s of CPU time/);
+});
+
+test("the tool takes an optional description, and the command runs without it", async () => {
+  const bash = loadBash();
+  assert.equal(bash.parameters.properties.description.type, "string");
+  assert.ok(!(bash.parameters.required ?? []).includes("description"));
+  assert.deepEqual(bash.parameters.required, ["command"]);
+  const result = await bash.execute("t2", { command: "echo ok", description: "Print ok" }, undefined, undefined, undefined);
+  assert.equal(result.content.map((part) => part.text).join("").trim(), "ok");
 });

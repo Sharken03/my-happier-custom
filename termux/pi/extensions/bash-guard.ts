@@ -9,13 +9,22 @@
 //   binary.) A memory limit is not possible: "ulimit -v" stops Android's linker before a
 //   program starts.
 // The spawn hook adds the nice and PATH lines out of view, so the chat shows the model's command.
+// - Description: the tool takes an optional "description" of the command, as Claude Code's Bash
+//   tool does. Happier shows it in the tool call row in place of the command.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBashToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 
 export const DEFAULT_TIMEOUT_S = 300;
 export const MAX_TIMEOUT_S = 1800;
 export const NICE = 10;
+
+// The text of Claude Code's Bash tool, so the models write the same kind of description.
+export const DESCRIPTION_PARAMETER =
+  "Clear, concise description of what this command does in active voice, 5-10 words. " +
+  'Examples: "List files in current directory", "Install package dependencies", ' +
+  '"Find and delete all .tmp files recursively".';
 
 const GUARD_BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin");
 
@@ -44,8 +53,13 @@ export default function (pi: ExtensionAPI) {
     ...bash,
     description:
       `${bash.description} Without a timeout the command stops after ${DEFAULT_TIMEOUT_S} s; ` +
-      `the maximum is ${MAX_TIMEOUT_S} s. grep and rg stop after a CPU-time limit.`,
-    execute: (toolCallId, params, signal, onUpdate, ctx) =>
+      `the maximum is ${MAX_TIMEOUT_S} s. grep and rg stop after a CPU-time limit. ` +
+      `Always give a short description of the command.`,
+    parameters: Type.Object({
+      ...bash.parameters.properties,
+      description: Type.Optional(Type.String({ description: DESCRIPTION_PARAMETER })),
+    }),
+    execute: (toolCallId, { description: _description, ...params }, signal, onUpdate, ctx) =>
       bash.execute(toolCallId, { ...params, timeout: guardTimeout(params.timeout) }, signal, onUpdate, ctx),
   });
 }
