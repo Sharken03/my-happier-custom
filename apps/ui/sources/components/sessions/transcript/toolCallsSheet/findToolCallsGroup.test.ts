@@ -42,4 +42,10 @@ describe('findToolCallsGroup', () => {
         expect(findToolCallsGroup({ messagesOldestFirst: messages, anchorId: 'nope' })).toBeNull();
         expect(findToolCallsGroup({ messagesOldestFirst: messages, anchorId: 't2' })).toBeNull();
     });
+
+    it('uses the linear grouping in linear mode', () => {
+        const messages = [user('u1', 1), tool('t1', 2), tool('t2', 3), agentText('a1', 4), tool('t3', 5)];
+        const group = findToolCallsGroup({ messagesOldestFirst: messages, anchorId: 't1', groupingMode: 'linear', toolCallsGroupStrategy: 'consecutive_tools' });
+        expect(group?.map((m) => m.id)).toEqual(['t1', 't2']);
+    });
 });

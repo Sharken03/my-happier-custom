@@ -116,12 +116,13 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                         accessibilityLabel={t('common.back')}
                         style={styles.headerButton}
                     >
-                        <Icon name="arrow-left" size={20} color={theme.colors.text.primary} />
+                        <Icon name="arrow-left" size={22} color={theme.colors.text.primary} />
                     </Pressable>
-                    <View style={styles.headerTitle}>
+                    <View style={styles.headerCenter}>
                         <ToolHeader tool={selectedCall.tool} />
+                        <ToolStatusIndicator tool={selectedCall.tool} />
                     </View>
-                    <ToolStatusIndicator tool={selectedCall.tool} />
+                    <View style={styles.headerButtonSpace} />
                 </View>
                 <View style={styles.detailContent}>
                     <Deferred>
@@ -139,12 +140,8 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
 
     return (
         <View style={styles.container} testID="tool-calls-sheet-list">
+            {/* As in the Claude app: close on the left, the title centred. */}
             <View style={styles.header}>
-                <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                {groupStatus === 'running' ? (
-                    <ActivitySpinner testID="tool-calls-sheet-running" size="small" color={theme.colors.text.secondary} />
-                ) : null}
-                <View style={styles.headerSpacer} />
                 <Pressable
                     testID="tool-calls-sheet-close"
                     onPress={onClose}
@@ -153,8 +150,15 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                     accessibilityLabel={t('common.cancel')}
                     style={styles.headerButton}
                 >
-                    <Icon name="x" size={20} color={theme.colors.text.primary} />
+                    <Icon name="x" size={22} color={theme.colors.text.primary} />
                 </Pressable>
+                <View style={styles.headerCenter}>
+                    <Text style={styles.title} numberOfLines={2}>{title}</Text>
+                    {groupStatus === 'running' ? (
+                        <ActivitySpinner testID="tool-calls-sheet-running" size="small" color={theme.colors.text.secondary} />
+                    ) : null}
+                </View>
+                <View style={styles.headerButtonSpace} />
             </View>
             <FlatList
                 data={calls}
@@ -180,18 +184,26 @@ const styles = StyleSheet.create((theme) => ({
         paddingVertical: 12,
     },
     headerButton: {
+        width: 32,
+        alignItems: 'center',
         padding: 4,
     },
-    headerSpacer: {
-        flex: 1,
+    // Keeps the centre column centred: the same width as the button on the other side.
+    headerButtonSpace: {
+        width: 32,
     },
-    headerTitle: {
+    headerCenter: {
         flex: 1,
         minWidth: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
     },
     title: {
         color: theme.colors.text.primary,
-        fontSize: 16,
+        fontSize: 18,
+        textAlign: 'center',
         ...Typography.default('semiBold'),
         flexShrink: 1,
     },
@@ -204,7 +216,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     listRow: {
         paddingHorizontal: 16,
-        paddingVertical: 4,
+        paddingVertical: 10,
     },
     // The line runs in the icon column, from the row edge to just short of the icon.
     timeline: {
