@@ -50,6 +50,35 @@ describe('actionToolExposure', () => {
     }
   });
 
+  it('directly exposes review tools to session agents by default', () => {
+    for (const id of ['review.start', 'execution.run.send', 'execution.run.action'] as const) {
+      const spec = getActionSpec(id);
+
+      expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('direct');
+      expect(isActionDirectToolExposedOn(spec, 'session_agent')).toBe(true);
+      expect(isActionDiscoverableOnToolSurface(spec, 'session_agent')).toBe(true);
+    }
+
+    // Control: an ordinary action-backed tool must stay discoverable-only.
+    expect(resolveActionToolExposureMode(getActionSpec('subagents.delegate.start'), 'session_agent')).toBe('discoverable_only');
+  });
+
+  it('lets a settings override roll direct review exposure back to discoverable-only', () => {
+    const settings = ActionsSettingsV1Schema.parse({
+      v: 1,
+      actions: {
+        'review.start': {
+          toolExposureModes: { session_agent: 'discoverable_only' },
+        },
+      },
+    });
+    const spec = getActionSpec('review.start');
+
+    expect(resolveActionToolExposureMode(spec, 'session_agent', { settings })).toBe('discoverable_only');
+    expect(isActionDirectToolExposedOn(spec, 'session_agent', { settings })).toBe(false);
+    expect(isActionDiscoverableOnToolSurface(spec, 'session_agent', { settings })).toBe(true);
+  });
+
   it('keeps external mcp and cli direct by default', () => {
     const spec = getActionSpec('subagents.delegate.start');
 

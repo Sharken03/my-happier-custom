@@ -11,6 +11,16 @@ export { ACTION_TOOL_EXPOSURE_SURFACES };
 /**
  * Read-only bootstrap/observation Actions that Session Agents must be able to
  * call directly.
+ *
+ * Non-read-only actions that should also be directly exposed to session agents
+ * must NOT be added here; they declare `toolExposure: { session_agent: 'direct' }`
+ * on their own spec instead (see `review.start`, `execution.run.send`,
+ * `execution.run.action`). Two distinct fields:
+ * - `surfaces.session_agent` (boolean) — availability: may the surface call the action.
+ * - `toolExposure.session_agent` (`direct` | `discoverable_only`) — presentation: is the
+ *   tool declared to the model.
+ * This list only participates in the presentation default; availability is resolved
+ * separately in `resolveActionSurfaceAvailability`.
  */
 export const SESSION_AGENT_SAFE_OBSERVATION_ACTION_IDS = [
   'action.spec.search',
