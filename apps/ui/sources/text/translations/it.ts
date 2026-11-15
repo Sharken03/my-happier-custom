@@ -8100,6 +8100,7 @@ export const it: TranslationStructure = {
     otherRepositoriesTitle: "Altri repository",
     outsideGitTitle: "Fuori da git",
     externalChangeCommitted: "Già committato: questa è la modifica dell’agente.",
+    externalChangeNoDiff: "Nessun diff: la chiamata allo strumento dell’agente non includeva il testo modificato.",
     noSessionAttributedChanges:
       "Nessuna modifica attribuita alla sessione rilevata.",
     noLatestTurnChanges:

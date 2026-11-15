@@ -16,6 +16,7 @@ import { t } from '@/text';
 import {
     groupByRepository,
     isAbsoluteFilePath,
+    resolveAgentChangeView,
     resolveRepositoryRoots,
     type ExternalChangedFile,
     type ExternalRepositoryGroup,
@@ -107,7 +108,7 @@ function ExternalChangedFileRow(props: Readonly<{
     }, [diff, expanded, file.displayPath, rootPath, sessionId]);
 
     const change = file.change;
-    const agentDiff = typeof change.unifiedDiff === 'string' && change.unifiedDiff.trim() ? change.unifiedDiff : null;
+    const agentView = resolveAgentChangeView(change);
     return (
         <View>
             <Pressable
@@ -129,10 +130,12 @@ function ExternalChangedFileRow(props: Readonly<{
                     ) : null}
                     {diff.unifiedDiff ? (
                         <DiffViewer mode="unified" filePath={file.displayPath} unifiedDiff={diff.unifiedDiff} />
-                    ) : agentDiff ? (
-                        <DiffViewer mode="unified" filePath={file.displayPath} unifiedDiff={agentDiff} />
+                    ) : agentView.kind === 'unified' ? (
+                        <DiffViewer mode="unified" filePath={file.displayPath} unifiedDiff={agentView.unifiedDiff} />
+                    ) : agentView.kind === 'text' ? (
+                        <DiffViewer mode="text" filePath={file.displayPath} oldText={agentView.oldText} newText={agentView.newText} contextLines={3} />
                     ) : (
-                        <DiffViewer mode="text" filePath={file.displayPath} oldText={change.oldText ?? ''} newText={change.newText ?? ''} contextLines={3} />
+                        <Text style={[styles.note, { color: theme.colors.text.secondary }]}>{t('files.externalChangeNoDiff')}</Text>
                     )}
                 </View>
             ) : null}
