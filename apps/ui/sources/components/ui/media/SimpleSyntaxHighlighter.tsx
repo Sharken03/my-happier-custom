@@ -20,12 +20,14 @@ interface SimpleSyntaxHighlighterProps {
   defaultColor?: string;
 }
 
-function resolveTokenColor(theme: any, tokenType: string, fallback: string): string {
+function resolveTokenColor(theme: any, tokenType: string, defaultColor: string | undefined, fallback: string): string {
   if (tokenType === 'keyword') return theme.colors.syntax.keyword ?? fallback;
   if (tokenType === 'string') return theme.colors.syntax.string ?? fallback;
   if (tokenType === 'number') return theme.colors.syntax.number ?? fallback;
   if (tokenType === 'comment') return theme.colors.syntax.comment ?? fallback;
-  return theme.colors.syntax.default ?? fallback;
+  // A caller-provided default colour (a stderr/error tint) outranks the theme's
+  // generic token colour, so untinted text keeps the colour it had before.
+  return defaultColor ?? theme.colors.syntax.default ?? fallback;
 }
 
 export const SimpleSyntaxHighlighter: React.FC<SimpleSyntaxHighlighterProps> = ({
@@ -64,8 +66,9 @@ export const SimpleSyntaxHighlighter: React.FC<SimpleSyntaxHighlighterProps> = (
             key={index}
             selectable={selectable}
             style={{
-              color: resolveTokenColor(theme, token.type, fallback),
-              fontFamily: Typography.mono().fontFamily,
+              color: resolveTokenColor(theme, token.type, defaultColor, fallback),
+              // Fonts and sizes are inherited from the outer Text, so a caller that
+              // overrides textStyle changes glyphs too, not just the wrapper.
               fontWeight: token.type === 'keyword' ? '600' : '400',
             }}
           >

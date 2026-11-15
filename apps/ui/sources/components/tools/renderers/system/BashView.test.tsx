@@ -213,8 +213,8 @@ describe('BashView', () => {
         // The main command line stays clean.
         expect(commandViewSpy).toHaveBeenCalledWith(expect.objectContaining({ command: 'rm -rf /tmp/x' }));
 
-        // Full view exposes the raw command for transparency.
-        expect(codeViewSpy).toHaveBeenCalledWith(expect.objectContaining({ code: raw }));
+        // Full view exposes the raw command for transparency, highlighted as shell.
+        expect(codeViewSpy).toHaveBeenCalledWith(expect.objectContaining({ code: raw, language: 'bash' }));
 
         const texts = screen.findAllByType('Text' as any);
         const flattened = texts

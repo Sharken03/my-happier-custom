@@ -56,15 +56,13 @@ const stylesheet = StyleSheet.create((theme) => ({
     commandHighlightContainer: {
         flex: 1,
         flexShrink: 1,
-        alignSelf: 'stretch',
+        // The row aligns the `$` prompt and the command on a shared baseline; a
+        // stretched container would top-align the command instead.
+        alignSelf: 'baseline',
     },
     outputHighlightContainer: {
         marginTop: 8,
         alignSelf: 'stretch',
-    },
-    outputHighlightText: {
-        fontSize: 13,
-        lineHeight: 18,
     },
     stdout: {
         fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
@@ -105,16 +103,19 @@ const CommandOutputStream = React.memo(function CommandOutputStream(props: {
     text: string;
     style: StyleProp<TextStyle>;
     defaultColor?: string;
+    textStyle: TextStyle;
     syntaxLanguage: string | null;
     highlightEnabled: boolean;
     budgetLimits: CodeHighlightingBudgetLimits;
 }) {
     const budget = React.useMemo(
-        () => evaluateCodeHighlightingBudget(props.text, props.budgetLimits),
-        [props.budgetLimits, props.text],
+        () => (props.highlightEnabled && props.syntaxLanguage
+            ? evaluateCodeHighlightingBudget(props.text, props.budgetLimits)
+            : null),
+        [props.budgetLimits, props.highlightEnabled, props.syntaxLanguage, props.text],
     );
 
-    if (props.highlightEnabled && props.syntaxLanguage && budget.withinBudget) {
+    if (props.highlightEnabled && props.syntaxLanguage && budget?.withinBudget === true) {
         return (
             <SimpleSyntaxHighlighter
                 code={props.text}
@@ -122,7 +123,7 @@ const CommandOutputStream = React.memo(function CommandOutputStream(props: {
                 selectable
                 wrap
                 defaultColor={props.defaultColor}
-                textStyle={stylesheet.outputHighlightText}
+                textStyle={props.textStyle}
                 containerStyle={stylesheet.outputHighlightContainer}
             />
         );
@@ -151,6 +152,9 @@ export const CommandView = React.memo<CommandViewProps>(({
     // Same feature flag + budget as the file/diff renderers, so command highlighting
     // turns off together with the rest of the syntax highlighting.
     const syntax = useCodeSyntaxHighlighting({ language });
+    const syntaxLanguage = syntax.language;
+    const highlightEnabled = syntax.mode !== 'off' && Boolean(syntaxLanguage);
+
     const budgetLimits = React.useMemo(() => ({
         maxBytes: syntax.maxBytes ?? 0,
         maxLines: syntax.maxLines ?? 0,
@@ -158,13 +162,25 @@ export const CommandView = React.memo<CommandViewProps>(({
     }), [syntax.maxBytes, syntax.maxLines, syntax.maxLineLength]);
 
     const commandBudget = React.useMemo(
-        () => evaluateCodeHighlightingBudget(command, budgetLimits),
-        [command, budgetLimits],
+        () => (highlightEnabled ? evaluateCodeHighlightingBudget(command, budgetLimits) : null),
+        [budgetLimits, command, highlightEnabled],
     );
 
-    const syntaxLanguage = syntax.language;
-    const highlightEnabled = syntax.mode !== 'off' && Boolean(syntaxLanguage);
-    const highlightCommand = highlightEnabled && commandBudget.withinBudget;
+    const highlightCommand = commandBudget?.withinBudget === true;
+
+    // Highlighted and plain text must keep the same face, so command output does not
+    // shift fonts when the highlighting setting changes.
+    const commandHighlightTextStyle = React.useMemo(() => ({
+        fontFamily: styles.commandText.fontFamily,
+        fontSize: styles.commandText.fontSize,
+        lineHeight: styles.commandText.lineHeight,
+    }), [styles]);
+
+    const outputHighlightTextStyle = React.useMemo(() => ({
+        fontFamily: styles.stdout.fontFamily,
+        fontSize: styles.stdout.fontSize,
+        lineHeight: styles.stdout.lineHeight,
+    }), [styles]);
 
     return (
         <View style={[
@@ -181,6 +197,7 @@ export const CommandView = React.memo<CommandViewProps>(({
                         language={syntaxLanguage}
                         selectable
                         wrap
+                        textStyle={commandHighlightTextStyle}
                         containerStyle={styles.commandHighlightContainer}
                     />
                 ) : (
@@ -196,6 +213,7 @@ export const CommandView = React.memo<CommandViewProps>(({
                             text={stdout}
                             style={styles.stdout}
                             defaultColor={styles.stdout.color}
+                            textStyle={outputHighlightTextStyle}
                             syntaxLanguage={syntaxLanguage}
                             highlightEnabled={highlightEnabled}
                             budgetLimits={budgetLimits}
@@ -208,6 +226,7 @@ export const CommandView = React.memo<CommandViewProps>(({
                             text={stderr}
                             style={styles.stderr}
                             defaultColor={styles.stderr.color}
+                            textStyle={outputHighlightTextStyle}
                             syntaxLanguage={syntaxLanguage}
                             highlightEnabled={highlightEnabled}
                             budgetLimits={budgetLimits}
@@ -220,6 +239,7 @@ export const CommandView = React.memo<CommandViewProps>(({
                             text={error}
                             style={styles.error}
                             defaultColor={styles.error.color}
+                            textStyle={outputHighlightTextStyle}
                             syntaxLanguage={syntaxLanguage}
                             highlightEnabled={highlightEnabled}
                             budgetLimits={budgetLimits}
