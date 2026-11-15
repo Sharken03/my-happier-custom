@@ -1,11 +1,8 @@
 import * as React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View } from 'react-native';
-import { useUnistyles } from 'react-native-unistyles';
 
 import { useSession } from '@/sync/domains/state/storage';
 import { sync } from '@/sync/sync';
-import { ActivitySpinner } from '@/components/ui/feedback/ActivitySpinner';
 import { SessionInvalidLinkFallback } from '@/components/sessions/shell/SessionInvalidLinkFallback';
 import { ToolCallsSheetView } from '@/components/sessions/transcript/toolCallsSheet/ToolCallsSheetView';
 import { useToolCallsGroup } from '@/components/sessions/transcript/toolCallsSheet/useToolCallsGroup';
@@ -45,7 +42,6 @@ function SessionToolCallsRouteLoaded(props: {
     routeScope: SessionRouteServerScope;
 }) {
     const router = useRouter();
-    const { theme } = useUnistyles();
     const session = useSession(props.sessionId);
     const group = useToolCallsGroup(props.sessionId, props.anchorId);
 
@@ -82,19 +78,13 @@ function SessionToolCallsRouteLoaded(props: {
         return <SessionInvalidLinkFallback />;
     }
 
-    if (!session || !group.isLoaded || !group.calls) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivitySpinner size="small" color={theme.colors.text.secondary} />
-            </View>
-        );
-    }
-
+    // The sheet view shows its own spinner while the group loads. It must render its list from the
+    // start, so the Android sheet finds the list (see ToolCallsSheetView).
     return (
         <ToolCallsSheetView
             sessionId={props.sessionId}
-            session={session}
-            calls={group.calls}
+            session={session ?? null}
+            calls={group.isLoaded ? group.calls ?? null : null}
             isTranscriptTail={group.isTranscriptTail}
             onClose={handleClose}
         />

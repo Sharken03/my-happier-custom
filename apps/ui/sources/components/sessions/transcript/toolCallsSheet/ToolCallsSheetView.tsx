@@ -27,66 +27,83 @@ import {
 } from './toolCallsSheetState';
 import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
 
+const EMPTY_CALLS: readonly ToolCallMessage[] = [];
+
 const TIMELINE_ICON_CENTER_X = 16 + 9;
 const TIMELINE_ICON_GAP = 11;
 
 type ToolCallsSheetViewProps = Readonly<{
     sessionId: string;
-    session: Session;
-    calls: readonly ToolCallMessage[];
+    /** Null while the session or the group loads. The sheet then shows its frame and a spinner. */
+    session: Session | null;
+    calls: readonly ToolCallMessage[] | null;
     isTranscriptTail: boolean;
     onClose: () => void;
 }>;
 
-/** The Tool calls sheet content: the list of calls, or the detail of the selected call. */
+/**
+ * The Tool calls sheet content: the list of calls, with the detail of the selected call on top.
+ *
+ * Android: the bottom sheet finds its scroll view only when the sheet is laid out, and React Native
+ * does not lay out the sheet again when its content changes. So the list is in the first render,
+ * also while the group loads, and it stays mounted while the detail shows. Else a swipe on the
+ * list does not move the sheet.
+ */
 export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: ToolCallsSheetViewProps) {
     const { theme } = useUnistyles();
     const insets = useSafeAreaInsets();
-    const { calls, onClose } = props;
-    const [state, setState] = React.useState<ToolCallsSheetState>(() =>
-        createToolCallsSheetState(calls.map((call) => call.id)),
+    const { session, onClose } = props;
+    const calls = props.session ? props.calls : null;
+    const callList = calls ?? EMPTY_CALLS;
+    const [state, setState] = React.useState<ToolCallsSheetState | null>(() =>
+        calls ? createToolCallsSheetState(calls.map((call) => call.id)) : null,
     );
-    const selectedCall = state.selectedId === null ? null : calls.find((call) => call.id === state.selectedId) ?? null;
+    // The first state comes when the group has loaded: a group with one call opens in its detail.
+    React.useEffect(() => {
+        if (state === null && calls) setState(createToolCallsSheetState(calls.map((call) => call.id)));
+    }, [calls, state]);
+    const selectedId = state?.selectedId ?? null;
+    const selectedCall = selectedId === null ? null : callList.find((call) => call.id === selectedId) ?? null;
 
     const interaction = React.useMemo(() => deriveTranscriptInteractionFromSession({
-        accessLevel: props.session.accessLevel,
-        canApprovePermissions: props.session.canApprovePermissions,
-        active: props.session.active,
-        presence: props.session.presence,
-    }), [props.session.accessLevel, props.session.active, props.session.canApprovePermissions, props.session.presence]);
+        accessLevel: session?.accessLevel ?? null,
+        canApprovePermissions: session?.canApprovePermissions ?? null,
+        active: session?.active ?? null,
+        presence: session?.presence ?? null,
+    }), [session?.accessLevel, session?.active, session?.canApprovePermissions, session?.presence]);
 
     const handleBack = React.useCallback(() => {
         const result = resolveToolCallsSheetBack(
-            selectedCall ? state : { selectedId: null },
-            calls.length,
+            selectedCall ? { selectedId: selectedCall.id } : { selectedId: null },
+            callList.length,
         );
         if (result.kind === 'close') {
             onClose();
             return;
         }
         setState(result.state);
-    }, [calls.length, onClose, selectedCall, state]);
+    }, [callList.length, onClose, selectedCall]);
 
     // In detail mode the hardware back button goes to the list. In the list it falls through to the
     // navigator, which closes the sheet.
     React.useEffect(() => {
-        if (!selectedCall || calls.length <= 1) return;
+        if (!selectedCall || callList.length <= 1) return;
         const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
             handleBack();
             return true;
         });
         return () => subscription.remove();
-    }, [calls.length, handleBack, selectedCall]);
+    }, [callList.length, handleBack, selectedCall]);
 
     const turnWorking = useSessionTurnWorking(props.sessionId, props.isTranscriptTail);
     const groupStatus = resolveToolCallsGroupStatus({
-        toolMessages: calls,
+        toolMessages: callList,
         permissionDisabledReason: interaction.permissionDisabledReason,
         turnWorking: props.isTranscriptTail ? turnWorking : false,
     });
     const title = React.useMemo(
-        () => summarizeToolCallsGroup(calls.map((call) => call.tool.name)) ?? t('session.toolCalls'),
-        [calls],
+        () => summarizeToolCallsGroup(callList.map((call) => call.tool.name)) ?? t('session.toolCalls'),
+        [callList],
     );
 
     const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => {
@@ -95,10 +112,10 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         return (
         <View style={styles.listRow}>
             {index > 0 ? <View style={[styles.timeline, styles.timelineAbove, { backgroundColor: theme.colors.border.default }]} /> : null}
-            {index < calls.length - 1 ? <View style={[styles.timeline, styles.timelineBelow, { backgroundColor: theme.colors.border.default }]} /> : null}
+            {index < callList.length - 1 ? <View style={[styles.timeline, styles.timelineBelow, { backgroundColor: theme.colors.border.default }]} /> : null}
             <ToolTimelineRow
                 tool={item.tool}
-                metadata={props.session.metadata}
+                metadata={session?.metadata ?? null}
                 messages={item.children}
                 sessionId={props.sessionId}
                 messageId={item.id}
@@ -113,11 +130,10 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
             />
         </View>
         );
-    }, [calls.length, interaction, props.session.metadata, props.sessionId, theme.colors.border.default]);
+    }, [callList.length, interaction, session?.metadata, props.sessionId, theme.colors.border.default]);
 
-    if (selectedCall) {
-        return (
-            <View style={styles.container} testID="tool-calls-sheet-detail">
+    const detail = selectedCall && session ? (
+            <View style={[styles.container, styles.detailOverlay]} testID="tool-calls-sheet-detail">
                 <View style={styles.header}>
                     <Pressable
                         testID="tool-calls-sheet-back"
@@ -140,14 +156,13 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                         <SessionMessageDetailsView
                             message={selectedCall}
                             sessionId={props.sessionId}
-                            session={props.session}
+                            session={session}
                             jumpChildId={null}
                         />
                     </Deferred>
                 </View>
             </View>
-        );
-    }
+    ) : null;
 
     return (
         <View style={styles.container} testID="tool-calls-sheet-list">
@@ -172,14 +187,20 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 <View style={styles.headerButtonSpace} />
             </View>
             <FlatList
-                data={calls}
+                data={callList}
                 keyExtractor={(call) => call.id}
                 renderItem={renderItem}
                 // Android: the list hands its scroll to the sheet. At the top of the list a
                 // swipe down moves the sheet from full to half height, and then closes it.
                 nestedScrollEnabled
                 contentContainerStyle={[styles.listContent, { paddingBottom: 24 + insets.bottom }]}
+                ListEmptyComponent={calls ? null : (
+                    <View style={styles.loading}>
+                        <ActivitySpinner size="small" color={theme.colors.text.secondary} />
+                    </View>
+                )}
             />
+            {detail}
         </View>
     );
 });
@@ -220,6 +241,18 @@ const styles = StyleSheet.create((theme) => ({
         textAlign: 'center',
         ...Typography.default('semiBold'),
         flexShrink: 1,
+    },
+    // The detail covers the list, so the list keeps its place in the sheet (see the view comment).
+    detailOverlay: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+    },
+    loading: {
+        paddingVertical: 32,
+        alignItems: 'center',
     },
     // The tool detail view has no side padding on phones (the message route is full width), so
     // the sheet adds it.
