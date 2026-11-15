@@ -3588,8 +3588,11 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                 return ensuredDirectory.response;
               }
               directoryCreated = ensuredDirectory.directoryCreated;
-              if (directoryCreated && configuration.chatsDir) {
-                // A new chat folder gets a git repository for the app's changed-files view.
+              if (configuration.chatsDir) {
+                // A chat folder gets a git repository for the app's changed-files view. Not only the
+                // folder this spawn created: a row-first spawn or a prewarmed runner has already
+                // made it, and initChatFolderRepo itself skips non-chat folders and existing
+                // repositories.
                 await initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
                   logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
                 });

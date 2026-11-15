@@ -1,14 +1,13 @@
 import * as React from 'react';
 import { resolveServerIdForSessionIdFromLocalCache } from '@/sync/runtime/orchestration/serverScopedRpc/resolveServerIdForSessionIdFromLocalCache';
 import { useOpenSessionTarget } from '@/components/sessions/panes/open/useOpenSessionTarget';
-import { Platform, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ActivitySpinner } from '@/components/ui/feedback/ActivitySpinner';
 
 import { Text } from '@/components/ui/text/Text';
 import { useAppPaneScope } from '@/components/appShell/panes/hooks/useAppPaneScope';
-import { SourceControlSessionInactiveState, SourceControlUnavailableState } from '@/components/sessions/sourceControl/states';
-import { NotRepositoryGitState } from './externalChanges/NotRepositoryGitState';
+import { NotSourceControlRepositoryState, SourceControlSessionInactiveState, SourceControlUnavailableState } from '@/components/sessions/sourceControl/states';
 import { useSessionMachineReachability } from '@/components/sessions/model/useSessionMachineReachability';
 import { useSessionResumeAction } from '@/components/sessions/model/SessionResumeContext';
 import { emitSessionResumeRequest } from '@/components/sessions/model/sessionResumeRequests';
@@ -22,6 +21,7 @@ import { scmStatusSync } from '@/scm/scmStatusSync';
 import { useScmAdaptivePolling } from '@/scm/refresh/useScmAdaptivePolling';
 import { buildSnapshotSignature } from '@/scm/statusSync/projectState';
 import { useFeatureEnabled } from '@/hooks/server/useFeatureEnabled';
+import { useDerivedSessionChangeSet } from '@/sync/domains/session/changes/hooks/useDerivedSessionChangeSet';
 import { SCM_COMMIT_STRATEGIES, type ScmCommitStrategy } from '@/scm/settings/commitStrategy';
 import { useLastNonNullValue } from '@/hooks/ui/useLastNonNullValue';
 import { resolveCommitAdjacentPushActionState } from '@/scm/operations/commitAdjacentPushAction';
@@ -45,6 +45,7 @@ import {
 import type { ScmStatusFiles } from '@/scm/scmStatusFiles';
 import { t } from '@/text';
 import { SCM_OPERATION_ERROR_CODES } from '@happier-dev/protocol';
+import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
 import { SessionRightPanelGitSubTabsBar } from './SessionRightPanelGitSubTabsBar';
 import { SessionRightPanelGitCommitTabContent } from './SessionRightPanelGitCommitTabContent';
 import { SessionRightPanelGitHistoryTab } from './SessionRightPanelGitHistoryTab';
@@ -136,6 +137,9 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
     }, []);
 
     const session = useSession(props.sessionId);
+    // A chat edits whatever its tools are told to edit, which can be outside its own folder and
+    // repository. Its change set is therefore available even when the folder is not a repository.
+    const { sessionChangeSet } = useDerivedSessionChangeSet(props.sessionId);
     const scmSnapshot = useSessionProjectScmSnapshot(props.sessionId);
     useSessionRealtimeScmTranscriptConsumer(props.sessionId, scmSnapshot);
     const lastGoodScmSnapshot = useLastNonNullValue(scmSnapshot, { resetKey: props.sessionId });
@@ -566,13 +570,28 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
     }
 
     if (!effectiveScmSnapshot.repo.isRepo) {
+        // The chat's folder is not a repository, but its tool calls may still have changed files
+        // that live in a repository elsewhere. Keep the not-a-repository state and list those
+        // changes below it, instead of returning before the other-repositories section mounts.
         return (
-            <NotRepositoryGitState
-                sessionId={props.sessionId}
-                scmSnapshot={effectiveScmSnapshot}
-                canInitializeRepository={effectiveScmSnapshot.capabilities?.writeRepositoryInit === true}
-                onInitialized={refreshScmData}
-            />
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ flexGrow: 1 }}
+                testID="session-git-non-repository-surface"
+            >
+                <View style={{ minHeight: 260 }}>
+                    <NotSourceControlRepositoryState
+                        sessionId={props.sessionId}
+                        canInitializeRepository={effectiveScmSnapshot.capabilities?.writeRepositoryInit === true}
+                        onInitialized={refreshScmData}
+                    />
+                </View>
+                <SessionExternalRepositoryChanges
+                    sessionId={props.sessionId}
+                    sessionChangeSet={sessionChangeSet}
+                    scmSnapshot={effectiveScmSnapshot}
+                />
+            </ScrollView>
         );
     }
 
