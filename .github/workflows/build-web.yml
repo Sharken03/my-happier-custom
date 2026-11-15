@@ -100,6 +100,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-yarn-dependencies
         with:
+          save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
 
       # The fork's UI changes are written on the phone, which has no dependencies to check them.
@@ -111,12 +112,16 @@ jobs:
           mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/ui-tests.txt | sed '/^$/d')
           yarn -s vitest run --config vitest.config.ts "${tests[@]}"
 
+      # Only sharken/8t saves the Metro cache. The last fallback is safe: Metro keys each file by
+      # its content and the transform config, so changed files miss.
       - name: Restore Metro cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: /tmp/metro-cache
           key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-${{ github.run_id }}
-          restore-keys: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-
+          restore-keys: |
+            metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-
+            metro-web-v1-
 
       - name: Export web bundle
         id: web
@@ -130,6 +135,13 @@ jobs:
           cp "$archive" dist/8t/
           ls -l dist/8t
           du -sh /tmp/metro-cache 2>/dev/null || echo "No Metro cache at /tmp/metro-cache"
+
+      - name: Save Metro cache
+        if: ${{ success() && github.ref == 'refs/heads/sharken/8t' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /tmp/metro-cache
+          key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-${{ github.run_id }}
 
       - name: Publish
         id: publish
