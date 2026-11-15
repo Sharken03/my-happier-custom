@@ -30,6 +30,8 @@ import {
     type ToolCallsSheetState,
 } from './toolCallsSheetState';
 import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
+import { ToolCallsSheetSubagentView } from './ToolCallsSheetSubagentView';
+import { isToolCallsSheetSubagentCall } from './toolCallsSheetSubagent';
 import { TOOL_CALLS_SHEET_DECELERATION_RATE, ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
 
 const EMPTY_CALLS: readonly ToolCallMessage[] = [];
@@ -135,6 +137,17 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         </View>
         );
     }, [callList.length, interaction, session?.metadata, props.sessionId, theme.colors.border.default]);
+
+    if (selectedCall && session && isToolCallsSheetSubagentCall(selectedCall.tool)) {
+        return (
+            <ToolCallsSheetSubagentView
+                message={selectedCall}
+                sessionId={props.sessionId}
+                session={session}
+                onBack={handleBack}
+            />
+        );
+    }
 
     if (selectedCall && session) {
         return (
