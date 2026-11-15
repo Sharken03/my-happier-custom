@@ -10,6 +10,7 @@ import {
 import type { ACPMessageData, ACPProvider } from '@/api/session/sessionMessageTypes';
 import type { AcpSendFn } from '@/agent/acp/bridge/acpSessionForwarding';
 import { resolveExecutionRunIntentProfile } from '@/agent/executionRuns/profiles/intentRegistry';
+import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
 import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildReviewFindingsV2Payload';
 import { VoiceAgentError, type VoiceAgentManager } from '@/agent/voice/agent/VoiceAgentManager';
 import { buildExecutionRunProfileStartParams } from '@/agent/executionRuns/runtime/buildExecutionRunProfileStartParams';
@@ -24,6 +25,79 @@ import type {
 import type { ExecutionRunController } from '@/agent/executionRuns/controllers/types';
 import { publishReviewFindings } from '@/agent/executionRuns/runtime/executionRunReviewPublish';
 import { applyReviewFindingFix } from '@/agent/executionRuns/runtime/executionRunReviewFindingApply';
+
+type CommitActionOutcomeInput = Readonly<{
+  updatedStructuredMeta?: ExecutionRunStructuredMeta;
+  updatedToolResultOutput?: unknown;
+  updatedToolResultMeta?: Record<string, unknown>;
+  /** RPC-visible action result (e.g. the publish summary), carried back without a structured-meta field. */
+  result?: unknown;
+}>;
+
+/**
+ * Shared tail for run actions that already resolved their outcome: persist the updated structured
+ * meta + tool result into the run map, re-emit an ACP tool-result so the owning tool-call message can
+ * merge the updated meta, and return the canonical action-result shape. Used by the profile path and
+ * the `review.publish` / `review.finding.apply` branches so their write-back reaches the UI caller.
+ */
+async function commitActionOutcome(args: Readonly<{
+  runId: string;
+  run: ExecutionRunState;
+  actionId: string;
+  runs: Map<string, ExecutionRunState>;
+  outcome: CommitActionOutcomeInput;
+  sendAcp: AcpSendFn;
+  sendCommittedAcp?: (
+    provider: ACPProvider,
+    body: ACPMessageData,
+    opts: { localId: string; meta?: Record<string, unknown> },
+  ) => Promise<void>;
+  parentProvider: ACPProvider;
+}>): Promise<ExecutionRunActionResult> {
+  const { runId, run, actionId, runs, outcome, sendAcp, sendCommittedAcp, parentProvider } = args;
+
+  runs.set(runId, {
+    ...run,
+    ...(outcome.updatedStructuredMeta ? { structuredMeta: outcome.updatedStructuredMeta } : {}),
+    ...(typeof outcome.updatedToolResultOutput !== 'undefined' ? { latestToolResult: outcome.updatedToolResultOutput } : {}),
+  });
+
+  const output = outcome.updatedToolResultOutput ?? { ok: true, actionId };
+  const toolResultBody: ACPMessageData = {
+    type: 'tool-result',
+    callId: run.callId,
+    output,
+    id: randomUUID(),
+  };
+
+  if (sendCommittedAcp) {
+    try {
+      await sendCommittedAcp(parentProvider, toolResultBody, {
+        localId: randomUUID(),
+        ...(outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : {}),
+      });
+    } catch {
+      sendAcp(
+        parentProvider,
+        toolResultBody,
+        outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : undefined,
+      );
+    }
+  } else {
+    // Re-emit a tool-result so the owning tool-call message can merge updated meta.
+    sendAcp(
+      parentProvider,
+      toolResultBody,
+      outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : undefined,
+    );
+  }
+
+  return {
+    ok: true,
+    ...(outcome.result !== undefined ? { result: outcome.result } : {}),
+    updatedToolResult: output,
+  };
+}
 
 export async function applyExecutionRunAction(args: Readonly<{
   runId: string;
@@ -126,7 +200,7 @@ export async function applyExecutionRunAction(args: Readonly<{
     if (!deps?.cwd || !deps?.connectedAccounts) {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review publishing is not wired yet' };
     }
-    return publishReviewFindings({
+    const outcome = await publishReviewFindings({
       run,
       input: args.params.input,
       deps: {
@@ -134,7 +208,22 @@ export async function applyExecutionRunAction(args: Readonly<{
         connectedAccounts: deps.connectedAccounts,
         ...(deps.featureDecision ? { featureDecision: deps.featureDecision } : {}),
       },
+    });
+    if (!outcome.ok) return outcome;
+    return commitActionOutcome({
+      runId: args.runId,
+      run,
+      actionId: 'review.publish',
       runs: args.runs,
+      outcome: {
+        updatedStructuredMeta: outcome.updatedStructuredMeta,
+        updatedToolResultOutput: { ok: true, actionId: 'review.publish', result: outcome.result },
+        updatedToolResultMeta: outcome.updatedToolResultMeta,
+        result: outcome.result,
+      },
+      sendAcp: args.sendAcp,
+      sendCommittedAcp: args.sendCommittedAcp,
+      parentProvider: args.parentProvider,
     });
   }
 
@@ -145,10 +234,24 @@ export async function applyExecutionRunAction(args: Readonly<{
     if (!deps?.cwd || !sendToSession || !spawnSession) {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review finding apply is not wired yet' };
     }
-    return applyReviewFindingFix({
+    const outcome = await applyReviewFindingFix({
       run,
       input: args.params.input,
       deps: { cwd: deps.cwd, sendToSession, spawnSession },
+    });
+    if (!outcome.ok) return outcome;
+    return commitActionOutcome({
+      runId: args.runId,
+      run,
+      actionId: 'review.finding.apply',
+      runs: args.runs,
+      outcome: {
+        updatedToolResultOutput: { ok: true, actionId: 'review.finding.apply', result: outcome.result },
+        result: outcome.result,
+      },
+      sendAcp: args.sendAcp,
+      sendCommittedAcp: args.sendCommittedAcp,
+      parentProvider: args.parentProvider,
     });
   }
 
@@ -223,40 +326,18 @@ export async function applyExecutionRunAction(args: Readonly<{
     return { ok: false, errorCode: acted.errorCode, error: acted.error };
   }
 
-  args.runs.set(args.runId, {
-    ...run,
-    ...(acted.updatedStructuredMeta ? { structuredMeta: acted.updatedStructuredMeta } : {}),
-    ...(typeof acted.updatedToolResultOutput !== 'undefined' ? { latestToolResult: acted.updatedToolResultOutput } : {}),
+  return commitActionOutcome({
+    runId: args.runId,
+    run,
+    actionId: args.params.actionId,
+    runs: args.runs,
+    outcome: {
+      updatedStructuredMeta: acted.updatedStructuredMeta,
+      updatedToolResultOutput: acted.updatedToolResultOutput,
+      updatedToolResultMeta: acted.updatedToolResultMeta,
+    },
+    sendAcp: args.sendAcp,
+    sendCommittedAcp: args.sendCommittedAcp,
+    parentProvider: args.parentProvider,
   });
-
-  const toolResultBody: ACPMessageData = {
-    type: 'tool-result',
-    callId: run.callId,
-    output: acted.updatedToolResultOutput ?? { ok: true, actionId: args.params.actionId },
-    id: randomUUID(),
-  };
-
-  if (args.sendCommittedAcp) {
-    try {
-      await args.sendCommittedAcp(args.parentProvider, toolResultBody, {
-        localId: randomUUID(),
-        ...(acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : {}),
-      });
-    } catch {
-      args.sendAcp(
-        args.parentProvider,
-        toolResultBody,
-        acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : undefined,
-      );
-    }
-  } else {
-    // Re-emit a tool-result so the owning tool-call message can merge updated meta.
-    args.sendAcp(
-      args.parentProvider,
-      toolResultBody,
-      acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : undefined,
-    );
-  }
-
-  return { ok: true, updatedToolResult: acted.updatedToolResultOutput ?? { ok: true } };
 }

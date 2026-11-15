@@ -142,6 +142,7 @@ function runPublish(params: {
   provider?: ScmHostingProvider | null;
   pullRequestNumber?: number;
   cwd?: string;
+  run?: ExecutionRunState;
 }) {
   const provider = params.provider === undefined
     ? (params.providerKind === 'gitlab'
@@ -207,8 +208,7 @@ function runPublish(params: {
     ...(params.overviewMarkdown ? { overviewMarkdown: params.overviewMarkdown } : {}),
     ...(params.publication ? { publication: params.publication } : {}),
   });
-  const run = makeRun({ kind: 'review_findings.v2', payload });
-  const runs = new Map<string, ExecutionRunState>([[run.runId, run]]);
+  const run = params.run ?? makeRun({ kind: 'review_findings.v2', payload });
 
   const promise = publishReviewFindings({
     run,
@@ -218,10 +218,9 @@ function runPublish(params: {
       ...(typeof params.pullRequestNumber === 'number' ? { pullRequestNumber: params.pullRequestNumber } : {}),
     }),
     deps,
-    runs,
   });
 
-  return { promise, runs, list, createReview, selectBackend };
+  return { promise, run, list, createReview, selectBackend };
 }
 
 describe('publishReviewFindings', () => {
@@ -275,7 +274,7 @@ describe('publishReviewFindings', () => {
     });
 
     // Write-back: both findings carry publication, and the located finding gained a line hash.
-    const updatedMeta = harness.runs.get('run-1')?.structuredMeta;
+    const updatedMeta = result.updatedStructuredMeta;
     expect(updatedMeta?.kind).toBe('review_findings.v2');
     const updatedPayload = updatedMeta?.payload as ReviewFindingsV2;
     expect(updatedPayload.publication?.findings).toEqual(
@@ -504,7 +503,6 @@ describe('publishReviewFindings', () => {
     const finding = makeFinding({ id: 'f1' });
     const payload = makePayload({ findings: [finding] });
     const run = makeRun({ kind: 'review_findings.v2', payload });
-    const runs = new Map<string, ExecutionRunState>([[run.runId, run]]);
 
     const result = await publishReviewFindings({
       run,
@@ -514,9 +512,78 @@ describe('publishReviewFindings', () => {
         connectedAccounts: { resolveCredential: async () => null },
         featureDecision: enabledDecision,
       },
-      runs,
     });
 
     expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
+  });
+
+  it('rejects a concurrent second publish with execution_run_busy without calling createReview', async () => {
+    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
+    const readFileLines = async () => ['const x = 1;'];
+
+    let releaseGate: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    const firstCreateReview = vi.fn(async () => {
+      await gate;
+      return { success: true as const, reviewId: 'review-1', url: 'https://github.com/happier-dev/happier/pull/42' };
+    });
+
+    // The first call acquires the guard synchronously (before its first await) and parks on `gate`.
+    const first = runPublish({ findings: [finding], findingIds: ['f1'], createReview: firstCreateReview, readFileLines });
+    const secondCreateReview = vi.fn();
+    const second = await runPublish({ findings: [finding], findingIds: ['f1'], createReview: secondCreateReview, readFileLines }).promise;
+
+    expect(second).toMatchObject({ ok: false, errorCode: 'execution_run_busy' });
+    expect(secondCreateReview).not.toHaveBeenCalled();
+
+    releaseGate?.();
+    const firstResult = await first.promise;
+    expect(firstResult.ok).toBe(true);
+    expect(firstCreateReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows a sequential second publish that skips already-published findings', async () => {
+    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
+    const readFileLines = async () => ['const x = 1;'];
+    const createReview = vi.fn(async () => ({ success: true as const, reviewId: 'review-1', url: 'https://github.com/happier-dev/happier/pull/42' }));
+
+    const first = runPublish({ findings: [finding], findingIds: ['f1'], createReview, readFileLines });
+    const firstResult = await first.promise;
+    expect(firstResult.ok).toBe(true);
+    expect(createReview).toHaveBeenCalledTimes(1);
+
+    // Re-publish with the run now carrying the first publish's publication overlay.
+    const second = await runPublish({
+      findings: [finding],
+      findingIds: ['f1'],
+      createReview,
+      readFileLines,
+      run: { ...first.run, structuredMeta: firstResult.updatedStructuredMeta },
+    }).promise;
+    expect(second).toMatchObject({ ok: true, result: { published: 0, skipped: 1 } });
+    expect(createReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the guard when createReview throws', async () => {
+    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
+    const readFileLines = async () => ['const x = 1;'];
+
+    const first = await runPublish({
+      findings: [finding],
+      findingIds: ['f1'],
+      createReview: vi.fn(async () => {
+        throw new Error('boom');
+      }),
+      readFileLines,
+    }).promise;
+    expect(first).toMatchObject({ ok: false, errorCode: 'execution_run_failed' });
+
+    // The guard was released, so a fresh publish is allowed rather than reported busy.
+    const secondCreateReview = vi.fn(async () => ({ success: true as const, reviewId: 'review-2', url: 'https://github.com/happier-dev/happier/pull/42' }));
+    const second = await runPublish({ findings: [finding], findingIds: ['f1'], createReview: secondCreateReview, readFileLines }).promise;
+    expect(second.ok).toBe(true);
+    expect(secondCreateReview).toHaveBeenCalledTimes(1);
   });
 });

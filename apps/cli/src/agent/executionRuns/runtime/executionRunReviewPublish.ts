@@ -52,6 +52,30 @@ export type ReviewPublishDeps = Readonly<{
   readFileLines?: (absolutePath: string) => Promise<string[] | null>;
 }>;
 
+/**
+ * Successful publish outcome: the canonical action-result shape plus the write-back the caller needs
+ * to emit — the updated structured meta (publication overlay) and the ACP tool-result meta envelope.
+ * `ExecutionRunActionResult` itself gains no structured-meta field.
+ */
+export type ReviewPublishOutcome = ExecutionRunActionResult & Readonly<{
+  updatedStructuredMeta?: ExecutionRunStructuredMeta;
+  updatedToolResultMeta?: Record<string, unknown>;
+}>;
+
+/**
+ * In-flight guard for concurrent publishes of the same run + finding selection.
+ *
+ * Two concurrent publishes both read the pre-publication overlay before either writes back, so the
+ * same findings would be posted twice. Keyed by `<runId>:<sorted finding ids>`; a second concurrent
+ * call returns `execution_run_busy` without touching SCM. Released in a `finally`, so a later
+ * sequential call still runs and skips already-published findings via the overlay.
+ */
+const inFlightPublishes = new Set<string>();
+
+function buildPublishGuardKey(runId: string, findingIds: readonly string[]): string {
+  return `${runId}:${JSON.stringify([...findingIds].sort())}`;
+}
+
 export function computeReviewLineContentHash(line: string): string {
   // Delegates to the shared workspace-anchor hash so review findings and file anchors cannot drift.
   return computeLineContentHashV1(line);
@@ -248,9 +272,8 @@ export async function publishReviewFindings(params: Readonly<{
   run: ExecutionRunState;
   input: unknown;
   deps: ReviewPublishDeps;
-  runs: Map<string, ExecutionRunState>;
-}>): Promise<ExecutionRunActionResult> {
-  const { run, input, deps, runs } = params;
+}>): Promise<ReviewPublishOutcome> {
+  const { run, input, deps } = params;
 
   // The gate is checked before the input is even parsed: an outward write refuses first and explains
   // nothing else, so a disabled machine cannot be probed with malformed payloads.
@@ -280,6 +303,37 @@ export async function publishReviewFindings(params: Readonly<{
     seenIds.add(id);
     requestedIds.push(id);
   }
+
+  const guardKey = buildPublishGuardKey(run.runId, requestedIds);
+  if (inFlightPublishes.has(guardKey)) {
+    return {
+      ok: false,
+      errorCode: 'execution_run_busy',
+      error: 'A review publish for these findings is already in progress.',
+    };
+  }
+  inFlightPublishes.add(guardKey);
+  try {
+    return await publishSelectedFindings({
+      run,
+      deps,
+      requestedIds,
+      existingPayload,
+      pullRequestNumber: parsed.data.pullRequestNumber,
+    });
+  } finally {
+    inFlightPublishes.delete(guardKey);
+  }
+}
+
+async function publishSelectedFindings(params: Readonly<{
+  run: ExecutionRunState;
+  deps: ReviewPublishDeps;
+  requestedIds: readonly string[];
+  existingPayload: ReviewFindingsV2;
+  pullRequestNumber: number | undefined;
+}>): Promise<ReviewPublishOutcome> {
+  const { run, deps, requestedIds, existingPayload, pullRequestNumber } = params;
 
   const findingsById = new Map<string, ReviewFinding>();
   for (const finding of existingPayload.findings) findingsById.set(finding.id, finding);
@@ -354,7 +408,7 @@ export async function publishReviewFindings(params: Readonly<{
   let prNumber: number | null;
   let prUrl: string | null;
 
-  if (typeof parsed.data.pullRequestNumber === 'number') {
+  if (typeof pullRequestNumber === 'number') {
     if (auth.kind === 'missing') {
       return {
         ok: false,
@@ -362,8 +416,8 @@ export async function publishReviewFindings(params: Readonly<{
         error: `Review publishing requires ${auth.providerLabel} authentication.`,
       };
     }
-    prReference = { number: parsed.data.pullRequestNumber };
-    prNumber = parsed.data.pullRequestNumber;
+    prReference = { number: pullRequestNumber };
+    prNumber = pullRequestNumber;
     prUrl = null;
   } else {
     if (!branch || detached) {
@@ -532,8 +586,6 @@ export async function publishReviewFindings(params: Readonly<{
     payload: updatedPayload,
   };
 
-  runs.set(run.runId, { ...run, structuredMeta: updatedStructuredMeta });
-
   return {
     ok: true,
     result: {
@@ -545,5 +597,7 @@ export async function publishReviewFindings(params: Readonly<{
         url: reviewUrl ?? prUrl,
       },
     },
+    updatedStructuredMeta,
+    updatedToolResultMeta: { happier: updatedStructuredMeta },
   };
 }
