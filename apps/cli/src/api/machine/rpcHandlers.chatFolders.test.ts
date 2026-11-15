@@ -4,14 +4,16 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RPC_METHODS } from '@happier-dev/protocol/rpc';
 
+import type { RpcHandler, RpcHandlerRegistrar } from '../rpc/types';
 import { registerMachineChatFolderRpcHandlers } from './rpcHandlers.chatFolders';
 
-function createRegistrar() {
-  const handlers = new Map<string, (data: unknown) => Promise<unknown> | unknown>();
+/** Keeps the registered handlers so a test can call them the way the machine does. */
+function createRegistrar(): RpcHandlerRegistrar & { handlers: Map<string, RpcHandler> } {
+  const handlers = new Map<string, RpcHandler>();
   return {
     handlers,
-    registerHandler: (method: string, handler: (data: unknown) => Promise<unknown> | unknown) => {
-      handlers.set(method, handler);
+    registerHandler: <TRequest, TResponse>(method: string, handler: RpcHandler<TRequest, TResponse>) => {
+      handlers.set(method, handler as RpcHandler);
     },
   };
 }

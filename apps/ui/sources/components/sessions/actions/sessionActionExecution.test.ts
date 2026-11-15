@@ -27,6 +27,7 @@ vi.mock('@/sync/ops', async (importOriginal) => {
 
 import { HappyError } from '@/utils/errors/errors';
 import { t } from '@/text';
+import type { Session } from '@/sync/domains/state/storageTypes';
 import type { SessionListRenderableSession } from '@/sync/domains/session/listing/sessionListRenderable';
 
 import { createSessionActionTarget } from './sessionActionContext';
@@ -214,7 +215,7 @@ describe('delete eligibility at execution', () => {
                 path: '/home/chats/2026-11-15-724p',
                 host: 'local',
                 machineId: 'machine-9',
-            } as SessionListRenderableSession['metadata'],
+            } as Session['metadata'],
         });
         storage.setState({ sessions: { [session.id]: session }, sessionListRenderables: {} });
         vi.spyOn(TokenStorage, 'getCredentialsForServerUrl').mockResolvedValue({ token: 'header.eyJzdWIiOiJtZSJ9.signature' });
