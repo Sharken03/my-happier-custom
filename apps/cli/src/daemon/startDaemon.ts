@@ -1580,6 +1580,9 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
   } = createDaemonShutdownController();
 
   logger.debug('[DAEMON RUN] Starting daemon process...');
+  // Without HAPPIER_CHATS_DIR, chats get no own folder and no git repository; say so once, because
+  // nothing else in the log shows it.
+  logger.debug(`[DAEMON RUN] Chat folders: ${configuration.chatsDir ?? 'off (HAPPIER_CHATS_DIR is not set)'}`);
   logger.debugLargeJson('[DAEMON RUN] Environment', getEnvironmentInfo());
   const diagnosticSubsystemGates = resolveDaemonDiagnosticSubsystemGates(process.env);
 
@@ -3593,9 +3596,11 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                 // folder this spawn created: a row-first spawn or a prewarmed runner has already
                 // made it, and initChatFolderRepo itself skips non-chat folders and existing
                 // repositories.
-                await initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
+                const initialized = await initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
                   logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
+                  return false;
                 });
+                if (initialized) logger.debug(`[DAEMON RUN] Made the chat folder a git repository: ${resolvedDirectory}`);
               }
 
               try {
