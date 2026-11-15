@@ -8342,6 +8342,12 @@ settingsSession: {
                 plain: 'Klartext',
             },
         },
+            markdownImages: {
+                groupTitle: "Bilder in Antworten",
+                groupFooter: "Markdown-Bilder von vertrauenswürdigen Hosts anzeigen. Bilder von anderen Hosts bleiben verborgen. Jedes Bild wird beim Öffnen des Chats von seinem Host geladen.",
+                enabled: { title: "Bilder von erlaubten Hosts anzeigen", subtitle: "Eine Antwortzeile, die nur ein Bild ist, wird als Bild angezeigt" },
+                hosts: { title: "Erlaubte Hosts", subtitle: "Ein Host pro Zeile, z. B. happy.example.org. Nur https-Links auf genau diesen Hosts werden angezeigt." },
+            },
         layout: {
                 linearTitle: 'Linear',
                 linearSubtitle: 'Nachrichten als flache Liste zeigen.',

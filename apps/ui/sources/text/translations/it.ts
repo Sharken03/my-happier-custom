@@ -9150,6 +9150,12 @@ settingsSession: {
             plain: 'Testo semplice',
           },
         },
+        markdownImages: {
+            groupTitle: "Immagini nelle risposte",
+            groupFooter: "Mostra immagini markdown da host attendibili. Le immagini da altri host restano nascoste. Ogni immagine viene caricata dal suo host all'apertura della chat.",
+            enabled: { title: "Mostra immagini da host consentiti", subtitle: "Una riga di risposta che è solo un'immagine viene mostrata come immagine" },
+            hosts: { title: "Host consentiti", subtitle: "Un host per riga, ad esempio happy.example.org. Vengono mostrati solo link https di questi host esatti." },
+        },
         layout: {
           linearTitle: "Lineare",
           linearSubtitle: "Mostra i messaggi come lista piatta.",

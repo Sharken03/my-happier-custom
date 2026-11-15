@@ -8346,6 +8346,12 @@ settingsSession: {
                 plain: 'Text sense format',
             },
         },
+              markdownImages: {
+                  groupTitle: "Imatges a les respostes",
+                  groupFooter: "Mostra imatges markdown dels servidors de confiança. Les imatges d'altres servidors queden ocultes. Cada imatge es carrega del seu servidor quan s'obre el xat.",
+                  enabled: { title: "Mostra imatges de servidors permesos", subtitle: "Una línia de resposta que només és una imatge es mostra com a imatge" },
+                  hosts: { title: "Servidors permesos", subtitle: "Un servidor per línia, per exemple happy.example.org. Només es mostren enllaços https d'aquests servidors exactes." },
+              },
         layout: {
                   linearTitle: 'Lineal',
                   linearSubtitle: 'Mostra els missatges com una llista plana.',

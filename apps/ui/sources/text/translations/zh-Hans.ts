@@ -8571,6 +8571,12 @@ settingsSession: {
           plain: '纯文本',
         },
       },
+      markdownImages: {
+          groupTitle: "回复中的图片",
+          groupFooter: "显示来自可信主机的 Markdown 图片。其他主机的图片保持隐藏。打开聊天时，每张图片从其主机加载。",
+          enabled: { title: "显示允许主机的图片", subtitle: "只包含一张图片的回复行将显示为图片" },
+          hosts: { title: "允许的主机", subtitle: "每行一个主机，例如 happy.example.org。仅显示这些主机上的 https 链接。" },
+      },
       layout: {
         linearTitle: "线性",
         linearSubtitle: "以平铺列表显示消息。",

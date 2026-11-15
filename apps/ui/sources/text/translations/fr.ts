@@ -8329,6 +8329,12 @@ settingsSession: {
                 plain: 'Texte brut',
             },
         },
+            markdownImages: {
+                groupTitle: "Images dans les réponses",
+                groupFooter: "Affiche les images markdown des hôtes de confiance. Les images des autres hôtes restent masquées. Chaque image est chargée depuis son hôte à l'ouverture du chat.",
+                enabled: { title: "Afficher les images des hôtes autorisés", subtitle: "Une ligne de réponse qui n'est qu'une image s'affiche comme image" },
+                hosts: { title: "Hôtes autorisés", subtitle: "Un hôte par ligne, par exemple happy.example.org. Seuls les liens https de ces hôtes exacts sont affichés." },
+            },
         layout: {
                 linearTitle: 'Linéaire',
                 linearSubtitle: 'Affiche les messages sous forme de liste simple.',

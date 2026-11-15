@@ -8930,6 +8930,12 @@ settingsSession: {
             plain: 'Texto simples',
           },
         },
+        markdownImages: {
+            groupTitle: "Imagens nas respostas",
+            groupFooter: "Mostra imagens markdown de hosts confiáveis. Imagens de outros hosts continuam ocultas. Cada imagem é carregada do seu host ao abrir o chat.",
+            enabled: { title: "Mostrar imagens de hosts permitidos", subtitle: "Uma linha de resposta que é só uma imagem é mostrada como imagem" },
+            hosts: { title: "Hosts permitidos", subtitle: "Um host por linha, por exemplo happy.example.org. Só são mostrados links https destes hosts exatos." },
+        },
         layout: {
           linearTitle: "Lista",
           linearSubtitle: "Mostrar mensagens como uma lista plana.",

@@ -8812,6 +8812,12 @@ settingsSession: {
             plain: 'Zwykły tekst',
           },
         },
+        markdownImages: {
+            groupTitle: "Obrazy w odpowiedziach",
+            groupFooter: "Pokazuj obrazy markdown z zaufanych hostów. Obrazy z innych hostów pozostają ukryte. Każdy obraz jest pobierany z hosta po otwarciu czatu.",
+            enabled: { title: "Pokazuj obrazy z dozwolonych hostów", subtitle: "Linia odpowiedzi, która jest tylko obrazem, jest pokazywana jako obraz" },
+            hosts: { title: "Dozwolone hosty", subtitle: "Jeden host w linii, np. happy.example.org. Pokazywane są tylko linki https z tych dokładnych hostów." },
+        },
         layout: {
           linearTitle: "Liniowy",
           linearSubtitle: "Pokaż wiadomości jako płaską listę.",

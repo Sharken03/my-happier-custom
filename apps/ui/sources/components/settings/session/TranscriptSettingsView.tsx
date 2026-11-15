@@ -15,6 +15,7 @@ import { t } from '@/text';
 import { useSettingMutable } from '@/sync/domains/state/storage';
 import type { TranscriptMessageTimestampDisplayMode } from '@/sync/domains/settings/registry/account/accountTranscriptToolSettingDefinitions';
 import { Icon } from '@/components/ui/icons/Icon';
+import { TranscriptMarkdownImagesSettingsGroup } from './TranscriptMarkdownImagesSettingsGroup';
 import {
     resolveToolViewDetailLevelDefaultForChromeMode,
     resolveToolViewExpandedDetailLevelDefaultForChromeMode,
@@ -509,6 +510,8 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     }}
                 />
             </ItemGroup>
+
+            <TranscriptMarkdownImagesSettingsGroup />
 
             <ItemGroup title={t('settingsSession.thinking.title')} footer={t('settingsSession.thinking.footer')}>
                 <DropdownMenu
