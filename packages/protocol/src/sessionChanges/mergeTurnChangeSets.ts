@@ -6,6 +6,7 @@ import type {
   SessionChangeSetFile,
   TurnChangeSet,
 } from './types.js';
+import { combineTextChanges, hasUnifiedDiffLineChanges, type TextChange } from './textChanges.js';
 
 const SOURCE_PRECEDENCE: Record<ChangeEvidenceSource, number> = {
   provider_native: 0,
@@ -30,6 +31,22 @@ function pickWeakerConfidence(left: ChangeConfidence, right: ChangeConfidence): 
   return CONFIDENCE_PRECEDENCE[left] >= CONFIDENCE_PRECEDENCE[right] ? left : right;
 }
 
+function readTextChange(evidence: Readonly<{ oldText?: string | null; newText?: string | null }>): TextChange | null {
+  if (typeof evidence.oldText !== 'string' || typeof evidence.newText !== 'string') return null;
+  return { oldText: evidence.oldText, newText: evidence.newText };
+}
+
+/**
+ * The newest diff that changes lines. A text change of `next` is newer than an older diff, so then
+ * that diff goes. A placeholder diff stays only when there is nothing better.
+ */
+function mergeUnifiedDiff(current: SessionChangeSetFile, next: FileChangeEvidence, mergedText: TextChange | null): string | null {
+  if (hasUnifiedDiffLineChanges(next.unifiedDiff)) return next.unifiedDiff ?? null;
+  if (!readTextChange(next) && hasUnifiedDiffLineChanges(current.unifiedDiff)) return current.unifiedDiff ?? null;
+  if (mergedText) return null;
+  return next.unifiedDiff ?? current.unifiedDiff ?? null;
+}
+
 function mergeFileEvidence(current: SessionChangeSetFile | null, next: FileChangeEvidence, turnId: string): SessionChangeSetFile {
   if (!current) {
     return {
@@ -38,13 +55,17 @@ function mergeFileEvidence(current: SessionChangeSetFile | null, next: FileChang
     };
   }
 
+  const currentText = readTextChange(current);
+  const nextText = readTextChange(next);
+  const mergedText = currentText && nextText ? combineTextChanges(currentText, nextText) : (nextText ?? currentText);
+
   return {
     ...current,
     previousFilePath: current.previousFilePath ?? next.previousFilePath ?? null,
     changeKind: next.changeKind,
-    unifiedDiff: next.unifiedDiff ?? current.unifiedDiff ?? null,
-    oldText: current.oldText ?? next.oldText ?? null,
-    newText: next.newText ?? current.newText ?? null,
+    unifiedDiff: mergeUnifiedDiff(current, next, mergedText),
+    oldText: mergedText?.oldText ?? null,
+    newText: mergedText?.newText ?? null,
     binary: current.binary ?? next.binary,
     source: pickMoreSpecificSource(current.source, next.source),
     confidence: pickWeakerConfidence(current.confidence, next.confidence),

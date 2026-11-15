@@ -2088,7 +2088,10 @@ export {
   SessionWorkingTreeMatchedFileSchema,
   SessionWorkingTreeProjectionSchema,
   TurnChangeSetSchema,
+  TEXT_CHANGE_SNIPPET_SEPARATOR,
+  combineTextChanges,
   excludeRolledBackTurns,
+  hasUnifiedDiffLineChanges,
   mergeTurnChangeSets,
   reconcileWithScmSnapshot,
   type ChangeConfidence,
@@ -2100,6 +2103,7 @@ export {
   type SessionChangeSetFile,
   type SessionWorkingTreeMatchedFile,
   type SessionWorkingTreeProjection,
+  type TextChange,
   type TurnChangeSet,
 } from './sessionChanges/index.js';
 export {
