@@ -28,6 +28,15 @@ describe('resolveTranscriptRowPresentationKey', () => {
             .not.toBe(resolveTranscriptRowPresentationKey(base));
     });
 
+    // An allowed image host turns an image line into a box, so it changes the row height. With the
+    // setting off the key is the one from before the setting existed.
+    it('gives allowed markdown image hosts their own key, and none while the setting is off', () => {
+        expect(resolveTranscriptRowPresentationKey({ ...base, markdownRemoteImageHosts: ['a.example.org'] }))
+            .not.toBe(resolveTranscriptRowPresentationKey(base));
+        expect(resolveTranscriptRowPresentationKey({ ...base, markdownRemoteImageHosts: [] }))
+            .toBe(resolveTranscriptRowPresentationKey(base));
+    });
+
     // A wrapped code block paints more lines than one that scrolls sideways.
     it('gives the code block wrap default its own key', () => {
         expect(resolveTranscriptRowPresentationKey({ ...base, wrapCodeBlocks: true }))

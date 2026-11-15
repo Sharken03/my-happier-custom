@@ -15,6 +15,7 @@ import {
     useSetting,
 } from '@/sync/domains/state/storage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
+import { resolveMarkdownRemoteImageHosts } from '@/components/markdown/rendering/markdownRemoteImages';
 
 export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'sessionReplayEnabled'
@@ -58,6 +59,8 @@ export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSetting
      * themselves, as they already do for every other setting here.
      */
     debugInformationEnabled: boolean;
+    /** Hosts whose markdown images agent text shows; empty while the setting is off. */
+    markdownRemoteImageHosts?: readonly string[];
 }>;
 
 export type TranscriptForkCommon = Pick<TranscriptSessionCommonSettings,
@@ -159,6 +162,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const transcriptToolCallsCollapsedPreviewCount = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupShowBackground = useSetting('transcriptToolCallsGroupShowBackground');
     const transcriptToolCallsGroupOpenMode = useSetting('transcriptToolCallsGroupOpenMode');
+    const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
 
     const fork = React.useMemo<TranscriptForkCommon>(() => ({
             agentSwitchingEnabled,
@@ -180,6 +184,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
 
     const messageDisplay = React.useMemo<TranscriptMessageDisplayCommon>(() => ({
             debugInformationEnabled,
+            markdownRemoteImageHosts,
             sessionThinkingDisplayMode,
             sessionThinkingInlineChrome,
             sessionThinkingInlinePresentation,
@@ -194,6 +199,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             workspacePath,
         }), [
             debugInformationEnabled,
+            markdownRemoteImageHosts,
             sessionThinkingDisplayMode,
             sessionThinkingInlineChrome,
             sessionThinkingInlinePresentation,
@@ -231,4 +237,14 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
         toolChrome,
         toolRoute,
     }), [fork, messageDisplay, toolChrome, toolRoute]);
+}
+
+const NO_MARKDOWN_REMOTE_IMAGE_HOSTS: readonly string[] = [];
+
+/** The allowed markdown image hosts, as one stable array per distinct list. */
+export function useMarkdownRemoteImageHosts(): readonly string[] {
+    const enabled = useSetting('transcriptMarkdownRemoteImagesEnabled');
+    const hosts = useSetting('transcriptMarkdownRemoteImageHosts');
+    const key = resolveMarkdownRemoteImageHosts({ enabled, hosts }).join(',');
+    return React.useMemo(() => (key ? key.split(',') : NO_MARKDOWN_REMOTE_IMAGE_HOSTS), [key]);
 }

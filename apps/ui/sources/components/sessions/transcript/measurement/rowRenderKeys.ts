@@ -32,7 +32,9 @@ export function resolveFontScaleKey(): string {
  * its painted height. A height measured in one chat font is not the height of that row in the
  * other font, and a thinking row measured while hidden (1 px) is not its height as a row or card.
  * The transcript markdown scales with the in-app text size (`useEnrichedMarkdownStyle`), and the
- * code block wrap default decides whether long code lines wrap or scroll sideways.
+ * code block wrap default decides whether long code lines wrap or scroll sideways. Allowed markdown
+ * image hosts turn an image line into a 16:9 box; the part is absent while that setting is off, so
+ * the keys of everyone else stay as they were.
  */
 export function resolveTranscriptRowPresentationKey(params: Readonly<{
     chatFont: unknown;
@@ -40,6 +42,7 @@ export function resolveTranscriptRowPresentationKey(params: Readonly<{
     thinkingInlineChrome: unknown;
     uiFontScale: unknown;
     wrapCodeBlocks: unknown;
+    markdownRemoteImageHosts?: readonly string[];
 }>): string {
     const chatFont = params.chatFont === 'dm-sans' ? 'dm-sans' : 'default';
     const thinkingDisplayMode = params.thinkingDisplayMode === 'hidden' || params.thinkingDisplayMode === 'tool'
@@ -51,5 +54,8 @@ export function resolveTranscriptRowPresentationKey(params: Readonly<{
         : 1;
     const codeWrap = params.wrapCodeBlocks === true ? 'wrap' : 'scroll';
     return `${resolveFontScaleKey()}|ui-font:${Math.round(uiFontScale * 100)}|chat-font:${chatFont}`
-        + `|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}|code:${codeWrap}`;
+        + `|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}|code:${codeWrap}`
+        + (params.markdownRemoteImageHosts && params.markdownRemoteImageHosts.length > 0
+            ? `|md-images:${params.markdownRemoteImageHosts.join(',')}`
+            : '');
 }

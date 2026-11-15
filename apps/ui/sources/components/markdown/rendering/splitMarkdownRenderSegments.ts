@@ -13,6 +13,7 @@ import {
     writeMarkdownRenderSegmentsCache,
 } from './markdownRenderSegmentsCache';
 import { normalizeLooseListContinuations } from './normalizeLooseListContinuations';
+import { readStandaloneMarkdownRemoteImage } from './markdownRemoteImages';
 
 type LocatedMarkdownBlockSource = MarkdownBlockSource & Readonly<{
     sourceStart: number;
@@ -33,6 +34,7 @@ type PendingEnrichedGroup = Readonly<{
 type DraftMarkdownRenderSegment =
     | Omit<Extract<MarkdownRenderSegment, { type: 'enriched-markdown' }>, 'first' | 'last'>
     | Omit<Extract<MarkdownRenderSegment, { type: 'special-block' }>, 'first' | 'last'>
+    | Omit<Extract<MarkdownRenderSegment, { type: 'remote-image' }>, 'first' | 'last'>
     | Omit<Extract<MarkdownRenderSegment, { type: 'container-block' }>, 'first' | 'last'>;
 
 function hashMarkdownSource(source: string): string {
@@ -136,8 +138,16 @@ export function splitMarkdownRenderSegments(params: Readonly<{
     streamingMode: 'static' | 'streaming';
     streamingRepair?: 'sync' | 'prepared';
     splitEnrichedSourceRanges?: boolean;
+    /** Allowed image hosts; empty or absent while the setting is off. */
+    remoteImageHosts?: readonly string[];
 }>): MarkdownRenderSegment[] {
-    if (params.streamingMode === 'static' && params.splitEnrichedSourceRanges !== true) {
+    const remoteImageHosts = params.remoteImageHosts ?? [];
+    // The static cache is keyed on the markdown only. A text with an image can split another way
+    // once hosts are allowed, so it skips the cache; every other text splits as before.
+    const cacheable = params.streamingMode === 'static'
+        && params.splitEnrichedSourceRanges !== true
+        && (remoteImageHosts.length === 0 || !params.markdown.includes('!['));
+    if (cacheable) {
         const cached = readStaticSegmentCache(params.markdown);
         if (cached) return cached;
     }
@@ -174,6 +184,24 @@ export function splitMarkdownRenderSegments(params: Readonly<{
     };
 
     for (const source of locatedSources) {
+        const remoteImage = remoteImageHosts.length > 0 && !source.container && !source.codeBlock && !source.incompleteKind
+            ? readStandaloneMarkdownRemoteImage(source.source, remoteImageHosts)
+            : null;
+        if (remoteImage) {
+            flushPendingEnrichedSources();
+            segments.push({
+                type: 'remote-image',
+                key: nextSegmentKey(),
+                sourceStart: source.sourceStart,
+                sourceLength: source.sourceLength,
+                sourceHash: source.sourceHash,
+                sourceRange: source.sourceRange,
+                markdown: source.source,
+                url: remoteImage.url,
+                alt: remoteImage.alt,
+            });
+            continue;
+        }
         if (!isSpecialSource(source)) {
             if (params.splitEnrichedSourceRanges === true) {
                 flushPendingEnrichedSources();
@@ -212,7 +240,7 @@ export function splitMarkdownRenderSegments(params: Readonly<{
 
     flushPendingEnrichedSources();
     const result = applyFirstLast(segments);
-    if (params.streamingMode === 'static' && params.splitEnrichedSourceRanges !== true) {
+    if (cacheable) {
         writeStaticSegmentCache(params.markdown, result);
     }
     return result;

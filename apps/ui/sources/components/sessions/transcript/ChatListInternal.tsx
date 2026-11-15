@@ -240,6 +240,7 @@ import {
     resolveInitialTranscriptRowWidthBucket,
     resolveTranscriptRowWidthBucket,
 } from '@/components/sessions/transcript/measurement/rowRenderKeys';
+import { useMarkdownRemoteImageHosts } from '@/components/sessions/transcript/transcriptSessionCommon';
 import type { TranscriptLiveTailAnchorReason } from '@/components/sessions/transcript/viewport/lifecycle/transcriptRowClassification';
 import {
     resolveNativeBottomFollowPreviousFollow,
@@ -686,6 +687,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptChatFont = useSetting('transcriptChatFont');
     const transcriptUiFontScale = useLocalSetting('uiFontScale');
     const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');
+    const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
     const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
@@ -1276,6 +1278,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             thinkingInlineChrome: sessionThinkingInlineChrome,
             uiFontScale: transcriptUiFontScale,
             wrapCodeBlocks: transcriptWrapCodeBlocks,
+            markdownRemoteImageHosts,
         }),
         rowWidthBucket: listLayoutWidthBucket,
         sessionActive: props.sessionActive,

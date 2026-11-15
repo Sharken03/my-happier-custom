@@ -170,6 +170,28 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    // 8T fork: markdown images from allowed hosts; see components/markdown/rendering/markdownRemoteImages.ts.
+    transcriptMarkdownRemoteImagesEnabled: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show a markdown image that stands alone on its line when its https host is in transcriptMarkdownRemoteImageHosts',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptMarkdownRemoteImageHosts: {
+        schema: z.array(z.string()),
+        default: ['happy.sharken.duckdns.org'],
+        description: 'Hosts whose markdown images the transcript shows while transcriptMarkdownRemoteImagesEnabled is on (exact host names)',
+        storageScope: 'account',
+        analytics: {
+            trackCurrentState: true,
+            trackChanges: true,
+            valueKind: 'count',
+            privacy: 'count_only',
+            identityScope: 'person',
+            serializeCurrent: (value: unknown) => (Array.isArray(value) ? value.length : 0),
+        },
+    },
     transcriptMessageSendToSessionEnabled: {
         schema: z.boolean(),
         default: false,

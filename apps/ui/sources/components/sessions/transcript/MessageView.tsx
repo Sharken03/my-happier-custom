@@ -1368,6 +1368,7 @@ function AgentTextBlock(props: {
                   streamingParseCacheKey={buildStreamingMarkdownParseCacheKey(props.message.id, props.messageRevision)}
                   streamingAnimated={streamingRevealAnimationEnabled}
                   streamingRevealPreset={streamingRevealPreset}
+                  remoteImageHosts={props.messageDisplayCommon.markdownRemoteImageHosts}
                 />
               ) : shouldRenderStreamingPlain ? (
                 <Text
@@ -1409,6 +1410,7 @@ function AgentTextBlock(props: {
                   profile={props.message.isThinking ? 'thinking' : 'transcript'}
                   textStyle={props.message.isThinking ? styles.thinkingMarkdownText : styles.transcriptMarkdownText}
                   staticRenderPlaceholderEnabled={staticRenderPlaceholderEnabled}
+                  remoteImageHosts={props.message.isThinking ? undefined : props.messageDisplayCommon.markdownRemoteImageHosts}
                 />
               )
             )

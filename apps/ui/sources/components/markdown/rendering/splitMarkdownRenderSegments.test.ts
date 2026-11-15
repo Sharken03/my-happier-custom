@@ -18,6 +18,21 @@ describe('splitMarkdownRenderSegments', () => {
         expect(prose.map((segment) => segment.type)).toEqual(['enriched-markdown']);
     });
 
+    it.each(['static', 'streaming'] as const)('gives a standalone image from an allowed host its own segment in %s mode', (streamingMode) => {
+        const markdown = 'Before.\n\n![Chart](https://happy.example.org/files/c.webp)\n\nAfter, ![inline](https://happy.example.org/i.png).';
+        const off = splitMarkdownRenderSegments({ markdown, streamingMode });
+        expect(off.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+
+        const on = splitMarkdownRenderSegments({ markdown, streamingMode, remoteImageHosts: ['happy.example.org'] });
+        expect(on.map((segment) => segment.type)).toEqual(['enriched-markdown', 'remote-image', 'enriched-markdown']);
+        const image = on[1];
+        expect(image?.type === 'remote-image' ? { url: image.url, alt: image.alt } : null)
+            .toEqual({ url: 'https://happy.example.org/files/c.webp', alt: 'Chart' });
+
+        const foreign = splitMarkdownRenderSegments({ markdown, streamingMode, remoteImageHosts: ['other.example.org'] });
+        expect(foreign.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+    });
+
     it('reuses segment arrays for unchanged markdown and rendering mode', () => {
         const markdown = [
             '## Long section',

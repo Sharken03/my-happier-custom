@@ -26,6 +26,19 @@ export type MarkdownRenderSegment = Readonly<{
     first: boolean;
     last: boolean;
 }> | Readonly<{
+    /** A paragraph that is only one image from an allowed host; see `markdownRemoteImages.ts`. */
+    type: 'remote-image';
+    key: string;
+    sourceStart: number;
+    sourceLength: number;
+    sourceHash: string;
+    sourceRange: MarkdownSourceRange;
+    markdown: string;
+    url: string;
+    alt: string;
+    first: boolean;
+    last: boolean;
+}> | Readonly<{
     type: 'container-block';
     container: MarkdownContainerBlock;
     key: string;
