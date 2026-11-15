@@ -819,6 +819,7 @@ describe('executionRuns session RPC handlers', () => {
       'review.triage',
       'review.publish',
       'review.finding.apply',
+      'review.resolve',
       'review.follow_up',
     ]);
     expect(got.structuredMeta?.kind).toBe('review_findings.v2');
