@@ -13,6 +13,7 @@ on:
       - "apps/cli/**"
       - "!**/*.md"
       - ".github/build-8t/cli-tests.txt"
+      - ".github/build-8t/protocol-tests.txt"
       - "packages/agents/**"
       - "packages/cli-common/**"
       - "packages/connection-supervisor/**"
@@ -82,6 +83,14 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
+
+      # The fork's protocol tests. Upstream's "CI — Tests" is off on this fork, so nothing else runs them.
+      - name: Run the fork protocol tests
+        working-directory: packages/protocol
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/protocol-tests.txt | sed '/^$/d')
+          node ../../node_modules/vitest/vitest.mjs run --config ../../vitest.config.ts "${tests[@]}"
 
       # The fork's CLI changes are written on the phone, which has no dependencies to check them.
       - name: Check the CLI (typecheck and the fork tests)
