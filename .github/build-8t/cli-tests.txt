@@ -31,3 +31,10 @@ src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
 src/backends/pi/acp/backend.test.ts
 src/cli/commands/toolsServe.test.ts
 src/agent/tools/diff/shellCommandScmChanges.test.ts
+src/agent/executionRuns/runtime/executionRunReviewPublish.test.ts
+src/agent/executionRuns/runtime/ExecutionRunManager.test.ts
+src/agent/executionRuns/profiles/review/ReviewProfile.test.ts
+src/rpc/handlers/executionRuns.feat.execution.runs.test.ts
+src/scm/hostingProviders/providers/gitlabCliAdapter.test.ts
+src/scm/backends/git/operations/pullRequestOperations.test.ts
+src/scm/rpc/__tests__/scmRpc.pullRequests.integration.test.ts
