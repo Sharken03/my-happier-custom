@@ -31,3 +31,5 @@ src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
 src/backends/pi/acp/backend.test.ts
 src/cli/commands/toolsServe.test.ts
 src/agent/tools/diff/shellCommandScmChanges.test.ts
+src/backends/pi/rpc/piTurnChangeTracker.test.ts
+src/agent/tools/diff/turnDiffEmitter.test.ts

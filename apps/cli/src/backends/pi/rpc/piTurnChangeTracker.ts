@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
 import { NormalizedToolTurnChangeTracker } from '@/agent/tools/diff/normalizedToolTurnChangeTracker';
@@ -13,16 +14,32 @@ function readEdit(value: unknown): Readonly<{ old_string: string; new_string: st
     return { old_string: record.oldText, new_string: record.newText };
 }
 
+/** Larger files get the placeholder diff: the app does not need megabytes of text per write. */
+const MAX_WRITE_TEXT_BYTES = 1024 * 1024;
+
+/** The file's text before a write, '' for a new file, or null when it is too big or unreadable. */
+export function readTextBeforeWrite(filePath: string): string | null {
+    try {
+        if (statSync(filePath).size > MAX_WRITE_TEXT_BYTES) return null;
+        return readFileSync(filePath, 'utf8');
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === 'ENOENT' ? '' : null;
+    }
+}
+
 /**
  * Pi's `edit` ({ path, edits: [{ oldText, newText }] }, or one oldText/newText pair) and `write`
  * ({ path, content }) in the canonical Edit / MultiEdit / Write shape that the shared tracker
- * reads, with the path absolute: Pi resolves a relative path against the session folder.
+ * reads, with the path absolute: Pi resolves a relative path against the session folder. A write
+ * becomes an Edit from the file's text before the call to the content; a Write (placeholder diff)
+ * only when that text is not available.
  */
 export function toCanonicalPiFileToolCall(params: Readonly<{
     toolName: string;
     args: Record<string, unknown>;
     cwd: string;
     env?: NodeJS.ProcessEnv;
+    readTextBeforeWrite?: (filePath: string) => string | null;
 }>): CanonicalFileToolCall | null {
     const rawPath = typeof params.args.path === 'string' ? params.args.path.trim() : '';
     if (!rawPath) return null;
@@ -30,7 +47,15 @@ export function toCanonicalPiFileToolCall(params: Readonly<{
     const filePath = isAbsolute(expanded) ? expanded : resolve(params.cwd, expanded);
 
     if (params.toolName === 'write') {
-        return { toolName: 'Write', args: { file_path: filePath } };
+        // A write with its content is a text change from the file's text before the call. The call
+        // can reach this tracker after Pi has written the file; the old text is then the new text,
+        // and '' (the whole content as added) is the nearest true diff.
+        const content = typeof params.args.content === 'string' ? params.args.content : null;
+        const before = content !== null && content.length <= MAX_WRITE_TEXT_BYTES
+            ? (params.readTextBeforeWrite ?? readTextBeforeWrite)(filePath)
+            : null;
+        if (content === null || before === null) return { toolName: 'Write', args: { file_path: filePath } };
+        return { toolName: 'Edit', args: { file_path: filePath, old_string: before === content ? '' : before, new_string: content } };
     }
     if (params.toolName !== 'edit') return null;
 
