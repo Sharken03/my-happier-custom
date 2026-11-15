@@ -7748,6 +7748,7 @@ export const ru: TranslationStructure = {
     otherRepositoriesTitle: "Другие репозитории",
     outsideGitTitle: "Вне git",
     externalChangeCommitted: "Уже закоммичено: это правка агента.",
+    externalChangeNoDiff: "Нет диффа: вызов инструмента агентом не содержал изменённый текст.",
     noSessionAttributedChanges:
       "Изменения, привязанные к сессии, не обнаружены.",
     noLatestTurnChanges:

@@ -7332,6 +7332,7 @@ export const en = {
           otherRepositoriesTitle: "Other repositories",
           outsideGitTitle: "Outside git",
           externalChangeCommitted: "Committed already: this is the agent's own edit.",
+          externalChangeNoDiff: "No diff: the agent's tool call did not include the changed text.",
           noSessionAttributedChanges: 'No session-attributed changes currently detected.',
           noLatestTurnChanges: 'No latest-turn changes currently detected.',
           notRepo: 'Not a source-control repository',

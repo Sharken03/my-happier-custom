@@ -7528,6 +7528,7 @@ export const zhHans: TranslationStructure = {
     otherRepositoriesTitle: "其他仓库",
     outsideGitTitle: "不在 git 中",
     externalChangeCommitted: "已提交：这是代理所做的修改。",
+    externalChangeNoDiff: "没有差异：代理的工具调用未包含更改的文本。",
     noSessionAttributedChanges:
       "当前未检测到会话归因的变更。",
     noLatestTurnChanges:

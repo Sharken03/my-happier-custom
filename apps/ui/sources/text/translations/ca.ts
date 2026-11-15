@@ -7300,6 +7300,7 @@ deps: {
         otherRepositoriesTitle: "Altres repositoris",
         outsideGitTitle: "Fora de git",
         externalChangeCommitted: "Ja confirmat: aquest és el canvi de l’agent.",
+        externalChangeNoDiff: "Sense diff: la crida d’eina de l’agent no incloïa el text canviat.",
         noSessionAttributedChanges: 'No s’han detectat canvis atribuïts a la sessió.',
         noLatestTurnChanges: 'No s’han detectat canvis de l’últim torn.',
         notRepo: 'No és un repositori de control de versions',

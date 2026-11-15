@@ -7287,6 +7287,7 @@ export const fr: TranslationStructure = {
           otherRepositoriesTitle: "Autres dépôts",
           outsideGitTitle: "Hors de git",
           externalChangeCommitted: "Déjà commité : voici la modification de l’agent.",
+          externalChangeNoDiff: "Pas de diff : l’appel d’outil de l’agent ne contenait pas le texte modifié.",
           noSessionAttributedChanges: 'Aucune modification attribuée à la session détectée pour l’instant.',
           noLatestTurnChanges: 'Aucune modification du dernier tour détectée pour l’instant.',
           notRepo: 'Pas un dépôt sous gestion de version',

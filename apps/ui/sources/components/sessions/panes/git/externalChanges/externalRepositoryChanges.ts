@@ -1,3 +1,5 @@
+import { hasUnifiedDiffLineChanges } from '@happier-dev/protocol';
+
 /**
  * Files a chat changed outside its own repository (the session change set's unmatched files),
  * grouped by the git repository that holds each one, as Happy's per-chat changes did. The app
@@ -90,4 +92,21 @@ export function groupByRepository<TChange>(
     const result: ExternalRepositoryGroup<TChange>[] = [...groups].map(([rootPath, groupFiles]) => ({ rootPath, files: groupFiles }));
     if (outside.length > 0) result.push({ rootPath: null, files: outside });
     return result;
+}
+
+/**
+ * What the app shows for a change when the machine has no diff of its own (outside git, or already
+ * committed): the agent's diff when it changes lines, else its old and new text, else a note. A
+ * placeholder diff (a tool call without the changed text) has no lines to show.
+ */
+export function resolveAgentChangeView(change: Readonly<{
+    unifiedDiff?: string | null;
+    oldText?: string | null;
+    newText?: string | null;
+}>): Readonly<{ kind: 'unified'; unifiedDiff: string }> | Readonly<{ kind: 'text'; oldText: string; newText: string }> | Readonly<{ kind: 'none' }> {
+    if (hasUnifiedDiffLineChanges(change.unifiedDiff)) return { kind: 'unified', unifiedDiff: change.unifiedDiff as string };
+    if (typeof change.oldText === 'string' && typeof change.newText === 'string' && change.oldText !== change.newText) {
+        return { kind: 'text', oldText: change.oldText, newText: change.newText };
+    }
+    return { kind: 'none' };
 }

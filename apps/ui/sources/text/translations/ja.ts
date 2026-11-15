@@ -8024,6 +8024,7 @@ localTailscale: {
     otherRepositoriesTitle: "他のリポジトリ",
     outsideGitTitle: "git の外",
     externalChangeCommitted: "コミット済み：エージェントによる変更を表示しています。",
+    externalChangeNoDiff: "差分なし：エージェントのツール呼び出しに変更されたテキストが含まれていません。",
     noSessionAttributedChanges:
       "現在、セッションに紐づく変更は検出されていません。",
     noLatestTurnChanges:
