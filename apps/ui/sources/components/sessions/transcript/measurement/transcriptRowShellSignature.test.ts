@@ -269,7 +269,7 @@ describe('buildTranscriptRowShellSignature', () => {
             };
         }
 
-        function toolUnitItem(toolMessageId: string, expanded = false): TranscriptRowShellItem {
+        function toolUnitItem(toolMessageId: string, expanded = false, listRow = false): TranscriptRowShellItem {
             return {
                 kind: 'tool-group-tool',
                 id: `${groupId}#tool:${toolMessageId}`,
@@ -279,6 +279,7 @@ describe('buildTranscriptRowShellSignature', () => {
                 expanded,
                 createdAt: 1,
                 seq: null,
+                ...(listRow ? { listRow: true as const } : {}),
             };
         }
 
@@ -329,7 +330,7 @@ describe('buildTranscriptRowShellSignature', () => {
 
         it('does not share a stored height between a list row and an inline row of the same call', () => {
             const inline = buildSignature({ item: toolUnitItem('tool-2', true), messagesById });
-            const list = buildSignature({ item: { ...toolUnitItem('tool-2', true), listRow: true }, messagesById });
+            const list = buildSignature({ item: toolUnitItem('tool-2', true, true), messagesById });
 
             expect(buildTranscriptItemHeightSignatureKey(list)).not.toBe(buildTranscriptItemHeightSignatureKey(inline));
         });
