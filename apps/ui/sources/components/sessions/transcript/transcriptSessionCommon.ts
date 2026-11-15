@@ -35,9 +35,8 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'transcriptStreamingSmoothingEnabled'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
->
-    // Optional: a chrome without the setting renders groups inline.
-    & Partial<Pick<TranscriptSessionCommonSettings, 'transcriptToolCallsGroupOpenMode'>>;
+    | 'transcriptToolCallsGroupOpenMode'
+>;
 
 export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSettings,
     | 'sessionThinkingDisplayMode'
