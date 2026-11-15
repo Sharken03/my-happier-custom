@@ -124,7 +124,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                     title: t('session.toolCallsSheetVerb', { kind: label.kind, running: label.running, toolName: label.toolName }),
                     subtitle: label.target,
                 }}
-                onPressOverride={() => setState((current) => selectToolCall(current, item.id))}
+                onPressOverride={() => setState((current) => selectToolCall(current ?? { selectedId: null }, item.id))}
             />
         </View>
         );
