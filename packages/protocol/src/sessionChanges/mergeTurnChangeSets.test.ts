@@ -38,6 +38,11 @@ describe('combineTextChanges', () => {
     expect(combineTextChanges({ oldText: '', newText: 'a' }, { oldText: 'a', newText: 'ab' })).toEqual({ oldText: '', newText: 'ab' });
   });
 
+  it('applies an edit snippet to the whole file text it occurs in once', () => {
+    expect(combineTextChanges({ oldText: '', newText: 'one two three' }, { oldText: 'two', newText: '2' }))
+      .toEqual({ oldText: '', newText: 'one 2 three' });
+  });
+
   it('keeps unrelated snippets next to each other with a separator line', () => {
     const sep = `\n${TEXT_CHANGE_SNIPPET_SEPARATOR}\n`;
     expect(combineTextChanges({ oldText: 'x1', newText: 'y1' }, { oldText: 'x2', newText: 'y2' }))
