@@ -78,7 +78,8 @@ export function ToolCallsSheetScrollView(props: ScrollViewProps) {
  * The bottom sheet of the Tool calls route, drawn in JS so that a swipe anywhere on it moves it.
  * It opens at half height. A swipe up gives full height. At full height a list or detail scrolls
  * first; at its top a swipe down gives half height, and a second swipe down closes the sheet.
- * Below full height every swipe moves the sheet, and the content does not scroll.
+ * Below full height every swipe moves the sheet, and the content does not scroll. A long press
+ * selects text at any height.
  */
 export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; children: React.ReactNode }>) {
     const { onClosed } = props;
@@ -100,9 +101,11 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
     const startTranslation = useSharedValue(0);
     const previousTranslation = useSharedValue(0);
     const closing = React.useRef(false);
-    // The content scrolls and its text is selectable only while the sheet rests at full height.
-    // While the sheet moves, the text moves with the finger, so Android would see a long press.
+    // The content scrolls only while the sheet rests at full height.
     const [atFull, setAtFull] = React.useState(false);
+    // Text is not selectable while the sheet moves: the text moves with the finger, so Android
+    // would see a long press. A long press with a still finger selects text at any height.
+    const [moving, setMoving] = React.useState(false);
 
     const listRef = useAnimatedRef<FlatList>();
     const detailRef = useAnimatedRef<ScrollView>();
@@ -157,6 +160,7 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 if (!takes) return;
                 sheetMoves.value = true;
                 runOnJS(setAtFull)(false);
+                runOnJS(setMoving)(true);
                 startY.value = translateY.value;
                 startTranslation.value = event.translationY - delta;
                 lockedOffset.value = Math.max(0, scrollY.value);
@@ -168,6 +172,7 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
             locked.value = false;
             if (!sheetMoves.value) return;
             sheetMoves.value = false;
+            runOnJS(setMoving)(false);
             const target = resolveToolCallsSheetSnap(translateY.value, event.velocityY, half, closed);
             if (target >= closed) {
                 runOnJS(close)();
@@ -179,6 +184,11 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
         })
         .onFinalize(() => {
             locked.value = false;
+            if (sheetMoves.value) {
+                // A cancelled swipe: the sheet stays where it is, and text is selectable again.
+                sheetMoves.value = false;
+                runOnJS(setMoving)(false);
+            }
         }), [close, closed, half, lockedOffset, locked, nativeGesture, previousTranslation, scrollY, sheetMoves, startTranslation, startY, translateY]);
 
     const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
@@ -200,7 +210,7 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
                 <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]} testID="tool-calls-sheet">
                     <View style={styles.grabber} />
                     <ToolCallsSheetControlsContext.Provider value={controls}>
-                        <NativeTextSelectionSuppressionScope suppressed={!atFull}>
+                        <NativeTextSelectionSuppressionScope suppressed={moving}>
                             {props.children}
                         </NativeTextSelectionSuppressionScope>
                     </ToolCallsSheetControlsContext.Provider>
