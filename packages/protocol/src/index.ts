@@ -2908,6 +2908,18 @@ export {
 } from './reviews/reviewStart.js';
 
 export {
+  ReviewModelRefSchema,
+  ReviewModelPolicySchema,
+  resolveReviewModelPolicy,
+  resolveReviewCallSitePolicyFlagMapping,
+  type ReviewModelRef,
+  type ReviewModelPolicy,
+  type ReviewModelPolicySource,
+  type ReviewModelPolicyResolution,
+  type ReviewCallSitePolicyFlagMapping,
+} from './reviews/reviewModelPolicy.js';
+
+export {
   ReviewFollowUpInputSchema,
   type ReviewFollowUpInput,
 } from './reviews/reviewFollowUp.js';
