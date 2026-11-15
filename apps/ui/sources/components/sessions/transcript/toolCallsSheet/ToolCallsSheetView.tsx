@@ -31,7 +31,7 @@ import {
     selectToolCall,
     type ToolCallsSheetState,
 } from './toolCallsSheetState';
-import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
+import { resolveToolCallRowLabel } from './toolCallSheetLabel';
 import { ToolCallsSheetSubagentView } from './ToolCallsSheetSubagentView';
 import { isToolCallsSheetSubagentCall } from './toolCallsSheetSubagent';
 import { TOOL_CALLS_SHEET_DECELERATION_RATE, ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
@@ -116,7 +116,6 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
 
     const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => {
         // As in the Claude app: a bold verb and the target in grey, such as "Ran" + "List files".
-        const label = resolveToolCallSheetLabel(item.tool);
         return (
         <View style={styles.listRow}>
             {index > 0 ? <View style={[styles.timeline, styles.timelineAbove, { backgroundColor: theme.colors.border.default }]} /> : null}
@@ -131,10 +130,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 interaction={interaction}
                 titleOnly
                 imageCount={countSessionMediaImages(parseSessionMediaMessageMeta(item.meta).inlineImages)}
-                label={{
-                    title: t('session.toolCallsSheetVerb', { kind: label.kind, running: label.running, toolName: label.toolName }),
-                    subtitle: label.target,
-                }}
+                label={resolveToolCallRowLabel(item.tool)}
                 onPressOverride={() => setState((current) => selectToolCall(current ?? { selectedId: null }, item.id))}
             />
         </View>

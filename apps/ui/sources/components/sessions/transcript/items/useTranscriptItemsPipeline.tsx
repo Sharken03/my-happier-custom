@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import type { Message, ToolCallMessage } from '@/sync/domains/messages/messageTypes';
+import type { Settings } from '@/sync/domains/settings/settings';
 import { getStorage } from '@/sync/domains/state/storage';
 import type { SessionViewportAnchorSnapshot } from '@/sync/sync';
 import type { TranscriptListOrientation } from '@/components/sessions/transcript/listOrientation';
@@ -119,7 +120,7 @@ export type TranscriptItemsPipelineDeps = Readonly<{
     transcriptNativeHotTailItemCount: number;
     transcriptToolCallsCollapsedPreviewCountSetting: unknown;
     transcriptToolCallsGroupBottomCollapse: boolean;
-    transcriptToolCallsGroupSheetMode: boolean;
+    transcriptToolCallsGroupOpenMode: Settings['transcriptToolCallsGroupOpenMode'];
     transcriptWebHotTailItemCount: number;
     webHotColdCountsRef: Ref<{ coldCount: number; hotCount: number }>;
 }>;
@@ -164,7 +165,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         transcriptNativeHotTailItemCount,
         transcriptToolCallsCollapsedPreviewCountSetting,
         transcriptToolCallsGroupBottomCollapse,
-        transcriptToolCallsGroupSheetMode,
+        transcriptToolCallsGroupOpenMode,
         transcriptWebHotTailItemCount,
         webHotColdCountsRef,
     } = deps;
@@ -204,7 +205,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
             isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
             collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
             bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
-            toolCallsGroupSheetMode: transcriptToolCallsGroupSheetMode,
+            toolCallsGroupOpenMode: transcriptToolCallsGroupOpenMode,
         });
     }, [
         expandedToolCallsAnchorMessageIds,
@@ -213,7 +214,7 @@ export function useTranscriptItemsPipeline(deps: TranscriptItemsPipelineDeps) {
         items,
         transcriptToolCallsCollapsedPreviewCountSetting,
         transcriptToolCallsGroupBottomCollapse,
-        transcriptToolCallsGroupSheetMode,
+        transcriptToolCallsGroupOpenMode,
     ]);
 
     const jumpWindowFacts = useTranscriptJumpWindowFacts({

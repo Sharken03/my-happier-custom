@@ -14,6 +14,7 @@ import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useSettingMutable } from '@/sync/domains/state/storage';
 import type { TranscriptMessageTimestampDisplayMode } from '@/sync/domains/settings/registry/account/accountTranscriptToolSettingDefinitions';
+import type { Settings } from '@/sync/domains/settings/settings';
 import { Icon } from '@/components/ui/icons/Icon';
 import { TranscriptMarkdownImagesSettingsGroup } from './TranscriptMarkdownImagesSettingsGroup';
 import {
@@ -38,6 +39,13 @@ function clampInt(value: number, bounds: Readonly<{ min: number; max: number }>)
     if (!Number.isFinite(value)) return bounds.min;
     return Math.min(bounds.max, Math.max(bounds.min, Math.trunc(value)));
 }
+
+// English only, as the setting title (see ALLOW_SAME_STRING_KEYS in tools/i18n/translationAudit.ts).
+const TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS = [
+    { id: 'inline', title: 'Inline', subtitle: 'Show the calls in the transcript.' },
+    { id: 'list', title: 'List', subtitle: 'Show one line per call, as Claude Code on the web. Tap a line to see its details.' },
+    { id: 'sheet', title: 'Sheet', subtitle: 'Show a group as one line. Tap it to open the calls in a sheet.' },
+] as const satisfies readonly { id: Settings['transcriptToolCallsGroupOpenMode']; title: string; subtitle: string }[];
 
 export const TranscriptSettingsView = React.memo(function TranscriptSettingsView() {
     const { theme } = useUnistyles();
@@ -727,19 +735,32 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     onPress={() => setTranscriptToolCallsGroupBottomCollapse(transcriptToolCallsGroupBottomCollapse !== true)}
                                 />
 
-                                <Item
-                                    title={t('settingsSession.transcript.toolCallsGroupOpenInSheetTitle')}
-                                    subtitle={t('settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle')}
-                                    icon={<Icon name="caret-right" size={29} color={theme.colors.text.secondary} />}
-                                    testID="settings-session-transcript-tool-calls-group-open-in-sheet"
-                                    rightElement={
-                                        <Switch
-                                            value={transcriptToolCallsGroupOpenMode === 'sheet'}
-                                            onValueChange={(v) => setTranscriptToolCallsGroupOpenMode(v ? 'sheet' : 'inline')}
-                                        />
-                                    }
-                                    showChevron={false}
-                                    onPress={() => setTranscriptToolCallsGroupOpenMode(transcriptToolCallsGroupOpenMode === 'sheet' ? 'inline' : 'sheet')}
+                                <DropdownMenu
+                                    open={openToolDetailMenu === 'transcriptToolCallsGroupOpenMode'}
+                                    onOpenChange={(next) => setOpenToolDetailMenu(next ? 'transcriptToolCallsGroupOpenMode' : null)}
+                                    variant="selectable"
+                                    search={false}
+                                    selectedId={transcriptToolCallsGroupOpenMode}
+                                    showCategoryTitles={false}
+                                    matchTriggerWidth={true}
+                                    connectToTrigger={true}
+                                    rowKind="item"
+                                    popoverBoundaryRef={popoverBoundaryRef}
+                                    itemTrigger={{
+                                        title: t('settingsSession.transcript.toolCallsGroupOpenInSheetTitle'),
+                                        icon: <Icon name="caret-right" size={29} color={theme.colors.text.secondary} />,
+                                        subtitle: TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === transcriptToolCallsGroupOpenMode)?.title,
+                                    }}
+                                    items={TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.map((opt) => ({
+                                        id: opt.id,
+                                        title: opt.title,
+                                        subtitle: opt.subtitle,
+                                    }))}
+                                    onSelect={(id) => {
+                                        const option = TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === id);
+                                        if (option) setTranscriptToolCallsGroupOpenMode(option.id);
+                                        setOpenToolDetailMenu(null);
+                                    }}
                                 />
                             </>
                         ) : null}

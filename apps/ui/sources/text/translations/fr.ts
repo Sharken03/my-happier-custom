@@ -8347,7 +8347,7 @@ settingsSession: {
             toolCallsGroupBackgroundSubtitle: 'Affiche un fond derrière les groupes d’appels d’outils en mode flux d’outils.',
             toolCallsGroupBottomCollapseTitle: 'Réduire en bas',
             toolCallsGroupBottomCollapseSubtitle: 'Affiche un bouton Réduire en bas d’un groupe d’appels d’outils développé.',
-            toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+            toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Apparence des outils',
             toolAppearanceSubtitle: 'Personnalise l’apparence des outils dans le transcript.',

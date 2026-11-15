@@ -8364,7 +8364,7 @@ settingsSession: {
               toolCallsGroupBackgroundSubtitle: 'Mostra un fons darrere dels grups de crides en mode feed d’eines.',
               toolCallsGroupBottomCollapseTitle: 'Control per plegar a la part inferior',
               toolCallsGroupBottomCollapseSubtitle: 'Mostra un control per plegar a la part inferior d’un grup de crides d’eines desplegat.',
-              toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+              toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
               toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
               toolAppearanceTitle: 'Aparença d’eines',
               toolAppearanceSubtitle: 'Personalitza com es veuen les eines a la transcripció.',

@@ -11,6 +11,7 @@ import { MessageViewWithSessionCommon } from '@/components/sessions/transcript/M
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
 import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
+import { resolveToolCallRowLabel } from '@/components/sessions/transcript/toolCallsSheet/toolCallSheetLabel';
 import type { ToolRowPinAction } from '@/components/sessions/transcript/toolCalls/ToolCallPinAction';
 import type {
     TranscriptForkCommon,
@@ -76,6 +77,10 @@ export function renderGroupedToolCallRowContent(params: Readonly<{
                 approvalRequests={params.approvalRequests}
                 interaction={params.interaction}
                 imageCount={countSessionMediaImages(parseSessionMediaMessageMeta(params.message.meta).inlineImages)}
+                // List mode: a Claude-app style line ("Ran" + description); a tap opens the details in place.
+                label={params.toolChromeCommon.transcriptToolCallsGroupOpenMode === 'list'
+                    ? resolveToolCallRowLabel(params.message.tool)
+                    : undefined}
             />
         );
     }

@@ -9170,7 +9170,7 @@ settingsSession: {
           "Mostra uno sfondo dietro i gruppi di chiamate in modalità feed strumenti.",
         toolCallsGroupBottomCollapseTitle: 'Comprimi in basso',
         toolCallsGroupBottomCollapseSubtitle: 'Mostra un controllo Comprimi in fondo a un gruppo di chiamate agli strumenti espanso.',
-        toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Aspetto strumenti",
         toolAppearanceSubtitle:

@@ -235,6 +235,9 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
             structuralKey: buildStableJsonSignature({
                 groupId: item.groupId,
                 groupExpanded: expansionAffectsPaint ? item.expanded : null,
+                // A list row paints a one-line label in place of the tool title, so it must not
+                // reuse a height stored for the same call in another open mode.
+                listRow: item.listRow === true,
                 messageRevision: buildMessageShellStructuralKey(item.toolMessageId, message, params.getMessageRevisionById(item.toolMessageId)),
             }),
             expansionKey: [

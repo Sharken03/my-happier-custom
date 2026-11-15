@@ -8950,7 +8950,7 @@ settingsSession: {
           "Mostrar um fundo atrás de grupos de chamadas no modo de feed de ferramentas.",
         toolCallsGroupBottomCollapseTitle: 'Recolher na parte inferior',
         toolCallsGroupBottomCollapseSubtitle: 'Mostra um controle para recolher na parte inferior de um grupo de chamadas de ferramentas expandido.',
-        toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Aparência das ferramentas",
         toolAppearanceSubtitle:
