@@ -6,6 +6,7 @@ import {
   buildExecutionRunCompletionInputV1,
   projectExecutionRunRequestedConfiguration,
   type ExecutionRunUserTranscriptDirective,
+  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 import type { ExecutionBudgetRegistry } from '@/daemon/executionBudget/ExecutionBudgetRegistry';
 import {
@@ -129,7 +130,7 @@ export class ExecutionRunManager {
   private readonly budgetRegistry: ExecutionBudgetRegistry | null;
   private readonly runtimeActivityContributionHandle: SessionRuntimeActivityContributionHandle | null;
   private readonly enqueueParentSessionInput: ((input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>) | null;
-  private readonly spawnSession: ((input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>) | null;
+  private readonly spawnSession: ((input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => Promise<unknown>) | null;
   private readonly runs = new Map<string, ExecutionRunState>();
   private readonly controllers = new Map<string, ExecutionRunController>();
   private readonly markerWriteChains = new Map<string, Promise<void>>();
@@ -330,7 +331,7 @@ export class ExecutionRunManager {
     budgetRegistry?: ExecutionBudgetRegistry;
     runtimeActivityContributionHandle?: SessionRuntimeActivityContributionHandle | null;
     enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
-    spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>;
+    spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => Promise<unknown>;
     resolveAccountSettings?: () => Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
     /**
      * Canonical connected-services owner used to RE-materialize a run's account on resume, driven by

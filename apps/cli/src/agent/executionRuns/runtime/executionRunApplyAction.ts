@@ -4,6 +4,7 @@ import {
   ReviewFindingsV1Schema,
   ReviewFindingsV2Schema,
   ReviewFollowUpInputSchema,
+  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
 import type { ACPMessageData, ACPProvider } from '@/api/session/sessionMessageTypes';
@@ -41,7 +42,7 @@ export async function applyExecutionRunAction(args: Readonly<{
   /** Send a user input into the originating (parent) session. Reused by `review.finding.apply`. */
   enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
   /** Spawn a new session in the same workspace. Reused by `review.finding.apply`. */
-  spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: string }>) => Promise<unknown>;
+  spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => Promise<unknown>;
   deps?: ExecutionRunActionDeps;
 }>): Promise<ExecutionRunActionResult> {
   const run = args.runs.get(args.runId);
