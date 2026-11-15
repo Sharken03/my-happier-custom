@@ -8,7 +8,8 @@ export type TranscriptItemHeightStore = Readonly<{
     clear(): void;
 }>;
 
-const STORE_ID = 'transcript-item-heights.v1';
+// v2: image tiles no longer grow when the preview loads, so heights measured before that are wrong.
+const STORE_ID = 'transcript-item-heights.v2';
 const ENTRY_COUNT_KEY = '#count';
 
 /**
