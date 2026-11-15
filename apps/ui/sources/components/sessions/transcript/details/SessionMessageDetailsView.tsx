@@ -248,6 +248,7 @@ function ToolCallDetailsView(props: Readonly<{
             <ToolFullView
                 tool={props.message.tool}
                 owningMessageId={props.message.id}
+                meta={props.message.meta}
                 messages={[...visibleFocusedMessages]}
                 sessionId={props.sessionId}
                 metadata={props.session.metadata ?? null}
