@@ -27,8 +27,8 @@ describe('formatToolResultJson', () => {
 });
 
 describe('stripInternalToolInputKeys', () => {
-    it('removes _happier and _happy and keeps other keys', () => {
-        expect(stripInternalToolInputKeys({ a: 1, _happier: { x: 1 }, _happy: {} })).toEqual({ a: 1 });
+    it('removes _happier, _happy and _acp and keeps other keys', () => {
+        expect(stripInternalToolInputKeys({ a: 1, _happier: { x: 1 }, _happy: {}, _acp: {} })).toEqual({ a: 1 });
     });
 
     it('returns the same object when no internal key exists', () => {

@@ -2,7 +2,7 @@
 const MAX_FORMAT_CHARS = 200 * 1024;
 
 /** Keys that hold internal metadata and are hidden in the tool detail. */
-const INTERNAL_INPUT_KEYS = ['_happier', '_happy'];
+const INTERNAL_INPUT_KEYS = ['_happier', '_happy', '_acp'];
 
 /**
  * Returns the text as indented JSON when it holds a JSON object or array.
