@@ -405,11 +405,13 @@ describe('built-in Happier tools', () => {
   });
 
   it('rejects discoverable-only action-backed tools as direct session-agent calls', async () => {
+    // `subagents_delegate_start` is action-backed but not directly exposed to session agents (unlike
+    // review_start since C1), so a direct call is still unknown here.
     const executeActionByToolName = vi.fn(async () => ok({ unreachable: true }));
 
     const result = await dispatchBuiltInHappierTool({
-      toolName: 'review_start',
-      args: { instructions: 'Check this' },
+      toolName: 'subagents_delegate_start',
+      args: { instructions: 'Do it' },
       sessionId: 'sess-1',
       deps: {
         changeTitle: async () => ({ success: true }),
@@ -421,7 +423,7 @@ describe('built-in Happier tools', () => {
     expect(result).toEqual({
       ok: false,
       errorCode: 'unknown_tool',
-      error: 'Unknown built-in Happier tool: review_start',
+      error: 'Unknown built-in Happier tool: subagents_delegate_start',
     });
     expect(executeActionByToolName).not.toHaveBeenCalled();
   });
