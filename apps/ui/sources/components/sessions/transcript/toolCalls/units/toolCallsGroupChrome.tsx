@@ -18,6 +18,8 @@ import { resolveToolStatusIndicatorKind } from '@/components/tools/shell/present
 import type { GroupedToolCallChromeMode } from './groupedToolCallRowRenderDecision';
 import { Icon } from '@/components/ui/icons/Icon';
 import { summarizeToolCallsGroup } from './toolCallsGroupSummary';
+import { computeToolCallsGroupDiffStats } from './toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from './toolCallsGroupDiffStatsText';
 import { TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT } from './toolCallsGroupCollapseControlLayout';
 import { ICON_SIZE } from '@/components/ui/icons/Icon';
 
@@ -169,6 +171,13 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
         () => summarizeToolCallsGroup(props.toolMessages.map((message) => message.tool?.name ?? '')),
         [props.toolMessages],
     );
+    // Only sheet mode shows the diff stats, so the default inline header does no extra work.
+    const diffStats = React.useMemo(
+        () => (sheetMode
+            ? computeToolCallsGroupDiffStats(props.toolMessages.map((message) => message.tool).filter((tool) => !!tool))
+            : null),
+        [props.toolMessages, sheetMode],
+    );
 
     return (
         <Pressable
@@ -194,6 +203,7 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
                     <Text style={chromeStyles.subtitle}> · {count}</Text>
                 </Text>
             )}
+            {diffStats ? <ToolCallsGroupDiffStatsText stats={diffStats} /> : null}
             <View style={chromeStyles.headerRight}>
                 <View style={chromeStyles.statusIconRight}>
                     {props.status === 'running' ? (

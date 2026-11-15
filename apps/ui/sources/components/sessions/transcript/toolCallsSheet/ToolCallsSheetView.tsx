@@ -19,6 +19,8 @@ import { ToolStatusIndicator } from '@/components/tools/shell/presentation/ToolS
 import { ToolTimelineRow } from '@/components/tools/shell/views/ToolTimelineRow';
 import { SessionMessageDetailsView } from '@/components/sessions/transcript/details/SessionMessageDetailsView';
 import { resolveToolCallsGroupStatus } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupChrome';
+import { computeToolCallsGroupDiffStats } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
 import { summarizeToolCallsGroup } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary';
 import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveTranscriptInteraction';
 import {
@@ -103,6 +105,10 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         () => summarizeToolCallsGroup(callList.map((call) => call.tool.name)) ?? t('session.toolCalls'),
         [callList],
     );
+    const diffStats = React.useMemo(
+        () => computeToolCallsGroupDiffStats(callList.map((call) => call.tool)),
+        [callList],
+    );
 
     const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => {
         // As in the Claude app: a bold verb and the target in grey, such as "Ran" + "List files".
@@ -172,6 +178,7 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 <View style={styles.headerButtonSpace} />
                 <View style={styles.headerCenter}>
                     <Text style={styles.title} numberOfLines={2}>{title}</Text>
+                    <ToolCallsGroupDiffStatsText stats={diffStats} />
                     {groupStatus === 'running' ? (
                         <ActivitySpinner testID="tool-calls-sheet-running" size="small" color={theme.colors.text.secondary} />
                     ) : null}
