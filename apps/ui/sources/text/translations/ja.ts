@@ -9085,7 +9085,7 @@ settingsSession: {
           "ツールフィード表示で、ツール呼び出しグループの背景を表示します。",
         toolCallsGroupBottomCollapseTitle: '下部に折りたたみ',
         toolCallsGroupBottomCollapseSubtitle: '展開したツール呼び出しグループの下部に折りたたみボタンを表示します。',
-        toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "ツールの見た目",
         toolAppearanceSubtitle:

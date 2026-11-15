@@ -1,5 +1,6 @@
 import type { ChatListItem } from '@/components/sessions/chatListItems';
 import type { Message } from '@/sync/domains/messages/messageTypes';
+import type { Settings } from '@/sync/domains/settings/settings';
 
 import type { TranscriptTurn } from './buildTranscriptTurns';
 
@@ -48,6 +49,8 @@ export type TranscriptToolGroupUnitItem =
         toolMessageId: string;
         toolMessageIds: string[]; // full group membership (for expansion-state checks)
         expanded: boolean; // group expansion at build time
+        /** Set in list mode: the row paints as one labelled line that opens its details in place. */
+        listRow?: true;
         createdAt: number; // own message createdAt (0 fallback)
         seq: number | null; // own message seq (normalized like splitter)
         originSessionId?: string;
@@ -66,6 +69,8 @@ export type TranscriptToolGroupUnitItem =
         originSessionId?: string;
         isReadOnlyContext?: boolean;
     };
+
+type TranscriptToolCallsGroupOpenMode = Settings['transcriptToolCallsGroupOpenMode'];
 
 export type TranscriptTurnUnitSourceItem =
     | ChatListItem
@@ -130,14 +135,15 @@ function appendToolGroupUnits(params: Readonly<{
     isGroupExpanded: (toolMessageIds: readonly string[]) => boolean;
     collapsedPreviewCount: number;
     bottomCollapseControl: boolean;
-    sheetMode: boolean;
+    openMode: TranscriptToolCallsGroupOpenMode;
 }>): void {
     if (params.toolMessageIds.length === 0) return;
 
+    const sheetMode = params.openMode === 'sheet';
     const toolMessageIds = [...params.toolMessageIds];
     const firstToolMessageId = toolMessageIds[0]!;
     // Sheet mode: the group is one header line (plus the closing footer); the sheet shows the calls.
-    const expanded = !params.sheetMode && params.isGroupExpanded(toolMessageIds);
+    const expanded = !sheetMode && params.isGroupExpanded(toolMessageIds);
     const createdAt = normalizeCreatedAt(params.getMessageById(firstToolMessageId));
     const capMetadata = params.groupItemMetadata
         ?? readMessageMetadata(params.metadataByMessageId, firstToolMessageId);
@@ -145,10 +151,10 @@ function appendToolGroupUnits(params: Readonly<{
 
     const visibleToolMessageIds = expanded
         ? toolMessageIds
-        : params.collapsedPreviewCount > 0 && !params.sheetMode
+        : params.collapsedPreviewCount > 0 && !sheetMode
             ? toolMessageIds.slice(Math.max(0, toolMessageIds.length - params.collapsedPreviewCount))
             : [];
-    const hiddenCount = expanded || params.sheetMode ? 0 : toolMessageIds.length - visibleToolMessageIds.length;
+    const hiddenCount = expanded || sheetMode ? 0 : toolMessageIds.length - visibleToolMessageIds.length;
 
     params.output.push({
         kind: 'tool-group-header',
@@ -185,6 +191,7 @@ function appendToolGroupUnits(params: Readonly<{
             toolMessageId,
             toolMessageIds,
             expanded,
+            ...(params.openMode === 'list' ? { listRow: true as const } : {}),
             createdAt: normalizeCreatedAt(message),
             seq: normalizeSeq(message),
             ...metadataFields(toolMetadata),
@@ -214,11 +221,14 @@ export function buildTranscriptTurnUnits(params: Readonly<{
     collapsedPreviewCount: number; // already-resolved K; <= 0 means no preview tail
     /** Account setting: expanded groups show a collapse control in their footer. */
     bottomCollapseControl?: boolean;
-    /** Account setting: groups render as one header line that opens the Tool calls sheet. */
-    toolCallsGroupSheetMode?: boolean;
+    /**
+     * Account setting: how a group opens. 'sheet' renders one header line that opens the Tool calls
+     * sheet; 'list' expands inline like 'inline', with one labelled line per call. Default 'inline'.
+     */
+    toolCallsGroupOpenMode?: TranscriptToolCallsGroupOpenMode;
 }>): TranscriptTurnUnitListItem[] {
     const bottomCollapseControl = params.bottomCollapseControl === true;
-    const sheetMode = params.toolCallsGroupSheetMode === true;
+    const openMode = params.toolCallsGroupOpenMode ?? 'inline';
     const collapsedPreviewCount = normalizeCollapsedPreviewCount(params.collapsedPreviewCount);
     const output: TranscriptTurnUnitListItem[] = [];
 
@@ -250,7 +260,7 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                     isGroupExpanded: params.isGroupExpanded,
                     collapsedPreviewCount,
                     bottomCollapseControl,
-                    sheetMode,
+                    openMode,
                 });
             }
             continue;
@@ -271,7 +281,7 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                 isGroupExpanded: params.isGroupExpanded,
                 collapsedPreviewCount,
                 bottomCollapseControl,
-                sheetMode,
+                openMode,
             });
             continue;
         }

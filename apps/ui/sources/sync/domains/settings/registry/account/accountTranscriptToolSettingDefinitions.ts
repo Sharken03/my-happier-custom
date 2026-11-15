@@ -142,9 +142,9 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     transcriptToolCallsGroupOpenMode: {
-        schema: z.enum(['inline', 'sheet']),
+        schema: z.enum(['inline', 'sheet', 'list']),
         default: 'inline',
-        description: 'Open a Tool calls group inline in the transcript, or in a sheet from a one-line group header',
+        description: 'Open a Tool calls group inline in the transcript, in a sheet from a one-line group header, or inline as a list of one-line rows (as Claude Code on the web)',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },

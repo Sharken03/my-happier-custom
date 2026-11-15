@@ -327,6 +327,13 @@ describe('buildTranscriptRowShellSignature', () => {
             expect(after.rowState).toBe('stable');
         });
 
+        it('does not share a stored height between a list row and an inline row of the same call', () => {
+            const inline = buildSignature({ item: toolUnitItem('tool-2', true), messagesById });
+            const list = buildSignature({ item: { ...toolUnitItem('tool-2', true), listRow: true }, messagesById });
+
+            expect(buildTranscriptItemHeightSignatureKey(list)).not.toBe(buildTranscriptItemHeightSignatureKey(inline));
+        });
+
         /**
          * The header is one line (the summary has `numberOfLines={1}`) with a fixed-width status slot,
          * so neither the number of calls nor the group status changes its height. With them in the

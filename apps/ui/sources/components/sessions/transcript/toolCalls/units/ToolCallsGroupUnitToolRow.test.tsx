@@ -100,6 +100,19 @@ describe('ToolCallsGroupUnitToolRow', () => {
         expect(screen.findByTestId('transcript-enter-wrapper')).not.toBeNull();
     });
 
+    it('labels a row with its verb and description in list mode, as Claude Code on the web does', async () => {
+        const message = createToolCallMessageFixture({ id: 'm1', createdAt: 1 });
+        const bash = { ...message, tool: { ...message.tool, name: 'Bash', input: { command: 'ls -la', description: 'List files' } } };
+        const listRow = (await renderToolRow({
+            message: bash,
+            ...createTranscriptSessionCommonPropsFixture({ toolChromeCommon: { transcriptToolCallsGroupOpenMode: 'list' } }),
+        })).findAllByType('ToolTimelineRow' as React.ElementType)[0];
+        const inlineRow = (await renderToolRow({ message: bash })).findAllByType('ToolTimelineRow' as React.ElementType)[0];
+
+        expect(listRow?.props.label).toEqual({ title: 'session.toolCallsSheetVerb', subtitle: 'List files' });
+        expect(inlineRow?.props.label).toBeUndefined();
+    });
+
     it('renders cards tool rows through MessageView with the grouped layout context and forwarded commons', async () => {
         messageViewCalls.length = 0;
         const common = createTranscriptSessionCommonPropsFixture({

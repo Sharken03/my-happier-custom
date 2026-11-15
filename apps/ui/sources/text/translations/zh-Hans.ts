@@ -8589,7 +8589,7 @@ settingsSession: {
       toolCallsGroupBackgroundSubtitle: "在工具信息流模式下为工具调用分组显示背景。",
       toolCallsGroupBottomCollapseTitle: '底部折叠',
       toolCallsGroupBottomCollapseSubtitle: '在展开的工具调用组底部显示折叠按钮。',
-      toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+      toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
       toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",

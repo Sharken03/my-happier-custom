@@ -8815,7 +8815,7 @@ settingsSession: {
           "Показывать фон за группами вызовов в режиме ленты инструментов.",
         toolCallsGroupBottomCollapseTitle: 'Свернуть внизу',
         toolCallsGroupBottomCollapseSubtitle: 'Показывает кнопку «Свернуть» внизу развёрнутой группы вызовов инструментов.',
-        toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Вид инструментов",
         toolAppearanceSubtitle:

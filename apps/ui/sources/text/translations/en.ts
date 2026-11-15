@@ -8392,7 +8392,7 @@ settingsSession: {
             toolCallsGroupBackgroundSubtitle: 'Show a background behind Tool calls groups in tool feed mode.',
             toolCallsGroupBottomCollapseTitle: 'Collapse control at the bottom',
             toolCallsGroupBottomCollapseSubtitle: 'Show a Collapse control at the bottom of an expanded Tool calls group.',
-            toolCallsGroupOpenInSheetTitle: 'Open tool calls in a sheet',
+            toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Tool appearance',
             toolAppearanceSubtitle: 'Customize how tools look in the transcript.',

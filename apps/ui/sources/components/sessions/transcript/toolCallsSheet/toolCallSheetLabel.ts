@@ -1,4 +1,5 @@
 import type { ToolCall } from '@/sync/domains/messages/messageTypes';
+import { t } from '@/text';
 import { toolCallKind, type ToolCallKind } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary';
 
 export type ToolCallSheetLabel = Readonly<{
@@ -20,6 +21,15 @@ export function resolveToolCallSheetLabel(tool: Pick<ToolCall, 'name' | 'state' 
         running: tool.state === 'running',
         target: resolveTarget(tool),
         toolName: tool.name,
+    };
+}
+
+/** The title and subtitle that `ToolTimelineRow` shows for a Claude-app style row. */
+export function resolveToolCallRowLabel(tool: Pick<ToolCall, 'name' | 'state' | 'input' | 'description'>): { title: string; subtitle: string | null } {
+    const label = resolveToolCallSheetLabel(tool);
+    return {
+        title: t('session.toolCallsSheetVerb', { kind: label.kind, running: label.running, toolName: label.toolName }),
+        subtitle: label.target,
     };
 }
 

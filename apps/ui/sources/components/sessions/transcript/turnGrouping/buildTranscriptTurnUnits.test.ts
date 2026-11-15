@@ -821,6 +821,27 @@ describe('buildTranscriptTurnUnits', () => {
         expect(t1Index).toBeLessThan(t2Index);
     });
 
+    it('in list mode expands a group inline and marks its tool rows as list rows', () => {
+        const messages: Message[] = [toolMessage('t1', 1), toolMessage('t2', 2), toolMessage('t3', 3)];
+        const items = [turnItem({
+            id: 'turn-1',
+            userMessageId: null,
+            content: [{ kind: 'tool_calls', id: 'g1', toolMessageIds: ['t1', 't2', 't3'] }],
+        })];
+        const build = (toolCallsGroupOpenMode: 'inline' | 'list') => buildTranscriptTurnUnits({
+            items,
+            getMessageById: lookupIn(indexMessages(messages)),
+            isGroupExpanded: expandedAlways,
+            collapsedPreviewCount: 2,
+            toolCallsGroupOpenMode,
+        });
+
+        const listTools = build('list').filter((unit) => unit.kind === 'tool-group-tool');
+        expect(listTools).toHaveLength(3);
+        expect(listTools.every((unit) => unit.kind === 'tool-group-tool' && unit.listRow === true)).toBe(true);
+        expect(build('inline').some((unit) => unit.kind === 'tool-group-tool' && unit.listRow === true)).toBe(false);
+    });
+
     it('in sheet mode emits only the header and footer of a group, even when it is expanded', () => {
         const messages: Message[] = [toolMessage('t1', 1), toolMessage('t2', 2), toolMessage('t3', 3), toolMessage('t4', 4)];
         const items = [turnItem({
@@ -828,12 +849,12 @@ describe('buildTranscriptTurnUnits', () => {
             userMessageId: null,
             content: [{ kind: 'tool_calls', id: 'g1', toolMessageIds: ['t1', 't2', 't3', 't4'] }],
         })];
-        const build = (toolCallsGroupSheetMode: boolean, isGroupExpanded: () => boolean) => buildTranscriptTurnUnits({
+        const build = (sheetMode: boolean, isGroupExpanded: () => boolean) => buildTranscriptTurnUnits({
             items,
             getMessageById: lookupIn(indexMessages(messages)),
             isGroupExpanded,
             collapsedPreviewCount: 2,
-            toolCallsGroupSheetMode,
+            toolCallsGroupOpenMode: sheetMode ? 'sheet' : 'inline',
         });
 
         expect(build(false, collapsedAlways).map((unit) => unit.kind))
