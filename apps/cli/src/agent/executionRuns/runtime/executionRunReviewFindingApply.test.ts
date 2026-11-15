@@ -58,8 +58,8 @@ function makeV2Run(findings: ReviewFinding[]): ExecutionRunState {
 function makeDeps(overrides: Partial<ReviewFindingApplyDeps> = {}): ReviewFindingApplyDeps {
   return {
     cwd: '/workspace',
-    sendToSession: vi.fn(async () => {}),
-    spawnSession: vi.fn(async () => ({ sessionId: 'spawned-1' })),
+    sendToSession: vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {}),
+    spawnSession: vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({ sessionId: 'spawned-1' })),
     ...overrides,
   };
 }
@@ -95,7 +95,7 @@ describe('buildReviewFindingFixPrompt', () => {
 
 describe('applyReviewFindingFix', () => {
   it('selects requested finding ids order-preserving and deduped', async () => {
-    const sendToSession = vi.fn(async () => {});
+    const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
     const result = await applyReviewFindingFix({
       run: makeV2Run([
         makeFinding({ id: 'f1' }),
@@ -145,7 +145,7 @@ describe('applyReviewFindingFix', () => {
   });
 
   it('up-converts review_findings.v1 meta', async () => {
-    const sendToSession = vi.fn(async () => {});
+    const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
     const result = await applyReviewFindingFix({
       run: makeRun({
         kind: 'review_findings.v1',
@@ -167,8 +167,8 @@ describe('applyReviewFindingFix', () => {
   });
 
   it('routes send_to_session to the send helper', async () => {
-    const sendToSession = vi.fn(async () => {});
-    const spawnSession = vi.fn(async () => ({}));
+    const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({}));
     await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'send_to_session' },
@@ -184,8 +184,8 @@ describe('applyReviewFindingFix', () => {
   });
 
   it('routes spawn_session to the spawn helper with the workspace and permission mode', async () => {
-    const sendToSession = vi.fn(async () => {});
-    const spawnSession = vi.fn(async () => ({ sessionId: 'spawned-1' }));
+    const sendToSession = vi.fn(async (_input: Readonly<{ text: string; meta: Record<string, unknown> }>) => {});
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({ sessionId: 'spawned-1' }));
     const result = await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'spawn_session', permissionMode: 'workspace_write' },
@@ -202,7 +202,7 @@ describe('applyReviewFindingFix', () => {
   });
 
   it('defaults permission mode to read_only for spawn_session', async () => {
-    const spawnSession = vi.fn(async () => ({}));
+    const spawnSession = vi.fn(async (_input: Readonly<{ text: string; directory: string; permissionMode: string }>) => ({}));
     await applyReviewFindingFix({
       run: makeV2Run([makeFinding({ id: 'f1' })]),
       input: { runId: 'run-1', findingIds: ['f1'], mode: 'spawn_session' },
