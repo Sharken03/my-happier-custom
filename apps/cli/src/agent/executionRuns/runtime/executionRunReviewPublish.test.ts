@@ -59,7 +59,6 @@ const githubCredential = buildConnectedServiceCredentialRecord({
 
 function makeFinding(overrides: Partial<ReviewFinding> & Pick<ReviewFinding, 'id'>): ReviewFinding {
   return {
-    id: overrides.id,
     title: overrides.title ?? 'Title',
     severity: overrides.severity ?? 'low',
     category: overrides.category ?? 'style',
