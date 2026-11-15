@@ -25,6 +25,7 @@ import {
     selectToolCall,
     type ToolCallsSheetState,
 } from './toolCallsSheetState';
+import { resolveToolCallSheetLabel } from './toolCallSheetLabel';
 
 const TIMELINE_ICON_CENTER_X = 16 + 9;
 const TIMELINE_ICON_GAP = 11;
@@ -88,7 +89,10 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         [calls],
     );
 
-    const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => (
+    const renderItem = React.useCallback(({ item, index }: { item: ToolCallMessage; index: number }) => {
+        // As in the Claude app: a bold verb and the target in grey, such as "Ran" + "List files".
+        const label = resolveToolCallSheetLabel(item.tool);
+        return (
         <View style={styles.listRow}>
             {index > 0 ? <View style={[styles.timeline, styles.timelineAbove, { backgroundColor: theme.colors.border.default }]} /> : null}
             {index < calls.length - 1 ? <View style={[styles.timeline, styles.timelineBelow, { backgroundColor: theme.colors.border.default }]} /> : null}
@@ -101,10 +105,15 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
                 jumpHighlightSeq={item.seq ?? null}
                 interaction={interaction}
                 titleOnly
+                label={{
+                    title: t('session.toolCallsSheetVerb', { kind: label.kind, running: label.running, toolName: label.toolName }),
+                    subtitle: label.target,
+                }}
                 onPressOverride={() => setState((current) => selectToolCall(current, item.id))}
             />
         </View>
-    ), [calls.length, interaction, props.session.metadata, props.sessionId, theme.colors.border.default]);
+        );
+    }, [calls.length, interaction, props.session.metadata, props.sessionId, theme.colors.border.default]);
 
     if (selectedCall) {
         return (

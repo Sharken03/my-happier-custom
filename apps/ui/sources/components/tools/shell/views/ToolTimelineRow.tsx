@@ -71,6 +71,8 @@ export const ToolTimelineRow = React.memo((props: {
     titleOnly?: boolean;
     /** Replaces the tap action (expand or open route) and hides the open and disclosure controls. */
     onPressOverride?: () => void;
+    /** Replaces the header title and subtitle, such as "Ran" + "List files" in the Tool calls sheet. */
+    label?: { title: string; subtitle: string | null };
 }) => {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -153,7 +155,7 @@ export const ToolTimelineRow = React.memo((props: {
     const onPress = props.onPressOverride ?? (primaryTapAction === 'open' ? handleOpen : handleToggleExpand);
 
     const normalizedToolName = headerModel.normalizedToolName;
-    const title = headerModel.title;
+    const title = props.label?.title ?? headerModel.title;
     const subtitle = headerModel.subtitle;
     const statusText = headerModel.statusText;
     const shouldHideBodyPermanently = headerModel.shouldHideBodyPermanently;
@@ -277,7 +279,7 @@ export const ToolTimelineRow = React.memo((props: {
         toolForRendering.id ??
         `${props.sessionId ?? 'no-session'}:${normalizedToolName}:${toolForRendering.createdAt}`;
 
-    const headerSubtitle = effectiveDetailLevel === 'title' ? null : subtitle;
+    const headerSubtitle = props.label ? props.label.subtitle : effectiveDetailLevel === 'title' ? null : subtitle;
     const disclosure =
         primaryTapAction === 'expand' && !forceExpandedForPendingUserAction && !props.onPressOverride
             ? isExpanded

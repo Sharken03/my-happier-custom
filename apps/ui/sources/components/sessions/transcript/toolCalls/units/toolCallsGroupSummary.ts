@@ -1,6 +1,6 @@
 import { t } from '@/text';
 
-type ToolCallKind = 'commands' | 'reads' | 'searches' | 'edits' | 'web' | 'agents' | 'other';
+export type ToolCallKind = 'commands' | 'reads' | 'searches' | 'edits' | 'web' | 'agents' | 'other';
 
 /** Tool names per kind, lowercased: Claude's (Bash, Read), Pi's (bash, read) and Codex's (shell, apply_patch). */
 const KIND_BY_TOOL_NAME: Readonly<Record<string, ToolCallKind | null>> = {
@@ -14,6 +14,12 @@ const KIND_BY_TOOL_NAME: Readonly<Record<string, ToolCallKind | null>> = {
     diff: null,
 };
 
+/** The kind of a tool call by its name; null for a call the summary leaves out (the turn Diff). */
+export function toolCallKind(toolName: string): ToolCallKind | null {
+    const key = toolName.trim().toLowerCase();
+    return key in KIND_BY_TOOL_NAME ? KIND_BY_TOOL_NAME[key] : 'other';
+}
+
 /**
  * A Claude Code style header for a group of tool calls, such as "Ran 2 commands, read 3 files":
  * one part per kind, in the order the kinds first appear. Null when no call in the group counts.
@@ -21,8 +27,7 @@ const KIND_BY_TOOL_NAME: Readonly<Record<string, ToolCallKind | null>> = {
 export function summarizeToolCallsGroup(toolNames: readonly string[]): string | null {
     const counts = new Map<ToolCallKind, number>();
     for (const name of toolNames) {
-        const key = name.trim().toLowerCase();
-        const kind = key in KIND_BY_TOOL_NAME ? KIND_BY_TOOL_NAME[key] : 'other';
+        const kind = toolCallKind(name);
         if (!kind) continue;
         counts.set(kind, (counts.get(kind) ?? 0) + 1);
     }

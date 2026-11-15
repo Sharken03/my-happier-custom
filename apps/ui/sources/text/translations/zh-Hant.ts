@@ -4929,6 +4929,15 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
           },
           toolCalls: '工具呼叫',
           toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 更多…`,
+          toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+              if (kind === 'commands') return running ? 'Running' : 'Ran';
+              if (kind === 'reads') return running ? 'Reading' : 'Read';
+              if (kind === 'searches') return running ? 'Searching' : 'Searched';
+              if (kind === 'edits') return running ? 'Editing' : 'Edited';
+              if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+              if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+              return toolName;
+          },
           toolCallsSummary: {
               separator: '，',
               commands: ({ count }: { count: number }) => `執行了 ${count} 個命令`,

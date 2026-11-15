@@ -5233,6 +5233,15 @@ export const de: TranslationStructure = {
         },
         toolCalls: 'Tool-Aufrufe',
         toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} weitere…`,
+        toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+            if (kind === 'commands') return running ? 'Running' : 'Ran';
+            if (kind === 'reads') return running ? 'Reading' : 'Read';
+            if (kind === 'searches') return running ? 'Searching' : 'Searched';
+            if (kind === 'edits') return running ? 'Editing' : 'Edited';
+            if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+            if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+            return toolName;
+        },
         toolCallsSummary: {
             separator: ', ',
             commands: ({ count }: { count: number }) => `${count} ${count === 1 ? 'Befehl' : 'Befehle'} ausgeführt`,
