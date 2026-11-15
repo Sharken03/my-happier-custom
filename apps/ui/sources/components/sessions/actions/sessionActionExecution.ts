@@ -3,6 +3,7 @@ import { Modal } from '@/modal';
 import { storage } from '@/sync/domains/state/storage';
 import { HappyError } from '@/utils/errors/errors';
 import {
+    machineCleanupDeletedChatFolder,
     sessionArchiveWithServerScope,
     sessionDeleteWithServerScope,
     sessionRename,
@@ -79,6 +80,33 @@ function canDeleteCurrentSession(target: SessionActionTarget): boolean {
     return target.canDelete && readCurrentSessionActionTarget(target)?.canDelete === true;
 }
 
+/**
+ * The chat folder a successful deletion may leave behind, read from the session before its row is
+ * gone. Only a chat's own folder is cleaned; the daemon decides whether the folder holds anything
+ * of the chat's own work.
+ */
+function readDeletedChatFolderCleanupTarget(target: SessionActionTarget): Readonly<{
+    machineId: string;
+    sessionPath: string;
+    serverId: string | null;
+}> | null {
+    const metadata = target.session.metadata as { machineId?: unknown; path?: unknown } | null | undefined;
+    const machineId = typeof metadata?.machineId === 'string' ? metadata.machineId.trim() : '';
+    const sessionPath = typeof metadata?.path === 'string' ? metadata.path.trim() : '';
+    if (!machineId || !sessionPath) return null;
+    return { machineId, sessionPath, serverId: target.serverId };
+}
+
+/** Cleanup is best effort: a machine that is offline or an old daemon must not fail the deletion. */
+function cleanupDeletedChatFolder(
+    cleanupTarget: ReturnType<typeof readDeletedChatFolderCleanupTarget>,
+): void {
+    if (!cleanupTarget) return;
+    void machineCleanupDeletedChatFolder(cleanupTarget.machineId, cleanupTarget.sessionPath, {
+        serverId: cleanupTarget.serverId,
+    });
+}
+
 async function executeDeleteAction(target: SessionActionTarget, context?: SessionActionExecutionContext): Promise<void | false> {
     if (!target.canDelete && !target.canStopAndDelete) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
     const confirmed = await Modal.confirm(
@@ -87,6 +115,7 @@ async function executeDeleteAction(target: SessionActionTarget, context?: Sessio
         { cancelText: t('common.cancel'), confirmText: t(target.canStopAndDelete ? 'sessionInfo.stopAndDeleteSession' : 'sessionInfo.deleteSession'), destructive: true },
     );
     if (!confirmed) return false;
+    const cleanupTarget = readDeletedChatFolderCleanupTarget(target);
     const deleteSession = resolveDeleteSession(context);
     if (target.canStopAndDelete) {
         // Use the same stop strategy and completion retry as Archive. In 0.2 the DELETE
@@ -109,10 +138,12 @@ async function executeDeleteAction(target: SessionActionTarget, context?: Sessio
                 },
             },
         });
+        cleanupDeletedChatFolder(cleanupTarget);
         return;
     }
     if (!canDeleteCurrentSession(target)) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
     throwIfFailed(await deleteSession(target.sessionId, { serverId: target.serverId }), t('sessionInfo.failedToDeleteSession'));
+    cleanupDeletedChatFolder(cleanupTarget);
 }
 
 function resolveStopArchiveFlow(context: SessionActionExecutionContext | undefined) {

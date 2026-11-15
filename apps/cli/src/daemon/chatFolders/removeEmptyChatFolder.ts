@@ -1,7 +1,7 @@
-import { lstat, readdir, readlink, rm, rmdir, unlink } from 'node:fs/promises';
+import { readdir, rm, rmdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
-import { isChatFolder } from './chatFolderTitleLink';
+import { isChatFolder, removeChatFolderTitleLinks } from './chatFolderTitleLink';
 import { isUnusedGitDir } from './initChatFolderRepo';
 
 /**
@@ -30,11 +30,6 @@ export async function removeEmptyChatFolder(params: Readonly<{
   }
   await rmdir(params.sessionPath);
 
-  const folder = basename(params.sessionPath);
-  for (const entry of await readdir(params.chatsDir)) {
-    const path = join(params.chatsDir, entry);
-    const info = await lstat(path).catch(() => null);
-    if (info?.isSymbolicLink() && await readlink(path) === folder) await unlink(path);
-  }
+  await removeChatFolderTitleLinks({ chatsDir: params.chatsDir, folder: basename(params.sessionPath) });
   return true;
 }

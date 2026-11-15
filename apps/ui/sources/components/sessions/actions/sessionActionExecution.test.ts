@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActionsSettingsV1Schema } from '@happier-dev/protocol';
 import { Modal } from '@/modal';
+import { machineCleanupDeletedChatFolder } from '@/sync/ops';
 import { storage } from '@/sync/domains/state/storage';
 import { apiSocket } from '@/sync/api/session/apiSocket';
 import { getActiveServerSnapshot } from '@/sync/domains/server/serverRuntime';
@@ -13,6 +14,15 @@ import { buildSessionListRenderableFromSession } from '@/sync/domains/session/li
 vi.mock('@/modal', async () => {
     const { createModalModuleMock } = await import('@/dev/testkit/mocks/modal');
     return createModalModuleMock({ confirmResult: true }).module;
+});
+
+// Only the chat-folder cleanup is stubbed: the delete flow's own ops stay real.
+vi.mock('@/sync/ops', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/sync/ops')>();
+    return {
+        ...actual,
+        machineCleanupDeletedChatFolder: vi.fn(async () => ({ success: true, removed: true })),
+    };
 });
 
 import { HappyError } from '@/utils/errors/errors';
@@ -73,6 +83,10 @@ function createTarget(overrides: Partial<SessionListRenderableSession> = {}) {
 }
 
 describe('delete eligibility at execution', () => {
+    beforeEach(() => {
+        vi.mocked(machineCleanupDeletedChatFolder).mockClear();
+    });
+
     afterEach(() => {
         vi.restoreAllMocks();
     });
@@ -187,6 +201,32 @@ describe('delete eligibility at execution', () => {
         await executeSessionAction({ actionId: SESSION_ACTION_DELETE_ID, target: createSessionActionTarget({ session, serverId }) });
 
         expect(request.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(true);
+    });
+
+    it('asks the chat machine to clean up its own folder after a successful delete', async () => {
+        const serverId = getActiveServerSnapshot().serverId;
+        const session = createSessionFixture({
+            id: 'delete-cleans-chat-folder',
+            archivedAt: null,
+            presence: 0,
+            serverId,
+            metadata: {
+                path: '/home/chats/2026-11-15-724p',
+                host: 'local',
+                machineId: 'machine-9',
+            } as SessionListRenderableSession['metadata'],
+        });
+        storage.setState({ sessions: { [session.id]: session }, sessionListRenderables: {} });
+        vi.spyOn(TokenStorage, 'getCredentialsForServerUrl').mockResolvedValue({ token: 'header.eyJzdWIiOiJtZSJ9.signature' });
+        vi.spyOn(runtimeFetch, 'runtimeFetch').mockImplementation(async () => Response.json({ success: true }));
+
+        await executeSessionAction({ actionId: SESSION_ACTION_DELETE_ID, target: createSessionActionTarget({ session, serverId }) });
+
+        expect(machineCleanupDeletedChatFolder).toHaveBeenCalledWith(
+            'machine-9',
+            '/home/chats/2026-11-15-724p',
+            { serverId },
+        );
     });
 });
 

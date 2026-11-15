@@ -5,6 +5,8 @@ src/daemon/machine/metadata.test.ts
 src/daemon/chatFolders/chatFolderTitleLink.test.ts
 src/daemon/chatFolders/removeEmptyChatFolder.test.ts
 src/daemon/chatFolders/initChatFolderRepo.test.ts
+src/daemon/chatFolders/cleanupDeletedChatFolder.test.ts
+src/api/machine/rpcHandlers.chatFolders.test.ts
 src/utils/fs/jsonOwnerFileLock.test.ts
 src/daemon/identity/store.test.ts
 src/backends/pi/rpc/PiRpcBackend.pendingTurnLifecycle.test.ts

@@ -907,6 +907,29 @@ export async function machineBash(
     }
 }
 
+/**
+ * Asks the daemon to remove what a deleted chat left in its own folder (repository, uploads, the
+ * ignore rule). The daemon keeps the folder when the chat left work in it. Never throws: cleanup
+ * must not turn a successful deletion into an error.
+ */
+export async function machineCleanupDeletedChatFolder(
+    machineId: string,
+    sessionPath: string,
+    options?: Readonly<{ serverId?: string | null }>,
+): Promise<{ success: boolean; removed: boolean }> {
+    try {
+        const result = await machineRpcWithServerScope<{ success?: boolean; removed?: boolean }, { sessionPath: string }>({
+            machineId,
+            method: RPC_METHODS.DAEMON_CHAT_FOLDER_CLEANUP,
+            payload: { sessionPath },
+            serverId: options?.serverId,
+        });
+        return { success: result?.success === true, removed: result?.removed === true };
+    } catch {
+        return { success: false, removed: false };
+    }
+}
+
 export async function machineCreateDirectory(
     machineId: string,
     path: string,

@@ -31,6 +31,17 @@ async function linkTarget(path: string): Promise<string | null> {
   }
 }
 
+/** Removes the title links that point at a chat folder; the folder itself stays. */
+export async function removeChatFolderTitleLinks(params: Readonly<{
+  chatsDir: string;
+  folder: string;
+}>): Promise<void> {
+  for (const entry of await readdir(params.chatsDir)) {
+    const path = join(params.chatsDir, entry);
+    if (await linkTarget(path) === params.folder) await unlink(path);
+  }
+}
+
 /**
  * Points `<chatsDir>/<title slug>` at a chat's own folder, so the folder can be found by the chat's
  * title. The folder itself is never renamed: agents key their transcripts by the session path.

@@ -41,6 +41,7 @@ sources/components/sessions/new/hooks/useCreateNewSession.daemonUnavailable.test
 sources/sync/sync.appStatePauseResume.test.ts
 sources/components/sessions/new/hooks/screenModel/useNewSessionPromptAutomationState.test.tsx
 sources/components/sessions/transcript/CommandView.syntaxHighlighting.test.tsx
+sources/components/sessions/actions/sessionActionExecution.test.ts
 sources/components/ui/media/SimpleSyntaxHighlighter.test.tsx
 sources/components/tools/renderers/system/BashView.test.tsx
 sources/components/tools/renderers/system/TaskOutputView.test.tsx
