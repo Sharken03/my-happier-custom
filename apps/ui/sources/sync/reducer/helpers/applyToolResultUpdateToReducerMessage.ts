@@ -79,6 +79,7 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
       (isPiAsyncSubagentLaunchToolResult(message.tool.result) &&
         !isPiAsyncSubagentLaunchToolResult(toolResult.content)));
 
+  console.log('[sync-trace]', 'tool-result', message.tool.name, toolResult.tool_use_id, 'state=', message.tool.state, 'supersede=', supersedesAsyncAgentLaunch, 'stream=', Boolean(coerceStreamingToolResultChunk(toolResult.content)));
   if (
     message.tool.state !== 'running' &&
     !isApprovedPlaceholder &&

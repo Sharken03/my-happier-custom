@@ -368,6 +368,8 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
 
     const messageSeq = (body as any).message?.seq;
     const normalizedMessageSeq = normalizeMessageSeq(messageSeq);
+    const traceId = `${sessionId.slice(-6)} seq=${normalizedMessageSeq} lid=${String((body as any).message?.localId ?? '').slice(0, 48)} upd=${(body as any).message?.updatedAt}`;
+    console.log('[sync-trace]', 'socket', inferLifecycle ? 'new' : 'upd', traceId);
     const rawMessage = 'message' in body
         ? (body as { message?: ApiMessage }).message
         : undefined;
@@ -386,6 +388,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
         && prevMaterializedMaxSeq >= normalizedMessageSeq
         && sessionMessagesLoaded
     ) {
+        console.log('[sync-trace]', 'replay-skip', traceId, 'max=', prevMaterializedMaxSeq);
         if (params.realtimeProjectionMode === 'enabled') {
             applyAlreadyLoadedReplayProjectionPatch({
                 session,
@@ -425,6 +428,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
         messagesLoaded: sessionMessagesLoaded,
         messageSeq: normalizedMessageSeq,
     });
+    console.log('[sync-trace]', 'route', traceId, routeDecision.route, routeDecision.reason, 'mode=', realtimeProjectionMode, 'loaded=', sessionMessagesLoaded, 'viewed=', sessionActivelyViewed);
     if (realtimeProjectionMode === 'enabled' && routeDecision.route === 'projectionOnly') {
         applyProjectionOnlySessionPatch({
             session,
@@ -506,6 +510,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
             return;
         }
         const sessionForApply = sessionAfterRead ?? session;
+        if (!decrypted) console.log('[sync-trace]', 'no-decrypt', traceId);
         if (decrypted) {
             if (isLegacyMemoryArtifactTranscriptRow(decrypted)) {
                 return;
@@ -532,6 +537,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
                     normalizeMessage,
                 )
                 : normalizeMessage();
+            if (!lastMessage) console.log('[sync-trace]', 'normalize-null', traceId);
             if (lastMessage) {
                 applyTranscriptObservationMetadata(lastMessage, rawMessage);
                 if (typeof rawMessage.updatedAt === 'number') lastMessage.serverUpdatedAt = rawMessage.updatedAt;
@@ -601,6 +607,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
             if (lastMessage) {
                 const normalizedMessage = lastMessage;
                 if (enqueueMessages) {
+                    console.log('[sync-trace]', 'enqueue', traceId);
                     enqueueMessages(sessionId, [normalizedMessage]);
                     if (telemetryFields) {
                         syncPerformanceTelemetry.count('sync.sessions.socket.message.apply', {
@@ -612,6 +619,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
                     }
                 } else {
                     const applyMessage = () => {
+                        console.log('[sync-trace]', 'apply-direct', traceId);
                         applyMessages(sessionId, [normalizedMessage]);
                     };
                     if (telemetryFields) {

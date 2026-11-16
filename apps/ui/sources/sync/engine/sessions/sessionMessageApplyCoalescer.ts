@@ -77,7 +77,7 @@ export function createSessionMessageApplyCoalescer(params: Readonly<{
         for (const entry of entries) {
             if (entry.shouldContinue()) {
                 messages.push(entry.message);
-            }
+            } else console.log('[sync-trace]', 'coalescer-drop', entry.message.seq);
         }
         return messages;
     }
@@ -333,7 +333,7 @@ export function createSessionMessageApplyCoalescer(params: Readonly<{
         if (!state || state.queued.length === 0) return 0;
         let maxSeq = 0;
         for (const entry of state.queued) {
-            if (!entry.shouldContinue()) continue;
+            if (!entry.shouldContinue()) { console.log('[sync-trace]', 'coalescer-drop2', entry.message.seq); continue; }
             const seq = entry.message.seq;
             if (typeof seq !== 'number' || !Number.isFinite(seq)) continue;
             maxSeq = Math.max(maxSeq, Math.trunc(seq));

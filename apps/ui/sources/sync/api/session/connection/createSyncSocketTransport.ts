@@ -62,11 +62,13 @@ export function createSyncSocketTransport(params: Readonly<{
     const stopUiFocus = subscribeToRuntimeActiveChange(publishUiFocus, { includeWindowFocus: true });
 
     socket.on('connect', () => {
+        console.log('[sync-trace]', 'socket-connect');
         publishUiFocus();
         connectedListeners.forEach((listener) => listener());
     });
 
     socket.on('disconnect', (reason: string) => {
+        console.log('[sync-trace]', 'socket-disconnect', reason);
         const event: TransportDisconnectEvent = {
             intentional: intentionalDisconnect,
             reason,

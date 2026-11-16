@@ -940,6 +940,7 @@ const sessionShellRefreshCoalescer = createSessionShellRefreshCoalescer({
 const socketMessageApplyCoalescer = createSessionMessageApplyCoalescer({
     getConfig: getSocketMessageApplyConfig,
     applyBatch: (sessionId, messages) => {
+        console.log('[sync-trace]', 'batch', sessionId.slice(-6), messages.map((m) => m.seq).join(','), 'handlers=', Boolean(socketMessageApplyHandlers));
         socketMessageApplyHandlers?.applyMessages(sessionId, messages);
     },
     onBatchApplied: (sessionId, messages) => {
@@ -1409,7 +1410,7 @@ export async function handleUpdateContainer(params: {
                 sessionShellRefreshCoalescer.request(sessionId);
             },
             applyMessages: (sessionId, messages) => {
-                if (!shouldContinue()) return;
+                if (!shouldContinue()) { console.log('[sync-trace]', 'apply-dropped', sessionId.slice(-6), messages.map((m) => m.seq).join(',')); return; }
                 applyMessages(sessionId, messages);
             },
             enqueueMessages: (sessionId, messages) => socketMessageApplyCoalescer.enqueue(sessionId, messages, {
@@ -1496,7 +1497,7 @@ export async function handleUpdateContainer(params: {
                 sessionShellRefreshCoalescer.request(sessionId);
             },
             applyMessages: (sessionId, messages) => {
-                if (!shouldContinue()) return;
+                if (!shouldContinue()) { console.log('[sync-trace]', 'apply-dropped', sessionId.slice(-6), messages.map((m) => m.seq).join(',')); return; }
                 applyMessages(sessionId, messages);
             },
             onNormalizedMessagesApplied: ingestWorkspaceMutationMessages,
