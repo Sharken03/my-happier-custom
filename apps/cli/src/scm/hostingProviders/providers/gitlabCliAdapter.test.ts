@@ -196,8 +196,8 @@ describe('gitlabCliAdapter', () => {
         })).resolves.toEqual({
             reviewId: 'disc-1',
             url: 'https://gitlab.com/happier-dev/mobile/app/-/merge_requests/17',
-            // One inline comment landed; the event is a plain comment, so there is no verdict to report.
-            postedCommentCount: 1,
+            // Both inline comments landed; the event is a plain comment, so there is no verdict to report.
+            postedCommentCount: 2,
         });
 
         expect(runCommand).toHaveBeenNthCalledWith(1, {
