@@ -87,7 +87,8 @@ describe('createPiSubagentSidechainMirror', () => {
         sent.push({ body, localId: opts.localId });
       },
     });
-    const observation = readPiSubagentSessionObservation(updateEvent(sessionFile))!;
+    const observation = readPiSubagentSessionObservation(updateEvent(sessionFile));
+    if (observation?.kind !== 'sessions') throw new Error('expected a sessions observation');
 
     // The child has not created its file yet.
     await mirror.observe(observation);
