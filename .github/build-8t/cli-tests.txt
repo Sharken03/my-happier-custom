@@ -1,5 +1,5 @@
-# Vitest files (relative to apps/cli) for the fork's own CLI changes; build-cli.yml
-# runs them with the CLI typecheck before it packs.
+# Vitest files (relative to apps/cli) for the fork's own CLI changes; build-cli.yml runs them with the CLI typecheck before it packs.
+# *.integration.test.ts entries run under vitest.integration.config.ts; build-cli.yml splits the list so they are not skipped.
 src/daemon/chatFolders/chatsDir.test.ts
 src/daemon/machine/metadata.test.ts
 src/daemon/chatFolders/chatFolderTitleLink.test.ts

@@ -98,8 +98,16 @@ jobs:
         run: |
           set -euo pipefail
           yarn -s typecheck
-          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d')
-          yarn -s vitest run --config vitest.config.ts "${tests[@]}"
+          # The unit config excludes *.integration.test.ts by pattern, so a listed integration file
+          # would be silently skipped. Split the list so each file runs under the config that owns it.
+          mapfile -t unit_tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d' | grep -v '\.integration\.test\.ts$' || true)
+          mapfile -t integration_tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d' | grep '\.integration\.test\.ts$' || true)
+          if [ "${#unit_tests[@]}" -gt 0 ]; then
+            yarn -s vitest run --config vitest.config.ts "${unit_tests[@]}"
+          fi
+          if [ "${#integration_tests[@]}" -gt 0 ]; then
+            yarn -s vitest run --config vitest.integration.config.ts "${integration_tests[@]}"
+          fi
 
       # The steps of scripts/pipeline/npm/release-packages.mjs for the CLI, without the Windows
       # service launcher (built on Windows there; this tarball is for Linux on the 8T).
