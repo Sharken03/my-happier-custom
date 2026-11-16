@@ -1204,8 +1204,9 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     approval: APPROVAL_RESULT_OPTIONAL_DEFERRED,
     // `surfaces.session_agent` (below) is availability: may the surface call this at all.
     // `toolExposure.session_agent` is presentation: is the tool declared directly to the model.
-    // Only the latter changes here. Direct exposure widens what a model may call; approval
-    // stays the remaining gate. Roll back per-user via
+    // Only the latter changes here. Direct exposure is presentation only: the action is `safe`,
+    // so the remaining gates are the action being enabled in settings plus whatever
+    // `review.start` itself checks. Roll back per-user via
     // actions.review.start.toolExposureModes.session_agent = 'discoverable_only' in settings.
     toolExposure: { session_agent: 'direct' },
     placements: ['agent_input_chips', 'session_action_menu', 'command_palette', 'slash_command', 'voice_panel'],
@@ -1713,7 +1714,7 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     title: 'Send to execution run',
     safety: 'safe',
     approval: APPROVAL_RESULT_OPTIONAL_DEFERRED,
-    // Direct session-agent exposure; approval remains the gate (see review.start note).
+    // Direct session-agent exposure; presentation only (see review.start note).
     toolExposure: { session_agent: 'direct' },
     placements: ['run_card'],
     bindings: { voiceClientToolName: 'sendExecutionRunMessage', mcpToolName: 'execution_run_send' },
@@ -1769,8 +1770,6 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     title: 'Apply execution run action',
     safety: 'safe',
     approval: APPROVAL_RESULT_OPTIONAL_DEFERRED,
-    // Direct session-agent exposure; approval remains the gate (see review.start note).
-    toolExposure: { session_agent: 'direct' },
     placements: ['run_card'],
     bindings: { voiceClientToolName: 'actionExecutionRun', mcpToolName: 'execution_run_action' },
     examples: {

@@ -14,8 +14,7 @@ export { ACTION_TOOL_EXPOSURE_SURFACES };
  *
  * Non-read-only actions that should also be directly exposed to session agents
  * must NOT be added here; they declare `toolExposure: { session_agent: 'direct' }`
- * on their own spec instead (see `review.start`, `execution.run.send`,
- * `execution.run.action`). Two distinct fields:
+ * on their own spec instead (see `review.start`, `execution.run.send`). Two distinct fields:
  * - `surfaces.session_agent` (boolean) — availability: may the surface call the action.
  * - `toolExposure.session_agent` (`direct` | `discoverable_only`) — presentation: is the
  *   tool declared to the model.

@@ -2976,6 +2976,7 @@ export {
 export {
   ReviewFindingsV2Schema,
   ReviewPublicationOverlaySchema,
+  ReviewPendingPublicationOverlaySchema,
   ReviewResolutionStateSchema,
   ReviewResolutionOverlaySchema,
   ReviewResolutionUpdateSchema,
@@ -2983,6 +2984,7 @@ export {
   mergeReviewResolutionUpdate,
   type ReviewFindingsV2,
   type ReviewPublicationOverlay,
+  type ReviewPendingPublicationOverlay,
   type ReviewResolutionState,
   type ReviewResolutionOverlay,
   type ReviewResolutionUpdate,

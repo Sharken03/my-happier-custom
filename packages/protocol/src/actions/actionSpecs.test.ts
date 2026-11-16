@@ -9,6 +9,7 @@ import {
   SessionUsageLimitWaitResumeEnableRequestV1Schema,
 } from '../sessionWorkState/sessionWorkStateRpc.js';
 import { serializeActionSpec } from './actionCatalog.js';
+import { resolveActionToolExposureMode } from './actionToolExposure.js';
 import { ActionApprovalSchema, ActionOperationDeclarationV1Schema, ActionSpecSchema, ActionSurfaceSchema, getActionSpec, isActionSpecSurfacedOn, listActionSpecs, listActionSpecsForSurface, listVoicePromptHotPathSpecs, resolveActionApprovalFlow } from './actionSpecs.js';
 
 it('accepts the existing empty mode id to clear a native override', () => {
@@ -278,7 +279,7 @@ describe('Action Spec Registry', () => {
     expect(spec.safety).toBe('danger');
     expect(spec.approval).toEqual({ result: 'required' });
     expect(spec.bindings?.mcpToolName).toBe('review_finding_apply');
-    expect(spec.toolExposure).toBeUndefined();
+    expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('discoverable_only');
 
     // read_only default, and the caller may still escalate explicitly.
     const parsed = spec.inputSchema.parse({

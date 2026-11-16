@@ -17,6 +17,18 @@ export const ReviewPublicationOverlaySchema = lazySchema(() => z.object({
 }).passthrough());
 export type ReviewPublicationOverlay = z.infer<typeof ReviewPublicationOverlaySchema>;
 
+// Markers written before an outward publish so that a retry after a lost
+// provider response does not post a duplicate review. `requestFingerprint` is a
+// client-generated dedupe key the runtime may supply; it is advisory.
+export const ReviewPendingPublicationOverlaySchema = lazySchema(() => z.object({
+  findings: z.array(z.object({
+    id: z.string().min(1),
+    startedAtMs: z.number().int().nonnegative(),
+    requestFingerprint: z.string().min(1).optional(),
+  }).passthrough()),
+}).passthrough());
+export type ReviewPendingPublicationOverlay = z.infer<typeof ReviewPendingPublicationOverlaySchema>;
+
 export const ReviewResolutionStateSchema = lazySchema(() => z.enum([
   'open',
   'applying',
@@ -44,7 +56,7 @@ export type ReviewResolutionOverlay = z.infer<typeof ReviewResolutionOverlaySche
 // of finding ids.
 export const ReviewResolutionUpdateSchema = lazySchema(() => z.object({
   state: ReviewResolutionStateSchema,
-  findingIds: z.array(z.string().min(1)),
+  findingIds: z.array(z.string().min(1)).min(1),
   updatedAtMs: z.number().int().nonnegative().optional(),
   note: z.string().min(1).optional(),
 }).passthrough());
@@ -85,6 +97,7 @@ export const ReviewFindingsV2Schema = lazySchema(() => z.object({
   assumptions: z.array(ReviewAssumptionSchema).default([]),
   triage: ReviewTriageOverlaySchema.optional(),
   publication: ReviewPublicationOverlaySchema.optional(),
+  pendingPublication: ReviewPendingPublicationOverlaySchema.optional(),
   resolution: ReviewResolutionOverlaySchema.optional(),
   limits: z.object({
     findingsTruncated: z.boolean().optional(),

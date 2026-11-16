@@ -138,20 +138,39 @@ export type ReviewModelPolicySettings = Readonly<{
 
 /**
  * The fast/deep refs a call-site `--depth` flag borrows from the configured account/engine
- * policies. First `depth` policy wins: account default, then any engine override. Null when no
- * depth policy is configured anywhere, in which case a bare `--depth` flag cannot name a pair.
+ * policies. When `targetEngineId` is given, that engine's override wins and the account default
+ * is the fallback. Without a target, the account default wins and at most one engine override may
+ * remain: two or more depth overrides are ambiguous and return null rather than guessing (the
+ * "silent wrong model" this plan forbids). Null when no depth policy is configured or the
+ * ambiguity cannot be resolved, in which case a bare `--depth` flag cannot name a pair.
  */
 export function resolveReviewModelPolicyDepthRefs(
   settings: ReviewModelPolicySettings | null | undefined,
+  targetEngineId?: string | null,
 ): Readonly<{ fast: ReviewModelRef; deep: ReviewModelRef }> | null {
   const account = settings?.modelPolicy;
-  if (account?.kind === 'depth') return { fast: account.fast, deep: account.deep };
   const engines = settings?.engines;
+
+  if (targetEngineId) {
+    const target = engines?.[targetEngineId]?.modelPolicy;
+    if (target?.kind === 'depth') return { fast: target.fast, deep: target.deep };
+    if (account?.kind === 'depth') return { fast: account.fast, deep: account.deep };
+    return null;
+  }
+
+  if (account?.kind === 'depth') return { fast: account.fast, deep: account.deep };
+
   if (engines) {
+    let found: Readonly<{ fast: ReviewModelRef; deep: ReviewModelRef }> | null = null;
     for (const engineId of Object.keys(engines)) {
       const policy = engines[engineId]?.modelPolicy;
-      if (policy?.kind === 'depth') return { fast: policy.fast, deep: policy.deep };
+      if (policy?.kind === 'depth') {
+        if (found) return null;
+        found = { fast: policy.fast, deep: policy.deep };
+      }
     }
+    return found;
   }
+
   return null;
 }

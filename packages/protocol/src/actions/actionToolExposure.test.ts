@@ -24,7 +24,7 @@ describe('actionToolExposure', () => {
   });
 
   it('defaults ordinary session-agent action-backed tools to discoverable-only', () => {
-    for (const id of ['subagents.delegate.start', 'execution.run.start', 'session.status.get'] as const) {
+    for (const id of ['subagents.delegate.start', 'execution.run.start', 'session.status.get', 'execution.run.action'] as const) {
       const spec = getActionSpec(id);
 
       expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('discoverable_only');
@@ -51,7 +51,7 @@ describe('actionToolExposure', () => {
   });
 
   it('directly exposes review tools to session agents by default', () => {
-    for (const id of ['review.start', 'execution.run.send', 'execution.run.action'] as const) {
+    for (const id of ['review.start', 'execution.run.send'] as const) {
       const spec = getActionSpec(id);
 
       expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('direct');

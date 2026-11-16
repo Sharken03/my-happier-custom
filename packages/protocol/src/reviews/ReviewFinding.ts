@@ -36,12 +36,13 @@ export const ReviewFindingSchema = lazySchema(() => z.object({
   suggestion: z.string().min(1).optional(),
   patch: z.string().min(1).optional(),
   // Opaque hash of the anchored line, used only to re-anchor the finding after
-  // the file moved. It is the workspace anchor hash (`line-content-hash-v1`,
-  // `lh1:` + 16 hex, FNV-1a) so a finding re-verifies with the same code as a
-  // workspace anchor; callers must still treat it as an opaque token.
+  // the file moved. The value is opaque: do not parse or validate its format,
+  // because a format change must not break stored payloads. The producer is
+  // `computeLineContentHashV1` in `workspace/anchors/v1.ts`. The pair
+  // (`lineHash` + `lineHashAlgorithm`) is advisory.
   lineHash: z.string().min(1).optional(),
-  // Algorithm identifier for `lineHash`. Currently `line-content-hash-v1`,
-  // i.e. `computeLineContentHashV1` from workspace/anchors/v1.
+  // Algorithm identifier for `lineHash`, naming the producer that computed it
+  // (currently `computeLineContentHashV1` in `workspace/anchors/v1.ts`). Advisory.
   lineHashAlgorithm: z.string().min(1).optional(),
 }).passthrough());
 

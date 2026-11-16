@@ -4,6 +4,7 @@ import {
   mergeReviewResolutionUpdate,
   parseReviewFindingsV2,
   ReviewFindingsV2Schema,
+  ReviewResolutionUpdateSchema,
 } from './reviewFindingsV2.js';
 import { parseReviewFindingsV1, ReviewFindingsV1Schema } from './reviewFindingsV1.js';
 
@@ -75,6 +76,33 @@ describe('ReviewFindingsV2 resolution overlay', () => {
     })!;
     const merged = mergeReviewResolutionUpdate(payload, { state: 'wontfix', findingIds: ['f1'] });
     expect(merged.resolution?.findings).toEqual([{ id: 'f1', state: 'wontfix' }]);
+  });
+
+  it('rejects an empty findingIds list on a resolution update', () => {
+    expect(ReviewResolutionUpdateSchema.safeParse({ state: 'fixed', findingIds: [] }).success).toBe(false);
+    expect(ReviewResolutionUpdateSchema.safeParse({ state: 'fixed', findingIds: ['f1'] }).success).toBe(true);
+  });
+
+  it('parses a pendingPublication overlay', () => {
+    const parsed = parseReviewFindingsV2({
+      ...baseV2,
+      pendingPublication: {
+        findings: [{ id: 'f1', startedAtMs: 5, requestFingerprint: 'fp-1' }],
+      },
+    });
+    expect(parsed?.pendingPublication?.findings).toEqual([
+      { id: 'f1', startedAtMs: 5, requestFingerprint: 'fp-1' },
+    ]);
+  });
+
+  it('parses a pendingPublication overlay without a requestFingerprint', () => {
+    const parsed = parseReviewFindingsV2({
+      ...baseV2,
+      pendingPublication: {
+        findings: [{ id: 'f1', startedAtMs: 5 }],
+      },
+    });
+    expect(parsed?.pendingPublication?.findings).toEqual([{ id: 'f1', startedAtMs: 5 }]);
   });
 
   it('leaves v1 payloads unaffected', () => {
