@@ -191,6 +191,12 @@ import type {
     SessionTurnsProjectionV1,
 } from '@happier-dev/protocol';
 import { calculateCost } from '@/utils/pricing';
+import {
+    piSubagentUsageFolder,
+    readPiSubagentUsageReports,
+    resolvePiAgentDir,
+    writePiSubagentOwnerFile,
+} from './piSubagentUsageReports';
 import { buildAcpAgentMessageEnvelope, shouldTraceAcpMessageType } from './acpMessageEnvelope';
 import { normalizeAcpSessionMessageBody, normalizeCodexSessionMessageBody } from './sessionOutboundMessageNormalization';
 import {
@@ -4172,6 +4178,13 @@ export class ApiSessionClient extends EventEmitter {
             } catch (error) {
                 logger.debug('[SOCKET] Failed to send usage data:', serializeAxiosErrorForLog(error));
             }
+            if (configuration.countPiSubagentUsage) {
+                try {
+                    this.sendPiSubagentUsageReports();
+                } catch (error) {
+                    logger.debug('[SOCKET] Failed to send Pi subagent usage:', serializeAxiosErrorForLog(error));
+                }
+            }
         }
 
         // Update metadata with summary if this is a summary message
@@ -5406,6 +5419,29 @@ export class ApiSessionClient extends EventEmitter {
             return;
         }
         this.socket.emit('usage-report', usageReport);
+    }
+
+    private piSubagentOwnerWritten = false;
+    private readonly lastPiSubagentReports = new Map<string, string>();
+
+    /**
+     * Sends the running usage totals of the Pi subagents of this Claude chat that changed since
+     * the last send. The first call writes owner.json, so Pi subagents that later Bash commands
+     * start report to this session (the assistant message comes before its tool calls run).
+     */
+    private sendPiSubagentUsageReports(): void {
+        const folder = piSubagentUsageFolder(resolvePiAgentDir(process.env), this.sessionId);
+        if (!this.piSubagentOwnerWritten) {
+            writePiSubagentOwnerFile(folder, process.pid);
+            this.piSubagentOwnerWritten = true;
+        }
+        if (!this.socket.connected) return;
+        for (const report of readPiSubagentUsageReports(folder, this.sessionId, process.pid)) {
+            const text = JSON.stringify(report);
+            if (this.lastPiSubagentReports.get(report.key) === text) continue;
+            this.lastPiSubagentReports.set(report.key, text);
+            this.socket.emit('usage-report', report);
+        }
     }
 
     /**

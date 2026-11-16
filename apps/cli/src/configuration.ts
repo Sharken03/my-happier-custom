@@ -339,6 +339,11 @@ class Configuration {
   // Claude Task tool policy (remote mode).
   public readonly claudeTaskAllowRunInBackground: boolean
   /**
+   * HAPPIER_COUNT_PI_SUBAGENT_USAGE: a Claude chat also reports the usage of the Pi subagents that
+   * its Bash commands start (see api/session/piSubagentUsageReports.ts). Default off.
+   */
+  public readonly countPiSubagentUsage: boolean
+  /**
    * When a user aborts a Claude session, the vendor SDK may surface a cancellation as a process-level
    * unhandledRejection (known "Operation aborted" error). Within this short window after a user abort,
    * the CLI treats that specific error as non-fatal so the session runner does not crash and respawn.
@@ -874,6 +879,9 @@ class Configuration {
       .trim()
       .toLowerCase();
     this.claudeTaskAllowRunInBackground = ['1', 'true', 'yes', 'on'].includes(allowTaskBackgroundRaw);
+    this.countPiSubagentUsage = ['1', 'true', 'yes', 'on'].includes(
+      String(process.env.HAPPIER_COUNT_PI_SUBAGENT_USAGE ?? '').trim().toLowerCase(),
+    );
 
     // Default: 10s. Set to 0 to disable suppression.
     this.claudeAbortUnhandledRejectionIgnoreWindowMs = resolveIntEnvWithBounds(
