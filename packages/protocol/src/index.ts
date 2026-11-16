@@ -3755,3 +3755,16 @@ export {
   type ClaudeSessionRetentionPolicyV1,
   type ClaudeSessionRetentionReportV1,
 } from './providers/claude/sessionRetention.js';
+export {
+  PI_CHAT_CHANGES_TEXT_MAX_BYTES,
+  PiChatChangesDiffRequestSchema,
+  PiChatChangesDiffResponseSchema,
+  PiChatChangesFileSchema,
+  PiChatChangesListRequestSchema,
+  PiChatChangesListResponseSchema,
+  type PiChatChangesDiffRequest,
+  type PiChatChangesDiffResponse,
+  type PiChatChangesFile,
+  type PiChatChangesListRequest,
+  type PiChatChangesListResponse,
+} from './piChatChanges.js';

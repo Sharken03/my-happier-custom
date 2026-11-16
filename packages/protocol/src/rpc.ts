@@ -327,6 +327,9 @@ export const SESSION_RPC_METHODS = {
   EXECUTION_RUN_ACTION: 'execution.run.action',
   SESSION_ROLLBACK: 'session.rollback',
   EPHEMERAL_TASK_RUN: 'ephemeral.task.run',
+  /** Pi sessions only: files the chat changed outside git (see piChatChanges.ts). */
+  PI_CHAT_CHANGES_LIST: 'pi.chatChanges.list',
+  PI_CHAT_CHANGES_DIFF: 'pi.chatChanges.diff',
 } as const;
 
 export function isDelegatedSessionApprovalRpcMethod(methodSuffix: string): boolean {
