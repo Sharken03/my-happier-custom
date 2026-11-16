@@ -41,10 +41,17 @@ runs:
           sdk=/usr/local/lib/android/sdk
           dirs+=("$sdk"/ndk/* "$sdk/ndk-bundle" "$sdk/emulator" "$sdk/system-images")
         fi
-        for d in "${dirs[@]}"; do sudo rm -rf $d & done
-        # Preloaded Docker images: several GB, and this build runs no container.
-        (sudo docker image prune --all --force >/dev/null 2>&1 || true) &
-        wait
+        # The 4-CPU runners have ~88 GB free on /, where the removal only costs time (26-51 s).
+        # The APK build used up to ~35 GB on the smaller runners, so 60 GB free is enough.
+        root_avail=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+        if [ "${root_avail:-0}" -ge 60 ]; then
+          echo "${root_avail} GB free on /; no toolchains removed"
+        else
+          for d in "${dirs[@]}"; do sudo rm -rf $d & done
+          # Preloaded Docker images: several GB, and this build runs no container.
+          (sudo docker image prune --all --force >/dev/null 2>&1 || true) &
+          wait
+        fi
         # /mnt helps only as a second disk; on the 2-CPU runners of private repositories it is a
         # folder on the same disk as /.
         if [ "$USE_MNT" = true ] && [ -d /mnt ] \

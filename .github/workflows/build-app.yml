@@ -166,6 +166,10 @@ jobs:
       - name: Set up ccache
         run: |
           set -euo pipefail
+          # First try the runner image's package lists: "apt-get update" took most of the 42 s of
+          # this step. The needrestart scan after the install is not needed on a runner.
+          export NEEDRESTART_SUSPEND=1
+          sudo -E apt-get install -y -qq --no-install-recommends ccache >/dev/null 2>&1 || true
           # The runner's package mirror sometimes does not resolve. Try three times; without ccache
           # the build still works, about 10 min slower.
           for attempt in 1 2 3; do
