@@ -109,6 +109,11 @@ jobs:
           set -euo pipefail
           yarn -s build
           node scripts/bundleWorkspaceDeps.mjs
+          # The tool archives (difftastic, ripgrep, zellij; ~157 MB) are glibc/macOS/Windows builds.
+          # Only the postinstall unpack-tools.cjs reads them, and the 8T installs with --ignore-scripts
+          # (it also has no android entry). At runtime the CLI looks in tools/unpacked or uses the
+          # system tools. The LICENSE files and checksums stay.
+          find tools/archives -type f \( -name '*.tar.gz' -o -name '*.zip' \) -delete
           out="$RUNNER_TEMP/cli-pack"
           mkdir -p "$out"
           node scripts/packTarball.mjs --dest-dir "$out"
