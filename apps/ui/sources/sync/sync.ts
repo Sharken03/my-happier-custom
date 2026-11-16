@@ -459,6 +459,7 @@ import {
 } from './engine/sessions/syncSessions';
 import { fetchAndApplyTargetWindowMessages, clearTargetWindowRequestEpochs } from './engine/sessions/fetchAndApplyTargetWindowMessages';
 import { fetchAndApplyTranscriptRepair } from './engine/sessions/fetchAndApplyTranscriptRepair';
+import { collectRunningToolRepairTargets } from './engine/sessions/collectRunningToolRepairTargets';
 import {
     buildSessionListFetchHydrationTelemetryFields,
     type SessionListFetchHydrationTelemetrySource,
@@ -5975,6 +5976,9 @@ class Sync {
               this.explicitSessionTailProbeIds.delete(sessionId);
           }
           if (isCatchUpWork) {
+              if (offlineForMs > 0 && this.lastSocketDisconnectedAtMs == null && shouldContinue()) {
+                  await this.repairRunningToolRowsAfterOffline(sessionId);
+              }
               this.markSocketOfflineCatchUpConsumedForSession(sessionId, offlineForMs);
           }
       }
@@ -7610,6 +7614,22 @@ class Sync {
               storage.getState().endSessionCatchUpNewer(sessionId);
           }
           return new Set();
+      }
+
+      /**
+       * `afterSeq` catch-up does not read a row again after this device has its seq, and the
+       * changes feed keeps only the latest hint per session. So a tool result that was completed
+       * in place while the socket was down stays "running" here. Re-read those rows once per
+       * offline period; nothing is fetched when no tool is running.
+       */
+      private async repairRunningToolRowsAfterOffline(sessionId: string): Promise<void> {
+          const targets = collectRunningToolRepairTargets(storage.getState().sessionMessages[sessionId]?.reducerState);
+          if (!targets) return;
+          try {
+              await this.fetchStaleTranscriptRegion(sessionId, targets);
+          } catch (error) {
+              log.log(`[sync] Running tool repair after offline failed for ${sessionId}: ${String(error)}`);
+          }
       }
 
       private async repairDeferredStaleTranscriptRegion(
