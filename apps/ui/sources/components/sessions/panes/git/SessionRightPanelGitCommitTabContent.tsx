@@ -260,6 +260,7 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
     return (
         <SessionRightPanelGitCommitTab
             listFooter={externalChangesFooter}
+            outsideRepositoryCount={piChatChanges.length}
             theme={props.theme}
             sessionId={props.sessionId}
             sessionPath={props.sessionPath}

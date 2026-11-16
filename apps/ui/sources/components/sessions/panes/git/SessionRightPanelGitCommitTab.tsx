@@ -63,6 +63,8 @@ export type SessionRightPanelGitCommitTabProps = Readonly<{
     onFilePressPinned: (file: ScmFileStatus) => void;
     /** Shown after the changed files, e.g. the chat's changes in other repositories. */
     listFooter?: React.ReactElement | null;
+    /** Files listed in `listFooter` that lie outside the repository; the header counts them. */
+    outsideRepositoryCount?: number;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -144,6 +146,7 @@ export const SessionRightPanelGitCommitTab = React.memo((props: SessionRightPane
                 onOpenReviewAllChanges={props.onOpenReviewAllChanges}
                 onOpenStashDetails={props.onOpenStashDetails}
                 listFooter={props.listFooter}
+                outsideRepositoryCount={props.outsideRepositoryCount}
             />
             {showCommitComposer ? (
                 <View style={footerStyle}>
@@ -288,6 +291,8 @@ type CommitChangesSurfaceProps = Readonly<{
     onFilePressPinned: (file: ScmFileStatus) => void;
     /** Shown after the changed files, e.g. the chat's changes in other repositories. */
     listFooter?: React.ReactElement | null;
+    /** Files listed in `listFooter` that lie outside the repository; the header counts them. */
+    outsideRepositoryCount?: number;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -406,10 +411,11 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
         || showSelectedViewToggle;
     const turnChangedFilesCount = turnChangedFiles.length;
     const sessionChangedFilesCount = sessionChangedFiles.length;
+    const outsideRepositoryCount = props.outsideRepositoryCount ?? 0;
     const scopedChangedFilesTitle = React.useMemo(() => {
         return resolveChangedFilesScopeTitle({
             changedFilesViewMode: props.changedFilesViewMode,
-            repositoryCount: repositoryChangedFiles.length,
+            repositoryCount: repositoryChangedFiles.length + outsideRepositoryCount,
             selectedCount: selectedChangedFiles.length,
             turnCount: turnChangedFilesCount,
             sessionCount: sessionChangedFilesCount,
@@ -417,6 +423,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
     }, [
         props.changedFilesViewMode,
         repositoryChangedFiles.length,
+        outsideRepositoryCount,
         selectedChangedFiles.length,
         sessionChangedFilesCount,
         turnChangedFilesCount,
@@ -594,7 +601,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
                                         {t('files.toolbar.changedFiles')}
                                     </Text>
                                     <Text style={{ fontSize: 11, color: themeTextSecondary, ...Typography.mono('semiBold') }}>
-                                        {String(repositoryChangedFiles.length)}
+                                        {String(repositoryChangedFiles.length + outsideRepositoryCount)}
                                     </Text>
                                 </View>
                             )}
@@ -765,7 +772,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
                 data={virtualizedChangedFiles}
                 keyExtractor={virtualizedKeyExtractor}
                 ListHeaderComponent={headerContent}
-                ListEmptyComponent={emptyChangedFilesContent}
+                ListEmptyComponent={outsideRepositoryCount > 0 ? null : emptyChangedFilesContent}
                 ListFooterComponent={props.listFooter ?? null}
                 contentContainerStyle={commitChangedFilesListContentContainerStyle}
                 renderItem={renderVirtualizedRow}
