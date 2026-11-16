@@ -6,6 +6,7 @@ import { findModelOptionForEffectiveModelId, getModelOptionsForSession } from '@
 import type { ToolCall } from '@/sync/domains/messages/messageTypes';
 import { readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
 import type { Metadata } from '@/sync/domains/state/storageTypes';
+import { readToolCallsSheetSubagentType } from '@/components/sessions/transcript/toolCallsSheet/toolCallsSheetSubagent';
 import { t } from '@/text';
 
 type SubagentToolPresentation = Readonly<{
@@ -91,7 +92,7 @@ function resolveManagedIntent(input: Record<string, unknown>): string | null {
 }
 
 function resolveNativeAgentType(input: Record<string, unknown>): string | null {
-    const raw = readFirstString(input, ['subagent_type', 'agent_type', 'role', 'nickname']);
+    const raw = readToolCallsSheetSubagentType({ input });
     return raw ? humanizeAgentType(raw) : null;
 }
 

@@ -24,6 +24,15 @@ describe('toolCallsSheetSubagent', () => {
         expect(readToolCallsSheetSubagentPrompt({ input: { prompt: '  ' } })).toBeNull();
     });
 
+    it('reads the agent and the tasks of a pi-subagents call', () => {
+        expect(readToolCallsSheetSubagentType({ input: { agent: 'scout', task: 'Map the parser' } })).toBe('scout');
+        expect(readToolCallsSheetSubagentPrompt({ input: { agent: 'scout', task: 'Map the parser' } })).toBe('Map the parser');
+        expect(readToolCallsSheetSubagentPrompt({
+            input: { tasks: [{ agent: 'scout', task: 'Map the parser' }, { agent: 'reviewer', task: 'Review it' }] },
+        })).toBe('scout: Map the parser\n\nreviewer: Review it');
+        expect(readToolCallsSheetSubagentPrompt({ input: { chain: [{ agent: 'planner', task: 'Plan' }] } })).toBe('planner: Plan');
+    });
+
     it('reads the report from string and content results', () => {
         expect(readToolCallsSheetSubagentReport({ state: 'completed', result: 'Done' })).toBe('Done');
         expect(readToolCallsSheetSubagentReport({

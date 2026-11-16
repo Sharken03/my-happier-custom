@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/text/Text';
 import { collectSubAgentSummaryTools } from './collectSubAgentSummaryTools';
 import { buildToolCallMessageRouteId } from '@/sync/domains/messages/messageRouteIds';
 import { navigateWithBlurOnWeb } from '@/utils/platform/navigateWithBlurOnWeb';
+import { readToolCallsSheetSubagentPrompt } from '@/components/sessions/transcript/toolCallsSheet/toolCallsSheetSubagent';
 
 type TaskOperation = 'run' | 'create' | 'list' | 'update' | 'unknown';
 
@@ -21,7 +22,7 @@ function inferOperation(input: any): TaskOperation {
     if (op === 'run' || op === 'create' || op === 'list' || op === 'update') return op;
     if (typeof input?.subject === 'string') return 'create';
     if (typeof input?.taskId === 'string' || typeof input?.taskId === 'number') return 'update';
-    if (typeof input?.prompt === 'string' || typeof input?.description === 'string') return 'run';
+    if (typeof input?.description === 'string' || readToolCallsSheetSubagentPrompt({ input }) !== null) return 'run';
     return 'unknown';
 }
 
@@ -44,8 +45,7 @@ function formatTaskLikeSummary(tool: ToolCall): string | null {
     }
     if (op === 'run') {
         const desc = typeof input?.description === 'string' ? input.description : null;
-        const prompt = typeof input?.prompt === 'string' ? input.prompt : null;
-        return desc ?? prompt ?? null;
+        return desc ?? readToolCallsSheetSubagentPrompt({ input });
     }
     return null;
 }

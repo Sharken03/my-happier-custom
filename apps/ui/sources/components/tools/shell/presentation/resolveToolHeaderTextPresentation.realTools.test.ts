@@ -81,6 +81,12 @@ describe('resolveToolHeaderTextPresentation (real known tools)', () => {
         expect(model.subtitle).toBe('Summarize third run');
     });
 
+    it('labels a pi-subagents call from its agent name', () => {
+        const tool = makeToolCall({ name: 'SubAgent', input: { agent: 'scout', task: 'Map the parser' } });
+        const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
+        expect(model.title).toBe('Scout Agent');
+    });
+
     it('keeps the generic Subagent fallback when no model, agent, or subagent type is known', () => {
         const tool = makeToolCall({ name: 'Task', input: { description: 'Summarize third run' } });
         const model = resolveToolHeaderTextPresentation({ tool, metadata: null });

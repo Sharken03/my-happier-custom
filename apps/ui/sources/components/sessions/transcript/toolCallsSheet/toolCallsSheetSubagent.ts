@@ -21,7 +21,8 @@ export function isToolCallsSheetSubagentCall(tool: Pick<ToolCall, 'name'>): bool
 export function readToolCallsSheetSubagentType(tool: Pick<ToolCall, 'input'>): string | null {
     const input = asRecord(tool.input);
     if (!input) return null;
-    for (const key of ['subagent_type', 'agent_type', 'role', 'nickname'] as const) {
+    // `agent` is the pi-subagents name of the same field.
+    for (const key of ['subagent_type', 'agent_type', 'role', 'nickname', 'agent'] as const) {
         const value = readNonBlankString(input[key]);
         if (value) return value.trim();
     }
@@ -32,7 +33,25 @@ export function readToolCallsSheetSubagentType(tool: Pick<ToolCall, 'input'>): s
 export function readToolCallsSheetSubagentPrompt(tool: Pick<ToolCall, 'input'>): string | null {
     const input = asRecord(tool.input);
     if (!input) return null;
-    return readNonBlankString(input.prompt) ?? readNonBlankString(input.task) ?? readNonBlankString(input.message);
+    return readNonBlankString(input.prompt)
+        ?? readNonBlankString(input.task)
+        ?? readNonBlankString(input.message)
+        ?? readPiSubagentStepTasks(input.tasks)
+        ?? readPiSubagentStepTasks(input.chain);
+}
+
+/** The parallel (`tasks`) or chain (`chain`) steps of a pi-subagents call, one "agent: task" each. */
+function readPiSubagentStepTasks(value: unknown): string | null {
+    if (!Array.isArray(value)) return null;
+    const parts: string[] = [];
+    for (const item of value) {
+        const step = asRecord(item);
+        const task = readNonBlankString(step?.task);
+        if (!task) continue;
+        const agent = readNonBlankString(step?.agent);
+        parts.push(agent ? `${agent.trim()}: ${task}` : task);
+    }
+    return parts.length > 0 ? parts.join('\n\n') : null;
 }
 
 function readTextParts(value: unknown): string | null {
