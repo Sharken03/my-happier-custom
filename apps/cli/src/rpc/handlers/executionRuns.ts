@@ -694,6 +694,7 @@ export function registerExecutionRunHandlers(
     const acted = await manager.applyAction(parsed.data.runId, {
       actionId: parsed.data.actionId,
       input: parsed.data.input,
+      ...(parsed.data.approvalGrant ? { approvalGrant: parsed.data.approvalGrant } : {}),
     }, {
       cwd: resolveCwd(),
       ...(ctx.resolveAccountSettings ? { accountSettings: await ctx.resolveAccountSettings() } : {}),

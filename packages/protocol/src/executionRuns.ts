@@ -221,10 +221,27 @@ export const ExecutionRunEnsureOrStartResponseSchema = lazySchema(() => z.union(
 ]));
 export type ExecutionRunEnsureOrStartResponse = z.infer<typeof ExecutionRunEnsureOrStartResponseSchema>;
 
+/**
+ * A caller's assertion that it already applied the approval requirement of the NESTED action it is
+ * dispatching through `execution.run.action`.
+ *
+ * `execution.run.action` is a `safe` action with optional-deferred approval, but it can dispatch any run
+ * action, including ones declared `danger` + approval `required`. The dispatcher cannot see the outer
+ * surface's approval state, so the surface states it here; without a grant a `danger` nested action is
+ * refused. The field is an assertion by the surface, not a proof: a surface that grants on its own is the
+ * trust boundary, which is why the granting surface is recorded.
+ */
+export const ExecutionRunActionApprovalGrantSchema = lazySchema(() => z.object({
+  grantedBy: z.enum(['cli', 'mcp', 'ui', 'session_agent', 'automation']),
+  grantedAtMs: z.number().int().nonnegative().optional(),
+}).passthrough());
+export type ExecutionRunActionApprovalGrant = z.infer<typeof ExecutionRunActionApprovalGrantSchema>;
+
 export const ExecutionRunActionRequestSchema = lazySchema(() => z.object({
   runId: z.string().min(1),
   actionId: z.string().min(1),
   input: z.unknown().optional(),
+  approvalGrant: ExecutionRunActionApprovalGrantSchema.optional(),
 }).passthrough());
 export type ExecutionRunActionRequest = z.infer<typeof ExecutionRunActionRequestSchema>;
 

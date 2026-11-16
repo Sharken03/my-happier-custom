@@ -107,7 +107,11 @@ describe('applyExecutionRunAction review.publish / review.finding.apply write-ba
       result: { mode: 'send_to_session', findingIds: ['f1'], sessionId: 'session-1' },
     });
     const { args } = makeHarness({
-      params: { actionId: 'review.finding.apply', input: { findingIds: ['f1'], mode: 'send_to_session' } },
+      params: {
+        actionId: 'review.finding.apply',
+        input: { findingIds: ['f1'], mode: 'send_to_session' },
+        approvalGrant: { grantedBy: 'cli' },
+      },
       deps: { cwd: '/repo' },
       enqueueParentSessionInput: vi.fn(async () => {}),
       spawnSession: vi.fn(async () => ({})),
@@ -117,4 +121,18 @@ describe('applyExecutionRunAction review.publish / review.finding.apply write-ba
     expect(result.ok).toBe(true);
     expect(mockedApply).toHaveBeenCalled();
   });
+  it('refuses the danger review.finding.apply nested action without an approval grant', async () => {
+    const { args } = makeHarness({
+      params: { actionId: 'review.finding.apply', input: { findingIds: ['f1'], mode: 'send_to_session' } },
+      deps: { cwd: '/repo' },
+      enqueueParentSessionInput: vi.fn(async () => {}),
+      spawnSession: vi.fn(async () => ({})),
+    });
+    const result = await applyExecutionRunAction(args);
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_not_allowed' });
+    expect(String(result.error)).toContain('review.finding.apply');
+    expect(mockedApply).not.toHaveBeenCalled();
+  });
+
 });

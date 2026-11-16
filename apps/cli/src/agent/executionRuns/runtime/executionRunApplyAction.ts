@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  ACTION_SPECS,
   ReviewFindingsV1Schema,
   ReviewFindingsV2Schema,
   ReviewFollowUpInputSchema,
+  type ExecutionRunActionApprovalGrant,
   type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
@@ -96,6 +98,29 @@ async function commitActionOutcome(args: Readonly<{
     ok: true,
     ...(outcome.result !== undefined ? { result: outcome.result } : {}),
     updatedToolResult: output,
+  };
+}
+
+/**
+ * Re-derives the posture of a nested action id reached through `execution.run.action`.
+ *
+ * The dispatcher is declared `safety: 'safe'` with optional-deferred approval, but it can dispatch any run
+ * action — including one declared `danger` + approval `required`. The dispatcher cannot see the outer
+ * surface's approval state, so the surface asserts it in `approvalGrant`; a `danger` action without a grant
+ * is refused rather than run under the weaker outer gate. Returns null when the nested id is not `danger`
+ * or the caller granted approval.
+ */
+function denyUnapprovedDangerNestedAction(
+  actionId: string,
+  approvalGrant: ExecutionRunActionApprovalGrant | undefined,
+): ExecutionRunActionResult | null {
+  const spec = ACTION_SPECS.find((candidate) => candidate.id === actionId);
+  if (spec?.safety !== 'danger') return null;
+  if (approvalGrant) return null;
+  return {
+    ok: false,
+    errorCode: 'execution_run_not_allowed',
+    error: `Nested action "${actionId}" is a danger action and requires approval, but the caller supplied no approvalGrant. Dispatch it through a surface that applies its approval requirement and pass approvalGrant with the granting surface.`,
   };
 }
 
@@ -228,13 +253,10 @@ export async function applyExecutionRunAction(args: Readonly<{
   }
 
   if (run.intent === 'review' && String(args.params.actionId ?? '').trim() === 'review.finding.apply') {
-    // KNOWN GAP: `review.finding.apply` is declared `safety: 'danger'` + approval REQUIRED, but it is
-    // reached through `execution.run.action`, which is `safe` + optional-deferred and carries no approval
-    // signal, so nothing here can enforce the inner posture. It cannot be enforced by denying the nested id
-    // either: `execution.run.action` is the only route to a run action (there is no direct executor branch
-    // for it), so denying would make `happier session review fix` impossible. Closing this needs an approval
-    // signal on `ExecutionRunActionParams` (or a direct action route); until then the caller's own approval
-    // flow is the only gate.
+    // `review.finding.apply` is declared `safety: 'danger'` + approval REQUIRED while the generic
+    // dispatcher is `safe`, so the caller must assert that it applied the approval itself.
+    const denied = denyUnapprovedDangerNestedAction('review.finding.apply', args.params.approvalGrant);
+    if (denied) return denied;
     const deps = args.deps;
     const sendToSession = args.enqueueParentSessionInput;
     const spawnSession = args.spawnSession;

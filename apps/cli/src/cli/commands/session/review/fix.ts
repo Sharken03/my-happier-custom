@@ -124,7 +124,16 @@ export async function cmdSessionReviewFix(
   const executed = await executeRunServiceAction(
     executor,
     'execution.run.action',
-    { runId, actionId: 'review.finding.apply', input: fixInput },
+    {
+      runId,
+      actionId: 'review.finding.apply',
+      input: fixInput,
+      // `review.finding.apply` is declared `danger` + approval REQUIRED, while `execution.run.action` is a
+      // `safe` dispatcher that cannot see this command's approval state. Typing the command explicitly IS the
+      // approval on the CLI surface (there is no interactive prompt), so the surface asserts it here; without
+      // the grant the daemon refuses the nested action.
+      approvalGrant: { grantedBy: 'cli', grantedAtMs: Date.now() },
+    },
     sessionId,
   );
   if (!executed.ok) {

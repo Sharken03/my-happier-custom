@@ -2516,6 +2516,8 @@ export {
   ExecutionRunEnsureOrStartRequestSchema,
   ExecutionRunEnsureOrStartResponseSchema,
   ExecutionRunActionRequestSchema,
+  ExecutionRunActionApprovalGrantSchema,
+  type ExecutionRunActionApprovalGrant,
   ExecutionRunActionResponseSchema,
   ExecutionRunTurnStreamStartRequestSchema,
   ExecutionRunTurnStreamStartV2RequestSchema,

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { ActionIdSchema, type ActionId } from './actionIds.js';
 import { ActionUiPlacementSchema, type ActionUiPlacement } from './actionUiPlacements.js';
+import { ExecutionRunActionApprovalGrantSchema } from '../executionRuns.js';
 import { ReviewStartInputSchema } from '../reviews/reviewStart.js';
 import { ReviewFindingApplyInputSchema } from '../reviews/reviewFindingApply.js';
 import { ActionInputPredicateSchema, type ActionInputPredicate } from './actionInputPredicates.js';
@@ -534,6 +535,9 @@ const ExecutionRunSendInputSchema = lazySchema(() => ExecutionRunIdInputSchema.e
 const ExecutionRunActionInputSchema = lazySchema(() => ExecutionRunIdInputSchema.extend({
   actionId: z.string().min(1),
   input: z.unknown().optional(),
+  // The surface's assertion that it applied the nested action's approval requirement. A nested action
+  // declared `danger` + approval `required` is refused without it.
+  approvalGrant: ExecutionRunActionApprovalGrantSchema.optional(),
 }).passthrough());
 
 const ExecutionRunWaitInputSchema = lazySchema(() => ExecutionRunIdInputSchema.extend({
