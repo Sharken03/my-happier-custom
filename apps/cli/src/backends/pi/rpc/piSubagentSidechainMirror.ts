@@ -329,7 +329,11 @@ export function createPiSubagentSidechainMirror(params: {
     }
   };
 
+  /** Calls whose final pass ran. A status poll that started before can still queue a pass. */
+  const closedCallIds = new Set<string>();
+
   const forget = (callId: string, sessionFiles: readonly string[]): void => {
+    closedCallIds.add(callId);
     for (const sessionFile of sessionFiles) readStateByFile.delete(sessionFile);
     const prefix = `${callId}\u0000`;
     for (const key of sentKeys) if (key.startsWith(prefix)) sentKeys.delete(key);
@@ -342,6 +346,8 @@ export function createPiSubagentSidechainMirror(params: {
     // the same bytes twice.
     const previous = queueByCallId.get(callId) ?? Promise.resolve();
     const next = previous.then(async () => {
+      // The read state of a closed call is gone, so a pass would send the whole file again.
+      if (closedCallIds.has(callId)) return;
       try {
         for (const sessionFile of sessionFiles) {
           await mirrorFile(callId, sessionFile);
