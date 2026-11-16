@@ -20,6 +20,7 @@ import type { PiBackendOptions } from '@/backends/pi/acp/backend';
 import { resolveHappyToolsBridgeBackendOptions } from '@/backends/pi/bridgeExtension';
 import { publishPiSessionIdMetadata } from '@/backends/pi/utils/piSessionIdMetadata';
 import { resolvePiSessionIdFromResumeReference } from '@/backends/pi/utils/piSessionFiles';
+import { createPiSubagentSidechainMirror } from '@/backends/pi/rpc/piSubagentSidechainMirror';
 
 export function createPiAcpRuntime(params: {
   directory: string;
@@ -142,7 +143,18 @@ export function createPiAcpRuntime(params: {
 
       const promptFragments = [happyToolsBridge.sessionConfig.promptAddition, resolvedPromptText]
         .filter((fragment): fragment is string => typeof fragment === 'string' && fragment.trim().length > 0);
+      const subagentSidechainMirror = createPiSubagentSidechainMirror({
+        send: (body, opts) => session.sendAgentMessageCommitted('pi', body, opts),
+        onError: (error) => {
+          logger.warnFile('[pi] Subagent sidechain mirror failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      });
       return {
+        observeSubagentSessions: (observation) => {
+          void subagentSidechainMirror.observe(observation);
+        },
         // The runner already holds the CLI and the account credentials; it answers the
         // bridge's tool calls itself instead of a separate `tools serve` process.
         serveHostToolCalls: (channel: PiHostToolCallChannel) => {

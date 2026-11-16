@@ -7,6 +7,7 @@ import {
 } from '@/backends/pi/brokerExtension';
 import { PiRpcBackend, type PiHostToolCallChannel } from '@/backends/pi/rpc/PiRpcBackend';
 import { PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
+import type { PiSubagentSessionObservation } from '@/backends/pi/rpc/piSubagentSidechainMirror';
 import { readConnectedServiceChildSelectionsFromEnv } from '@/daemon/connectedServices/connectedServiceChildEnvironment';
 import { requireProviderCliLaunchSpec } from '@/runtime/managedTools/requireProviderCliLaunchSpec';
 import { parsePermissionIntentAlias, providers } from '@happier-dev/agents';
@@ -41,6 +42,8 @@ export interface PiBackendOptions extends AgentFactoryOptions {
    * `happier tools serve` process starts for this session.
    */
   serveHostToolCalls?: ((channel: PiHostToolCallChannel) => void) | null;
+  /** Mirrors `pi-subagents` child sessions into the subagent tool call's sidechain. */
+  observeSubagentSessions?: ((observation: PiSubagentSessionObservation) => void) | null;
 }
 
 // `null` means Happier must not override Pi's native tool catalog. Passing
@@ -167,6 +170,7 @@ export function createPiBackend(options: PiBackendOptions): AgentBackend {
       } satisfies PiBridgeSessionConfig)
       : null,
     serveHostToolCalls,
+    observeSubagentSessions: options.observeSubagentSessions ?? null,
     // The append text is delivered as a protected temp file by the backend itself; the
     // args above must never carry the literal prompt content.
     appendSystemPromptText: options.appendSystemPromptText ?? null,

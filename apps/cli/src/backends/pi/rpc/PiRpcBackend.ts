@@ -67,6 +67,7 @@ import {
   type PiContextTelemetry,
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
+import { readPiSubagentSessionObservation, type PiSubagentSessionObservation } from './piSubagentSidechainMirror';
 import { PiTurnChangeTracker, readPiEditPatch } from './piTurnChangeTracker';
 import {
   PI_EXTENSION_UI_METADATA_KEY,
@@ -683,6 +684,11 @@ export type PiRpcSpawnOptions = {
    * extension uses it instead of starting its own `happier tools serve` process.
    */
   serveHostToolCalls?: ((channel: PiHostToolCallChannel) => void) | null;
+  /**
+   * Receives the child session files of each `pi-subagents` `subagent` tool update and end, so
+   * the host can mirror the child transcript into the tool call's sidechain.
+   */
+  observeSubagentSessions?: ((observation: PiSubagentSessionObservation) => void) | null;
 };
 
 /** The host end of the bridge extension's tool-call pipe. */
@@ -702,6 +708,7 @@ export class PiRpcBackend implements AgentBackend {
     toolsBridgeConfigText: string | null;
   }>;
   private readonly serveHostToolCalls: ((channel: PiHostToolCallChannel) => void) | null;
+  private readonly observeSubagentSessions: ((observation: PiSubagentSessionObservation) => void) | null;
 
   private process: ChildProcessWithoutNullStreams | null = null;
   private appendSystemPromptArtifact: ProtectedTempTextArtifact | null = null;
@@ -768,6 +775,7 @@ export class PiRpcBackend implements AgentBackend {
   constructor(options: PiRpcSpawnOptions) {
     this.permissionHandler = options.permissionHandler ?? null;
     this.serveHostToolCalls = options.serveHostToolCalls ?? null;
+    this.observeSubagentSessions = options.observeSubagentSessions ?? null;
     this.options = {
       cwd: options.cwd,
       command: options.command,
@@ -2295,6 +2303,11 @@ export class PiRpcBackend implements AgentBackend {
     for (const msg of mappedMessages) {
       this.observeTurnChange(msg);
       this.emitMessage(msg);
+    }
+
+    if (this.observeSubagentSessions) {
+      const subagentSessions = readPiSubagentSessionObservation(normalizedEvent);
+      if (subagentSessions) this.observeSubagentSessions(subagentSessions);
     }
 
     this.handlePiAssistantFailureEvent(normalizedEvent);
