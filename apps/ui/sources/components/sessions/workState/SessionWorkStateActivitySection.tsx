@@ -164,7 +164,11 @@ function SessionWorkStateActivitySection(
             />
             {onOpenFullRoster ? (
                 <Pressable
-                    onPress={onOpenFullRoster}
+                    // Like a row press, leaving for the roster closes the popover it was opened from.
+                    onPress={() => {
+                        onRequestClose?.();
+                        onOpenFullRoster();
+                    }}
                     accessibilityRole="button"
                     accessibilityLabel={t('session.workState.activity.openFullRoster')}
                     style={styles.moreRow}

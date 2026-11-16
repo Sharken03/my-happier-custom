@@ -145,7 +145,7 @@ function seed(fixture: ReturnType<typeof import('@/dev/testkit')['makeSessionAge
  * returns. There is no component to render on its own — presence is the hook's answer, not a
  * question the section is asked after it has already painted.
  */
-function CompactActivityHost(props: Readonly<{ sessionId: string; onOpenFullRoster?: () => void }>) {
+function CompactActivityHost(props: Readonly<{ sessionId: string; onOpenFullRoster?: () => void; onRequestClose?: () => void }>) {
     return <>{useSessionWorkStateActivitySection(props)}</>;
 }
 
@@ -243,6 +243,27 @@ describe('the compact work-state surface and the Agents pane read ONE model', ()
         await testkit.flushHookEffects();
         expect(withLeadIn.findByTestId('session-work-state-activity-open-roster')).toBeTruthy();
         await withLeadIn.unmount();
+    }, 120_000);
+
+    it('closes the popover when "Open all agents" opens the roster', async () => {
+        const fixture = testkit.makeSessionAgentActivityFixture({
+            sessionId: SESSION_ID,
+            subagents: [{ key: 'alpha', title: 'Audit the auth flow', status: 'running' }],
+        });
+        seed(fixture);
+        const events: string[] = [];
+
+        const screen = await testkit.renderScreen(
+            <CompactActivityHost
+                sessionId={SESSION_ID}
+                onOpenFullRoster={() => events.push('open')}
+                onRequestClose={() => events.push('close')}
+            />,
+        );
+        await testkit.flushHookEffects();
+        screen.pressByTestId('session-work-state-activity-open-roster');
+        expect([...events].sort()).toEqual(['close', 'open']);
+        await screen.unmount();
     }, 120_000);
 
     /**
