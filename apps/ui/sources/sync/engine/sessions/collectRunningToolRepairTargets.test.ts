@@ -35,9 +35,12 @@ describe('collectRunningToolRepairTargets', () => {
             ['b', toolMessage({ id: 'b', realID: 'row-459', seq: 459, state: 'completed' })],
             ['c', toolMessage({ id: 'c', realID: 'row-681', seq: 681, state: 'running' })],
             ['d', toolMessage({ id: 'd', realID: null, seq: 700, state: 'running' })],
+            ['e', toolMessage({ id: 'e', realID: 'row-848', seq: 848, state: 'running' })],
         ]);
+        // A subagent's own tool calls get a new result row, which `afterSeq` catch-up reads.
+        const sidechains = new Map<string, ReducerMessage[]>([['call-a', [messages.get('e')!]]]);
 
-        expect(collectRunningToolRepairTargets({ messages })).toEqual({
+        expect(collectRunningToolRepairTargets({ messages, sidechains })).toEqual({
             minSeq: 477,
             messageIds: ['row-477', 'row-681'],
             messageSeqs: { 'row-477': 477, 'row-681': 681 },
@@ -49,6 +52,6 @@ describe('collectRunningToolRepairTargets', () => {
             ['b', toolMessage({ id: 'b', realID: 'row-459', seq: 459, state: 'completed' })],
         ]);
 
-        expect(collectRunningToolRepairTargets({ messages })).toBeNull();
+        expect(collectRunningToolRepairTargets({ messages, sidechains: new Map() })).toBeNull();
     });
 });
