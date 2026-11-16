@@ -122,6 +122,13 @@ export const ScmPullRequestCreateReviewResponseSchema = lazySchema(() => z.union
     success: z.literal(true),
     reviewId: z.string().min(1),
     url: z.string().url().nullable(),
+    /**
+     * Whether the provider recorded the requested verdict. Absent means it did (or applies it implicitly);
+     * false means the review exists but the verdict does not — GitLab has no request-changes state.
+     */
+    eventApplied: z.boolean().optional(),
+    /** Inline comments posted. Lower than requested means the provider applied the review partially. */
+    postedCommentCount: z.number().int().nonnegative().optional(),
   }),
   ScmPullRequestErrorResponseSchema,
 ]));

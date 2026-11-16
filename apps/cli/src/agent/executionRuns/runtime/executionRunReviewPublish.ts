@@ -630,6 +630,8 @@ async function publishSelectedFindings(params: Readonly<{
 
   let reviewId: string;
   let reviewUrl: string | null;
+  let eventApplied: boolean | undefined;
+  let postedCommentCount: number | undefined;
   try {
     const request: ScmPullRequestCreateReviewRequest = {
       cwd: context.cwd,
@@ -660,6 +662,8 @@ async function publishSelectedFindings(params: Readonly<{
     }
     reviewId = reviewResult.reviewId;
     reviewUrl = reviewResult.url;
+    eventApplied = reviewResult.eventApplied;
+    postedCommentCount = reviewResult.postedCommentCount;
   } catch (error) {
     return {
       ok: false,
@@ -714,6 +718,21 @@ async function publishSelectedFindings(params: Readonly<{
     payload: updatedPayload,
   };
 
+  // A verdict the provider could not record, or comments it applied only partly, must be visible in the
+  // result: the findings are marked published, so silence would read as "all of it landed".
+  const warnings: string[] = [];
+  if (eventApplied === false) {
+    warnings.push(
+      `The provider did not record the "${event}" verdict; GitLab has no request-changes state, so the review `
+        + 'exists as comments only.',
+    );
+  }
+  if (typeof postedCommentCount === 'number' && postedCommentCount !== comments.length) {
+    warnings.push(
+      `The provider recorded ${postedCommentCount} of ${comments.length} inline comments; the rest were not posted.`,
+    );
+  }
+
   return {
     ok: true,
     result: {
@@ -724,6 +743,9 @@ async function publishSelectedFindings(params: Readonly<{
         number: prNumber,
         url: reviewUrl ?? prUrl,
       },
+      ...(eventApplied === undefined ? {} : { eventApplied }),
+      ...(typeof postedCommentCount === 'number' ? { postedCommentCount } : {}),
+      ...(warnings.length > 0 ? { warnings } : {}),
     },
     updatedStructuredMeta,
     updatedToolResultMeta: { happier: updatedStructuredMeta },
