@@ -298,6 +298,9 @@ export function canonicalizeToolNameV2(opts: {
     // Tasks / notebooks.
     // Claude emits TaskCreate/TaskList/TaskUpdate; keep them unified for rendering.
     if (lower === 'task' || lower.startsWith('task')) return 'SubAgent';
+    // Pi's `subagent` tool also does management actions (`status`, `list`, `interrupt`, ...) that
+    // start no run. Only a call without `action` starts a subagent run.
+    if (lower === 'subagent' && typeof record.action === 'string' && record.action.trim().length > 0) return name;
     if (name === 'Agent' || lower === 'subagent') return 'SubAgent';
     if (lower === 'todowrite') return 'TodoWrite';
     if (lower === 'todoread') return 'TodoRead';
