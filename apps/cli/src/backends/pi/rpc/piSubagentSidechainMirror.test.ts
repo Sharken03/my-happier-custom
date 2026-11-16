@@ -68,6 +68,23 @@ describe('readPiSubagentSessionObservation', () => {
     expect(readPiSubagentSessionObservation({ ...updateEvent('/tmp/s/session.jsonl'), toolName: 'bash' })).toBeNull();
     expect(readPiSubagentSessionObservation(updateEvent('relative/session.jsonl'))).toBeNull();
   });
+
+  it('derives the child session files of a running foreground call from its run id', () => {
+    const running = {
+      type: 'tool_execution_update',
+      toolCallId: 'parent-call',
+      toolName: 'subagent',
+      partialResult: { details: { mode: 'parallel', runId: 'run-7', results: [{ agent: 'a' }, { agent: 'b' }] } },
+    };
+    // pi-subagents keys the run folder by the parent session file without its extension.
+    expect(readPiSubagentSessionObservation(running, { parentSessionFile: '/s/2026_abc.jsonl' })).toEqual({
+      kind: 'sessions',
+      callId: 'parent-call',
+      sessionFiles: ['/s/2026_abc/run-7/run-0/session.jsonl', '/s/2026_abc/run-7/run-1/session.jsonl'],
+      final: false,
+    });
+    expect(readPiSubagentSessionObservation(running)).toBeNull();
+  });
 });
 
 describe('createPiSubagentSidechainMirror', () => {

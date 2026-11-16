@@ -2309,7 +2309,7 @@ export class PiRpcBackend implements AgentBackend {
     }
 
     if (this.observeSubagentSessions) {
-      const subagentSessions = readPiSubagentSessionObservation(normalizedEvent);
+      const subagentSessions = readPiSubagentSessionObservation(normalizedEvent, { parentSessionFile: this.sessionFile });
       if (subagentSessions) this.observeSubagentSessions(subagentSessions);
     }
 

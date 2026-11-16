@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { open, readFile, stat } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 
 import { HAPPIER_DIFF_STATS_DETAILS_KEY } from '@happier-dev/protocol/tools/v2';
 
@@ -75,7 +75,25 @@ function readResultSessionFiles(results: unknown): string[] {
  * event. Returns null for any other event, and for a call without child sessions (for example
  * `action: "list"`).
  */
-export function readPiSubagentSessionObservation(event: unknown): PiSubagentSessionObservation | null {
+/**
+ * A foreground run reports its session files only when it ends. While it runs, the paths follow
+ * pi-subagents' default layout: `<parent session file without .jsonl>/<runId>/run-<index>/session.jsonl`.
+ * A configured session directory or a forked context uses other paths; those files never appear,
+ * so the mirror sends nothing until the end event gives the real paths.
+ */
+function deriveRunningSessionFiles(details: Record<string, unknown> | null, parentSessionFile: string): string[] {
+  const runId = asNonEmptyString(details?.runId);
+  if (!runId || details?.asyncId !== undefined || !/^[\w.-]+$/u.test(runId)) return [];
+  const results = Array.isArray(details?.results) ? details.results.length : 0;
+  const progress = Array.isArray(details?.progress) ? details.progress.length : 0;
+  const root = join(dirname(parentSessionFile), basename(parentSessionFile, '.jsonl'), runId);
+  return Array.from({ length: Math.max(results, progress, 1) }, (_, index) => join(root, `run-${index}`, 'session.jsonl'));
+}
+
+export function readPiSubagentSessionObservation(
+  event: unknown,
+  options: Readonly<{ parentSessionFile?: string | null }> = {},
+): PiSubagentSessionObservation | null {
   const record = asRecord(event);
   if (!record) return null;
   const type = record.type;
@@ -102,6 +120,12 @@ export function readPiSubagentSessionObservation(event: unknown): PiSubagentSess
   if (!callId) return null;
   const sessionFiles = readResultSessionFiles(details?.results);
   if (sessionFiles.length > 0) return { kind: 'sessions', callId, sessionFiles, final: type === 'tool_execution_end' };
+
+  const parentSessionFile = asNonEmptyString(options.parentSessionFile);
+  if (type === 'tool_execution_update' && parentSessionFile && isAbsolute(parentSessionFile)) {
+    const running = deriveRunningSessionFiles(details, parentSessionFile);
+    if (running.length > 0) return { kind: 'sessions', callId, sessionFiles: running, final: false };
+  }
 
   const runId = asNonEmptyString(details?.asyncId);
   const asyncDir = asNonEmptyString(details?.asyncDir);
