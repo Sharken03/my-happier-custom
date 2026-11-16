@@ -232,6 +232,7 @@ export async function applyExecutionRunAction(args: Readonly<{
         cwd: deps.cwd,
         connectedAccounts: deps.connectedAccounts,
         ...(deps.featureDecision ? { featureDecision: deps.featureDecision } : {}),
+        ...(deps.reviewSupportDecision ? { reviewSupportDecision: deps.reviewSupportDecision } : {}),
       },
     });
     if (!outcome.ok) return outcome;
@@ -257,6 +258,15 @@ export async function applyExecutionRunAction(args: Readonly<{
     // dispatcher is `safe`, so the caller must assert that it applied the approval itself.
     const denied = denyUnapprovedDangerNestedAction('review.finding.apply', args.params.approvalGrant);
     if (denied) return denied;
+    // Same master switch as review runs and publishing: this branch spawns or instructs a write session.
+    if (args.deps?.reviewSupportDecision?.state !== 'enabled') {
+      return {
+        ok: false,
+        errorCode: 'execution_run_not_allowed',
+        error: 'Review support is disabled in this build (feature: reviews.support). '
+          + 'Set HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1 to enable it.',
+      };
+    }
     const deps = args.deps;
     const sendToSession = args.enqueueParentSessionInput;
     const spawnSession = args.spawnSession;

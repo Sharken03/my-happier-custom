@@ -1315,8 +1315,10 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     surfaces: {
       ui_button: false,
       ui_slash_command: false,
-      voice_tool: true,
-      voice_action_block: true,
+      // Voice surfaces are off: this action is gated behind `reviews.support` (default off) and hands work to
+      // a write session, so it must not appear as an always-available voice tool. See REVIEW-SUPPORT.md.
+      voice_tool: false,
+      voice_action_block: false,
       session_agent: true,
       mcp: true,
       cli: true,

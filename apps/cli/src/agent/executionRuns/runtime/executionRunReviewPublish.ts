@@ -71,6 +71,11 @@ export type ReviewPublishDeps = Readonly<{
   cwd: string;
   connectedAccounts: NonNullable<ExecutionRunActionDeps['connectedAccounts']>;
   featureDecision?: ExecutionRunActionDeps['featureDecision'];
+  /**
+   * The master `reviews.support` decision. Absent is treated as disabled: this whole system is opt-in.
+   * See REVIEW-SUPPORT.md.
+   */
+  reviewSupportDecision?: ExecutionRunActionDeps['reviewSupportDecision'];
   /** Test seam: SCM backend registry. Defaults to the production git/sapling catalog. */
   scmRegistry?: ScmBackendRegistry;
   /** Test seam: GitHub CLI auth detector. */
@@ -332,6 +337,14 @@ export async function publishReviewFindings(params: Readonly<{
 
   // The gate is checked before the input is even parsed: an outward write refuses first and explains
   // nothing else, so a disabled machine cannot be probed with malformed payloads.
+  if (deps.reviewSupportDecision?.state !== 'enabled') {
+    return {
+      ok: false,
+      errorCode: 'execution_run_not_allowed',
+      error: 'Review support is disabled in this build (feature: reviews.support). '
+        + 'Set HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1 to enable it.',
+    };
+  }
   if (deps.featureDecision?.state !== 'enabled') {
     return {
       ok: false,

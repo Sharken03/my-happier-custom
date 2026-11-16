@@ -280,6 +280,10 @@ describe('Action Spec Registry', () => {
     expect(spec.approval).toEqual({ result: 'required' });
     expect(spec.bindings?.mcpToolName).toBe('review_finding_apply');
     expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('discoverable_only');
+    // Not a voice surface: the action is behind the reviews.support switch (default off) and hands work to a
+    // write session, so it must not be an always-available voice tool.
+    expect(spec.surfaces.voice_tool).toBe(false);
+    expect(spec.surfaces.voice_action_block).toBe(false);
 
     // read_only default, and the caller may still escalate explicitly.
     const parsed = spec.inputSchema.parse({

@@ -162,6 +162,11 @@ export type ExecutionRunActionDeps = Readonly<{
   accountSettings?: Readonly<Record<string, unknown>> | null;
   connectedAccounts?: ScmConnectedAccountCredentialResolver;
   featureDecision?: FeatureDecision;
+  /**
+   * The `reviews.support` decision. Absent means "not resolved here", which is treated as disabled for the
+   * review branches: the whole review support system is opt-in and defaults off.
+   */
+  reviewSupportDecision?: FeatureDecision;
 }>;
 
 export type ExecutionRunActionResult = Readonly<{

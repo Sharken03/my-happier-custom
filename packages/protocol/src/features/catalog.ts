@@ -375,6 +375,12 @@ const FEATURE_CATALOG_DEFINITION = {
     dependencies: [],
     representation: 'client',
   },
+  'reviews.support': {
+    description: 'Agent review support: review runs, publishing findings to a pull request and handing findings to a fix session. Off by default; see REVIEW-SUPPORT.md.',
+    defaultFailMode: 'fail_closed',
+    dependencies: [],
+    representation: 'client',
+  },
   'files.reviewComments': {
     description: 'Inline review comments anchored to file/diff lines.',
     defaultFailMode: 'fail_closed',

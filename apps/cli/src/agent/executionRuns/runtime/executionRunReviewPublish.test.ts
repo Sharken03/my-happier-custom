@@ -55,6 +55,27 @@ const disabledDecision: FeatureDecision = createFeatureDecision({
   scope: { scopeKind: 'runtime' },
 });
 
+// The master switch for the whole review support system; publish refuses without it.
+const supportEnabledDecision: FeatureDecision = createFeatureDecision({
+  featureId: 'reviews.support',
+  state: 'enabled',
+  blockedBy: null,
+  blockerCode: 'none',
+  diagnostics: [],
+  evaluatedAt: 1,
+  scope: { scopeKind: 'runtime' },
+});
+
+const supportDisabledDecision: FeatureDecision = createFeatureDecision({
+  featureId: 'reviews.support',
+  state: 'disabled',
+  blockedBy: 'local_policy',
+  blockerCode: 'feature_disabled',
+  diagnostics: [],
+  evaluatedAt: 1,
+  scope: { scopeKind: 'runtime' },
+});
+
 const githubCredential = buildConnectedServiceCredentialRecord({
   now: 1_000,
   serviceId: 'github',
@@ -140,6 +161,7 @@ function runPublish(params: {
   summary?: string;
   overviewMarkdown?: string;
   featureDecision?: FeatureDecision;
+  reviewSupportDecision?: FeatureDecision;
   branchHead?: string | null;
   detached?: boolean;
   list?: FakeList;
@@ -208,6 +230,7 @@ function runPublish(params: {
         : null,
     },
     featureDecision: params.featureDecision ?? enabledDecision,
+    reviewSupportDecision: params.reviewSupportDecision ?? supportEnabledDecision,
     scmRegistry: registry,
     detectGithubCliAuth: async () => ({ kind: 'missing-auth', command: 'gh', host: 'github.com' }),
     detectGitlabCliAuth: async () => params.gitlabAuthAvailable === true
@@ -377,6 +400,23 @@ describe('publishReviewFindings', () => {
     expect(result.errorCode).toBe('execution_run_failed');
     expect(result.error).toContain('feature-branch');
     expect(harness.createReview).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the review support system itself is disabled', async () => {
+    const createReview = vi.fn();
+    const result = await runPublish({
+      findings: [makeFinding({ id: 'f1' })],
+      findingIds: ['f1'],
+      // The scm.writeOperations gate is enabled here: the master switch alone must refuse, or turning the
+      // system off would not actually turn it off.
+      featureDecision: enabledDecision,
+      reviewSupportDecision: supportDisabledDecision,
+      createReview,
+    });
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_not_allowed' });
+    expect(String(result.error)).toContain('reviews.support');
+    expect(createReview).not.toHaveBeenCalled();
   });
 
   it('fails closed with execution_run_not_allowed when scm.writeOperations is disabled', async () => {

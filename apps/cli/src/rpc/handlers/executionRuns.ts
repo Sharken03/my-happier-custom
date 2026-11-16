@@ -40,6 +40,7 @@ import {
 } from '@/agent/executionRuns/policy/executionRunPolicy';
 import { VoiceAgentError } from '@/agent/voice/agent/VoiceAgentManager';
 import { resolveCliFeatureDecision } from '@/features/featureDecisionService';
+import { isReviewSupportEnabled, resolveReviewSupportFeatureDecision } from '@/features/reviewSupportGate';
 import { fetchServerFeaturesSnapshot, type CliServerFeaturesSnapshot } from '@/features/serverFeaturesClient';
 import { resolveExecutionRunRuntimeBackendId } from '@/agent/executionRuns/runtime/backendTargets';
 import { resolveReviewExecutionRunIntentInput } from '@/agent/reviews/resolveReviewExecutionRunIntentInput';
@@ -227,6 +228,16 @@ export function registerExecutionRunHandlers(
         ok: false,
         error: error instanceof Error ? error.message : 'Execution run start request conflict',
         errorCode: 'execution_run_start_conflict',
+      };
+    }
+    // The review support system is off unless explicitly enabled; see apps/cli/src/features/reviewSupportGate.ts
+    // and REVIEW-SUPPORT.md. Refuse before parsing the intent input, so a disabled feature never reports a
+    // payload problem.
+    if (parsed.data.intent === 'review' && !isReviewSupportEnabled()) {
+      return {
+        ok: false,
+        error: 'Review support is disabled in this build. Set HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1 to enable it.',
+        errorCode: 'execution_run_not_allowed',
       };
     }
     const backendId = resolveExecutionRunRuntimeBackendId(parsed.data.backendTarget);
@@ -700,6 +711,7 @@ export function registerExecutionRunHandlers(
       ...(ctx.resolveAccountSettings ? { accountSettings: await ctx.resolveAccountSettings() } : {}),
       ...(ctx.connectedAccounts ? { connectedAccounts: ctx.connectedAccounts } : {}),
       featureDecision: resolveCliFeatureDecision({ featureId: 'scm.writeOperations', env: process.env }),
+      reviewSupportDecision: resolveReviewSupportFeatureDecision(),
     });
     if (!acted.ok) return { ok: false, error: acted.error ?? 'Unsupported', errorCode: acted.errorCode ?? 'execution_run_action_not_supported' };
     return {
