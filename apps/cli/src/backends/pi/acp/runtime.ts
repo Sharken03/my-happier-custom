@@ -21,6 +21,7 @@ import { resolveHappyToolsBridgeBackendOptions } from '@/backends/pi/bridgeExten
 import { publishPiSessionIdMetadata } from '@/backends/pi/utils/piSessionIdMetadata';
 import { resolvePiSessionIdFromResumeReference } from '@/backends/pi/utils/piSessionFiles';
 import { createPiSubagentSidechainMirror } from '@/backends/pi/rpc/piSubagentSidechainMirror';
+import { registerPiChatChangesHandlers } from '@/backends/pi/chatChanges/piChatChangesRpc';
 
 export function createPiAcpRuntime(params: {
   directory: string;
@@ -47,6 +48,11 @@ export function createPiAcpRuntime(params: {
 }) {
   const lastPublishedPiSessionId: { value: string | null; sessionFile?: string | null } = { value: null };
   let lastPiIdentityGeneration: number | null = null;
+
+  // The app lists the chat's changes outside git; the published Pi session file finds the store.
+  registerPiChatChangesHandlers(params.session.rpcHandlerManager, {
+    getSessionFile: () => params.session.getMetadataSnapshot()?.piSessionFile ?? null,
+  });
 
   return createCatalogProviderAcpRuntime<PiBackendOptions>({
     provider: 'pi',
