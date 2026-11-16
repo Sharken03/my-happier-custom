@@ -92,13 +92,26 @@ jobs:
           args: --frozen-lockfile --ignore-engines
 
       # The fork's UI changes are written on the phone, which has no dependencies to check them.
-      - name: Check the UI (typecheck and the fork tests)
+      # The check runs in the background next to the export (4 CPUs, 16 GB); "Wait for the UI
+      # check" fails the run before Publish when it fails.
+      - name: Start the UI check (typecheck and the fork tests)
         working-directory: apps/ui
         run: |
           set -euo pipefail
-          yarn -s typecheck
+          # The typecheck and the export both build the workspace packages. Build them here once,
+          # so the two do not write the same dist folders at the same time.
+          node scripts/ensureWorkspacePackagesBuilt.mjs
           mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/ui-tests.txt | sed '/^$/d')
-          yarn -s vitest run --config vitest.config.ts "${tests[@]}"
+          # The outer subshell writes the exit code of the check to ui-check.rc when it ends.
+          (
+            rc=0
+            (
+              set -euo pipefail
+              yarn -s typecheck
+              yarn -s vitest run --config vitest.config.ts "${tests[@]}"
+            ) || rc=$?
+            echo "$rc" > "$RUNNER_TEMP/ui-check.rc"
+          ) > "$RUNNER_TEMP/ui-check.log" 2>&1 &
 
       # Only sharken/8t saves the Metro cache. The last fallback is safe: Metro keys each file by
       # its content and the transform config, so changed files miss.
@@ -113,6 +126,9 @@ jobs:
 
       - name: Export web bundle
         id: web
+        env:
+          # Quality 11 took ~3 min for the 43 MB bundle; 9 takes ~10 s for a 12 % larger .br.
+          HAPPIER_UI_WEB_BROTLI_QUALITY: "9"
         run: |
           set -euo pipefail
           version="$(node -p "require('./apps/ui/package.json').version")-8t.${HAPPIER_BUILD_NUMBER}"
@@ -130,6 +146,14 @@ jobs:
         with:
           path: /tmp/metro-cache
           key: metro-web-v1-${{ hashFiles('yarn.lock', 'apps/ui/babel.config.js', 'apps/ui/metro.config.js', 'apps/ui/patches/**', '.github/workflows/build-web.yml') }}-${{ github.run_id }}
+
+      - name: Wait for the UI check
+        run: |
+          set -euo pipefail
+          # The check started in an earlier step, so this shell cannot wait for it; poll its file.
+          while [ ! -f "$RUNNER_TEMP/ui-check.rc" ]; do sleep 2; done
+          cat "$RUNNER_TEMP/ui-check.log"
+          exit "$(cat "$RUNNER_TEMP/ui-check.rc")"
 
       - name: Publish
         id: publish
