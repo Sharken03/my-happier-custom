@@ -228,6 +228,13 @@ export async function applyExecutionRunAction(args: Readonly<{
   }
 
   if (run.intent === 'review' && String(args.params.actionId ?? '').trim() === 'review.finding.apply') {
+    // KNOWN GAP: `review.finding.apply` is declared `safety: 'danger'` + approval REQUIRED, but it is
+    // reached through `execution.run.action`, which is `safe` + optional-deferred and carries no approval
+    // signal, so nothing here can enforce the inner posture. It cannot be enforced by denying the nested id
+    // either: `execution.run.action` is the only route to a run action (there is no direct executor branch
+    // for it), so denying would make `happier session review fix` impossible. Closing this needs an approval
+    // signal on `ExecutionRunActionParams` (or a direct action route); until then the caller's own approval
+    // flow is the only gate.
     const deps = args.deps;
     const sendToSession = args.enqueueParentSessionInput;
     const spawnSession = args.spawnSession;

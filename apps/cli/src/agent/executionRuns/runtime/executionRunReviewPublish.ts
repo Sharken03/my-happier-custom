@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 
-import { computeLineContentHashV1, type ReviewFinding, ReviewFindingsV1Schema, type ReviewFindingsV2, ReviewFindingsV2Schema, ReviewPublishRequestV1Schema, type ScmHostingProvider, type ScmPullRequestCreateReviewRequest, type ScmPullRequestListRequest, type ScmPullRequestReference, type ScmPullRequestReviewComment, type ScmPullRequestReviewEvent, type ScmWorkingSnapshot } from '@happier-dev/protocol';
+import { computeLineContentHashV1, type ReviewFinding, ReviewFindingsV1Schema, type ReviewFindingsV2, ReviewFindingsV2Schema, ReviewPublishRequestV1Schema, type ReviewPendingPublicationOverlay, type ScmHostingProvider, type ScmPullRequestCreateReviewRequest, type ScmPullRequestListRequest, type ScmPullRequestReference, type ScmPullRequestReviewComment, type ScmPullRequestReviewEvent, type ScmWorkingSnapshot } from '@happier-dev/protocol';
 
 import type {
   ExecutionRunActionDeps,
@@ -31,6 +33,33 @@ const REANCHOR_SEARCH_RADIUS = 200;
 const SEVERITY_ORDER: readonly ReviewFinding['severity'][] = ['blocker', 'high', 'medium', 'low', 'nit'];
 
 /**
+ * How long a `pendingPublication` entry may block a retry before it is treated as stale and
+ * ignored. A pending entry is written BEFORE the provider call so a lost/failed response cannot
+ * silently turn into a duplicate review; the window bounds that protection so a crashed attempt
+ * cannot block a legitimate later publish forever.
+ */
+const PENDING_PUBLICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function buildPublishFingerprint(runId: string, findingIds: readonly string[]): string {
+  return createHash('sha256').update(`${runId}\u0000${[...findingIds].sort().join('\u0000')}`).digest('hex');
+}
+
+function mergePendingPublication(
+  payload: ReviewFindingsV2,
+  findingIds: readonly string[],
+  startedAtMs: number,
+  requestFingerprint: string,
+): ReviewFindingsV2 {
+  const entries = new Map<string, ReviewPendingPublicationOverlay['findings'][number]>(
+    (payload.pendingPublication?.findings ?? []).map((entry) => [entry.id, entry]),
+  );
+  for (const id of findingIds) {
+    entries.set(id, { id, startedAtMs, requestFingerprint });
+  }
+  return { ...payload, pendingPublication: { findings: [...entries.values()] } };
+}
+
+/**
  * Resolved dependencies required by the `review.publish` runtime branch.
  *
  * These are resolved once at the RPC layer (`rpc/handlers/executionRuns.ts`) and passed through
@@ -50,6 +79,11 @@ export type ReviewPublishDeps = Readonly<{
   detectGitlabCliAuth?: typeof detectGitlabCliAuth;
   /** Test seam: reads an absolute path into lines. Defaults to `node:fs` readFile + split. */
   readFileLines?: (absolutePath: string) => Promise<string[] | null>;
+  /**
+   * Persists an updated structured meta into the run map BEFORE the provider call (the pending
+   * marker). Production callers write into `ExecutionRunManager.runs`; tests inject a recorder.
+   */
+  persistStructuredMeta?: (meta: ExecutionRunStructuredMeta) => void;
 }>;
 
 /**
@@ -63,18 +97,16 @@ export type ReviewPublishOutcome = ExecutionRunActionResult & Readonly<{
 }>;
 
 /**
- * In-flight guard for concurrent publishes of the same run + finding selection.
+ * In-flight guard for concurrent publishes of the same run.
  *
  * Two concurrent publishes both read the pre-publication overlay before either writes back, so the
- * same findings would be posted twice. Keyed by `<runId>:<sorted finding ids>`; a second concurrent
- * call returns `execution_run_busy` without touching SCM. Released in a `finally`, so a later
- * sequential call still runs and skips already-published findings via the overlay.
+ * same findings would be posted twice. Keyed by run id: overlapping-but-not-identical selections
+ * (e.g. `[f1,f2]` vs `[f1]`) must collide, otherwise both read the pre-overlay and both post `f1`.
+ * A second concurrent call returns `execution_run_busy` without touching SCM. Released in a
+ * `finally`, so a later sequential call still runs and skips already-published findings via the
+ * overlay.
  */
 const inFlightPublishes = new Set<string>();
-
-function buildPublishGuardKey(runId: string, findingIds: readonly string[]): string {
-  return `${runId}:${JSON.stringify([...findingIds].sort())}`;
-}
 
 export function computeReviewLineContentHash(line: string): string {
   // Delegates to the shared workspace-anchor hash so review findings and file anchors cannot drift.
@@ -82,18 +114,32 @@ export function computeReviewLineContentHash(line: string): string {
 }
 
 /**
- * Resolves a finding's `filePath` to an absolute path ONLY when it stays inside the workspace root.
+ * Resolves a finding's `filePath` to an absolute path ONLY when the real target stays inside the
+ * workspace root.
  *
- * `filePath` comes from a review engine's output, so it is untrusted: an absolute path or a `..` escape
- * (a) must not be read for hashing and (b) must never reach a provider as a review comment path.
- * Returns null when the path escapes the root.
+ * `filePath` comes from a review engine's output, so it is untrusted: an absolute path or a `..`
+ * escape (a) must not be read for hashing and (b) must never reach a provider as a review comment
+ * path. Returns null when the path escapes the root. The containment check is lexical first, then
+ * symlinks are resolved with `realpath` so a symlinked directory inside the root cannot point the
+ * subsequent read outside the workspace.
  */
 export function resolveWorkspaceContainedPath(root: string, filePath: string): string | null {
   const rootAbsolute = resolvePath(root);
   const candidate = isAbsolute(filePath) ? resolvePath(filePath) : resolvePath(rootAbsolute, filePath);
   if (candidate === rootAbsolute) return null;
   const rootWithSeparator = rootAbsolute.endsWith('/') ? rootAbsolute : `${rootAbsolute}/`;
-  return candidate.startsWith(rootWithSeparator) ? candidate : null;
+  if (!candidate.startsWith(rootWithSeparator)) return null;
+  try {
+    const rootReal = realpathSync(rootAbsolute);
+    const candidateReal = realpathSync(candidate);
+    const rootRealWithSeparator = rootReal.endsWith('/') ? rootReal : `${rootReal}/`;
+    return candidateReal.startsWith(rootRealWithSeparator) ? candidate : null;
+  } catch {
+    // The candidate (or root) cannot be resolved to a real path — a missing file, a dangling
+    // symlink, or a loop. The subsequent read fails in the same way, so returning the lexical
+    // candidate cannot cause an outside read.
+    return candidate;
+  }
 }
 
 async function defaultReadFileLines(absolutePath: string): Promise<string[] | null> {
@@ -105,26 +151,36 @@ async function defaultReadFileLines(absolutePath: string): Promise<string[] | nu
   }
 }
 
-function resolveExistingPayload(structuredMeta: ExecutionRunStructuredMeta | null | undefined): ReviewFindingsV2 | null {
-  if (!structuredMeta) return null;
+type ExistingPayloadResolution =
+  | Readonly<{ kind: 'ok'; payload: ReviewFindingsV2 }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'malformed' }>;
+
+function resolveExistingPayload(structuredMeta: ExecutionRunStructuredMeta | null | undefined): ExistingPayloadResolution {
+  if (!structuredMeta) return { kind: 'none' };
   if (structuredMeta.kind === 'review_findings.v2') {
-    return ReviewFindingsV2Schema.parse(structuredMeta.payload);
+    const parsed = ReviewFindingsV2Schema.safeParse(structuredMeta.payload);
+    return parsed.success ? { kind: 'ok', payload: parsed.data } : { kind: 'malformed' };
   }
   if (structuredMeta.kind === 'review_findings.v1') {
-    const legacy = ReviewFindingsV1Schema.parse(structuredMeta.payload);
-    return buildReviewFindingsV2Payload({
-      runId: legacy.runRef.runId,
-      callId: legacy.runRef.callId,
-      backendId: legacy.runRef.backendId,
-      backendTarget: legacy.runRef.backendTarget,
-      summary: legacy.summary,
-      findings: legacy.findings,
-      triage: legacy.triage,
-      limits: legacy.limits,
-      generatedAtMs: legacy.generatedAtMs,
-    });
+    const legacy = ReviewFindingsV1Schema.safeParse(structuredMeta.payload);
+    if (!legacy.success) return { kind: 'malformed' };
+    return {
+      kind: 'ok',
+      payload: buildReviewFindingsV2Payload({
+        runId: legacy.data.runRef.runId,
+        callId: legacy.data.runRef.callId,
+        backendId: legacy.data.runRef.backendId,
+        backendTarget: legacy.data.runRef.backendTarget,
+        summary: legacy.data.summary,
+        findings: legacy.data.findings,
+        triage: legacy.data.triage,
+        limits: legacy.data.limits,
+        generatedAtMs: legacy.data.generatedAtMs,
+      }),
+    };
   }
-  return null;
+  return { kind: 'none' };
 }
 
 type AuthResolution =
@@ -219,27 +275,26 @@ function resolveCommentAnchor(finding: ReviewFinding, lines: readonly string[]):
   const hasHash = typeof finding.lineHash === 'string' && finding.lineHash.length > 0;
 
   if (hasHash) {
-    // Re-anchor within ±200 lines of the stored line by content hash.
-    if (storedIndex >= 0 && storedIndex < lines.length) {
-      const from = Math.max(0, storedIndex - REANCHOR_SEARCH_RADIUS);
-      const to = Math.min(lines.length, storedIndex + REANCHOR_SEARCH_RADIUS + 1);
-      for (let index = from; index < to; index += 1) {
-        const line = lines[index];
-        if (line !== undefined && computeReviewLineContentHash(line) === finding.lineHash) {
-          return { line: index + 1, anchorLost: false, computedHash: null };
+    // Only trust the stored hash when its algorithm is this build's (or was recorded before the
+    // algorithm id existed). A hash from any other algorithm cannot be verified here, so the
+    // finding is treated as unanchored instead of silently degrading to a guess.
+    const algorithmTrusted = !finding.lineHashAlgorithm || finding.lineHashAlgorithm === REVIEW_LINE_HASH_ALGORITHM;
+    if (algorithmTrusted) {
+      // Re-anchor within ±200 lines of the stored line by content hash.
+      if (storedIndex >= 0 && storedIndex < lines.length) {
+        const from = Math.max(0, storedIndex - REANCHOR_SEARCH_RADIUS);
+        const to = Math.min(lines.length, storedIndex + REANCHOR_SEARCH_RADIUS + 1);
+        for (let index = from; index < to; index += 1) {
+          const line = lines[index];
+          if (line !== undefined && computeReviewLineContentHash(line) === finding.lineHash) {
+            return { line: index + 1, anchorLost: false, computedHash: null };
+          }
         }
       }
     }
-    // Second attempt: exact line-content match against the stored line's trimmed content.
-    const snippet = storedIndex >= 0 && storedIndex < lines.length ? (lines[storedIndex] ?? '').trim() : '';
-    if (snippet) {
-      for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index];
-        if (index !== storedIndex && line !== undefined && line.trim() === snippet) {
-          return { line: index + 1, anchorLost: false, computedHash: null };
-        }
-      }
-    }
+    // Hash miss or an unverifiable algorithm: the anchor is lost. The caller degrades to a body
+    // bullet rather than guessing a line (the old "current line at the stored index" fallback could
+    // only ever hit a coincidental duplicate of the wrong line, so it is dropped).
     return { line: startLine, anchorLost: true, computedHash: null };
   }
 
@@ -290,9 +345,25 @@ export async function publishReviewFindings(params: Readonly<{
     return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid publish input' };
   }
 
-  const existingPayload = resolveExistingPayload(run.structuredMeta);
-  if (!existingPayload) {
+  const existing = resolveExistingPayload(run.structuredMeta);
+  if (existing.kind === 'none') {
     return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Not a review run' };
+  }
+  if (existing.kind === 'malformed') {
+    return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Review findings metadata is malformed' };
+  }
+  const existingPayload = existing.payload;
+
+  // `sourceRunRef` / `publishedFindings` are required by the wire schema but the runtime re-derives
+  // its selection from the run's own structured meta. Verify the client's account of what it is
+  // publishing, so a selection that diverged from the run (meta changed between `get` and `action`)
+  // is refused instead of silently publishing a different set.
+  if (parsed.data.sourceRunRef.runId !== run.runId) {
+    return {
+      ok: false,
+      errorCode: 'execution_run_invalid_action_input',
+      error: `sourceRunRef.runId "${parsed.data.sourceRunRef.runId}" does not match the run being published ("${run.runId}").`,
+    };
   }
 
   // Order-preserving, deduped selection from the run's findings.
@@ -304,12 +375,34 @@ export async function publishReviewFindings(params: Readonly<{
     requestedIds.push(id);
   }
 
-  const guardKey = buildPublishGuardKey(run.runId, requestedIds);
+  // Every requested id must be present in the client's `publishedFindings` set.
+  const publishedFindingIds = new Set(parsed.data.publishedFindings.map((finding) => finding.id));
+  const missingFromPublished = requestedIds.filter((id) => !publishedFindingIds.has(id));
+  if (missingFromPublished.length > 0) {
+    return {
+      ok: false,
+      errorCode: 'execution_run_invalid_action_input',
+      error: `Finding ids missing from publishedFindings: ${missingFromPublished.join(', ')}.`,
+    };
+  }
+
+  // An unknown id is an input error, never a silent skip.
+  const findingsById = new Map(existingPayload.findings.map((finding) => [finding.id, finding]));
+  const unknownIds = requestedIds.filter((id) => !findingsById.has(id));
+  if (unknownIds.length > 0) {
+    return {
+      ok: false,
+      errorCode: 'execution_run_invalid_action_input',
+      error: `Unknown finding ids: ${unknownIds.join(', ')}.`,
+    };
+  }
+
+  const guardKey = run.runId;
   if (inFlightPublishes.has(guardKey)) {
     return {
       ok: false,
       errorCode: 'execution_run_busy',
-      error: 'A review publish for these findings is already in progress.',
+      error: 'A review publish for this run is already in progress.',
     };
   }
   inFlightPublishes.add(guardKey);
@@ -343,12 +436,26 @@ async function publishSelectedFindings(params: Readonly<{
       .map((entry) => entry.id),
   );
 
-  const selectedFindings: ReviewFinding[] = [];
-  for (const id of requestedIds) {
-    const finding = findingsById.get(id);
-    if (!finding || publishedIds.has(id)) continue;
-    selectedFindings.push(finding);
+  // A pending entry is a durable "a previous attempt may have reached the provider" marker. This is
+  // fail-closed: on a retry we refuse rather than risk a duplicate outward write, because a review
+  // that double-applies is worse than an explicit refusal. Entries older than the pending window are
+  // stale and no longer block.
+  const nowMs = Date.now();
+  const blockingPending = (existingPayload.pendingPublication?.findings ?? []).filter((entry) => {
+    return requestedIds.includes(entry.id) && nowMs - entry.startedAtMs <= PENDING_PUBLICATION_WINDOW_MS;
+  });
+  if (blockingPending.length > 0) {
+    return {
+      ok: false,
+      errorCode: 'execution_run_busy',
+      error: 'A previous publish attempt for these findings may have reached the provider. Check the pull request before retrying.',
+    };
   }
+
+  // Unknown ids were already rejected upstream; here only already-published findings are skipped.
+  const selectedFindings = requestedIds
+    .map((id) => findingsById.get(id))
+    .filter((finding): finding is ReviewFinding => finding !== undefined && !publishedIds.has(finding.id));
 
   if (selectedFindings.length === 0) {
     return {
@@ -356,7 +463,7 @@ async function publishSelectedFindings(params: Readonly<{
       result: {
         published: 0,
         skipped: requestedIds.length,
-        message: 'No findings to publish: every requested finding was already published or not found.',
+        message: 'No findings to publish: every requested finding was already published.',
       },
     };
   }
@@ -531,6 +638,18 @@ async function publishSelectedFindings(params: Readonly<{
       body,
       comments,
     };
+    // Write the pending marker BEFORE the provider call. If the provider applies the review but the
+    // response is lost or failed, the marker survives and a retry refuses instead of posting a
+    // duplicate (fail-closed). It is cleared in the same write that marks the findings published.
+    const selectedFindingIds = selectedFindings.map((finding) => finding.id);
+    const pendingPayload = mergePendingPublication(
+      existingPayload,
+      selectedFindingIds,
+      Date.now(),
+      buildPublishFingerprint(run.runId, selectedFindingIds),
+    );
+    deps.persistStructuredMeta?.({ kind: 'review_findings.v2', payload: pendingPayload });
+
     const reviewResult = await createReview({ context, request });
     if (!reviewResult.success) {
       return {
@@ -576,10 +695,19 @@ async function publishSelectedFindings(params: Readonly<{
     });
   }
 
+  // Clear the pending markers for the findings that are now published, in the same write that marks
+  // them published. Pending entries for other findings (none selected, or stale) are preserved.
+  const pendingById = new Map<string, ReviewPendingPublicationOverlay['findings'][number]>(
+    (existingPayload.pendingPublication?.findings ?? []).map((entry) => [entry.id, entry]),
+  );
+  for (const finding of selectedFindings) pendingById.delete(finding.id);
+  const remainingPending = [...pendingById.values()];
+
   const updatedPayload: ReviewFindingsV2 = {
     ...existingPayload,
     findings: updatedFindings,
     publication: { findings: [...publicationById.values()] },
+    ...(remainingPending.length > 0 ? { pendingPublication: { findings: remainingPending } } : {}),
   };
   const updatedStructuredMeta: ExecutionRunStructuredMeta = {
     kind: 'review_findings.v2',

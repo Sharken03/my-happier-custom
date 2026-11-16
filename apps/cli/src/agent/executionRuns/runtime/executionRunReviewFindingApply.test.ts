@@ -212,4 +212,15 @@ describe('applyReviewFindingFix', () => {
     // The action's read_only intent reaches the spawned session as read-only.
     expect(spawnSession.mock.calls[0][0].permissionMode).toBe('read-only');
   });
+
+  it('errors with an error code when stored meta is malformed instead of throwing', async () => {
+    const result = await applyReviewFindingFix({
+      run: makeRun({ kind: 'review_findings.v2', payload: { runRef: { runId: 'run-1' } } }),
+      input: { runId: 'run-1', findingIds: ['f1'], mode: 'send_to_session' },
+      deps: makeDeps(),
+    });
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
+    expect(String(result.error)).toContain('malformed');
+  });
 });

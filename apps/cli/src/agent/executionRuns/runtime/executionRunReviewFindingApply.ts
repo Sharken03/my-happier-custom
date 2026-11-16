@@ -56,26 +56,36 @@ export function toSessionPermissionMode(mode: ExecutionRunActionPermissionMode):
   }
 }
 
-function resolveExistingPayload(structuredMeta: ExecutionRunStructuredMeta | null | undefined): ReviewFindingsV2 | null {
-  if (!structuredMeta) return null;
+type ExistingPayloadResolution =
+  | Readonly<{ kind: 'ok'; payload: ReviewFindingsV2 }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'malformed' }>;
+
+function resolveExistingPayload(structuredMeta: ExecutionRunStructuredMeta | null | undefined): ExistingPayloadResolution {
+  if (!structuredMeta) return { kind: 'none' };
   if (structuredMeta.kind === 'review_findings.v2') {
-    return ReviewFindingsV2Schema.parse(structuredMeta.payload);
+    const parsed = ReviewFindingsV2Schema.safeParse(structuredMeta.payload);
+    return parsed.success ? { kind: 'ok', payload: parsed.data } : { kind: 'malformed' };
   }
   if (structuredMeta.kind === 'review_findings.v1') {
-    const legacy = ReviewFindingsV1Schema.parse(structuredMeta.payload);
-    return buildReviewFindingsV2Payload({
-      runId: legacy.runRef.runId,
-      callId: legacy.runRef.callId,
-      backendId: legacy.runRef.backendId,
-      backendTarget: legacy.runRef.backendTarget,
-      summary: legacy.summary,
-      findings: legacy.findings,
-      triage: legacy.triage,
-      limits: legacy.limits,
-      generatedAtMs: legacy.generatedAtMs,
-    });
+    const legacy = ReviewFindingsV1Schema.safeParse(structuredMeta.payload);
+    if (!legacy.success) return { kind: 'malformed' };
+    return {
+      kind: 'ok',
+      payload: buildReviewFindingsV2Payload({
+        runId: legacy.data.runRef.runId,
+        callId: legacy.data.runRef.callId,
+        backendId: legacy.data.runRef.backendId,
+        backendTarget: legacy.data.runRef.backendTarget,
+        summary: legacy.data.summary,
+        findings: legacy.data.findings,
+        triage: legacy.data.triage,
+        limits: legacy.data.limits,
+        generatedAtMs: legacy.data.generatedAtMs,
+      }),
+    };
   }
-  return null;
+  return { kind: 'none' };
 }
 
 function formatFindingLocation(finding: ReviewFinding): string {
@@ -145,10 +155,14 @@ export async function applyReviewFindingFix(params: Readonly<{
     return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Invalid review finding apply input' };
   }
 
-  const existingPayload = resolveExistingPayload(run.structuredMeta);
-  if (!existingPayload) {
+  const existing = resolveExistingPayload(run.structuredMeta);
+  if (existing.kind === 'none') {
     return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Not a review run' };
   }
+  if (existing.kind === 'malformed') {
+    return { ok: false, errorCode: 'execution_run_invalid_action_input', error: 'Review findings metadata is malformed' };
+  }
+  const existingPayload = existing.payload;
 
   const requestedIds: string[] = [];
   const seenIds = new Set<string>();

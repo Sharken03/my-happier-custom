@@ -132,7 +132,13 @@ export async function cmdSessionReviewStart(
     input.modelPolicy = { kind: 'fixed', modelId: modelFlagMapping.modelId };
   } else if (modelFlagMapping.kind === 'depth') {
     const settingsCtx = await bootstrapAccountSettingsContext({ credentials, mode: 'fast' });
-    const refs = resolveReviewModelPolicyDepthRefs(settingsCtx.settings.reviewModelPolicySettingsV1);
+    // `--depth` names a single fast/deep pair, so it needs a single target engine to be unambiguous.
+    // Several engines could each define a different depth override; refuse rather than let one win.
+    const targetEngineId = engineIds.length === 1 ? engineIds[0] : null;
+    if (!targetEngineId) {
+      throw new Error(`--depth requires exactly one review engine (got ${engineIds.length}) so the fast/deep policy is unambiguous`);
+    }
+    const refs = resolveReviewModelPolicyDepthRefs(settingsCtx.settings.reviewModelPolicySettingsV1, targetEngineId);
     if (!refs) {
       throw new Error('--depth requires a configured depth review model policy (review.modelPolicy or review.engines.<id>.modelPolicy)');
     }
