@@ -137,6 +137,61 @@ export function countToolCallDiffLines(name: string, input: unknown): DiffLineSt
   }
 }
 
+function readPath(input: UnknownRecord): string | null {
+  return asString(input.path) ?? asString(input.file_path) ?? asString(input.filePath);
+}
+
+/** Applies one edit object to a text, or returns null when its old text is not in the text. */
+function applyEditObject(text: string, edit: unknown): string | null {
+  const record = asRecord(edit);
+  if (!record) return null;
+  const oldText = asString(record.old_string) ?? asString(record.oldText) ?? asString(record.oldString);
+  const newText = asString(record.new_string) ?? asString(record.newText) ?? asString(record.newString) ?? '';
+  if (oldText === null || oldText.length === 0 || !text.includes(oldText)) return null;
+  return record.replace_all === true ? text.split(oldText).join(newText) : text.replace(oldText, () => newText);
+}
+
+/** Lines that a list of tool calls change, counted in the order of the calls. */
+export type DiffLineCounter = Readonly<{ count: (name: string, input: unknown) => DiffLineStats }>;
+
+/**
+ * Like countToolCallDiffLines, but it keeps the content that earlier `write` and `edit` calls
+ * gave each path. A `write` to a path with known content counts as a replacement of that
+ * content, so a file written twice does not count its old lines as kept. A path without known
+ * content (a file that existed before the first call) counts as before. Give it only the
+ * calls that did not fail, in their order.
+ */
+export function createDiffLineCounter(): DiffLineCounter {
+  const contentByPath = new Map<string, string>();
+  const count = (name: string, input: unknown): DiffLineStats => {
+    const record = asRecord(input);
+    const path = record ? readPath(record) : null;
+    const tool = name.trim().toLowerCase();
+    if (!record || !path) return countToolCallDiffLines(name, input);
+    if (tool === 'write' || tool === 'write_file') {
+      const content = asString(record.content) ?? '';
+      const previous = contentByPath.get(path);
+      contentByPath.set(path, content);
+      return previous === undefined ? countToolCallDiffLines(name, input) : countReplacementLines(previous, content);
+    }
+    if (tool === 'edit' || tool === 'multiedit') {
+      const previous = contentByPath.get(path);
+      if (previous !== undefined) {
+        const edits = Array.isArray(record.edits) ? record.edits : [record];
+        let next: string | null = previous;
+        for (const edit of edits) next = next === null ? null : applyEditObject(next, edit);
+        if (next === null) contentByPath.delete(path);
+        else contentByPath.set(path, next);
+      }
+      return countToolCallDiffLines(name, input);
+    }
+    // A patch can change any path, so the known content is not certain any more.
+    if (tool === 'apply_patch' || tool === 'patch' || tool === 'codexpatch' || tool === 'geminipatch') contentByPath.clear();
+    return countToolCallDiffLines(name, input);
+  };
+  return { count };
+}
+
 function readCount(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : null;
 }

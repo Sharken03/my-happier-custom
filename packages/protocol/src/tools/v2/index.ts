@@ -34,8 +34,10 @@ export {
   HAPPIER_DIFF_STATS_DETAILS_KEY,
   countReplacementLines,
   countToolCallDiffLines,
+  createDiffLineCounter,
   readHappierDiffStats,
   sumDiffLineStats,
+  type DiffLineCounter,
   type DiffLineStats,
 } from './diffLineStats.js';
 

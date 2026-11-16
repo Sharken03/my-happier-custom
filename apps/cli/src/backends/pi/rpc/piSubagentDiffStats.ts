@@ -3,7 +3,7 @@ import { isAbsolute } from 'node:path';
 
 import {
   HAPPIER_DIFF_STATS_DETAILS_KEY,
-  countToolCallDiffLines,
+  createDiffLineCounter,
 } from '@happier-dev/protocol/tools/v2';
 
 /**
@@ -58,7 +58,7 @@ function countSessionFile(sessionFile: string, depth: number, seen: Set<string>)
   const total: PiDiffStats = { added: 0, removed: 0 };
   if (seen.has(sessionFile)) return total;
   seen.add(sessionFile);
-  const calls = new Map<string, PiDiffStats>();
+  const calls: { id: string; name: string; args: unknown }[] = [];
   const failed = new Set<string>();
   const nestedFiles: string[] = [];
   for (const line of readSessionLines(sessionFile)) {
@@ -77,7 +77,7 @@ function countSessionFile(sessionFile: string, depth: number, seen: Set<string>)
         const id = asString(block?.id);
         const name = asString(block?.name);
         if (block?.type !== 'toolCall' || !id || !name) continue;
-        calls.set(id, countToolCallDiffLines(name, block.arguments));
+        calls.push({ id, name, args: block.arguments });
       }
     } else if (message.role === 'toolResult') {
       const id = asString(message.toolCallId);
@@ -85,8 +85,10 @@ function countSessionFile(sessionFile: string, depth: number, seen: Set<string>)
       if (message.toolName === PI_SUBAGENT_TOOL_NAME) nestedFiles.push(...readResultSessionFiles(message.details));
     }
   }
-  for (const [id, counts] of calls) {
-    if (failed.has(id)) continue;
+  const counter = createDiffLineCounter();
+  for (const call of calls) {
+    if (failed.has(call.id)) continue;
+    const counts = counter.count(call.name, call.args);
     total.added += counts.added;
     total.removed += counts.removed;
   }

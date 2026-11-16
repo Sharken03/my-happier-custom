@@ -1,5 +1,5 @@
 import {
-    countToolCallDiffLines,
+    createDiffLineCounter,
     isSubAgentTranscriptToolName,
     readHappierDiffStats,
     sumDiffLineStats,
@@ -30,10 +30,11 @@ export function computeToolCallsGroupDiffStats(
     tools: readonly (Pick<ToolCall, 'name' | 'input'> & { state?: ToolCall['state']; result?: ToolCall['result'] })[],
 ): ToolCallsGroupDiffStats {
     const parts: DiffLineStats[] = [];
+    const counter = createDiffLineCounter();
     for (const tool of tools) {
         if (tool.state === 'error') continue;
         const subagentStats = readSubagentResultDiffStats({ name: tool.name, result: tool.result });
-        parts.push(subagentStats ?? countToolCallDiffLines(tool.name ?? '', tool.input));
+        parts.push(subagentStats ?? counter.count(tool.name ?? '', tool.input));
     }
     return sumDiffLineStats(parts);
 }
