@@ -30,6 +30,8 @@ src/rpc/handlers/registerSessionHandlers.previewEnv.test.ts
 src/backends/pi/rpc/PiRpcBackend.hostToolCalls.test.ts
 src/backends/pi/acp/backend.test.ts
 src/cli/commands/toolsServe.test.ts
+src/cli/commands/session/review/publish.integration.test.ts
+src/cli/commands/session/review/fix.integration.test.ts
 src/agent/tools/diff/shellCommandScmChanges.test.ts
 src/agent/executionRuns/runtime/executionRunReviewPublish.test.ts
 src/agent/executionRuns/runtime/ExecutionRunManager.test.ts
