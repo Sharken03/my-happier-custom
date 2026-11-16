@@ -111,6 +111,7 @@ import {
     resolveTranscriptListPresentation,
     type TranscriptListOrientation,
 } from '@/components/sessions/transcript/listOrientation';
+import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 import {
     resolveTranscriptEdgePrefetchThresholdPx,
     TRANSCRIPT_EDGE_PREFETCH_FALLBACK_VIEWPORT_RATIO,
@@ -683,7 +684,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
-    const transcriptToolCallsGroupOpenMode = useSetting('transcriptToolCallsGroupOpenMode');
+    const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
     const transcriptChatFont = useSetting('transcriptChatFont');
     const transcriptUiFontScale = useLocalSetting('uiFontScale');
     const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');

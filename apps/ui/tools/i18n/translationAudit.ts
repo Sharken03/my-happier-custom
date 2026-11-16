@@ -102,6 +102,7 @@ const ALLOW_SAME_STRING_KEYS = new Set<string>([
     'settingsSession.replayResume.summaryRunner.modelPlaceholder',
     // The Tool calls sheet setting is English only for now; the other locales use the English text.
     'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
+    'settingsSession.transcript.toolCallsGroupOpenInSheetWebTitle',
     'settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle',
     // The Format toggle in a tool detail is English only for now, as the setting above.
     'toolView.formatJson',

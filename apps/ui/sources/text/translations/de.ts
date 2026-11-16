@@ -8362,6 +8362,7 @@ settingsSession: {
             toolCallsGroupBottomCollapseTitle: 'Einklappen am unteren Rand',
             toolCallsGroupBottomCollapseSubtitle: 'Zeigt am unteren Rand einer aufgeklappten Tool-Aufruf-Gruppe ein Steuerelement zum Einklappen.',
             toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+            toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Tool-Aussehen',
             toolAppearanceSubtitle: 'Anpassen, wie Tools im Transkript aussehen.',

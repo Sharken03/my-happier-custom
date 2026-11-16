@@ -8591,6 +8591,7 @@ settingsSession: {
       toolCallsGroupBottomCollapseTitle: '底部折叠',
       toolCallsGroupBottomCollapseSubtitle: '在展开的工具调用组底部显示折叠按钮。',
       toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+      toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
       toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",

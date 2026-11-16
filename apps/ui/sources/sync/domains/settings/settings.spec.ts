@@ -1083,6 +1083,16 @@ describe('settings', () => {
             expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet' }) as any).transcriptToolCallsGroupOpenMode).toBe('sheet');
             expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('list');
             expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'bogus' }) as any).transcriptToolCallsGroupOpenMode).toBe('inline');
+            expect((parsed as any).transcriptToolCallsGroupOpenModeWeb).toBe('inline');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'sheet' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('list');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'bogus' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('inline');
+            // Accounts that chose a mode before the app/web split keep it on the web client too.
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('sheet');
+            // An explicit web mode is never overwritten by the app's mode.
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet', transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet', transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('list');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('inline');
             expect((parsed as any).transcriptMessageTimestampDisplayMode).toBe('hover_web_hidden_mobile');
             expect((parsed as any).transcriptMessageTimestampsEnabled).toBeUndefined();
             expect((parsed as any).transcriptTurnGroupToolCalls).toBeUndefined();

@@ -8839,6 +8839,7 @@ settingsSession: {
         toolCallsGroupBottomCollapseTitle: 'Contraer en la parte inferior',
         toolCallsGroupBottomCollapseSubtitle: 'Muestra un control para contraer en la parte inferior de un grupo de llamadas a herramientas expandido.',
         toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Apariencia de herramientas",
         toolAppearanceSubtitle:

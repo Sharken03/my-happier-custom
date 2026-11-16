@@ -16,6 +16,7 @@ import {
 } from '@/sync/domains/state/storage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
 import { resolveMarkdownRemoteImageHosts } from '@/components/markdown/rendering/markdownRemoteImages';
+import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 
 export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'sessionReplayEnabled'
@@ -161,7 +162,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const transcriptStreamingSmoothingEnabled = useSetting('transcriptStreamingSmoothingEnabled');
     const transcriptToolCallsCollapsedPreviewCount = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupShowBackground = useSetting('transcriptToolCallsGroupShowBackground');
-    const transcriptToolCallsGroupOpenMode = useSetting('transcriptToolCallsGroupOpenMode');
+    const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
     const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
 
     const fork = React.useMemo<TranscriptForkCommon>(() => ({

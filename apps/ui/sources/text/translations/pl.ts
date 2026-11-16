@@ -8834,6 +8834,7 @@ settingsSession: {
         toolCallsGroupBottomCollapseTitle: 'Zwijanie na dole',
         toolCallsGroupBottomCollapseSubtitle: 'Pokazuje przycisk zwijania na dole rozwiniętej grupy wywołań narzędzi.',
         toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Wygląd narzędzi",
         toolAppearanceSubtitle:

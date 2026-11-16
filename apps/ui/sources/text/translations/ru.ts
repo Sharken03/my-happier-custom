@@ -8817,6 +8817,7 @@ settingsSession: {
         toolCallsGroupBottomCollapseTitle: 'Свернуть внизу',
         toolCallsGroupBottomCollapseSubtitle: 'Показывает кнопку «Свернуть» внизу развёрнутой группы вызовов инструментов.',
         toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Вид инструментов",
         toolAppearanceSubtitle:

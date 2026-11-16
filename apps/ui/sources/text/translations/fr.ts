@@ -8349,6 +8349,7 @@ settingsSession: {
             toolCallsGroupBottomCollapseTitle: 'Réduire en bas',
             toolCallsGroupBottomCollapseSubtitle: 'Affiche un bouton Réduire en bas d’un groupe d’appels d’outils développé.',
             toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+            toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Apparence des outils',
             toolAppearanceSubtitle: 'Personnalise l’apparence des outils dans le transcript.',

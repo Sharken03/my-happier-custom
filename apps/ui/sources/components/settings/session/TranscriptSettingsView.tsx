@@ -40,12 +40,19 @@ function clampInt(value: number, bounds: Readonly<{ min: number; max: number }>)
     return Math.min(bounds.max, Math.max(bounds.min, Math.trunc(value)));
 }
 
-// English only, as the setting title (see ALLOW_SAME_STRING_KEYS in tools/i18n/translationAudit.ts).
+// English only, as the setting titles (see ALLOW_SAME_STRING_KEYS in tools/i18n/translationAudit.ts).
 const TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS = [
     { id: 'inline', title: 'Inline', subtitle: 'Show the calls in the transcript.' },
     { id: 'list', title: 'List', subtitle: 'Show one line per call, as Claude Code on the web. Tap a line to see its details.' },
     { id: 'sheet', title: 'Sheet', subtitle: 'Show a group as one line. Tap it to open the calls in a sheet.' },
 ] as const satisfies readonly { id: Settings['transcriptToolCallsGroupOpenMode']; title: string; subtitle: string }[];
+
+// The app and the web client read their own setting (transcriptToolCallsGroupOpenMode and
+// transcriptToolCallsGroupOpenModeWeb); both live on the account, so each row is the same everywhere.
+const TOOL_CALLS_GROUP_OPEN_MODE_TITLES = {
+    app: 'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
+    web: 'settingsSession.transcript.toolCallsGroupOpenInSheetWebTitle',
+} as const;
 
 export const TranscriptSettingsView = React.memo(function TranscriptSettingsView() {
     const { theme } = useUnistyles();
@@ -59,6 +66,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptToolCallsGroupShowBackground, setTranscriptToolCallsGroupShowBackground] = useSettingMutable('transcriptToolCallsGroupShowBackground');
     const [transcriptToolCallsGroupBottomCollapse, setTranscriptToolCallsGroupBottomCollapse] = useSettingMutable('transcriptToolCallsGroupBottomCollapse');
     const [transcriptToolCallsGroupOpenMode, setTranscriptToolCallsGroupOpenMode] = useSettingMutable('transcriptToolCallsGroupOpenMode');
+    const [transcriptToolCallsGroupOpenModeWeb, setTranscriptToolCallsGroupOpenModeWeb] = useSettingMutable('transcriptToolCallsGroupOpenModeWeb');
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
     const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
@@ -747,7 +755,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     rowKind="item"
                                     popoverBoundaryRef={popoverBoundaryRef}
                                     itemTrigger={{
-                                        title: t('settingsSession.transcript.toolCallsGroupOpenInSheetTitle'),
+                                        title: t(TOOL_CALLS_GROUP_OPEN_MODE_TITLES.app),
                                         icon: <Icon name="caret-right" size={29} color={theme.colors.text.secondary} />,
                                         subtitle: TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === transcriptToolCallsGroupOpenMode)?.title,
                                     }}
@@ -759,6 +767,34 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     onSelect={(id) => {
                                         const option = TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === id);
                                         if (option) setTranscriptToolCallsGroupOpenMode(option.id);
+                                        setOpenToolDetailMenu(null);
+                                    }}
+                                />
+
+                                <DropdownMenu
+                                    open={openToolDetailMenu === 'transcriptToolCallsGroupOpenModeWeb'}
+                                    onOpenChange={(next) => setOpenToolDetailMenu(next ? 'transcriptToolCallsGroupOpenModeWeb' : null)}
+                                    variant="selectable"
+                                    search={false}
+                                    selectedId={transcriptToolCallsGroupOpenModeWeb}
+                                    showCategoryTitles={false}
+                                    matchTriggerWidth={true}
+                                    connectToTrigger={true}
+                                    rowKind="item"
+                                    popoverBoundaryRef={popoverBoundaryRef}
+                                    itemTrigger={{
+                                        title: t(TOOL_CALLS_GROUP_OPEN_MODE_TITLES.web),
+                                        icon: <Icon name="caret-right" size={29} color={theme.colors.text.secondary} />,
+                                        subtitle: TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === transcriptToolCallsGroupOpenModeWeb)?.title,
+                                    }}
+                                    items={TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.map((opt) => ({
+                                        id: opt.id,
+                                        title: opt.title,
+                                        subtitle: opt.subtitle,
+                                    }))}
+                                    onSelect={(id) => {
+                                        const option = TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === id);
+                                        if (option) setTranscriptToolCallsGroupOpenModeWeb(option.id);
                                         setOpenToolDetailMenu(null);
                                     }}
                                 />

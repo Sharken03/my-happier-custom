@@ -10,6 +10,9 @@ export const TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES = [
 ] as const;
 export type TranscriptMessageTimestampDisplayMode = typeof TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES[number];
 
+export const TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES = ['inline', 'sheet', 'list'] as const;
+export type TranscriptToolCallsGroupOpenMode = typeof TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES[number];
+
 function bucketCount(value: number, smallMax: number, mediumMax: number): 'small' | 'medium' | 'large' {
     if (value <= smallMax) return 'small';
     if (value <= mediumMax) return 'medium';
@@ -142,9 +145,19 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     transcriptToolCallsGroupOpenMode: {
-        schema: z.enum(['inline', 'sheet', 'list']),
+        schema: z.enum(TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES),
         default: 'inline',
         description: 'Open a Tool calls group inline in the transcript, in a sheet from a one-line group header, or inline as a list of one-line rows (as Claude Code on the web)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    // 8T fork: the web client keeps its own Tool calls group mode, next to the app's
+    // transcriptToolCallsGroupOpenMode. Both are account settings, so each client reads the value
+    // that belongs to it on every device and browser.
+    transcriptToolCallsGroupOpenModeWeb: {
+        schema: z.enum(TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES),
+        default: 'inline',
+        description: 'The web client: open a Tool calls group inline in the transcript, in a sheet from a one-line group header, or inline as a list of one-line rows (as Claude Code on the web)',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },

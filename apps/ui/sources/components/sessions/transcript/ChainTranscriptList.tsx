@@ -15,6 +15,7 @@ import {
 import { MessageViewWithSessionCommon } from '@/components/sessions/transcript/MessageView';
 import { settingsDefaults } from '@/sync/domains/settings/settings';
 import { useSetting } from '@/sync/domains/state/storage';
+import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 import { sync } from '@/sync/sync';
 import { useSessionCatchingUpNewer } from '@/sync/store/hooks';
 import { resolveActiveThinkingMessageId } from '@/components/sessions/transcript/thinking/resolveActiveThinkingMessageId';
@@ -293,7 +294,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
     const isCatchingUpNewer = useSessionCatchingUpNewer(props.sessionId);
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
-    const transcriptToolCallsGroupOpenMode = useSetting('transcriptToolCallsGroupOpenMode');
+    const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
 
     // Tool-group expansion state is keyed by anchor message ids (declared before the
     // items memo: N2c per-unit decomposition derives the list rows from it).

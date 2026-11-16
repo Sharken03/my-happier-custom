@@ -8952,6 +8952,7 @@ settingsSession: {
         toolCallsGroupBottomCollapseTitle: 'Recolher na parte inferior',
         toolCallsGroupBottomCollapseSubtitle: 'Mostra um controle para recolher na parte inferior de um grupo de chamadas de ferramentas expandido.',
         toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
         toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Aparência das ferramentas",
         toolAppearanceSubtitle:
