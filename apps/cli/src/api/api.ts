@@ -775,7 +775,7 @@ export class ApiClient {
   ): ApiSessionClient {
     return new ApiSessionClient(this.credential.token, session, runtimeActivity, {
       permissionRequestPushSender: this.pushClient,
-    }, this.createConnectedAccountCredentialResolver());
+    });
   }
 
   machineSyncClient(

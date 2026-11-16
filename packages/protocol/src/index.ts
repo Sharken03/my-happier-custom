@@ -2137,8 +2137,6 @@ export {
   ScmHostingProviderSchema,
   ScmPullRequestCheckoutRequestSchema,
   ScmPullRequestCheckoutResponseSchema,
-  ScmPullRequestCreateReviewRequestSchema,
-  ScmPullRequestCreateReviewResponseSchema,
   ScmPullRequestGetRequestSchema,
   ScmPullRequestGetResponseSchema,
   ScmPullRequestListRequestSchema,
@@ -2150,8 +2148,6 @@ export {
   ScmPullRequestPrepareWorktreeRequestSchema,
   ScmPullRequestPrepareWorktreeResponseSchema,
   ScmPullRequestReferenceSchema,
-  ScmPullRequestReviewCommentSchema,
-  ScmPullRequestReviewEventSchema,
   ScmPullRequestRunStackedNextActionSchema,
   ScmPullRequestRunStackedProgressEventSchema,
   ScmPullRequestRunStackedRequestSchema,
@@ -2165,8 +2161,6 @@ export {
   type ScmHostingProviderKind,
   type ScmPullRequestCheckoutRequest,
   type ScmPullRequestCheckoutResponse,
-  type ScmPullRequestCreateReviewRequest,
-  type ScmPullRequestCreateReviewResponse,
   type ScmPullRequestGetRequest,
   type ScmPullRequestGetResponse,
   type ScmPullRequestListRequest,
@@ -2178,8 +2172,6 @@ export {
   type ScmPullRequestPrepareWorktreeRequest,
   type ScmPullRequestPrepareWorktreeResponse,
   type ScmPullRequestReference,
-  type ScmPullRequestReviewComment,
-  type ScmPullRequestReviewEvent,
   type ScmPullRequestRunStackedNextAction,
   type ScmPullRequestRunStackedProgressEvent,
   type ScmPullRequestRunStackedRequest,
@@ -2920,18 +2912,6 @@ export {
 } from './reviews/reviewStart.js';
 
 export {
-  ReviewModelRefSchema,
-  ReviewModelPolicySchema,
-  resolveReviewModelPolicy,
-  resolveReviewCallSitePolicyFlagMapping,
-  type ReviewModelRef,
-  type ReviewModelPolicy,
-  type ReviewModelPolicySource,
-  type ReviewModelPolicyResolution,
-  type ReviewCallSitePolicyFlagMapping,
-} from './reviews/reviewModelPolicy.js';
-
-export {
   ReviewFollowUpInputSchema,
   type ReviewFollowUpInput,
 } from './reviews/reviewFollowUp.js';
@@ -2973,12 +2953,6 @@ export {
   parseReviewFollowUpV1,
   type ReviewFollowUpV1,
 } from './structuredMessages/reviewFollowUpV1.js';
-
-export {
-  ReviewPublishRequestV1Schema,
-  parseReviewPublishRequestV1,
-  type ReviewPublishRequestV1,
-} from './structuredMessages/reviewPublishRequestV1.js';
 
 export {
   PlanOutputV1Schema,

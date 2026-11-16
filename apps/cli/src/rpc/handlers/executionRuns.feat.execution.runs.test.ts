@@ -815,7 +815,7 @@ describe('executionRuns session RPC handlers', () => {
       includeStructured: true,
     });
     expect(got.run?.retentionPolicy).toBe('resumable');
-    expect(got.run?.availableActionIds).toEqual(['review.triage', 'review.publish', 'review.follow_up']);
+    expect(got.run?.availableActionIds).toEqual(['review.triage', 'review.follow_up']);
     expect(got.structuredMeta?.kind).toBe('review_findings.v2');
     expect(got.structuredMeta?.payload?.runRef?.runId).toBe(started.runId);
 

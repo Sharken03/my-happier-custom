@@ -27,7 +27,6 @@ export type ScmHostingProviderAdapter = Readonly<{
     listOpenPullRequests?(input: ScmHostingProviderListOpenPullRequestsInput): Promise<readonly ScmPullRequestSummary[]>;
     getPullRequest?(input: ScmHostingProviderGetPullRequestInput): Promise<ScmPullRequestSummary | null>;
     createPullRequest?(input: ScmHostingProviderCreatePullRequestInput): Promise<ScmPullRequestSummary>;
-    createPullRequestReview?(input: ScmHostingProviderCreatePullRequestReviewInput): Promise<ScmHostingProviderCreatePullRequestReviewResult>;
     listRepositoryPublishTargets?(
         input: ScmHostingProviderListRepositoryPublishTargetsInput
     ): Promise<readonly ScmHostingRepositoryPublishTarget[]>;
@@ -61,27 +60,6 @@ export type ScmHostingProviderCreatePullRequestInput = Readonly<{
     title: string;
     body: string;
     draft?: boolean;
-}>;
-
-export type ScmHostingProviderReviewComment = Readonly<{
-    path: string;
-    line: number;
-    side?: 'old' | 'new';
-    body: string;
-}>;
-
-export type ScmHostingProviderCreatePullRequestReviewInput = Readonly<{
-    provider: ScmHostingProvider;
-    token?: string;
-    number: number;
-    event: 'comment' | 'request_changes' | 'approve';
-    body: string;
-    comments: readonly ScmHostingProviderReviewComment[];
-}>;
-
-export type ScmHostingProviderCreatePullRequestReviewResult = Readonly<{
-    reviewId: string;
-    url: string | null;
 }>;
 
 export type ScmHostingProviderListRepositoryPublishTargetsInput = Readonly<{

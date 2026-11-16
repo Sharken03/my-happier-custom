@@ -21,7 +21,6 @@ import { resolveCliVoicePromptStackBlocks } from '@/agent/promptLibrary/resolveC
 import { configuration } from '@/configuration';
 import type { ExecutionRunBackendStartContext } from '@/agent/executionRuns/registry/executionRunBackendTypes';
 import type {
-  ExecutionRunActionDeps,
   ExecutionRunActionParams,
   ExecutionRunActionResult,
   ExecutionRunManagerStartParams,
@@ -1065,11 +1064,7 @@ export class ExecutionRunManager {
     return this.disposalPromise;
   }
 
-  async applyAction(
-    runId: string,
-    params: ExecutionRunActionParams,
-    deps?: ExecutionRunActionDeps,
-  ): Promise<ExecutionRunActionResult> {
+  async applyAction(runId: string, params: ExecutionRunActionParams): Promise<ExecutionRunActionResult> {
     return applyExecutionRunAction({
       runId,
       params,
@@ -1080,7 +1075,6 @@ export class ExecutionRunManager {
       sendAcp: this.sendAcp,
       sendCommittedAcp: this.streamedTranscriptSession?.sendAgentMessageCommitted,
       parentProvider: this.parentProvider,
-      ...(deps ? { deps } : {}),
     });
   }
 }

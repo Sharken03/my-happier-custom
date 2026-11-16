@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { lazySchema } from '../lazySchema.js';
-import { ReviewModelPolicySchema } from './reviewModelPolicy.js';
 
 /**
  * Canonical, cross-surface input contract for starting reviews.
@@ -57,7 +56,6 @@ export const ReviewStartInputSchema = lazySchema(() => z
     changeType: ReviewChangeTypeSchema.default('uncommitted'),
     base: ReviewBaseSchema.default({ kind: 'none' }),
     engines: ReviewEngineInputsSchema.prefault(DEFAULT_REVIEW_ENGINE_INPUTS),
-    modelPolicy: ReviewModelPolicySchema.default({ kind: 'inherit' }),
     permissionMode: z.string().min(1).default('read_only'),
   })
   .passthrough())

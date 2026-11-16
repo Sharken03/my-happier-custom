@@ -11,10 +11,8 @@ import type {
 import type {
     ScmHostingProviderAdapter,
     ScmHostingProviderCreatePullRequestInput,
-    ScmHostingProviderCreatePullRequestReviewInput,
     ScmHostingProviderGetPullRequestInput,
     ScmHostingProviderListOpenPullRequestsInput,
-    ScmHostingProviderReviewComment,
 } from '../types';
 import { stripTrailingSlash } from '../remoteUrl';
 import { gitlabScmHostingProviderAdapter } from './gitlab';
@@ -47,66 +45,6 @@ function buildApiProjectPath(provider: ScmHostingProvider): string {
         throw new Error('GitLab repository owner/name is unavailable.');
     }
     return `projects/${encodeURIComponent(provider.nameWithOwner)}/merge_requests`;
-}
-
-function buildApiMergeRequestPath(provider: ScmHostingProvider, number: number): string {
-    return `${buildApiProjectPath(provider)}/${number}`;
-}
-
-function readGitlabString(value: unknown): string | null {
-    return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function readGitlabDiffRefs(value: unknown): Readonly<{ baseSha: string; headSha: string; startSha: string }> {
-    if (!value || typeof value !== 'object') {
-        throw new Error('GitLab CLI returned an invalid merge request payload.');
-    }
-    const diffRefs = (value as Record<string, unknown>).diff_refs;
-    if (!diffRefs || typeof diffRefs !== 'object') {
-        throw new Error('GitLab CLI returned an invalid merge request payload.');
-    }
-    const record = diffRefs as Record<string, unknown>;
-    const baseSha = readGitlabString(record.base_sha);
-    const headSha = readGitlabString(record.head_sha);
-    const startSha = readGitlabString(record.start_sha);
-    if (!baseSha || !headSha || !startSha) {
-        throw new Error('GitLab CLI returned an invalid merge request payload.');
-    }
-    return { baseSha, headSha, startSha };
-}
-
-function readGitlabWebUrl(value: unknown): string | null {
-    if (!value || typeof value !== 'object') return null;
-    return readGitlabString((value as Record<string, unknown>).web_url);
-}
-
-function readGitlabDiscussionId(value: unknown): string | null {
-    if (!value || typeof value !== 'object') return null;
-    return readGitlabString((value as Record<string, unknown>).id);
-}
-
-function readGitlabNoteId(value: unknown): string | null {
-    if (!value || typeof value !== 'object') return null;
-    // glab returns note ids as numbers, discussion ids as strings.
-    const id = (value as Record<string, unknown>).id;
-    if (typeof id === 'number' && Number.isFinite(id)) return String(id);
-    return readGitlabString(id);
-}
-
-function buildGitlabReviewPosition(input: Readonly<{
-    diffRefs: Readonly<{ baseSha: string; headSha: string; startSha: string }>;
-    comment: ScmHostingProviderReviewComment;
-}>): Record<string, unknown> {
-    const { diffRefs, comment } = input;
-    const base = {
-        base_sha: diffRefs.baseSha,
-        head_sha: diffRefs.headSha,
-        start_sha: diffRefs.startSha,
-        position_type: 'text',
-    };
-    return comment.side === 'old'
-        ? { ...base, old_path: comment.path, old_line: comment.line }
-        : { ...base, new_path: comment.path, new_line: comment.line };
 }
 
 function readJsonOutput(stdout: string): unknown {
@@ -261,65 +199,6 @@ export function createGitlabCliAdapter(params?: Readonly<{
             } finally {
                 await removeBodyFile(bodyFile);
             }
-        },
-        async createPullRequestReview(input: ScmHostingProviderCreatePullRequestReviewInput) {
-            const host = resolveGitlabCliHost(input.provider.baseUrl);
-            const mergeRequestPath = buildApiMergeRequestPath(input.provider, input.number);
-
-            const mergeRequestJson = readJsonOutput(await runRequiredGitlabCliCommand({
-                runCommand,
-                args: ['api', '--hostname', host, mergeRequestPath],
-            }));
-            const diffRefs = readGitlabDiffRefs(mergeRequestJson);
-            const url = readGitlabWebUrl(mergeRequestJson);
-
-            // GitLab has no review object. The body is posted as a plain MR note when it carries text and
-            // either the event is not a plain comment or there are no inline comments to carry it. GitLab
-            // cannot request changes, so the event itself is ignored.
-            const shouldPostBodyNote = input.body.trim().length > 0
-                && (input.event !== 'comment' || input.comments.length === 0);
-            let reviewId: string | null = null;
-            if (shouldPostBodyNote) {
-                const noteJson = readJsonOutput(await runRequiredGitlabCliCommand({
-                    runCommand,
-                    args: [
-                        'api',
-                        '--hostname',
-                        host,
-                        '--method',
-                        'POST',
-                        `${mergeRequestPath}/notes`,
-                        '--raw-field',
-                        `body=${input.body}`,
-                    ],
-                }));
-                reviewId = readGitlabNoteId(noteJson);
-            }
-            for (const comment of input.comments) {
-                const discussionJson = readJsonOutput(await runRequiredGitlabCliCommand({
-                    runCommand,
-                    args: [
-                        'api',
-                        '--hostname',
-                        host,
-                        '--method',
-                        'POST',
-                        `${mergeRequestPath}/discussions`,
-                        '--field',
-                        `position=${JSON.stringify(buildGitlabReviewPosition({ diffRefs, comment }))}`,
-                        '--raw-field',
-                        `body=${comment.body}`,
-                    ],
-                }));
-                if (reviewId === null) {
-                    reviewId = readGitlabDiscussionId(discussionJson);
-                }
-            }
-
-            if (reviewId === null) {
-                throw new Error('GitLab CLI did not return a discussion id.');
-            }
-            return { reviewId, url };
         },
     };
 }

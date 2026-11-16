@@ -1,8 +1,6 @@
 import type {
     ScmPullRequestCheckoutRequest,
     ScmPullRequestCheckoutResponse,
-    ScmPullRequestCreateReviewRequest,
-    ScmPullRequestCreateReviewResponse,
     ScmPullRequestGetRequest,
     ScmPullRequestGetResponse,
     ScmPullRequestListRequest,
@@ -20,7 +18,6 @@ import { SCM_OPERATION_ERROR_CODES } from '@happier-dev/protocol';
 import { RPC_METHODS } from '@happier-dev/protocol/rpc';
 
 import type { RpcHandlerRegistrar } from '@/api/rpc/types';
-import { resolveCliFeatureDecision } from '@/features/featureDecisionService';
 import { notRepositoryResponse, runScmRoute } from '@/scm/rpc/dispatch';
 
 import type { ScmHandlerRouteBase, ScmMutatingRouteRunner } from './scmHandlerRouteBase';
@@ -150,37 +147,5 @@ export function registerScmPullRequestHandlers(
                         }),
                 })
             )
-    );
-
-    rpcHandlerManager.registerHandler<ScmPullRequestCreateReviewRequest, ScmPullRequestCreateReviewResponse>(
-        RPC_METHODS.SCM_PULL_REQUEST_CREATE_REVIEW,
-        async (request) => {
-            // Creating a review is an outward write, so it is gated at the RPC boundary (not in the
-            // operations layer) on the same source-control write feature the UI/CLI surfaces use.
-            const writeOperationsDecision = resolveCliFeatureDecision({
-                featureId: 'scm.writeOperations',
-                env: process.env,
-            });
-            if (writeOperationsDecision.state !== 'enabled') {
-                return {
-                    success: false,
-                    errorCode: SCM_OPERATION_ERROR_CODES.FEATURE_UNSUPPORTED,
-                    error: 'Pull request review creation is not enabled.',
-                };
-            }
-            return runMutatingRoute(() =>
-                runScmRoute<ScmPullRequestCreateReviewRequest, ScmPullRequestCreateReviewResponse>({
-                    request,
-                    ...routeBase,
-                    onNonRepository: async () => notRepositoryResponse<ScmPullRequestCreateReviewResponse>(),
-                    runWithBackend: ({ context, selection }) =>
-                        selection.backend.pullRequests?.createReview?.({ context, request }) ?? Promise.resolve({
-                            success: false,
-                            errorCode: SCM_OPERATION_ERROR_CODES.FEATURE_UNSUPPORTED,
-                            error: 'Pull request review operations are not supported by the selected source-control backend.',
-                        }),
-                })
-            );
-        }
     );
 }

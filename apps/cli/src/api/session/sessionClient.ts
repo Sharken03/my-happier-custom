@@ -49,7 +49,6 @@ import {
     copyCallableSessionRuntimeControls,
 } from './sessionRuntimeControls';
 import { registerExecutionRunHandlers } from '@/rpc/handlers/executionRuns';
-import type { ScmConnectedAccountCredentialResolver } from '@/scm/types';
 import { createExecutionRunTranscriptWriter } from '@/api/session/executionRunTranscriptWriter';
 import { registerEphemeralTaskHandlers } from '@/rpc/handlers/ephemeralTasks';
 import { emitSocketWithAck } from '@/session/transport/shared/socketAck';
@@ -595,7 +594,6 @@ export class ApiSessionClient extends EventEmitter {
     private static readonly STARTUP_MESSAGE_CATCH_UP_RETRY_DELAYS_MS = [250, 1_000, 2_500] as const;
 
     private readonly token: string;
-    private readonly connectedAccounts: ScmConnectedAccountCredentialResolver | null;
     private readonly requestSettlementEncryptionScope: AgentStateRequestSettlementEncryptionScope;
     readonly sessionId: string;
     private metadata: Metadata | null;
@@ -974,11 +972,9 @@ export class ApiSessionClient extends EventEmitter {
             session: Session,
             runtimeActivity?: SessionRuntimeActivityClientConfig,
             permissionNotifications?: SessionPermissionNotificationConfig,
-            connectedAccounts?: ScmConnectedAccountCredentialResolver,
         ) {
 	        super()
 	        this.token = token;
-            this.connectedAccounts = connectedAccounts ?? null;
 	        this.sessionId = session.id;
             this.requestSettlementEncryptionScope = {
                 token, sessionId: session.id, serverId: configuration.activeServerId,
@@ -1244,7 +1240,6 @@ export class ApiSessionClient extends EventEmitter {
                 const context = await bootstrapAccountSettingsContext({ credentials, mode: 'fast' });
                 return context.settings ?? null;
             },
-            ...(this.connectedAccounts ? { connectedAccounts: this.connectedAccounts } : {}),
         });
 
         this.rpcLifecycleRegistrations.push(this.executionRunLifecycleRegistration);

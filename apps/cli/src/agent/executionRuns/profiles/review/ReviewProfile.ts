@@ -20,7 +20,6 @@ export const ReviewProfile: ExecutionRunIntentProfile = {
     structuredMeta?.kind === 'review_findings.v1' || structuredMeta?.kind === 'review_findings.v2'
       ? [
         'review.triage',
-        'review.publish',
         ...(start.retentionPolicy === 'resumable' ? ['review.follow_up'] : []),
       ]
       : [],

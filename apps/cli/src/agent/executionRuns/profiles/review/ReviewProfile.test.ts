@@ -197,7 +197,7 @@ describe('ReviewProfile', () => {
       },
     });
 
-    expect(actionIds).toEqual(['review.triage', 'review.publish', 'review.follow_up']);
+    expect(actionIds).toEqual(['review.triage', 'review.follow_up']);
   });
 
   it('hides review.follow_up for coderabbit review findings payloads', () => {
@@ -236,32 +236,6 @@ describe('ReviewProfile', () => {
       },
     });
 
-    expect(actionIds).toEqual(['review.triage', 'review.publish']);
-  });
-
-  it('advertises review.publish for review_findings.v1 and review_findings.v2 meta', () => {
-    const start = {
-      sessionId: 'sess_1',
-      runId: 'run_1',
-      callId: 'call_1',
-      sidechainId: 'call_1',
-      intent: 'review',
-      backendId: 'claude',
-      backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
-      instructions: 'review this',
-      permissionMode: 'read_only',
-      retentionPolicy: 'ephemeral',
-      runClass: 'bounded',
-      ioMode: 'streaming',
-      startedAtMs: 1,
-    } as const;
-
-    for (const kind of ['review_findings.v1', 'review_findings.v2'] as const) {
-      const actionIds = ReviewProfile.listAvailableActionIds?.({
-        start,
-        structuredMeta: { kind, payload: {} },
-      });
-      expect(actionIds).toContain('review.publish');
-    }
+    expect(actionIds).toEqual(['review.triage']);
   });
 });

@@ -1,8 +1,7 @@
-import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ConnectedServiceBindingsV1, ExecutionRunDisplay, ExecutionRunIntent, ExecutionRunLaunchOrigin, ExecutionRunRequestedConfiguration, ExecutionRunResumeHandle, FeatureDecision } from '@happier-dev/protocol';
+import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ConnectedServiceBindingsV1, ExecutionRunDisplay, ExecutionRunIntent, ExecutionRunLaunchOrigin, ExecutionRunRequestedConfiguration, ExecutionRunResumeHandle } from '@happier-dev/protocol';
 
 import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
 import type { ExecutionRunConnectedServiceRegistrationV1 } from '@/daemon/connectedServices/runsBridge/contract';
-import type { ScmConnectedAccountCredentialResolver } from '@/scm/types';
 
 export type ExecutionRunManagerStartParams = Readonly<{
   sessionId: string;
@@ -142,19 +141,6 @@ export type ExecutionRunState = Readonly<{
 export type ExecutionRunActionParams = Readonly<{
   actionId: string;
   input?: unknown;
-}>;
-
-/**
- * Optional, pre-resolved dependencies for a run action. Threaded from the RPC layer into
- * `ExecutionRunManager.applyAction` so action branches (e.g. `review.publish`) can reach the
- * session cwd, connected-account credentials, account settings, and the already-resolved
- * feature decision without re-resolving them inside the runtime.
- */
-export type ExecutionRunActionDeps = Readonly<{
-  cwd?: string;
-  accountSettings?: Readonly<Record<string, unknown>> | null;
-  connectedAccounts?: ScmConnectedAccountCredentialResolver;
-  featureDecision?: FeatureDecision;
 }>;
 
 export type ExecutionRunActionResult = Readonly<{
