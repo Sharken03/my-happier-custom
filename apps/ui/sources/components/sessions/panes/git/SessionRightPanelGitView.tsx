@@ -46,6 +46,9 @@ import type { ScmStatusFiles } from '@/scm/scmStatusFiles';
 import { t } from '@/text';
 import { SCM_OPERATION_ERROR_CODES } from '@happier-dev/protocol';
 import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
+import { PiChatChangesSection } from './piChatChanges/PiChatChangesSection';
+import { addPiChatChangeCounts } from './piChatChanges/piChatChanges';
+import { usePiChatChanges } from './piChatChanges/usePiChatChanges';
 import { SessionRightPanelGitSubTabsBar } from './SessionRightPanelGitSubTabsBar';
 import { SessionRightPanelGitCommitTabContent } from './SessionRightPanelGitCommitTabContent';
 import { SessionRightPanelGitHistoryTab } from './SessionRightPanelGitHistoryTab';
@@ -281,6 +284,13 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
         setActiveGitSubTab(displayActiveGitSubTab);
     }, [activeGitSubTab, displayActiveGitSubTab, setActiveGitSubTab]);
 
+    // Pi chats: files changed outside git, read again on each git snapshot refresh while shown.
+    const piChatChanges = usePiChatChanges({
+        sessionId: props.sessionId,
+        enabled: Boolean(effectiveScmSnapshot) && (effectiveScmSnapshot?.repo.isRepo !== true || displayActiveGitSubTab !== 'history'),
+        refreshKey: effectiveScmSnapshot?.fetchedAt ?? null,
+    });
+
     React.useEffect(() => {
         if (displayActiveGitSubTab !== 'history') return;
         if (!sessionPath) return;
@@ -368,6 +378,10 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             totalPending: effectiveScmSnapshot.totals.pendingFiles,
         };
     }, [effectiveScmSnapshot]);
+    const updateTabStatusFiles = React.useMemo(
+        () => addPiChatChangeCounts(scmStatusFilesSummary, piChatChanges),
+        [piChatChanges, scmStatusFilesSummary],
+    );
 
     const isLockedByOtherSession = Boolean(
         inFlightScmOperation && inFlightScmOperation.sessionId !== props.sessionId
@@ -591,6 +605,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
                     sessionChangeSet={sessionChangeSet}
                     scmSnapshot={effectiveScmSnapshot}
                 />
+                <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
             </ScrollView>
         );
     }
@@ -650,6 +665,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             openFileInDetails={openFileInDetails}
             openFileInDetailsPinned={openFileInDetailsPinned}
             showBranchSummary={displayActiveGitSubTab === 'commit'}
+            piChatChanges={piChatChanges}
         />
     );
 
@@ -662,7 +678,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             disabled={scmOperationBusy || hasGlobalOperationInFlight || isLockedByOtherSession}
             actions={remoteActions}
             hint={remoteHint}
-            scmStatusFiles={scmStatusFilesSummary}
+            scmStatusFiles={updateTabStatusFiles}
             showBranchSummary={displayActiveGitSubTab === 'update'}
         />
     );
