@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
-import { open, readFile } from 'node:fs/promises';
+import { open, readFile, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
+import { HAPPIER_DIFF_STATS_DETAILS_KEY } from '@happier-dev/protocol/tools/v2';
+
 import type { ACPMessageData } from '@/api/session/sessionMessageTypes';
+
+import { countPiSubagentSessionFiles } from './piSubagentDiffStats';
 
 /**
  * Mirrors the child sessions of the `pi-subagents` `subagent` tool into a Happier sidechain.
@@ -22,6 +26,8 @@ const PI_ASYNC_LIVE_STATES = new Set(['queued', 'running', 'paused']);
 const DEFAULT_ASYNC_STATUS_POLL_MS = 1000;
 /** Upper bound on one read, so a huge child session cannot stall the RPC event loop. */
 const MAX_READ_BYTES_PER_PASS = 4 * 1024 * 1024;
+/** Larger child sessions are not read for the final answer of an async run. */
+const MAX_FINAL_TEXT_FILE_BYTES = 8 * 1024 * 1024;
 
 export type PiSubagentSessionObservation =
   /** A foreground run: the update or end event names the child session files. */
@@ -202,6 +208,36 @@ export type PiSubagentSidechainMirror = Readonly<{
 
 type AsyncRunFollow = { callId: string; asyncDir: string; timer: ReturnType<typeof setTimeout> | null };
 
+/** The last assistant text of a child session, or null when it has none or is too large. */
+async function readLastAssistantText(sessionFile: string): Promise<string | null> {
+  let text: string;
+  try {
+    if ((await stat(sessionFile)).size > MAX_FINAL_TEXT_FILE_BYTES) return null;
+    text = await readFile(sessionFile, 'utf8');
+  } catch {
+    return null;
+  }
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trim().length === 0) continue;
+    let entry: unknown;
+    try {
+      entry = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    const message = asRecord(asRecord(entry)?.message);
+    if (message?.role !== 'assistant' || !Array.isArray(message.content)) continue;
+    const parts = message.content
+      .map((block) => asRecord(block))
+      .filter((block) => block?.type === 'text')
+      .map((block) => asNonEmptyString(block?.text))
+      .filter((part): part is string => part !== null);
+    if (parts.length > 0) return parts.join('\n\n');
+  }
+  return null;
+}
+
 export function createPiSubagentSidechainMirror(params: {
   send: PiSubagentSidechainSend;
   onError?: (error: unknown) => void;
@@ -214,6 +250,7 @@ export function createPiSubagentSidechainMirror(params: {
   const asyncRunById = new Map<string, AsyncRunFollow>();
   const callIdByRunId = new Map<string, string>();
   const asyncStatusPollMs = params.asyncStatusPollMs ?? DEFAULT_ASYNC_STATUS_POLL_MS;
+  const finishedCallIds = new Set<string>();
 
   const readNewLines = async (sessionFile: string): Promise<string[]> => {
     const state = readStateByFile.get(sessionFile) ?? { offset: 0, pendingLine: '' };
@@ -302,6 +339,52 @@ export function createPiSubagentSidechainMirror(params: {
   };
 
   /**
+   * An async call returned at once with a launch answer. When its run ends, this sends the call's
+   * real result: the children's last answers and the lines they changed. The app lets this
+   * result replace the launch answer.
+   */
+  const sendAsyncFinalResult = async (
+    callId: string,
+    runId: string,
+    state: string,
+    sessionFiles: readonly string[],
+  ): Promise<void> => {
+    if (finishedCallIds.has(callId)) return;
+    finishedCallIds.add(callId);
+    try {
+      const answers: string[] = [];
+      for (const sessionFile of sessionFiles) {
+        const answer = await readLastAssistantText(sessionFile);
+        if (answer) answers.push(answer);
+      }
+      const content = answers.length > 0 ? answers.join('\n\n---\n\n') : `Background run ${state}.`;
+      await params.send(
+        {
+          type: 'tool-result',
+          callId,
+          output: {
+            content,
+            details: {
+              runId,
+              state,
+              results: sessionFiles.map((sessionFile) => ({ sessionFile })),
+              [HAPPIER_DIFF_STATS_DETAILS_KEY]: countPiSubagentSessionFiles(sessionFiles),
+            },
+          },
+          id: `pi-subagent-${callId}-async-final`,
+          ...(state === 'failed' ? { isError: true } : {}),
+        },
+        {
+          localId: `pi-subagent-async-final:v1:${sha256Short(callId)}`,
+          meta: { importedFrom: 'pi-subagent-async-final' },
+        },
+      );
+    } catch (error) {
+      params.onError?.(error);
+    }
+  };
+
+  /**
    * An async child runs detached from the parent RPC stream, and nothing pushes its progress to
    * this process. Its run directory holds status.json, which names the child session files and
    * the run state. Read it until the state is final; `bg_wait` then delivers the last pass.
@@ -326,8 +409,10 @@ export function createPiSubagentSidechainMirror(params: {
     const state = asNonEmptyString(status?.state);
     const deadlineAt = typeof status?.deadlineAt === 'number' ? status.deadlineAt : null;
     // A run killed hard never writes a final state; its deadline still ends the follow.
-    if ((state && !PI_ASYNC_LIVE_STATES.has(state)) || (deadlineAt !== null && Date.now() > deadlineAt)) {
+    const ended = Boolean(state && !PI_ASYNC_LIVE_STATES.has(state));
+    if (ended || (deadlineAt !== null && Date.now() > deadlineAt)) {
       stopFollowing(runId);
+      await sendAsyncFinalResult(follow.callId, runId, ended && state ? state : 'timed out', sessionFiles);
       return;
     }
     if (!asyncRunById.has(runId)) return;
@@ -354,7 +439,8 @@ export function createPiSubagentSidechainMirror(params: {
     if (!callId) return Promise.resolve();
     stopFollowing(observation.runId);
     callIdByRunId.delete(observation.runId);
-    return enqueue(callId, observation.sessionFiles, true);
+    const { runId, sessionFiles } = observation;
+    return enqueue(callId, sessionFiles, true).then(() => sendAsyncFinalResult(callId, runId, 'complete', sessionFiles));
   };
 
   // Poll timers are unref'd and end with the run, so the mirror needs no dispose step.

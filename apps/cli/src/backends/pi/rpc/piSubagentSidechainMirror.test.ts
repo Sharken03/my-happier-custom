@@ -31,6 +31,21 @@ const toolResultEntry = {
   message: { role: 'toolResult', toolCallId: 'call_1', toolName: 'read', content: [{ type: 'text', text: 'file body' }], isError: false },
 };
 
+const editEntry = {
+  type: 'message',
+  id: 'a2',
+  message: {
+    role: 'assistant',
+    content: [{ type: 'toolCall', id: 'call_2', name: 'edit', arguments: { path: 'src/a.ts', edits: [{ oldText: 'a\nb\n', newText: 'a\nc\nd\n' }] } }],
+  },
+};
+const editResultEntry = {
+  type: 'message',
+  id: 'r2',
+  message: { role: 'toolResult', toolCallId: 'call_2', toolName: 'edit', content: [{ type: 'text', text: 'ok' }], isError: false },
+};
+const answerEntry = { type: 'message', id: 'a3', message: { role: 'assistant', content: [{ type: 'text', text: 'Fixed the parser' }] } };
+
 function updateEvent(sessionFile: string) {
   return {
     type: 'tool_execution_update',
@@ -148,6 +163,7 @@ describe('async pi-subagents runs', () => {
     await vi.waitFor(() => expect(sent.length).toBe(3));
 
     await appendFile(sessionFile, line(toolResultEntry));
+    await appendFile(sessionFile, line(editEntry) + line(editResultEntry) + line(answerEntry));
     await writeFile(join(asyncDir, 'status.json'), JSON.stringify({ state: 'complete', sessionFile }));
     const completion = readPiSubagentSessionObservation({
       type: 'tool_execution_end',
@@ -158,8 +174,21 @@ describe('async pi-subagents runs', () => {
     expect(completion).toEqual({ kind: 'async-complete', runId: 'run-1', sessionFiles: [sessionFile] });
     await mirror.observe(completion!);
 
-    expect(sent.map((body) => body.type)).toEqual(['thinking', 'message', 'tool-call', 'tool-result']);
-    expect(sent.every((body) => body.sidechainId === 'parent-call')).toBe(true);
+    const sidechain = sent.filter((body) => body.sidechainId === 'parent-call');
+    expect(sidechain.map((body) => body.type)).toEqual(['thinking', 'message', 'tool-call', 'tool-result', 'tool-call', 'tool-result', 'message']);
+    // The launching call gets one real result, outside the sidechain, with the lines its run changed.
+    const finals = sent.filter((body) => body.sidechainId === undefined);
+    expect(finals).toEqual([
+      {
+        type: 'tool-result',
+        callId: 'parent-call',
+        output: {
+          content: 'Fixed the parser',
+          details: { runId: 'run-1', state: 'complete', results: [{ sessionFile }], happierDiffStats: { added: 2, removed: 1 } },
+        },
+        id: 'pi-subagent-parent-call-async-final',
+      },
+    ]);
   });
 });
 

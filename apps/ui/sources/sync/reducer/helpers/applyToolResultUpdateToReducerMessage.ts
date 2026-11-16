@@ -1,4 +1,4 @@
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isClaudeAsyncAgentLaunchToolResult, isPiAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 
 import type { MessageMeta } from '../../domains/messages/messageMetaTypes';
 import type { ReducerMessage } from '../reducer';
@@ -69,10 +69,13 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
   // result was dropped and the card stayed frozen on "Async agent launched successfully" forever.
   // A replay of the acknowledgement itself is not new evidence, so the incoming result must be a
   // different kind of answer for the exception to apply.
+  // An async `pi-subagents` run works the same way: the CLI sends the run's real result when it ends.
   const supersedesAsyncAgentLaunch =
     message.tool.state === 'completed' &&
-    isClaudeAsyncAgentLaunchToolResult(message.tool.result) &&
-    !isClaudeAsyncAgentLaunchToolResult(toolResult.content);
+    ((isClaudeAsyncAgentLaunchToolResult(message.tool.result) &&
+      !isClaudeAsyncAgentLaunchToolResult(toolResult.content)) ||
+      (isPiAsyncSubagentLaunchToolResult(message.tool.result) &&
+        !isPiAsyncSubagentLaunchToolResult(toolResult.content)));
 
   if (
     message.tool.state !== 'running' &&

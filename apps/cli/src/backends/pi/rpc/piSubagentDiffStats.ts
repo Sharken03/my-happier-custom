@@ -108,7 +108,14 @@ function countSessionFile(sessionFile: string, depth: number, seen: Set<string>)
 export function readPiSubagentEndDiffStats(event: Record<string, unknown>): PiDiffStats | null {
   if (event.type !== 'tool_execution_end' || event.toolName !== PI_SUBAGENT_TOOL_NAME) return null;
   const files = readResultSessionFiles(asRecord(event.result)?.details);
-  if (files.length === 0) return null;
+  return files.length === 0 ? null : countPiSubagentSessionFiles(files);
+}
+
+/**
+ * The lines that the given child session files changed, with the subagents that they started
+ * themselves. The async run mirror uses it when a detached run ends.
+ */
+export function countPiSubagentSessionFiles(files: readonly string[]): PiDiffStats {
   const seen = new Set<string>();
   const total: PiDiffStats = { added: 0, removed: 0 };
   for (const file of files) {
