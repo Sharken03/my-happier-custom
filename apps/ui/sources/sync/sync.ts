@@ -5977,7 +5977,7 @@ class Sync {
               this.explicitSessionTailProbeIds.delete(sessionId);
           }
           if (isCatchUpWork) {
-              if (offlineForMs > 0 && this.lastSocketDisconnectedAtMs == null && shouldContinue()) {
+              if (offlineForMs > 0 && shouldContinue()) {
                   await this.repairRunningToolRowsAfterOffline(sessionId);
               }
               this.markSocketOfflineCatchUpConsumedForSession(sessionId, offlineForMs);
@@ -7620,12 +7620,13 @@ class Sync {
       /**
        * `afterSeq` catch-up does not read a row again after this device has its seq, and the
        * changes feed keeps only the latest hint per session. So a tool result that was completed
-       * in place while the socket was down stays "running" here. Re-read those rows once per
-       * offline period; nothing is fetched when no tool is running.
+       * in place while the socket was down stays "running" here. Re-read those rows over
+       * HTTP after each offline catch-up, also before the socket is back; nothing is fetched
+       * when no tool is running.
        */
       private async repairRunningToolRowsAfterOffline(sessionId: string): Promise<void> {
           const targets = collectRunningToolRepairTargets(storage.getState().sessionMessages[sessionId]?.reducerState);
-          console.log('[sync-trace]', 'tool-repair', sessionId.slice(-6), JSON.stringify(targets), JSON.stringify([...(storage.getState().sessionMessages[sessionId]?.reducerState.messages.values() ?? [])].filter((m) => m.tool?.state === 'running').map((m) => [m.tool?.name, m.realID, m.seq])));
+          console.log('[sync-trace]', 'tool-repair', sessionId.slice(-6), 'disc=', this.lastSocketDisconnectedAtMs, JSON.stringify(targets));
           if (!targets) return;
           try {
               await this.fetchStaleTranscriptRegion(sessionId, targets);
