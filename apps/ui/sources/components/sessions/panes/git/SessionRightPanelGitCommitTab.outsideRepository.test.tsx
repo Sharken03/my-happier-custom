@@ -113,6 +113,6 @@ describe('SessionRightPanelGitCommitTab (files outside the repository)', () => {
 
         const list = screen.findByType('FlatList');
         expect(list.props.ListEmptyComponent).toBeNull();
-        expect(screen.findAll((node) => node.type === 'Text' && node.props.children === '2')).toHaveLength(1);
+        expect(screen.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === '2')).toHaveLength(1);
     });
 });
