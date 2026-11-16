@@ -48,6 +48,12 @@ import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInt
 import { isAskUserQuestionToolName } from '@happier-dev/protocol';
 import { Icon } from '@/components/ui/icons/Icon';
 import {
+    collectToolCallsGroupDiffTools,
+    computeToolCallsGroupDiffStats,
+    readSubagentResultDiffStats,
+} from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
+import {
     TranscriptRowSeqProvider,
     useHistoricalTranscriptAgentId,
 } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
@@ -267,7 +273,20 @@ export const ToolTimelineRow = React.memo((props: {
             <Text style={styles.imageCountText} numberOfLines={1}>{String(imageCount)}</Text>
         </View>
     ) : null;
-    const headerRightElements = [headerImageCount, headerStatusIndicator, headerPrimaryActions].filter(Boolean);
+    // A subagent row shows the lines its subagent changed: the CLI's count in the result, or the
+    // edits among its loaded calls. The text is one small line, so the row height stays the same.
+    const isSubagentRow = isSubAgentTranscriptToolName(normalizedToolName);
+    const subagentDiffStats = React.useMemo(
+        () => (isSubagentRow
+            ? readSubagentResultDiffStats(toolForRendering)
+                ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(props.messages ?? []))
+            : null),
+        [isSubagentRow, props.messages, toolForRendering],
+    );
+    const headerDiffStats = subagentDiffStats && subagentDiffStats.added + subagentDiffStats.removed > 0
+        ? <ToolCallsGroupDiffStatsText stats={subagentDiffStats} />
+        : null;
+    const headerRightElements = [headerDiffStats, headerImageCount, headerStatusIndicator, headerPrimaryActions].filter(Boolean);
     const headerRightElement =
         headerRightElements.length > 1 ? (
             <View style={styles.headerRightContent}>

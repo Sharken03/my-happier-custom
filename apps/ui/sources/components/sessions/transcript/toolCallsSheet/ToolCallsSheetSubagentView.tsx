@@ -16,6 +16,13 @@ import { useSessionMessages } from '@/sync/store/hooks';
 import { t } from '@/text';
 import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveTranscriptInteraction';
 
+import {
+    collectToolCallsGroupDiffTools,
+    computeToolCallsGroupDiffStats,
+    readSubagentResultDiffStats,
+} from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
+
 import { ToolCallsSheetScrollView } from './ToolCallsBottomSheet';
 import {
     readToolCallsSheetSubagentPrompt,
@@ -71,6 +78,11 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
         disableToolNavigation: true,
     }), [session.accessLevel, session.active, session.canApprovePermissions, session.presence]);
 
+    // The CLI's count in the result, or the edits among the subagent's loaded calls.
+    const diffStats = React.useMemo(
+        () => readSubagentResultDiffStats(tool) ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(message.children)),
+        [message.children, tool],
+    );
     const subagentType = readToolCallsSheetSubagentType(tool);
     const prompt = shouldShowToolCallsSheetSubagentPrompt(visibleMessages) ? readToolCallsSheetSubagentPrompt(tool) : null;
     const fullReport = readToolCallsSheetSubagentReport(tool);
@@ -91,6 +103,7 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
                 </Pressable>
                 <View style={styles.headerCenter}>
                     <Text style={styles.title} numberOfLines={1}>{subagentType ?? t('tools.names.subAgent')}</Text>
+                    <ToolCallsGroupDiffStatsText stats={diffStats} />
                     <ToolStatusIndicator tool={tool} />
                 </View>
                 <View style={styles.headerButtonSpace} />
