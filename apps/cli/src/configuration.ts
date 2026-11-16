@@ -344,6 +344,12 @@ class Configuration {
    */
   public readonly countPiSubagentUsage: boolean
   /**
+   * HAPPIER_PI_EXTENSION_UI: a Pi chat saves the status texts and widget lines of Pi extensions
+   * (ctx.ui.setStatus/setWidget) in session metadata, so the app can show them. Default on;
+   * 0, false, no or off turns it off.
+   */
+  public readonly piExtensionUi: boolean
+  /**
    * When a user aborts a Claude session, the vendor SDK may surface a cancellation as a process-level
    * unhandledRejection (known "Operation aborted" error). Within this short window after a user abort,
    * the CLI treats that specific error as non-fatal so the session runner does not crash and respawn.
@@ -881,6 +887,9 @@ class Configuration {
     this.claudeTaskAllowRunInBackground = ['1', 'true', 'yes', 'on'].includes(allowTaskBackgroundRaw);
     this.countPiSubagentUsage = ['1', 'true', 'yes', 'on'].includes(
       String(process.env.HAPPIER_COUNT_PI_SUBAGENT_USAGE ?? '').trim().toLowerCase(),
+    );
+    this.piExtensionUi = !['0', 'false', 'no', 'off'].includes(
+      String(process.env.HAPPIER_PI_EXTENSION_UI ?? '').trim().toLowerCase(),
     );
 
     // Default: 10s. Set to 0 to disable suppression.

@@ -295,6 +295,7 @@ import {
 } from '@/components/sessions/workState/sessionActivityPresentation';
 import { isSessionGoalEditingAvailable } from '@/components/sessions/workState/sessionGoalEditingAvailability';
 import { SessionWorkStatePopover } from '@/components/sessions/workState/SessionWorkStatePopover';
+import { buildPiExtensionUiStatusBadges, readPiExtensionUiSnapshot } from '@/components/sessions/piExtensionUi/piExtensionUiStatusBadges';
 import { layout } from '@/components/ui/layout/layout';
 import { resolveSessionActionDefaultBackend } from '@/sync/domains/session/resolveSessionActionDefaultBackend';
 import { useAttachmentsUploadConfig } from '@/components/sessions/attachments/useAttachmentsUploadConfig';
@@ -5300,8 +5301,14 @@ function SessionViewLoaded({
             sessionActive: session.active === true,
             intentionalRestartSignals,
         });
+        const piExtensionUiSnapshot = readPiExtensionUiSnapshot(session.metadata);
+        const piExtensionUiStatusBadges = React.useMemo(
+            () => buildPiExtensionUiStatusBadges(piExtensionUiSnapshot),
+            [piExtensionUiSnapshot],
+        );
         const agentInputStatusBadges = React.useMemo<ReadonlyArray<AgentInputStatusBadge>>(() => [
             ...sessionStatusBadges,
+            ...piExtensionUiStatusBadges,
             ...sessionConnectedServicesAuthSwitch.statusBadges,
             ...(draftSyncStatusBadge ? [draftSyncStatusBadge] : []),
             ...(draftConflictBanner.statusBadge ? [draftConflictBanner.statusBadge] : []),
@@ -5322,6 +5329,7 @@ function SessionViewLoaded({
             pendingMessageEdit,
             draftConflictBanner.statusBadge,
             draftSyncStatusBadge,
+            piExtensionUiStatusBadges,
             sessionConnectedServicesAuthSwitch.statusBadges,
             sessionStatusBadges,
         ]);

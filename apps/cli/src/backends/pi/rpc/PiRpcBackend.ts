@@ -26,6 +26,7 @@ import { killProcessTree } from '@/agent/runtime/process/killProcessTree';
 import { materializeProtectedTempTextArtifact, type ProtectedTempTextArtifact } from '@/utils/fs/protectedTempTextArtifact';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
 import { logger } from '@/ui/logger';
+import { configuration } from '@/configuration';
 import { materializePiModelDiscoveryExtension, parsePiModelDiscoveryLine } from '../models/piModelDiscoveryExtension';
 import {
   HAPPIER_CONNECTED_SERVICE_TARGET_MATERIALIZED_ROOT_ENV_KEY,
@@ -67,6 +68,11 @@ import {
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
 import { PiTurnChangeTracker, readPiEditPatch } from './piTurnChangeTracker';
+import {
+  PI_EXTENSION_UI_METADATA_KEY,
+  PiExtensionDisplayState,
+  parsePiExtensionDisplayUpdate,
+} from './piExtensionDisplayState';
 import { emitCanonicalTurnDiffTool } from '@/agent/runtime/emitCanonicalTurnDiffTool';
 import { ShellCommandScmChangeTracker } from '@/agent/tools/diff/shellCommandScmChanges';
 import {
@@ -714,6 +720,8 @@ export class PiRpcBackend implements AgentBackend {
   private readonly permissionHandler: AcpPermissionHandler | null;
   private pendingTurn: PendingTurn | null = null;
   private readonly turnChangeTracker = new PiTurnChangeTracker();
+  private readonly extensionDisplayState = new PiExtensionDisplayState();
+  private metadataPatchPublisher: ((patch: Readonly<Record<string, unknown>>) => Promise<void>) | null = null;
   private readonly shellChangeTracker = new ShellCommandScmChangeTracker({ homeDir: process.env.HOME || homedir() });
   private readonly shellTurnIdPrefix = `pi-shell-${randomUUID().slice(0, 8)}`;
   private shellTurnOrdinal = 0;
@@ -1360,6 +1368,26 @@ export class PiRpcBackend implements AgentBackend {
    * Pi queues a steer without starting a run once its run has ended, so steering closes at
    * the final `agent_end` and input goes through the pending queue as the next prompt.
    */
+  /**
+   * Receives the session metadata writer. It publishes the current extension status at once,
+   * so a value left from an earlier process is replaced. HAPPIER_PI_EXTENSION_UI=0 turns it off.
+   */
+  setMetadataPatchPublisher(publisher: (patch: Readonly<Record<string, unknown>>) => Promise<void>): void {
+    if (!configuration.piExtensionUi) return;
+    this.metadataPatchPublisher = publisher;
+    this.publishExtensionDisplayState(true);
+  }
+
+  private publishExtensionDisplayState(force = false): void {
+    const publisher = this.metadataPatchPublisher;
+    if (!publisher) return;
+    const snapshot = this.extensionDisplayState.takeSnapshotToPublish(force);
+    if (!snapshot) return;
+    void publisher({ [PI_EXTENSION_UI_METADATA_KEY]: snapshot }).catch((error: unknown) => {
+      logger.warn('[pi] Could not save the Pi extension status in session metadata', error);
+    });
+  }
+
   isInFlightSteerOpen(): boolean {
     return this.pendingTurn?.agentEndObserved !== true;
   }
@@ -2239,6 +2267,12 @@ export class PiRpcBackend implements AgentBackend {
   }
 
   private handleEvent(event: Record<string, unknown>): void {
+    const displayUpdate = parsePiExtensionDisplayUpdate(event);
+    if (displayUpdate) {
+      this.notePendingTurnActivity(event);
+      if (this.extensionDisplayState.apply(displayUpdate)) this.publishExtensionDisplayState();
+      return;
+    }
     const extensionRequest = parsePiBlockingExtensionUiRequest(event);
     if (extensionRequest) {
       this.notePendingTurnActivity(event);

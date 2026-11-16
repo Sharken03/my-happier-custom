@@ -364,6 +364,10 @@ export type AcpRuntimeBackend = Omit<AgentBackend, 'waitForResponseComplete' | '
   setPlanStatePublisher?: (
     publisher: (snapshot: NormalizedAcpPlanSnapshot) => Promise<void>,
   ) => void;
+  /** Optional: the backend merges provider-owned keys into session metadata. */
+  setMetadataPatchPublisher?: (
+    publisher: (patch: Readonly<Record<string, unknown>>) => Promise<void>,
+  ) => void;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -2206,6 +2210,11 @@ export function createAcpRuntime(params: {
             snapshot,
             updatedAt: Date.now(),
           }) as typeof metadata
+        )));
+      });
+      created.setMetadataPatchPublisher?.(async (patch) => {
+        await Promise.resolve(params.session.updateMetadata((metadata) => (
+          { ...metadata, ...patch } as typeof metadata
         )));
       });
       backend = created;

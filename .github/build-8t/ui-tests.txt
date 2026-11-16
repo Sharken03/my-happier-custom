@@ -52,3 +52,4 @@ sources/components/sessions/attachments/messages/AttachmentsMessageRow.pdf.test.
 sources/components/markdown/rendering/markdownRemoteImages.test.ts
 sources/components/markdown/rendering/splitMarkdownRenderSegments.test.ts
 sources/components/settings/session/TranscriptMarkdownImagesSettingsGroup.test.tsx
+sources/components/sessions/piExtensionUi/piExtensionUiStatusBadges.test.tsx
