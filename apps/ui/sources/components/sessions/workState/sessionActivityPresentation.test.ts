@@ -258,6 +258,10 @@ describe('shouldRetainSessionActivityStatusBadge', () => {
         expect(retain()).toBe(false);
     });
 
+    it('leaves the popover of another badge open', () => {
+        expect(retain({ activeStatusBadgeKey: 'pi-ext:plan-mode' })).toBe(true);
+    });
+
     /**
      * FIX-F1, the reproduced defect.
      *
