@@ -403,20 +403,20 @@ describe('publishReviewFindings', () => {
   });
 
   it('refuses when the review support system itself is disabled', async () => {
-    const createReview = vi.fn();
-    const result = await runPublish({
+    const harness = runPublish({
       findings: [makeFinding({ id: 'f1' })],
       findingIds: ['f1'],
       // The scm.writeOperations gate is enabled here: the master switch alone must refuse, or turning the
       // system off would not actually turn it off.
       featureDecision: enabledDecision,
       reviewSupportDecision: supportDisabledDecision,
-      createReview,
     });
+    const result = await harness.promise;
 
     expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_not_allowed' });
-    expect(String(result.error)).toContain('reviews.support');
-    expect(createReview).not.toHaveBeenCalled();
+    expect(result.error).toContain('reviews.support');
+    expect(harness.selectBackend).not.toHaveBeenCalled();
+    expect(harness.createReview).not.toHaveBeenCalled();
   });
 
   it('fails closed with execution_run_not_allowed when scm.writeOperations is disabled', async () => {

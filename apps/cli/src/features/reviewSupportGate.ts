@@ -21,5 +21,5 @@ export function resolveReviewSupportFeatureDecision(env: NodeJS.ProcessEnv = pro
 }
 
 export function isReviewSupportEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-    return resolveReviewSupportFeatureDecision(env).enabled;
+    return resolveReviewSupportFeatureDecision(env).state === 'enabled';
 }
