@@ -5873,6 +5873,7 @@ class Sync {
           // newer-message fetching with no "Catching up…" overlay. `do_nothing` decisions and the
           // first-ever snapshot load (handled earlier) are intentionally NOT bracketed.
           const isCatchUpWork = decision.kind === 'incremental_batched' || decision.kind === 'tail_reset_latest_page';
+          console.log('[sync-trace]', 'catchup', sessionId.slice(-6), decision.kind, 'offline=', offlineForMs, 'disc=', this.lastSocketDisconnectedAtMs, 'after=', afterSeq, 'hint=', sessionSeqHint);
           const canRefreshLiveTail = () => (this.sessionViewport.get(sessionId)?.isPinned ?? true)
               && !this.getSessionTargetWindowState(sessionId).isWindowMode
               && this.isForeground && !this.pauseController.isPaused()
@@ -7624,6 +7625,7 @@ class Sync {
        */
       private async repairRunningToolRowsAfterOffline(sessionId: string): Promise<void> {
           const targets = collectRunningToolRepairTargets(storage.getState().sessionMessages[sessionId]?.reducerState);
+          console.log('[sync-trace]', 'tool-repair', sessionId.slice(-6), JSON.stringify(targets), JSON.stringify([...(storage.getState().sessionMessages[sessionId]?.reducerState.messages.values() ?? [])].filter((m) => m.tool?.state === 'running').map((m) => [m.tool?.name, m.realID, m.seq])));
           if (!targets) return;
           try {
               await this.fetchStaleTranscriptRegion(sessionId, targets);
