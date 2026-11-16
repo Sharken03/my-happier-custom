@@ -68,6 +68,7 @@ import {
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
 import { readPiSubagentSessionObservation, type PiSubagentSessionObservation } from './piSubagentSidechainMirror';
+import { withPiSubagentDiffStats } from './piSubagentDiffStats';
 import { PiTurnChangeTracker, readPiEditPatch } from './piTurnChangeTracker';
 import {
   PI_EXTENSION_UI_METADATA_KEY,
@@ -2287,7 +2288,9 @@ export class PiRpcBackend implements AgentBackend {
       void this.handleBlockingExtensionUiRequest(extensionRequest, this.process);
       return;
     }
-    const normalizedEvent = this.normalizeCompactionLifecycleEvent(event);
+    // A finished `subagent` call carries the lines its child sessions changed, so the app can
+    // show them on the call without loading the subagent's messages.
+    const normalizedEvent = withPiSubagentDiffStats(this.normalizeCompactionLifecycleEvent(event));
     if (normalizedEvent.type === 'compaction_start' || normalizedEvent.type === 'compaction_end') {
       this.latestContextTelemetry = null;
       this.assistantBoundaryContextTelemetry = null;
