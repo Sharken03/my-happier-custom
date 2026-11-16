@@ -1,11 +1,17 @@
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
+import {
+  HAPPIER_DIFF_STATS_DETAILS_KEY,
+  countToolCallDiffLines,
+} from '@happier-dev/protocol/tools/v2';
+
 /**
  * Counts the lines that a `pi-subagents` run changed, so the app can show "+N −M" on the
  * subagent call without loading the subagent's messages. The count comes from the child
  * session files that the `subagent` result names (`details.results[].sessionFile`), and it goes
- * into the same result as `details.happierDiffStats`.
+ * into the same result as `details.happierDiffStats`. The line counting itself is shared with
+ * the app in `@happier-dev/protocol/tools/v2`.
  */
 
 const PI_SUBAGENT_TOOL_NAME = 'subagent';
@@ -22,61 +28,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
-}
-
-/** Lines of a text; an empty text has none. A final line break does not add a line. */
-function splitLines(text: string): string[] {
-  if (text.length === 0) return [];
-  const lines = text.split(/\r?\n/);
-  if (lines[lines.length - 1] === '') lines.pop();
-  return lines;
-}
-
-/**
- * The same cheap line diff as the app's group diff stats: it drops the common first and last
- * lines, then matches the rest as multisets.
- */
-function countReplacement(oldText: string, newText: string): PiDiffStats {
-  const oldLines = splitLines(oldText);
-  const newLines = splitLines(newText);
-  let start = 0;
-  while (start < oldLines.length && start < newLines.length && oldLines[start] === newLines[start]) start++;
-  let oldEnd = oldLines.length;
-  let newEnd = newLines.length;
-  while (oldEnd > start && newEnd > start && oldLines[oldEnd - 1] === newLines[newEnd - 1]) {
-    oldEnd--;
-    newEnd--;
-  }
-  const pool = new Map<string, number>();
-  for (let i = start; i < oldEnd; i++) pool.set(oldLines[i], (pool.get(oldLines[i]) ?? 0) + 1);
-  let added = 0;
-  for (let i = start; i < newEnd; i++) {
-    const left = pool.get(newLines[i]) ?? 0;
-    if (left > 0) pool.set(newLines[i], left - 1);
-    else added++;
-  }
-  let removed = 0;
-  for (const left of pool.values()) removed += left;
-  return { added, removed };
-}
-
-/** One Pi `write` or `edit` call. Other tools count as zero. */
-export function countPiToolCallLines(name: string, args: unknown): PiDiffStats {
-  const input = asRecord(args);
-  if (!input) return { added: 0, removed: 0 };
-  if (name === 'write') return { added: splitLines(asString(input.content) ?? '').length, removed: 0 };
-  if (name !== 'edit') return { added: 0, removed: 0 };
-  const edits = Array.isArray(input.edits) ? input.edits : [input];
-  let added = 0;
-  let removed = 0;
-  for (const rawEdit of edits) {
-    const edit = asRecord(rawEdit);
-    if (!edit) continue;
-    const counts = countReplacement(asString(edit.oldText) ?? '', asString(edit.newText) ?? '');
-    added += counts.added;
-    removed += counts.removed;
-  }
-  return { added, removed };
 }
 
 function readResultSessionFiles(details: unknown): string[] {
@@ -126,7 +77,7 @@ function countSessionFile(sessionFile: string, depth: number, seen: Set<string>)
         const id = asString(block?.id);
         const name = asString(block?.name);
         if (block?.type !== 'toolCall' || !id || !name) continue;
-        calls.set(id, countPiToolCallLines(name, block.arguments));
+        calls.set(id, countToolCallDiffLines(name, block.arguments));
       }
     } else if (message.role === 'toolResult') {
       const id = asString(message.toolCallId);
@@ -177,5 +128,5 @@ export function withPiSubagentDiffStats(event: Record<string, unknown>): Record<
   if (!stats) return event;
   const result = asRecord(event.result) ?? {};
   const details = asRecord(result.details) ?? {};
-  return { ...event, result: { ...result, details: { ...details, happierDiffStats: stats } } };
+  return { ...event, result: { ...result, details: { ...details, [HAPPIER_DIFF_STATS_DETAILS_KEY]: stats } } };
 }

@@ -31,6 +31,15 @@ export {
 } from './patch.js';
 
 export {
+  HAPPIER_DIFF_STATS_DETAILS_KEY,
+  countReplacementLines,
+  countToolCallDiffLines,
+  readHappierDiffStats,
+  sumDiffLineStats,
+  type DiffLineStats,
+} from './diffLineStats.js';
+
+export {
   LEGACY_SUBAGENT_TOOL_NAME_ALIASES,
   GENERIC_SUBAGENT_TOOL_NAME_ALIASES,
   canonicalizeGenericSubAgentToolName,
