@@ -125,12 +125,7 @@ function readJsonOutput(stdout: string): unknown {
  * caller tells the user the verdict was not recorded.
  */
 async function tryApproveMergeRequest(input: Readonly<{
-    runCommand: (input: { args: readonly string[]; timeoutMs: number }) => Promise<{
-        success: boolean;
-        stdout: string;
-        stderr: string;
-        exitCode: number;
-    }>;
+    runCommand: GitlabCliCommandRunner;
     host: string;
     mergeRequestPath: string;
 }>): Promise<boolean> {
