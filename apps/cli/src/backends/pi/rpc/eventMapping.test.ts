@@ -116,6 +116,29 @@ describe('mapPiRpcEventToAgentMessages', () => {
     expect(output).toEqual([{ type: 'model-output', fullText: 'final', fullTextScope: 'segment' }]);
   });
 
+  it('shows a custom message that an extension sends with display, as Pi does', () => {
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: { role: 'custom', customType: 'agent-inbox', content: 'From another agent', display: true },
+    })).toEqual([{ type: 'user-message', text: 'From another agent' }]);
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: {
+        role: 'custom',
+        customType: 'agent-inbox',
+        content: [{ type: 'text', text: 'part one' }, { type: 'image', data: 'x', mimeType: 'image/png' }, { type: 'text', text: 'part two' }],
+        display: true,
+      },
+    })).toEqual([{ type: 'user-message', text: 'part one\npart two' }]);
+  });
+
+  it('keeps a hidden custom message hidden', () => {
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: { role: 'custom', customType: 'happier-session-title-reminder', content: 'SET_A_TITLE', display: false },
+    })).toEqual([]);
+  });
+
   it('emits an authoritative thinking snapshot alongside text on message_end', () => {
     const output = mapPiRpcEventToAgentMessages({
       type: 'message_end',
