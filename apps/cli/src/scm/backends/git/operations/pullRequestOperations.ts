@@ -613,8 +613,6 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
                         success: true,
                         reviewId: result.reviewId,
                         url: result.url,
-                        ...(result.eventApplied === undefined ? {} : { eventApplied: result.eventApplied }),
-                        ...(result.postedCommentCount === undefined ? {} : { postedCommentCount: result.postedCommentCount }),
                     };
                 } catch (error) {
                     // No CLI fallback after a REST failure: a review that the REST call created but whose
@@ -642,8 +640,6 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
                         success: true,
                         reviewId: result.reviewId,
                         url: result.url,
-                        ...(result.eventApplied === undefined ? {} : { eventApplied: result.eventApplied }),
-                        ...(result.postedCommentCount === undefined ? {} : { postedCommentCount: result.postedCommentCount }),
                     };
                 } catch (error) {
                     return {
@@ -675,8 +671,6 @@ export function createGitPullRequestBackend(deps: GitPullRequestOperationDeps = 
                         success: true,
                         reviewId: result.reviewId,
                         url: result.url,
-                        ...(result.eventApplied === undefined ? {} : { eventApplied: result.eventApplied }),
-                        ...(result.postedCommentCount === undefined ? {} : { postedCommentCount: result.postedCommentCount }),
                     };
                 } catch (error) {
                     return {

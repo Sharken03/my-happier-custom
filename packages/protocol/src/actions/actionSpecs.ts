@@ -2,9 +2,7 @@ import { z } from 'zod';
 
 import { ActionIdSchema, type ActionId } from './actionIds.js';
 import { ActionUiPlacementSchema, type ActionUiPlacement } from './actionUiPlacements.js';
-import { ExecutionRunActionApprovalGrantSchema } from '../executionRuns.js';
 import { ReviewStartInputSchema } from '../reviews/reviewStart.js';
-import { ReviewFindingApplyInputSchema } from '../reviews/reviewFindingApply.js';
 import { ActionInputPredicateSchema, type ActionInputPredicate } from './actionInputPredicates.js';
 import { MemorySearchQueryV1Schema } from '../memory/memorySearch.js';
 import { ApprovalRequestCreatedBySchema, ApprovalRequestOriginV1Schema } from '../approvals/approvalRequestV1.js';
@@ -535,9 +533,6 @@ const ExecutionRunSendInputSchema = lazySchema(() => ExecutionRunIdInputSchema.e
 const ExecutionRunActionInputSchema = lazySchema(() => ExecutionRunIdInputSchema.extend({
   actionId: z.string().min(1),
   input: z.unknown().optional(),
-  // The surface's assertion that it applied the nested action's approval requirement. A nested action
-  // declared `danger` + approval `required` is refused without it.
-  approvalGrant: ExecutionRunActionApprovalGrantSchema.optional(),
 }).passthrough());
 
 const ExecutionRunWaitInputSchema = lazySchema(() => ExecutionRunIdInputSchema.extend({
@@ -1206,13 +1201,6 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     title: 'Start review',
     safety: 'safe',
     approval: APPROVAL_RESULT_OPTIONAL_DEFERRED,
-    // `surfaces.session_agent` (below) is availability: may the surface call this at all.
-    // `toolExposure.session_agent` is presentation: is the tool declared directly to the model.
-    // Only the latter changes here. Direct exposure is presentation only: the action is `safe`,
-    // so the remaining gates are the action being enabled in settings plus whatever
-    // `review.start` itself checks. Roll back per-user via
-    // actions.review.start.toolExposureModes.session_agent = 'discoverable_only' in settings.
-    toolExposure: { session_agent: 'direct' },
     placements: ['agent_input_chips', 'session_action_menu', 'command_palette', 'slash_command', 'voice_panel'],
     prompting: { voiceHotPath: true },
     slash: { tokens: ['/review', '/h.review'] },
@@ -1299,69 +1287,6 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
       cli: true,
     },
     inputSchema: ReviewStartInputSchema,
-  },
-  {
-    id: 'review.finding.apply',
-    title: 'Apply review findings',
-    description: 'Hand selected review findings to a write session: send a fix prompt into the originating session or spawn a new session in the same workspace.',
-    safety: 'danger',
-    approval: APPROVAL_RESULT_REQUIRED,
-    placements: ['run_card'],
-    bindings: { mcpToolName: 'review_finding_apply' },
-    examples: {
-      mcp: { argsExample: '{"runId":"run_123","findingIds":["f1","f2"],"mode":"send_to_session"}' },
-      voice: { argsExample: '{"runId":"run_123","findingIds":["f1"],"mode":"send_to_session","includePatch":true}' },
-    },
-    surfaces: {
-      ui_button: false,
-      ui_slash_command: false,
-      // Voice surfaces are off: this action is gated behind `reviews.support` (default off) and hands work to
-      // a write session, so it must not appear as an always-available voice tool. See REVIEW-SUPPORT.md.
-      voice_tool: false,
-      voice_action_block: false,
-      session_agent: true,
-      mcp: true,
-      cli: true,
-    },
-    inputHints: {
-      title: 'Apply review findings',
-      fields: [
-        { path: 'runId', title: 'Run id', description: 'The review run whose findings to fix.', widget: 'text', required: true },
-        {
-          path: 'findingIds',
-          title: 'Finding ids',
-          description: 'One or more finding ids to fix.',
-          widget: 'text_list',
-          listSeparator: 'comma',
-          required: true,
-        },
-        {
-          path: 'mode',
-          title: 'Delivery mode',
-          description: 'Send the fix prompt into the originating session or spawn a new session in the same workspace.',
-          widget: 'select',
-          required: true,
-          options: [
-            { value: 'send_to_session', label: 'Send to originating session' },
-            { value: 'spawn_session', label: 'Spawn a new session' },
-          ],
-        },
-        {
-          path: 'includePatch',
-          title: 'Include proposed patch text',
-          description: 'Embed each finding.patch as proposed text to read (never applied mechanically).',
-          widget: 'toggle',
-        },
-        {
-          path: 'permissionMode',
-          title: 'Permission mode',
-          description: EXECUTION_RUN_ACTION_PERMISSION_MODE_DESCRIPTION,
-          widget: 'select',
-          options: EXECUTION_RUN_ACTION_PERMISSION_INPUTS.map((value) => ({ value, label: value })),
-        },
-      ],
-    },
-    inputSchema: ReviewFindingApplyInputSchema,
   },
   {
     id: 'subagents.plan.start',
@@ -1721,8 +1646,6 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     title: 'Send to execution run',
     safety: 'safe',
     approval: APPROVAL_RESULT_OPTIONAL_DEFERRED,
-    // Direct session-agent exposure; presentation only (see review.start note).
-    toolExposure: { session_agent: 'direct' },
     placements: ['run_card'],
     bindings: { voiceClientToolName: 'sendExecutionRunMessage', mcpToolName: 'execution_run_send' },
     examples: {

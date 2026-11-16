@@ -54,7 +54,6 @@ export const ACTION_IDS = [
   'session.wait.idle',
   // Intent start actions (first-class)
   'review.start',
-  'review.finding.apply',
   'subagents.plan.start',
   'subagents.delegate.start',
   'voice_agent.start',

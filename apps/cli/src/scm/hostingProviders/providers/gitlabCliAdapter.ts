@@ -117,25 +117,6 @@ function readJsonOutput(stdout: string): unknown {
     }
 }
 
-/**
- * Records an approval on the merge request, one of the two verdicts GitLab actually has.
- *
- * Approving needs permission the token may not hold (and GitLab rejects approving your own MR on some plans),
- * so a failure here must NOT undo the review comments that were already posted: it reports `false` and the
- * caller tells the user the verdict was not recorded.
- */
-async function tryApproveMergeRequest(input: Readonly<{
-    runCommand: GitlabCliCommandRunner;
-    host: string;
-    mergeRequestPath: string;
-}>): Promise<boolean> {
-    const result = await input.runCommand({
-        args: ['api', '--hostname', input.host, '--method', 'POST', `${input.mergeRequestPath}/approve`],
-        timeoutMs: resolveGitlabCliMrTimeoutMs(),
-    });
-    return result.success;
-}
-
 function parseCreatedMergeRequestReference(stdout: string): string | null {
     return stdout
         .split(/\s+/)
@@ -292,10 +273,11 @@ export function createGitlabCliAdapter(params?: Readonly<{
             const diffRefs = readGitlabDiffRefs(mergeRequestJson);
             const url = readGitlabWebUrl(mergeRequestJson);
 
-            // GitLab has no review object: the review body becomes a plain MR note whenever it carries text.
-            // It must NOT depend on the event or on whether there are inline comments — the body also carries
-            // the findings that could not be anchored to a line, so skipping it silently loses them.
-            const shouldPostBodyNote = input.body.trim().length > 0;
+            // GitLab has no review object. The body is posted as a plain MR note when it carries text and
+            // either the event is not a plain comment or there are no inline comments to carry it. GitLab
+            // cannot request changes, so the event itself is ignored.
+            const shouldPostBodyNote = input.body.trim().length > 0
+                && (input.event !== 'comment' || input.comments.length === 0);
             let reviewId: string | null = null;
             if (shouldPostBodyNote) {
                 const noteJson = readJsonOutput(await runRequiredGitlabCliCommand({
@@ -313,37 +295,22 @@ export function createGitlabCliAdapter(params?: Readonly<{
                 }));
                 reviewId = readGitlabNoteId(noteJson);
             }
-            // One discussion per inline comment is N independent writes: GitLab has no batch endpoint. A failure
-            // part-way therefore leaves real comments on the MR, and the error must say how many so the caller
-            // does not treat it as "nothing was posted" and retry into duplicates.
-            let postedCommentCount = 0;
             for (const comment of input.comments) {
-                let discussionJson: unknown;
-                try {
-                    discussionJson = readJsonOutput(await runRequiredGitlabCliCommand({
-                        runCommand,
-                        args: [
-                            'api',
-                            '--hostname',
-                            host,
-                            '--method',
-                            'POST',
-                            `${mergeRequestPath}/discussions`,
-                            '--field',
-                            `position=${JSON.stringify(buildGitlabReviewPosition({ diffRefs, comment }))}`,
-                            '--raw-field',
-                            `body=${comment.body}`,
-                        ],
-                    }));
-                } catch (error) {
-                    const reason = error instanceof Error ? error.message : String(error);
-                    throw new Error(
-                        `GitLab posted ${postedCommentCount} of ${input.comments.length} inline comments before failing `
-                            + `on ${comment.path}:${comment.line}. Those comments are already on the merge request and `
-                            + `are not rolled back: ${reason}`,
-                    );
-                }
-                postedCommentCount += 1;
+                const discussionJson = readJsonOutput(await runRequiredGitlabCliCommand({
+                    runCommand,
+                    args: [
+                        'api',
+                        '--hostname',
+                        host,
+                        '--method',
+                        'POST',
+                        `${mergeRequestPath}/discussions`,
+                        '--field',
+                        `position=${JSON.stringify(buildGitlabReviewPosition({ diffRefs, comment }))}`,
+                        '--raw-field',
+                        `body=${comment.body}`,
+                    ],
+                }));
                 if (reviewId === null) {
                     reviewId = readGitlabDiscussionId(discussionJson);
                 }
@@ -352,22 +319,7 @@ export function createGitlabCliAdapter(params?: Readonly<{
             if (reviewId === null) {
                 throw new Error('GitLab CLI did not return a discussion id.');
             }
-
-            // GitLab has no request-changes verdict: only an approval exists, and it is a separate endpoint.
-            // Report honestly instead of returning success that implies a verdict was recorded.
-            let eventApplied: boolean | undefined;
-            if (input.event === 'approve') {
-                eventApplied = await tryApproveMergeRequest({ runCommand, host, mergeRequestPath });
-            } else if (input.event === 'request_changes') {
-                eventApplied = false;
-            }
-
-            return {
-                reviewId,
-                url,
-                postedCommentCount,
-                ...(eventApplied === undefined ? {} : { eventApplied }),
-            };
+            return { reviewId, url };
         },
     };
 }

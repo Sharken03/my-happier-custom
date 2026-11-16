@@ -2,7 +2,7 @@ import type { RpcHandlerContext, RpcHandlerRegistrar } from '@/api/rpc/types';
 import type { ACPMessageData, ACPProvider } from '@/api/session/sessionMessageTypes';
 import type { AcpSendFn } from '@/agent/acp/bridge/acpSessionForwarding';
 import type { AgentBackend } from '@/agent/core/AgentBackend';
-import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ExecutionRunPublicState, ReviewStartInput } from '@happier-dev/protocol';
+import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ExecutionRunPublicState } from '@happier-dev/protocol';
 
 import { SESSION_RPC_METHODS } from '@happier-dev/protocol/rpc';
 import {
@@ -19,9 +19,6 @@ import {
   ExecutionRunUserTranscriptCommitRequestSchema,
   ExecutionRunTurnStreamReadRequestSchema,
   ExecutionRunTurnStreamCancelRequestSchema,
-  getReviewModelPolicySettingsV1FromAccountSettings,
-  resolveReviewModelPolicy,
-  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
 import { ExecutionRunManager } from '@/agent/executionRuns/runtime/ExecutionRunManager';
@@ -40,7 +37,6 @@ import {
 } from '@/agent/executionRuns/policy/executionRunPolicy';
 import { VoiceAgentError } from '@/agent/voice/agent/VoiceAgentManager';
 import { resolveCliFeatureDecision } from '@/features/featureDecisionService';
-import { isReviewSupportEnabled, resolveReviewSupportFeatureDecision } from '@/features/reviewSupportGate';
 import { fetchServerFeaturesSnapshot, type CliServerFeaturesSnapshot } from '@/features/serverFeaturesClient';
 import { resolveExecutionRunRuntimeBackendId } from '@/agent/executionRuns/runtime/backendTargets';
 import { resolveReviewExecutionRunIntentInput } from '@/agent/reviews/resolveReviewExecutionRunIntentInput';
@@ -48,9 +44,6 @@ import { applyExecutionRunListRequest } from '@/session/services/applyExecutionR
 import { preflightCodeRabbitReviewScope } from '@/agent/reviews/engines/coderabbit/preflightCodeRabbitReviewScope';
 import { readCodeRabbitReviewConfigFromEnv } from '@/agent/reviews/engines/coderabbit/readCodeRabbitReviewConfig';
 import { readCredentials } from '@/persistence';
-import { spawnDaemonSession } from '@/daemon/controlClient';
-import { createPendingFirstInput } from '@/daemon/spawn/pendingFirstInput';
-import { randomUUID } from 'node:crypto';
 import { configuration } from '@/configuration';
 import { resolveReplaySeedDraft, type ReplaySeedDraftResolution } from '@/session/replay/resolveReplaySeedDraft';
 import { fingerprintExecutionRunStartRequest } from '@/agent/executionRuns/executionRunStartFingerprint';
@@ -139,24 +132,6 @@ export function registerExecutionRunHandlers(
     override: ctx.policy,
   });
 
-  // Reuses the daemon's existing session-spawn owner (`spawnDaemonSession`) so
-  // `review.finding.apply`'s `spawn_session` mode creates a session in the same
-  // workspace without a new RPC. The fix prompt rides the canonical
-  // `pendingFirstInput` seam.
-  const spawnReviewFixSession = (input: Readonly<{
-    text: string;
-    directory: string;
-    permissionMode: SessionPermissionMode;
-  }>) => {
-    const spawnNonce = randomUUID();
-    return spawnDaemonSession({
-      directory: input.directory,
-      permissionMode: input.permissionMode,
-      spawnNonce,
-      pendingFirstInput: createPendingFirstInput({ text: input.text, spawnNonce }),
-    });
-  };
-
   const manager = new ExecutionRunManager({
     parentProvider: ctx.parentProvider,
     cwd: ctx.cwd,
@@ -173,7 +148,6 @@ export function registerExecutionRunHandlers(
     ...(ctx.enqueueParentSessionInput
       ? { enqueueParentSessionInput: ctx.enqueueParentSessionInput }
       : {}),
-    spawnSession: spawnReviewFixSession,
     resolveAccountSettings: ctx.resolveAccountSettings,
     // Resume rehydration re-materializes connected services through the SAME canonical CS owner used
     // at start, driven by the run's persisted selection. Fail-closed: a run with a persisted CS
@@ -230,18 +204,8 @@ export function registerExecutionRunHandlers(
         errorCode: 'execution_run_start_conflict',
       };
     }
-    // The review support system is off unless explicitly enabled; see apps/cli/src/features/reviewSupportGate.ts
-    // and REVIEW-SUPPORT.md. Refuse before parsing the intent input, so a disabled feature never reports a
-    // payload problem.
-    if (parsed.data.intent === 'review' && !isReviewSupportEnabled()) {
-      return {
-        ok: false,
-        error: 'Review support is disabled in this build. Set HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1 to enable it.',
-        errorCode: 'execution_run_not_allowed',
-      };
-    }
     const backendId = resolveExecutionRunRuntimeBackendId(parsed.data.backendTarget);
-    let normalizedReviewIntentInput: ReviewStartInput | null = null;
+    let normalizedReviewIntentInput: unknown;
     let hasNormalizedReviewIntentInput = false;
     if (parsed.data.intent === 'review') {
       const reviewInput = resolveReviewExecutionRunIntentInput(parsed.data.intentInput, {
@@ -416,37 +380,6 @@ export function registerExecutionRunHandlers(
         }
       }
       delete startParams.replay;
-
-      // B2/B3: resolve the review model policy once, at the single choke point every surface
-      // (UI slash, CLI action, MCP) funnels through. Precedence is call-site `modelPolicy` >
-      // engine override > account default > inherit. The resolved modelId/reasoningEffort land on
-      // the run start params, and `startExecutionRun` echoes them into `requestedConfiguration`
-      // (no separate record here — do not duplicate).
-      if (parsed.data.intent === 'review' && hasNormalizedReviewIntentInput && normalizedReviewIntentInput) {
-        const reviewModelSettings = getReviewModelPolicySettingsV1FromAccountSettings(accountSettings);
-        const resolution = resolveReviewModelPolicy({
-          policy: normalizedReviewIntentInput.modelPolicy,
-          enginePolicy: reviewModelSettings.engines[backendId]?.modelPolicy ?? null,
-          accountPolicy: reviewModelSettings.modelPolicy,
-        });
-        // CodeRabbit is a native CLI review, not an LLM run: its policy is already recorded inside
-        // `intentInput`, but it never receives a model.
-        if (backendId !== 'coderabbit' && resolution.modelId) {
-          startParams.modelId = resolution.modelId;
-          if (resolution.reasoningEffort) {
-            const updatedAt = Date.now();
-            const existing = startParams.sessionConfigOptionOverrides;
-            startParams.sessionConfigOptionOverrides = {
-              v: 1,
-              updatedAt,
-              overrides: {
-                ...(existing?.overrides ?? {}),
-                reasoning_effort: { updatedAt, value: resolution.reasoningEffort },
-              },
-            };
-          }
-        }
-      }
 
       // Preserve passthrough fields for intent-specific configuration (e.g. voice_agent model IDs).
       const started = await manager.start({
@@ -705,13 +638,11 @@ export function registerExecutionRunHandlers(
     const acted = await manager.applyAction(parsed.data.runId, {
       actionId: parsed.data.actionId,
       input: parsed.data.input,
-      ...(parsed.data.approvalGrant ? { approvalGrant: parsed.data.approvalGrant } : {}),
     }, {
       cwd: resolveCwd(),
       ...(ctx.resolveAccountSettings ? { accountSettings: await ctx.resolveAccountSettings() } : {}),
       ...(ctx.connectedAccounts ? { connectedAccounts: ctx.connectedAccounts } : {}),
       featureDecision: resolveCliFeatureDecision({ featureId: 'scm.writeOperations', env: process.env }),
-      reviewSupportDecision: resolveReviewSupportFeatureDecision(),
     });
     if (!acted.ok) return { ok: false, error: acted.error ?? 'Unsupported', errorCode: acted.errorCode ?? 'execution_run_action_not_supported' };
     return {

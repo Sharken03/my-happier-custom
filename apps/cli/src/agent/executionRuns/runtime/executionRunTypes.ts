@@ -1,4 +1,4 @@
-import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ConnectedServiceBindingsV1, ExecutionRunActionApprovalGrant, ExecutionRunDisplay, ExecutionRunIntent, ExecutionRunLaunchOrigin, ExecutionRunRequestedConfiguration, ExecutionRunResumeHandle, FeatureDecision } from '@happier-dev/protocol';
+import type { AcpConfigOptionOverridesV1, BackendTargetRefV1, ConnectedServiceBindingsV1, ExecutionRunDisplay, ExecutionRunIntent, ExecutionRunLaunchOrigin, ExecutionRunRequestedConfiguration, ExecutionRunResumeHandle, FeatureDecision } from '@happier-dev/protocol';
 
 import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
 import type { ExecutionRunConnectedServiceRegistrationV1 } from '@/daemon/connectedServices/runsBridge/contract';
@@ -142,13 +142,6 @@ export type ExecutionRunState = Readonly<{
 export type ExecutionRunActionParams = Readonly<{
   actionId: string;
   input?: unknown;
-  /**
-   * The calling surface's assertion that it already applied the approval requirement of the nested
-   * action it dispatches through `execution.run.action`. A nested `danger` + approval-required action
-   * is refused without it: the dispatcher itself is `safe` with deferred approval, so it cannot check
-   * the outer approval state and must not assume it.
-   */
-  approvalGrant?: ExecutionRunActionApprovalGrant;
 }>;
 
 /**
@@ -162,11 +155,6 @@ export type ExecutionRunActionDeps = Readonly<{
   accountSettings?: Readonly<Record<string, unknown>> | null;
   connectedAccounts?: ScmConnectedAccountCredentialResolver;
   featureDecision?: FeatureDecision;
-  /**
-   * The `reviews.support` decision. Absent means "not resolved here", which is treated as disabled for the
-   * review branches: the whole review support system is opt-in and defaults off.
-   */
-  reviewSupportDecision?: FeatureDecision;
 }>;
 
 export type ExecutionRunActionResult = Readonly<{

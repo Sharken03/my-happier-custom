@@ -21,11 +21,6 @@ const LOCAL_POLICY_BY_FEATURE: Readonly<Partial<Record<FeatureId, FeatureLocalPo
   // CLI path defaults OFF and has an explicit opt-in. The UI keeps its own settings toggle; this is the
   // machine-side switch for anything the daemon performs on the user's behalf.
   'scm.writeOperations': (env) => parseBooleanEnv(env.HAPPIER_FEATURE_SCM_WRITE_OPERATIONS__ENABLED, false),
-  // The whole agent-review support surface (review runs, publishing findings to a pull request, handing
-  // findings to a fix session) sits behind one switch, default OFF. It is a self-contained addition that
-  // must stay removable: see REVIEW-SUPPORT.md at the repository root for the file inventory and the
-  // removal recipe. Turn it on with HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1.
-  'reviews.support': (env) => parseBooleanEnv(env.HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED, false),
 };
 
 export function resolveCliLocalFeaturePolicyEnabled(featureId: FeatureId, env: NodeJS.ProcessEnv): boolean {

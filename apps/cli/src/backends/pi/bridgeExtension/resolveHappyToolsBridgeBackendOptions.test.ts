@@ -76,8 +76,6 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
       'action_execute',
       'memory_search',
       'memory_get_window',
-      'review_start',
-      'execution_run_send',
     ]));
     expect(enabled?.sessionConfig.promptAddition).toContain('memory_search');
     expect(enabled?.extensionPath).toBe(resolvePiBridgeExtensionPath(agentDir));
@@ -86,43 +84,6 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
     const content = readFileSync(enabled!.extensionPath, 'utf8');
     expect(content).not.toContain('happy-session-1');
     expect(content).not.toContain('memory_search');
-  });
-
-  it('resolves review tools as direct session-agent tools and honors a settings rollback', async () => {
-    const agentDir = tempAgentDir();
-    const resolved = await resolveHappyToolsBridgeBackendOptions({
-      agentDir,
-      sessionId: 'happy-session-1',
-      settings: null,
-      memoryRecallGuidanceEnabled: false,
-    });
-
-    expect(resolved?.sessionConfig.directTools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
-      'review_start',
-      'execution_run_send',
-    ]));
-    // The generic run-action dispatcher stays discoverable-only.
-    expect(resolved?.sessionConfig.directTools.map((tool) => tool.name)).not.toContain('execution_run_action');
-
-    const rolledBack = await resolveHappyToolsBridgeBackendOptions({
-      agentDir,
-      sessionId: 'happy-session-1',
-      settings: {
-        actionsSettingsV1: {
-          v: 1,
-          actions: {
-            'review.start': { toolExposureModes: { session_agent: 'discoverable_only' } },
-            'execution.run.send': { toolExposureModes: { session_agent: 'discoverable_only' } },
-            'execution.run.action': { toolExposureModes: { session_agent: 'discoverable_only' } },
-          },
-        },
-      },
-      memoryRecallGuidanceEnabled: false,
-    });
-
-    expect(rolledBack?.sessionConfig.directTools.map((tool) => tool.name)).not.toContain('review_start');
-    expect(rolledBack?.sessionConfig.directTools.map((tool) => tool.name)).not.toContain('execution_run_send');
-    expect(rolledBack?.sessionConfig.directTools.map((tool) => tool.name)).not.toContain('execution_run_action');
   });
 
   it('keeps title guidance and tool registration on one effective profile decision', async () => {

@@ -1,7 +1,3 @@
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -16,13 +12,11 @@ import {
 } from '@happier-dev/protocol';
 
 import type { ExecutionRunState } from '@/agent/executionRuns/runtime/executionRunTypes';
-import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
 import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildReviewFindingsV2Payload';
 import type { ScmBackendRegistry } from '@/scm/registry';
 import {
   computeReviewLineContentHash,
   publishReviewFindings,
-  resolveWorkspaceContainedPath,
   REVIEW_LINE_HASH_ALGORITHM,
   type ReviewPublishDeps,
 } from '@/agent/executionRuns/runtime/executionRunReviewPublish';
@@ -55,27 +49,6 @@ const disabledDecision: FeatureDecision = createFeatureDecision({
   scope: { scopeKind: 'runtime' },
 });
 
-// The master switch for the whole review support system; publish refuses without it.
-const supportEnabledDecision: FeatureDecision = createFeatureDecision({
-  featureId: 'reviews.support',
-  state: 'enabled',
-  blockedBy: null,
-  blockerCode: 'none',
-  diagnostics: [],
-  evaluatedAt: 1,
-  scope: { scopeKind: 'runtime' },
-});
-
-const supportDisabledDecision: FeatureDecision = createFeatureDecision({
-  featureId: 'reviews.support',
-  state: 'disabled',
-  blockedBy: 'local_policy',
-  blockerCode: 'feature_disabled',
-  diagnostics: [],
-  evaluatedAt: 1,
-  scope: { scopeKind: 'runtime' },
-});
-
 const githubCredential = buildConnectedServiceCredentialRecord({
   now: 1_000,
   serviceId: 'github',
@@ -99,7 +72,6 @@ function makePayload(params: {
   summary?: string;
   overviewMarkdown?: string;
   publication?: ReviewFindingsV2['publication'];
-  pendingPublication?: ReviewFindingsV2['pendingPublication'];
 }) {
   return {
     ...buildReviewFindingsV2Payload({
@@ -112,7 +84,6 @@ function makePayload(params: {
       generatedAtMs: 1,
     }),
     ...(params.publication ? { publication: params.publication } : {}),
-    ...(params.pendingPublication ? { pendingPublication: params.pendingPublication } : {}),
   };
 }
 
@@ -141,10 +112,9 @@ function publishInput(params: {
   findingIds: string[];
   publishedFindings: ReviewFinding[];
   pullRequestNumber?: number;
-  sourceRunRef?: { runId: string; callId: string; backendId: string };
 }): ReviewPublishRequestV1 {
   return {
-    sourceRunRef: params.sourceRunRef ?? { runId: 'run-1', callId: 'call-1', backendId: 'claude' },
+    sourceRunRef: { runId: 'run-1', callId: 'call-1', backendId: 'claude' },
     findingIds: params.findingIds,
     publishedFindings: params.publishedFindings,
     ...(typeof params.pullRequestNumber === 'number' ? { pullRequestNumber: params.pullRequestNumber } : {}),
@@ -161,7 +131,6 @@ function runPublish(params: {
   summary?: string;
   overviewMarkdown?: string;
   featureDecision?: FeatureDecision;
-  reviewSupportDecision?: FeatureDecision;
   branchHead?: string | null;
   detached?: boolean;
   list?: FakeList;
@@ -173,10 +142,6 @@ function runPublish(params: {
   provider?: ScmHostingProvider | null;
   pullRequestNumber?: number;
   cwd?: string;
-  run?: ExecutionRunState;
-  publishedFindings?: ReviewFinding[];
-  sourceRunRef?: { runId: string; callId: string; backendId: string };
-  pendingPublication?: ReviewFindingsV2['pendingPublication'];
 }) {
   const provider = params.provider === undefined
     ? (params.providerKind === 'gitlab'
@@ -220,8 +185,6 @@ function runPublish(params: {
   }));
   const registry = { selectBackend } as unknown as ScmBackendRegistry;
 
-  const persistedMeta: ExecutionRunStructuredMeta[] = [];
-
   const deps: ReviewPublishDeps = {
     cwd: params.cwd ?? '/repo',
     connectedAccounts: {
@@ -230,16 +193,12 @@ function runPublish(params: {
         : null,
     },
     featureDecision: params.featureDecision ?? enabledDecision,
-    reviewSupportDecision: params.reviewSupportDecision ?? supportEnabledDecision,
     scmRegistry: registry,
     detectGithubCliAuth: async () => ({ kind: 'missing-auth', command: 'gh', host: 'github.com' }),
     detectGitlabCliAuth: async () => params.gitlabAuthAvailable === true
       ? ({ kind: 'authenticated', command: 'glab', host: 'gitlab.com' })
       : ({ kind: 'missing-auth', command: 'glab', host: 'gitlab.com' }),
     readFileLines: params.readFileLines ?? (async () => null),
-    persistStructuredMeta: (meta) => {
-      persistedMeta.push(meta);
-    },
   };
 
   const payload = makePayload({
@@ -247,22 +206,22 @@ function runPublish(params: {
     ...(params.summary ? { summary: params.summary } : {}),
     ...(params.overviewMarkdown ? { overviewMarkdown: params.overviewMarkdown } : {}),
     ...(params.publication ? { publication: params.publication } : {}),
-    ...(params.pendingPublication ? { pendingPublication: params.pendingPublication } : {}),
   });
-  const run = params.run ?? makeRun({ kind: 'review_findings.v2', payload });
+  const run = makeRun({ kind: 'review_findings.v2', payload });
+  const runs = new Map<string, ExecutionRunState>([[run.runId, run]]);
 
   const promise = publishReviewFindings({
     run,
     input: publishInput({
       findingIds: params.findingIds,
-      publishedFindings: params.publishedFindings ?? params.findings,
+      publishedFindings: params.findings,
       ...(typeof params.pullRequestNumber === 'number' ? { pullRequestNumber: params.pullRequestNumber } : {}),
-      ...(params.sourceRunRef ? { sourceRunRef: params.sourceRunRef } : {}),
     }),
     deps,
+    runs,
   });
 
-  return { promise, run, list, createReview, selectBackend, persistedMeta };
+  return { promise, runs, list, createReview, selectBackend };
 }
 
 describe('publishReviewFindings', () => {
@@ -316,7 +275,7 @@ describe('publishReviewFindings', () => {
     });
 
     // Write-back: both findings carry publication, and the located finding gained a line hash.
-    const updatedMeta = result.updatedStructuredMeta;
+    const updatedMeta = harness.runs.get('run-1')?.structuredMeta;
     expect(updatedMeta?.kind).toBe('review_findings.v2');
     const updatedPayload = updatedMeta?.payload as ReviewFindingsV2;
     expect(updatedPayload.publication?.findings).toEqual(
@@ -399,23 +358,6 @@ describe('publishReviewFindings', () => {
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe('execution_run_failed');
     expect(result.error).toContain('feature-branch');
-    expect(harness.createReview).not.toHaveBeenCalled();
-  });
-
-  it('refuses when the review support system itself is disabled', async () => {
-    const harness = runPublish({
-      findings: [makeFinding({ id: 'f1' })],
-      findingIds: ['f1'],
-      // The scm.writeOperations gate is enabled here: the master switch alone must refuse, or turning the
-      // system off would not actually turn it off.
-      featureDecision: enabledDecision,
-      reviewSupportDecision: supportDisabledDecision,
-    });
-    const result = await harness.promise;
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_not_allowed' });
-    expect(result.error).toContain('reviews.support');
-    expect(harness.selectBackend).not.toHaveBeenCalled();
     expect(harness.createReview).not.toHaveBeenCalled();
   });
 
@@ -562,6 +504,7 @@ describe('publishReviewFindings', () => {
     const finding = makeFinding({ id: 'f1' });
     const payload = makePayload({ findings: [finding] });
     const run = makeRun({ kind: 'review_findings.v2', payload });
+    const runs = new Map<string, ExecutionRunState>([[run.runId, run]]);
 
     const result = await publishReviewFindings({
       run,
@@ -571,267 +514,9 @@ describe('publishReviewFindings', () => {
         connectedAccounts: { resolveCredential: async () => null },
         featureDecision: enabledDecision,
       },
+      runs,
     });
 
     expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
-  });
-
-  it('rejects a concurrent second publish with execution_run_busy without calling createReview', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const readFileLines = async () => ['const x = 1;'];
-
-    let releaseGate: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const firstCreateReview = vi.fn(async () => {
-      await gate;
-      return { success: true as const, reviewId: 'review-1', url: 'https://github.com/happier-dev/happier/pull/42' };
-    });
-
-    // The first call acquires the guard synchronously (before its first await) and parks on `gate`.
-    const first = runPublish({ findings: [finding], findingIds: ['f1'], createReview: firstCreateReview, readFileLines });
-    const secondCreateReview = vi.fn();
-    const second = await runPublish({ findings: [finding], findingIds: ['f1'], createReview: secondCreateReview, readFileLines }).promise;
-
-    expect(second).toMatchObject({ ok: false, errorCode: 'execution_run_busy' });
-    expect(secondCreateReview).not.toHaveBeenCalled();
-
-    releaseGate?.();
-    const firstResult = await first.promise;
-    expect(firstResult.ok).toBe(true);
-    expect(firstCreateReview).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows a sequential second publish that skips already-published findings', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const readFileLines = async () => ['const x = 1;'];
-    const createReview = vi.fn(async () => ({ success: true as const, reviewId: 'review-1', url: 'https://github.com/happier-dev/happier/pull/42' }));
-
-    const first = runPublish({ findings: [finding], findingIds: ['f1'], createReview, readFileLines });
-    const firstResult = await first.promise;
-    expect(firstResult.ok).toBe(true);
-    expect(createReview).toHaveBeenCalledTimes(1);
-
-    // Re-publish with the run now carrying the first publish's publication overlay.
-    const second = await runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      createReview,
-      readFileLines,
-      run: { ...first.run, structuredMeta: firstResult.updatedStructuredMeta },
-    }).promise;
-    expect(second).toMatchObject({ ok: true, result: { published: 0, skipped: 1 } });
-    expect(createReview).toHaveBeenCalledTimes(1);
-  });
-
-  it('releases the guard when createReview throws', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const readFileLines = async () => ['const x = 1;'];
-
-    const first = await runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      createReview: vi.fn(async () => {
-        throw new Error('boom');
-      }),
-      readFileLines,
-    }).promise;
-    expect(first).toMatchObject({ ok: false, errorCode: 'execution_run_failed' });
-
-    // The guard was released, so a fresh publish is allowed rather than reported busy.
-    const secondCreateReview = vi.fn(async () => ({ success: true as const, reviewId: 'review-2', url: 'https://github.com/happier-dev/happier/pull/42' }));
-    const second = await runPublish({ findings: [finding], findingIds: ['f1'], createReview: secondCreateReview, readFileLines }).promise;
-    expect(second.ok).toBe(true);
-    expect(secondCreateReview).toHaveBeenCalledTimes(1);
-  });
-
-  it('writes a pending marker before the provider call and clears it on success', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      readFileLines: async () => ['const x = 1;'],
-    });
-    const result = await harness.promise;
-
-    expect(result.ok).toBe(true);
-    // The pending marker was persisted before createReview ran.
-    expect(harness.persistedMeta).toHaveLength(1);
-    const pendingPayload = (harness.persistedMeta[0] as ExecutionRunStructuredMeta).payload as ReviewFindingsV2;
-    expect(pendingPayload.pendingPublication?.findings).toEqual([
-      expect.objectContaining({ id: 'f1', startedAtMs: expect.any(Number), requestFingerprint: expect.any(String) }),
-    ]);
-
-    // The success write-back clears the pending marker and marks the finding published.
-    const updatedPayload = result.updatedStructuredMeta?.payload as ReviewFindingsV2;
-    expect(updatedPayload.pendingPublication?.findings ?? []).toHaveLength(0);
-    expect(updatedPayload.publication?.findings).toEqual([
-      expect.objectContaining({ id: 'f1', published: true }),
-    ]);
-  });
-
-  it('refuses a retry while a fresh pending marker exists, without calling the provider', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      pendingPublication: { findings: [{ id: 'f1', startedAtMs: Date.now() }] },
-      readFileLines: async () => ['const x = 1;'],
-    });
-    const result = await harness.promise;
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_busy' });
-    expect(String(result.error)).toContain('may have reached the provider');
-    expect(harness.createReview).not.toHaveBeenCalled();
-  });
-
-  it('ignores a stale pending marker and proceeds', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      pendingPublication: { findings: [{ id: 'f1', startedAtMs: Date.now() - 25 * 60 * 60 * 1000 }] },
-      readFileLines: async () => ['const x = 1;'],
-    });
-    const result = await harness.promise;
-
-    expect(result.ok).toBe(true);
-    expect(harness.createReview).toHaveBeenCalledTimes(1);
-  });
-
-  it('blocks an overlapping selection while a different selection for the same run is in flight', async () => {
-    const f1 = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const f2 = makeFinding({ id: 'f2', filePath: 'src/b.ts', startLine: 2 });
-    const readFileLines = async () => ['const x = 1;', 'const y = 2;'];
-
-    let releaseGate: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const firstCreateReview = vi.fn(async () => {
-      await gate;
-      return { success: true as const, reviewId: 'review-1', url: 'https://github.com/happier-dev/happier/pull/42' };
-    });
-
-    const first = runPublish({ findings: [f1, f2], findingIds: ['f1', 'f2'], createReview: firstCreateReview, readFileLines });
-    const secondCreateReview = vi.fn();
-    const second = await runPublish({ findings: [f1], findingIds: ['f1'], createReview: secondCreateReview, readFileLines }).promise;
-
-    expect(second).toMatchObject({ ok: false, errorCode: 'execution_run_busy' });
-    expect(secondCreateReview).not.toHaveBeenCalled();
-
-    releaseGate?.();
-    const firstResult = await first.promise;
-    expect(firstResult.ok).toBe(true);
-    expect(firstCreateReview).toHaveBeenCalledTimes(1);
-  });
-
-  it('treats a lineHash recorded with an unknown algorithm as unanchored (body bullet)', async () => {
-    const finding = makeFinding({
-      id: 'f1',
-      filePath: 'src/a.ts',
-      startLine: 3,
-      lineHash: computeReviewLineContentHash('target-line'),
-      lineHashAlgorithm: 'sha256-v999',
-    });
-    const lines = ['l1', 'l2', 'target-line', 'l4'];
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      readFileLines: async () => lines,
-    });
-    const result = await harness.promise;
-
-    expect(result.ok).toBe(true);
-    const request = harness.createReview.mock.calls[0][0].request;
-    expect(request.comments).toHaveLength(0);
-    expect(request.body).toContain('src/a.ts:3');
-  });
-
-  it('errors on an unknown finding id, naming it, without calling the provider', async () => {
-    const finding = makeFinding({ id: 'f1' });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1', 'nope'],
-      // The client claims to have sent an object for the unknown id too, so only the
-      // unknown-id check (not the publishedFindings containment check) fires.
-      publishedFindings: [finding, makeFinding({ id: 'nope' })],
-    });
-    const result = await harness.promise;
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
-    expect(String(result.error)).toContain('nope');
-    expect(harness.createReview).not.toHaveBeenCalled();
-  });
-
-  it('errors when a requested id is missing from publishedFindings', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      // `publishedFindings` must be non-empty per schema, so it carries another finding: the containment
-      // check is what this test exercises, not the schema.
-      publishedFindings: [makeFinding({ id: 'other' })],
-      readFileLines: async () => ['const x = 1;'],
-    });
-    const result = await harness.promise;
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
-    expect(String(result.error)).toContain('publishedFindings');
-    expect(harness.createReview).not.toHaveBeenCalled();
-  });
-
-  it('errors when stored meta is malformed instead of throwing', async () => {
-    const run = makeRun({ kind: 'review_findings.v2', payload: { runRef: { runId: 'run-1' } } });
-    const result = await publishReviewFindings({
-      run,
-      input: publishInput({ findingIds: ['f1'], publishedFindings: [makeFinding({ id: 'f1' })] }),
-      deps: {
-        cwd: '/repo',
-        connectedAccounts: { resolveCredential: async () => null },
-        featureDecision: enabledDecision,
-      },
-    });
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
-    expect(String(result.error)).toContain('malformed');
-  });
-
-  it('errors when sourceRunRef.runId does not match the run being published', async () => {
-    const finding = makeFinding({ id: 'f1', filePath: 'src/a.ts', startLine: 1 });
-    const harness = runPublish({
-      findings: [finding],
-      findingIds: ['f1'],
-      sourceRunRef: { runId: 'other-run', callId: 'call-1', backendId: 'claude' },
-      readFileLines: async () => ['const x = 1;'],
-    });
-    const result = await harness.promise;
-
-    expect(result).toMatchObject({ ok: false, errorCode: 'execution_run_invalid_action_input' });
-    expect(String(result.error)).toContain('other-run');
-    expect(harness.createReview).not.toHaveBeenCalled();
-  });
-
-  it('rejects a symlinked directory that resolves outside the workspace root', () => {
-    const root = mkdtempSync(join(tmpdir(), 'happier-publish-root-'));
-    const outside = mkdtempSync(join(tmpdir(), 'happier-publish-outside-'));
-    try {
-      writeFileSync(join(root, 'inside.txt'), 'inside');
-      writeFileSync(join(outside, 'secret.txt'), 'secret');
-      try {
-        symlinkSync(outside, join(root, 'link'));
-      } catch {
-        // Symlinks are not available on this platform (e.g. Windows without privileges).
-        return;
-      }
-      // The lexical path is inside the root but the symlink target is not.
-      expect(resolveWorkspaceContainedPath(root, 'link/secret.txt')).toBeNull();
-      // A real file inside the root still resolves.
-      expect(resolveWorkspaceContainedPath(root, 'inside.txt')).toBe(join(root, 'inside.txt'));
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-      rmSync(outside, { recursive: true, force: true });
-    }
   });
 });

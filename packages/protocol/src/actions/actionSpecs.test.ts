@@ -9,7 +9,6 @@ import {
   SessionUsageLimitWaitResumeEnableRequestV1Schema,
 } from '../sessionWorkState/sessionWorkStateRpc.js';
 import { serializeActionSpec } from './actionCatalog.js';
-import { resolveActionToolExposureMode } from './actionToolExposure.js';
 import { ActionApprovalSchema, ActionOperationDeclarationV1Schema, ActionSpecSchema, ActionSurfaceSchema, getActionSpec, isActionSpecSurfacedOn, listActionSpecs, listActionSpecsForSurface, listVoicePromptHotPathSpecs, resolveActionApprovalFlow } from './actionSpecs.js';
 
 it('accepts the existing empty mode id to clear a native override', () => {
@@ -51,7 +50,6 @@ const RESULT_REQUIRED_BLOCKING_ACTION_IDS = [
   'machines.list',
   'servers.list',
   'review.engines.list',
-  'review.finding.apply',
   'memory.search',
   'memory.get_window',
   'memory.ensure_up_to_date',
@@ -271,33 +269,6 @@ describe('Action Spec Registry', () => {
       ...groups.noneDeferred,
       ...groups.optionalDeferred,
     ]).size).toBe(listActionSpecs().length);
-  });
-
-  it('declares review.finding.apply as danger, approval-required, read_only default', () => {
-    const spec = getActionSpec('review.finding.apply');
-
-    expect(spec.safety).toBe('danger');
-    expect(spec.approval).toEqual({ result: 'required' });
-    expect(spec.bindings?.mcpToolName).toBe('review_finding_apply');
-    expect(resolveActionToolExposureMode(spec, 'session_agent')).toBe('discoverable_only');
-    // Not a voice surface: the action is behind the reviews.support switch (default off) and hands work to a
-    // write session, so it must not be an always-available voice tool.
-    expect(spec.surfaces.voice_tool).toBe(false);
-    expect(spec.surfaces.voice_action_block).toBe(false);
-
-    // read_only default, and the caller may still escalate explicitly.
-    const parsed = spec.inputSchema.parse({
-      runId: 'run-1',
-      findingIds: ['f1'],
-      mode: 'send_to_session',
-    });
-    expect(parsed.permissionMode).toBe('read_only');
-    expect(spec.inputSchema.parse({
-      runId: 'run-1',
-      findingIds: ['f1'],
-      mode: 'spawn_session',
-      permissionMode: 'workspace_write',
-    }).permissionMode).toBe('workspace_write');
   });
 
   it('uses default blocking flow for result-required approval metadata', () => {

@@ -464,53 +464,6 @@ describe('accountSettings', () => {
     });
   });
 
-  it('defaults the review model policy to inherit with no engine overrides', () => {
-    expect(accountSettingsParse({}).reviewModelPolicySettingsV1).toEqual({
-      v: 1,
-      modelPolicy: { kind: 'inherit' },
-      engines: {},
-    });
-  });
-
-  it('accepts an account default fixed review model policy with a per-engine depth override', () => {
-    const parsed = accountSettingsParse({
-      reviewModelPolicySettingsV1: {
-        v: 1,
-        modelPolicy: { kind: 'fixed', modelId: 'account-model' },
-        engines: {
-          codex: {
-            modelPolicy: {
-              kind: 'depth',
-              fast: { modelId: 'ds-flash' },
-              deep: { modelId: 'ds-pro' },
-              depthDefault: 'deep',
-            },
-          },
-        },
-      },
-    });
-
-    expect(parsed.reviewModelPolicySettingsV1.modelPolicy).toEqual({ kind: 'fixed', modelId: 'account-model' });
-    expect(parsed.reviewModelPolicySettingsV1.engines.codex?.modelPolicy).toEqual({
-      kind: 'depth',
-      fast: { modelId: 'ds-flash' },
-      deep: { modelId: 'ds-pro' },
-      depthDefault: 'deep',
-    });
-  });
-
-  it('falls back to inherit when the review model policy settings are malformed', () => {
-    const parsed = accountSettingsParse({
-      reviewModelPolicySettingsV1: { v: 1, modelPolicy: { kind: 'not-a-kind' } },
-    });
-
-    expect(parsed.reviewModelPolicySettingsV1).toEqual({
-      v: 1,
-      modelPolicy: { kind: 'inherit' },
-      engines: {},
-    });
-  });
-
   it('normalizes legacy agent-managed title updates to ongoing title updates', () => {
     const parsed = accountSettingsParse({
       codingPromptBehaviorV1: {

@@ -27,8 +27,6 @@ import { cmdSessionRunStreamStart } from './run/streamStart';
 import { cmdSessionRunStreamRead } from './run/streamRead';
 import { cmdSessionRunStreamCancel } from './run/streamCancel';
 import { cmdSessionReviewStart } from './review/start';
-import { cmdSessionReviewPublish } from './review/publish';
-import { cmdSessionReviewFix } from './review/fix';
 import { cmdSessionPlanStart } from './plan/start';
 import { cmdSessionDelegateStart } from './delegate/start';
 import { cmdSessionVoiceAgentStart } from './voiceAgent/start';
@@ -74,12 +72,7 @@ function inferSessionKind(argv: readonly string[]): string {
     if (runSub === 'stream-cancel') return 'session_run_stream_cancel';
     return 'session_run_unknown';
   }
-  if (sub === 'review') {
-    const reviewSub = String(argv[1] ?? '').trim();
-    if (reviewSub === 'publish') return 'session_review_publish';
-    if (reviewSub === 'fix') return 'session_review_fix';
-    return 'session_review_start';
-  }
+  if (sub === 'review') return 'session_review_start';
   if (sub === 'plan') return 'session_plan_start';
   if (sub === 'delegate') return 'session_delegate_start';
   if (sub === 'voice-agent' || sub === 'voice_agent') return 'session_voice_agent_start';
@@ -100,8 +93,6 @@ const SESSION_HELP_BY_COMMAND = {
   archive: 'happier session archive <session-id-or-prefix-or-tag> [--json]',
   unarchive: 'happier session unarchive <session-id-or-prefix-or-tag> [--json]',
   'review start': 'happier session review start <session-id-or-prefix-or-tag> --engines <id1,id2> [--instructions <text>] [--json]',
-  'review publish': 'happier session review publish <session-id-or-prefix-or-tag> [--run <runId>] --findings <id1,id2|all> [--pr <number>] [--json]',
-  'review fix': 'happier session review fix <session-id-or-prefix-or-tag> [--run <runId>] --findings <id1,id2|all> [--mode send_to_session|spawn_session] [--patch] [--permission-mode <intent>] [--json]',
   'plan start': 'happier session plan start <session-id-or-prefix-or-tag> --backends <id1,id2> --instructions <text> [--json]',
   'delegate start': 'happier session delegate start <session-id-or-prefix-or-tag> --backends <id1,id2> --instructions <text> [--json]',
   'voice-agent start': 'happier session voice-agent start <session-id-or-prefix-or-tag> --backends <id1,id2> --instructions <text> [--json]',
@@ -121,7 +112,7 @@ const SESSION_HELP_BY_COMMAND = {
 } as const;
 
 const SESSION_HELP_GROUPS: Readonly<Record<string, readonly (keyof typeof SESSION_HELP_BY_COMMAND)[]>> = {
-  review: ['review start', 'review publish', 'review fix'],
+  review: ['review start'],
   plan: ['plan start'],
   delegate: ['delegate start'],
   'voice-agent': ['voice-agent start'],
@@ -293,14 +284,6 @@ export async function handleSessionCommand(
         if (!reviewSub) throw new Error('Usage: happier session review <subcommand> ...');
         if (reviewSub === 'start') {
           await cmdSessionReviewStart(argv, { readCredentialsFn });
-          return;
-        }
-        if (reviewSub === 'publish') {
-          await cmdSessionReviewPublish(argv, { readCredentialsFn });
-          return;
-        }
-        if (reviewSub === 'fix') {
-          await cmdSessionReviewFix(argv, { readCredentialsFn });
           return;
         }
         throw new Error(`Unknown session review subcommand: ${reviewSub}`);

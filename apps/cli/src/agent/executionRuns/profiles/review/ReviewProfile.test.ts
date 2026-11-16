@@ -197,7 +197,7 @@ describe('ReviewProfile', () => {
       },
     });
 
-    expect(actionIds).toEqual(['review.triage', 'review.publish', 'review.finding.apply', 'review.resolve', 'review.follow_up']);
+    expect(actionIds).toEqual(['review.triage', 'review.publish', 'review.follow_up']);
   });
 
   it('hides review.follow_up for coderabbit review findings payloads', () => {
@@ -236,7 +236,7 @@ describe('ReviewProfile', () => {
       },
     });
 
-    expect(actionIds).toEqual(['review.triage', 'review.publish', 'review.finding.apply', 'review.resolve']);
+    expect(actionIds).toEqual(['review.triage', 'review.publish']);
   });
 
   it('advertises review.publish for review_findings.v1 and review_findings.v2 meta', () => {
@@ -263,129 +263,5 @@ describe('ReviewProfile', () => {
       });
       expect(actionIds).toContain('review.publish');
     }
-  });
-
-  it('advertises review.resolve only for review_findings.v2 meta', () => {
-    const start = {
-      sessionId: 'sess_1',
-      runId: 'run_1',
-      callId: 'call_1',
-      sidechainId: 'call_1',
-      intent: 'review',
-      backendId: 'claude',
-      backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
-      instructions: 'review this',
-      permissionMode: 'read_only',
-      retentionPolicy: 'ephemeral',
-      runClass: 'bounded',
-      ioMode: 'streaming',
-      startedAtMs: 1,
-    } as const;
-
-    const v2 = ReviewProfile.listAvailableActionIds?.({
-      start,
-      structuredMeta: { kind: 'review_findings.v2', payload: {} },
-    });
-    const v1 = ReviewProfile.listAvailableActionIds?.({
-      start,
-      structuredMeta: { kind: 'review_findings.v1', payload: {} },
-    });
-
-    expect(v2).toContain('review.resolve');
-    expect(v1).not.toContain('review.resolve');
-  });
-
-  it('review.resolve writes the resolution overlay for the selected ids only', () => {
-    const start = {
-      sessionId: 'sess_1',
-      runId: 'run_1',
-      callId: 'call_1',
-      sidechainId: 'call_1',
-      intent: 'review',
-      backendId: 'claude',
-      backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
-      instructions: 'review this',
-      permissionMode: 'read_only',
-      retentionPolicy: 'ephemeral',
-      runClass: 'bounded',
-      ioMode: 'request_response',
-      startedAtMs: 1,
-    } as const;
-
-    const structuredMeta = {
-      kind: 'review_findings.v2',
-      payload: {
-        runRef: {
-          runId: 'run_1',
-          callId: 'call_1',
-          backendId: 'claude',
-          backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
-        },
-        summary: 'Ok',
-        overviewMarkdown: 'Ok',
-        findings: [
-          { id: 'f1', title: 'A', severity: 'high', category: 'correctness', summary: 'a' },
-          { id: 'f2', title: 'B', severity: 'low', category: 'style', summary: 'b' },
-        ],
-        questions: [],
-        assumptions: [],
-        resolution: { findings: [{ id: 'f1', state: 'open', note: 'keep' }] },
-        generatedAtMs: 1,
-      },
-    } as const;
-
-    const res = ReviewProfile.applyAction?.({
-      actionId: 'review.resolve',
-      input: { state: 'fixed', findingIds: ['f2'] },
-      structuredMeta: structuredMeta as any,
-      start,
-    });
-
-    expect(res?.ok).toBe(true);
-    const payload = (res as any).updatedStructuredMeta.payload;
-    expect(payload.resolution.findings).toEqual([
-      { id: 'f1', state: 'open', note: 'keep' },
-      { id: 'f2', state: 'fixed' },
-    ]);
-  });
-
-  it('review.resolve refuses on review_findings.v1 meta', () => {
-    const start = {
-      sessionId: 'sess_1',
-      runId: 'run_1',
-      callId: 'call_1',
-      sidechainId: 'call_1',
-      intent: 'review',
-      backendId: 'claude',
-      backendTarget: { kind: 'builtInAgent', agentId: 'claude' },
-      instructions: 'review this',
-      permissionMode: 'read_only',
-      retentionPolicy: 'ephemeral',
-      runClass: 'bounded',
-      ioMode: 'request_response',
-      startedAtMs: 1,
-    } as const;
-
-    const structuredMeta = {
-      kind: 'review_findings.v1',
-      payload: {
-        runRef: { runId: 'run_1', callId: 'call_1', backendId: 'claude' },
-        summary: 'Ok',
-        findings: [
-          { id: 'f1', title: 'A', severity: 'high', category: 'correctness', summary: 'a' },
-        ],
-        generatedAtMs: 1,
-      },
-    } as const;
-
-    const res = ReviewProfile.applyAction?.({
-      actionId: 'review.resolve',
-      input: { state: 'fixed', findingIds: ['f1'] },
-      structuredMeta: structuredMeta as any,
-      start,
-    });
-
-    expect(res?.ok).toBe(false);
-    expect((res as any)?.errorCode).toBe('execution_run_action_not_supported');
   });
 });

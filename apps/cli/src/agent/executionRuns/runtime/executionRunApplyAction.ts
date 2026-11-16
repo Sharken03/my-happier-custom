@@ -1,18 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
 import {
-  ACTION_SPECS,
   ReviewFindingsV1Schema,
   ReviewFindingsV2Schema,
   ReviewFollowUpInputSchema,
-  type ExecutionRunActionApprovalGrant,
-  type SessionPermissionMode,
 } from '@happier-dev/protocol';
 
 import type { ACPMessageData, ACPProvider } from '@/api/session/sessionMessageTypes';
 import type { AcpSendFn } from '@/agent/acp/bridge/acpSessionForwarding';
 import { resolveExecutionRunIntentProfile } from '@/agent/executionRuns/profiles/intentRegistry';
-import type { ExecutionRunStructuredMeta } from '@/agent/executionRuns/profiles/ExecutionRunIntentProfile';
 import { buildReviewFindingsV2Payload } from '@/agent/reviews/normalize/buildReviewFindingsV2Payload';
 import { VoiceAgentError, type VoiceAgentManager } from '@/agent/voice/agent/VoiceAgentManager';
 import { buildExecutionRunProfileStartParams } from '@/agent/executionRuns/runtime/buildExecutionRunProfileStartParams';
@@ -26,103 +22,6 @@ import type {
 } from '@/agent/executionRuns/runtime/executionRunTypes';
 import type { ExecutionRunController } from '@/agent/executionRuns/controllers/types';
 import { publishReviewFindings } from '@/agent/executionRuns/runtime/executionRunReviewPublish';
-import { applyReviewFindingFix } from '@/agent/executionRuns/runtime/executionRunReviewFindingApply';
-
-type CommitActionOutcomeInput = Readonly<{
-  updatedStructuredMeta?: ExecutionRunStructuredMeta;
-  updatedToolResultOutput?: unknown;
-  updatedToolResultMeta?: Record<string, unknown>;
-  /** RPC-visible action result (e.g. the publish summary), carried back without a structured-meta field. */
-  result?: unknown;
-}>;
-
-/**
- * Shared tail for run actions that already resolved their outcome: persist the updated structured
- * meta + tool result into the run map, re-emit an ACP tool-result so the owning tool-call message can
- * merge the updated meta, and return the canonical action-result shape. Used by the profile path and
- * the `review.publish` / `review.finding.apply` branches so their write-back reaches the UI caller.
- */
-async function commitActionOutcome(args: Readonly<{
-  runId: string;
-  run: ExecutionRunState;
-  actionId: string;
-  runs: Map<string, ExecutionRunState>;
-  outcome: CommitActionOutcomeInput;
-  sendAcp: AcpSendFn;
-  sendCommittedAcp?: (
-    provider: ACPProvider,
-    body: ACPMessageData,
-    opts: { localId: string; meta?: Record<string, unknown> },
-  ) => Promise<void>;
-  parentProvider: ACPProvider;
-}>): Promise<ExecutionRunActionResult> {
-  const { runId, run, actionId, runs, outcome, sendAcp, sendCommittedAcp, parentProvider } = args;
-
-  runs.set(runId, {
-    ...run,
-    ...(outcome.updatedStructuredMeta ? { structuredMeta: outcome.updatedStructuredMeta } : {}),
-    ...(typeof outcome.updatedToolResultOutput !== 'undefined' ? { latestToolResult: outcome.updatedToolResultOutput } : {}),
-  });
-
-  const output = outcome.updatedToolResultOutput ?? { ok: true, actionId };
-  const toolResultBody: ACPMessageData = {
-    type: 'tool-result',
-    callId: run.callId,
-    output,
-    id: randomUUID(),
-  };
-
-  if (sendCommittedAcp) {
-    try {
-      await sendCommittedAcp(parentProvider, toolResultBody, {
-        localId: randomUUID(),
-        ...(outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : {}),
-      });
-    } catch {
-      sendAcp(
-        parentProvider,
-        toolResultBody,
-        outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : undefined,
-      );
-    }
-  } else {
-    // Re-emit a tool-result so the owning tool-call message can merge updated meta.
-    sendAcp(
-      parentProvider,
-      toolResultBody,
-      outcome.updatedToolResultMeta ? { meta: outcome.updatedToolResultMeta } : undefined,
-    );
-  }
-
-  return {
-    ok: true,
-    ...(outcome.result !== undefined ? { result: outcome.result } : {}),
-    updatedToolResult: output,
-  };
-}
-
-/**
- * Re-derives the posture of a nested action id reached through `execution.run.action`.
- *
- * The dispatcher is declared `safety: 'safe'` with optional-deferred approval, but it can dispatch any run
- * action — including one declared `danger` + approval `required`. The dispatcher cannot see the outer
- * surface's approval state, so the surface asserts it in `approvalGrant`; a `danger` action without a grant
- * is refused rather than run under the weaker outer gate. Returns null when the nested id is not `danger`
- * or the caller granted approval.
- */
-function denyUnapprovedDangerNestedAction(
-  actionId: string,
-  approvalGrant: ExecutionRunActionApprovalGrant | undefined,
-): ExecutionRunActionResult | null {
-  const spec = ACTION_SPECS.find((candidate) => candidate.id === actionId);
-  if (spec?.safety !== 'danger') return null;
-  if (approvalGrant) return null;
-  return {
-    ok: false,
-    errorCode: 'execution_run_not_allowed',
-    error: `Nested action "${actionId}" is a danger action and requires approval, but the caller supplied no approvalGrant. Dispatch it through a surface that applies its approval requirement and pass approvalGrant with the granting surface.`,
-  };
-}
 
 export async function applyExecutionRunAction(args: Readonly<{
   runId: string;
@@ -138,10 +37,6 @@ export async function applyExecutionRunAction(args: Readonly<{
     opts: { localId: string; meta?: Record<string, unknown> },
   ) => Promise<void>;
   parentProvider: ACPProvider;
-  /** Send a user input into the originating (parent) session. Reused by `review.finding.apply`. */
-  enqueueParentSessionInput?: (input: Readonly<{ text: string; meta: Record<string, unknown> }>) => Promise<void>;
-  /** Spawn a new session in the same workspace. Reused by `review.finding.apply`. */
-  spawnSession?: (input: Readonly<{ text: string; directory: string; permissionMode: SessionPermissionMode }>) => Promise<unknown>;
   deps?: ExecutionRunActionDeps;
 }>): Promise<ExecutionRunActionResult> {
   const run = args.runs.get(args.runId);
@@ -225,72 +120,15 @@ export async function applyExecutionRunAction(args: Readonly<{
     if (!deps?.cwd || !deps?.connectedAccounts) {
       return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review publishing is not wired yet' };
     }
-    const outcome = await publishReviewFindings({
+    return publishReviewFindings({
       run,
       input: args.params.input,
       deps: {
         cwd: deps.cwd,
         connectedAccounts: deps.connectedAccounts,
         ...(deps.featureDecision ? { featureDecision: deps.featureDecision } : {}),
-        ...(deps.reviewSupportDecision ? { reviewSupportDecision: deps.reviewSupportDecision } : {}),
       },
-    });
-    if (!outcome.ok) return outcome;
-    return commitActionOutcome({
-      runId: args.runId,
-      run,
-      actionId: 'review.publish',
       runs: args.runs,
-      outcome: {
-        updatedStructuredMeta: outcome.updatedStructuredMeta,
-        updatedToolResultOutput: { ok: true, actionId: 'review.publish', result: outcome.result },
-        updatedToolResultMeta: outcome.updatedToolResultMeta,
-        result: outcome.result,
-      },
-      sendAcp: args.sendAcp,
-      sendCommittedAcp: args.sendCommittedAcp,
-      parentProvider: args.parentProvider,
-    });
-  }
-
-  if (run.intent === 'review' && String(args.params.actionId ?? '').trim() === 'review.finding.apply') {
-    // `review.finding.apply` is declared `safety: 'danger'` + approval REQUIRED while the generic
-    // dispatcher is `safe`, so the caller must assert that it applied the approval itself.
-    const denied = denyUnapprovedDangerNestedAction('review.finding.apply', args.params.approvalGrant);
-    if (denied) return denied;
-    // Same master switch as review runs and publishing: this branch spawns or instructs a write session.
-    if (args.deps?.reviewSupportDecision?.state !== 'enabled') {
-      return {
-        ok: false,
-        errorCode: 'execution_run_not_allowed',
-        error: 'Review support is disabled in this build (feature: reviews.support). '
-          + 'Set HAPPIER_FEATURE_REVIEW_SUPPORT__ENABLED=1 to enable it.',
-      };
-    }
-    const deps = args.deps;
-    const sendToSession = args.enqueueParentSessionInput;
-    const spawnSession = args.spawnSession;
-    if (!deps?.cwd || !sendToSession || !spawnSession) {
-      return { ok: false, errorCode: 'execution_run_action_not_supported', error: 'Review finding apply is not wired yet' };
-    }
-    const outcome = await applyReviewFindingFix({
-      run,
-      input: args.params.input,
-      deps: { cwd: deps.cwd, sendToSession, spawnSession },
-    });
-    if (!outcome.ok) return outcome;
-    return commitActionOutcome({
-      runId: args.runId,
-      run,
-      actionId: 'review.finding.apply',
-      runs: args.runs,
-      outcome: {
-        updatedToolResultOutput: { ok: true, actionId: 'review.finding.apply', result: outcome.result },
-        result: outcome.result,
-      },
-      sendAcp: args.sendAcp,
-      sendCommittedAcp: args.sendCommittedAcp,
-      parentProvider: args.parentProvider,
     });
   }
 
@@ -365,18 +203,40 @@ export async function applyExecutionRunAction(args: Readonly<{
     return { ok: false, errorCode: acted.errorCode, error: acted.error };
   }
 
-  return commitActionOutcome({
-    runId: args.runId,
-    run,
-    actionId: args.params.actionId,
-    runs: args.runs,
-    outcome: {
-      updatedStructuredMeta: acted.updatedStructuredMeta,
-      updatedToolResultOutput: acted.updatedToolResultOutput,
-      updatedToolResultMeta: acted.updatedToolResultMeta,
-    },
-    sendAcp: args.sendAcp,
-    sendCommittedAcp: args.sendCommittedAcp,
-    parentProvider: args.parentProvider,
+  args.runs.set(args.runId, {
+    ...run,
+    ...(acted.updatedStructuredMeta ? { structuredMeta: acted.updatedStructuredMeta } : {}),
+    ...(typeof acted.updatedToolResultOutput !== 'undefined' ? { latestToolResult: acted.updatedToolResultOutput } : {}),
   });
+
+  const toolResultBody: ACPMessageData = {
+    type: 'tool-result',
+    callId: run.callId,
+    output: acted.updatedToolResultOutput ?? { ok: true, actionId: args.params.actionId },
+    id: randomUUID(),
+  };
+
+  if (args.sendCommittedAcp) {
+    try {
+      await args.sendCommittedAcp(args.parentProvider, toolResultBody, {
+        localId: randomUUID(),
+        ...(acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : {}),
+      });
+    } catch {
+      args.sendAcp(
+        args.parentProvider,
+        toolResultBody,
+        acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : undefined,
+      );
+    }
+  } else {
+    // Re-emit a tool-result so the owning tool-call message can merge updated meta.
+    args.sendAcp(
+      args.parentProvider,
+      toolResultBody,
+      acted.updatedToolResultMeta ? { meta: acted.updatedToolResultMeta } : undefined,
+    );
+  }
+
+  return { ok: true, updatedToolResult: acted.updatedToolResultOutput ?? { ok: true } };
 }

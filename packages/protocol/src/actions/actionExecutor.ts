@@ -2043,14 +2043,7 @@ export function createActionExecutor(deps: ActionExecutorDeps): Readonly<{
           if (!sessionId) return { ok: false, errorCode: 'session_not_selected', error: 'session_not_selected' };
           const serverId = resolveServerIdForSession(deps, ctx, sessionId);
           const opts = serverId ? { serverId } : undefined;
-          const res = await deps.executionRunAction(sessionId, {
-            runId: (parsed.data as any).runId,
-            actionId: (parsed.data as any).actionId,
-            input: (parsed.data as any).input,
-            // Forwarded so a `danger` nested action can see the surface's approval assertion; dropping it
-            // here would make every nested danger action refused no matter what the surface granted.
-            ...((parsed.data as any).approvalGrant ? { approvalGrant: (parsed.data as any).approvalGrant } : {}),
-          }, opts);
+          const res = await deps.executionRunAction(sessionId, { runId: (parsed.data as any).runId, actionId: (parsed.data as any).actionId, input: (parsed.data as any).input }, opts);
           return { ok: true, result: res };
         }
 

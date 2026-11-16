@@ -82,14 +82,6 @@ export type ScmHostingProviderCreatePullRequestReviewInput = Readonly<{
 export type ScmHostingProviderCreatePullRequestReviewResult = Readonly<{
     reviewId: string;
     url: string | null;
-    /**
-     * Whether the requested review event (comment / request_changes / approve) was actually recorded by the
-     * provider. Absent means it was, or the provider applies it implicitly. GitLab cannot express a
-     * request-changes verdict, so it reports false rather than letting the caller believe a verdict exists.
-     */
-    eventApplied?: boolean;
-    /** Inline comments posted successfully. A provider that posts them one at a time can apply partially. */
-    postedCommentCount?: number;
 }>;
 
 export type ScmHostingProviderListRepositoryPublishTargetsInput = Readonly<{

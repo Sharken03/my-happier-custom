@@ -17,77 +17,6 @@ export const ReviewPublicationOverlaySchema = lazySchema(() => z.object({
 }).passthrough());
 export type ReviewPublicationOverlay = z.infer<typeof ReviewPublicationOverlaySchema>;
 
-// Markers written before an outward publish so that a retry after a lost
-// provider response does not post a duplicate review. `requestFingerprint` is a
-// client-generated dedupe key the runtime may supply; it is advisory.
-export const ReviewPendingPublicationOverlaySchema = lazySchema(() => z.object({
-  findings: z.array(z.object({
-    id: z.string().min(1),
-    startedAtMs: z.number().int().nonnegative(),
-    requestFingerprint: z.string().min(1).optional(),
-  }).passthrough()),
-}).passthrough());
-export type ReviewPendingPublicationOverlay = z.infer<typeof ReviewPendingPublicationOverlaySchema>;
-
-export const ReviewResolutionStateSchema = lazySchema(() => z.enum([
-  'open',
-  'applying',
-  'fixed',
-  'still_present',
-  'regressed',
-  'wontfix',
-]));
-export type ReviewResolutionState = z.infer<typeof ReviewResolutionStateSchema>;
-
-// Resolution is a per-finding state overlay. A finding with no entry is
-// implicitly `open`; an entry records an explicit state change. `open` is the
-// only state that is also expressible explicitly (redundant but valid).
-export const ReviewResolutionOverlaySchema = lazySchema(() => z.object({
-  findings: z.array(z.object({
-    id: z.string().min(1),
-    state: ReviewResolutionStateSchema,
-    updatedAtMs: z.number().int().nonnegative().optional(),
-    note: z.string().min(1).optional(),
-  }).passthrough()),
-}).passthrough());
-export type ReviewResolutionOverlay = z.infer<typeof ReviewResolutionOverlaySchema>;
-
-// Input shape for the `review.resolve` run action: one state applied to a set
-// of finding ids.
-export const ReviewResolutionUpdateSchema = lazySchema(() => z.object({
-  state: ReviewResolutionStateSchema,
-  findingIds: z.array(z.string().min(1)).min(1),
-  updatedAtMs: z.number().int().nonnegative().optional(),
-  note: z.string().min(1).optional(),
-}).passthrough());
-export type ReviewResolutionUpdate = z.infer<typeof ReviewResolutionUpdateSchema>;
-
-/**
- * Pure helper that merges a resolution update into a payload. Entries for the
- * updated ids are replaced; all other resolution entries (and every other
- * payload field) are preserved. Applying the same update twice is idempotent.
- */
-export function mergeReviewResolutionUpdate(
-  payload: ReviewFindingsV2,
-  update: ReviewResolutionUpdate,
-): ReviewFindingsV2 {
-  const entries = new Map<string, ReviewResolutionOverlay['findings'][number]>(
-    (payload.resolution?.findings ?? []).map((entry) => [entry.id, entry]),
-  );
-  for (const id of update.findingIds) {
-    entries.set(id, {
-      id,
-      state: update.state,
-      ...(update.updatedAtMs !== undefined ? { updatedAtMs: update.updatedAtMs } : {}),
-      ...(update.note !== undefined ? { note: update.note } : {}),
-    });
-  }
-  return {
-    ...payload,
-    resolution: { findings: [...entries.values()] },
-  };
-}
-
 export const ReviewFindingsV2Schema = lazySchema(() => z.object({
   runRef: ExecutionRunStructuredRunRefSchema,
   summary: z.string().min(1),
@@ -97,8 +26,6 @@ export const ReviewFindingsV2Schema = lazySchema(() => z.object({
   assumptions: z.array(ReviewAssumptionSchema).default([]),
   triage: ReviewTriageOverlaySchema.optional(),
   publication: ReviewPublicationOverlaySchema.optional(),
-  pendingPublication: ReviewPendingPublicationOverlaySchema.optional(),
-  resolution: ReviewResolutionOverlaySchema.optional(),
   limits: z.object({
     findingsTruncated: z.boolean().optional(),
     patchesTruncated: z.boolean().optional(),

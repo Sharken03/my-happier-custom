@@ -2044,12 +2044,6 @@ export {
   createSessionPermissionModeSchema,
   parseSessionPermissionModeAlias,
 } from './sessionMetadata/sessionPermissionModes.js';
-export {
-  EXECUTION_RUN_ACTION_PERMISSION_MODES,
-  EXECUTION_RUN_ACTION_PERMISSION_INPUTS,
-  ExecutionRunActionPermissionModeSchema,
-  type ExecutionRunActionPermissionMode,
-} from './actions/executionRunActionPermissionMode.js';
 
 export {
   SESSION_WORKSPACE_LOCATION_METADATA_KEY,
@@ -2516,8 +2510,6 @@ export {
   ExecutionRunEnsureOrStartRequestSchema,
   ExecutionRunEnsureOrStartResponseSchema,
   ExecutionRunActionRequestSchema,
-  ExecutionRunActionApprovalGrantSchema,
-  type ExecutionRunActionApprovalGrant,
   ExecutionRunActionResponseSchema,
   ExecutionRunTurnStreamStartRequestSchema,
   ExecutionRunTurnStreamStartV2RequestSchema,
@@ -2932,24 +2924,17 @@ export {
   ReviewModelPolicySchema,
   resolveReviewModelPolicy,
   resolveReviewCallSitePolicyFlagMapping,
-  resolveReviewModelPolicyDepthRefs,
   type ReviewModelRef,
   type ReviewModelPolicy,
   type ReviewModelPolicySource,
   type ReviewModelPolicyResolution,
   type ReviewCallSitePolicyFlagMapping,
-  type ReviewModelPolicySettings,
 } from './reviews/reviewModelPolicy.js';
 
 export {
   ReviewFollowUpInputSchema,
   type ReviewFollowUpInput,
 } from './reviews/reviewFollowUp.js';
-
-export {
-  ReviewFindingApplyInputSchema,
-  type ReviewFindingApplyInput,
-} from './reviews/reviewFindingApply.js';
 
 export {
   NativeReviewEngineIdSchema,
@@ -2978,18 +2963,9 @@ export {
 export {
   ReviewFindingsV2Schema,
   ReviewPublicationOverlaySchema,
-  ReviewPendingPublicationOverlaySchema,
-  ReviewResolutionStateSchema,
-  ReviewResolutionOverlaySchema,
-  ReviewResolutionUpdateSchema,
   parseReviewFindingsV2,
-  mergeReviewResolutionUpdate,
   type ReviewFindingsV2,
   type ReviewPublicationOverlay,
-  type ReviewPendingPublicationOverlay,
-  type ReviewResolutionState,
-  type ReviewResolutionOverlay,
-  type ReviewResolutionUpdate,
 } from './structuredMessages/reviewFindingsV2.js';
 
 export {
@@ -3599,20 +3575,17 @@ export {
   DEFAULT_CONNECTED_SERVICES_PROVIDER_STATE_SHARING_SETTINGS_V1,
   DEFAULT_NOTIFICATIONS_SETTINGS_V1,
   DEFAULT_SESSION_AGENT_SPAWN_POLICY_V1,
-  DEFAULT_REVIEW_MODEL_POLICY_SETTINGS_V1,
   DEFAULT_SESSION_PENDING_QUEUE_DELIVERY_TIMING,
   DEFAULT_SESSION_PENDING_QUEUE_DRAIN_MODE,
   DEFAULT_USAGE_LIMIT_RECOVERY_SETTINGS_V1,
   SESSION_PENDING_QUEUE_DELIVERY_TIMINGS,
   SESSION_PENDING_QUEUE_DRAIN_MODES,
-  ReviewModelPolicySettingsV1Schema,
   SessionAgentSpawnPolicyV1Schema,
   SessionPendingQueueDeliveryTimingSchema,
   SessionPendingQueueDrainModeSchema,
   UsageLimitRecoverySettingsV1Schema,
   accountSettingsParse,
   getNotificationsSettingsV1FromAccountSettings,
-  getReviewModelPolicySettingsV1FromAccountSettings,
   resolveConnectedServicesProviderStateSharingPolicyV1,
   type AccountSettings,
   type AccountSettingsPersistedObject,
@@ -3628,7 +3601,6 @@ export {
   type ConnectedServicesProviderStateSharingSettingsV1,
   type ForegroundBehavior,
   type SessionAgentSpawnPolicyV1,
-  type ReviewModelPolicySettingsV1,
   type SessionPendingQueueDeliveryTiming,
   type SessionPendingQueueDrainMode,
   type UsageLimitRecoverySettingsV1,

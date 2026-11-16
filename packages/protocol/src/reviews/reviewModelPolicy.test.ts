@@ -5,7 +5,6 @@ import {
   ReviewModelPolicySchema,
   resolveReviewCallSitePolicyFlagMapping,
   resolveReviewModelPolicy,
-  resolveReviewModelPolicyDepthRefs,
   type ReviewModelPolicy,
 } from './reviewModelPolicy.js';
 
@@ -166,113 +165,5 @@ describe('resolveReviewCallSitePolicyFlagMapping', () => {
       ok: false,
       code: 'review_model_policy_conflict',
     });
-  });
-});
-
-describe('resolveReviewModelPolicyDepthRefs', () => {
-  it('borrows refs from the account default depth policy first', () => {
-    expect(resolveReviewModelPolicyDepthRefs({
-      modelPolicy: DEPTH_POLICY,
-      engines: {
-        codex: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'engine-fast' },
-            deep: { modelId: 'engine-deep' },
-            depthDefault: 'deep',
-          },
-        },
-      },
-    })).toEqual({
-      fast: { modelId: 'ds-flash', reasoningEffort: 'low' },
-      deep: { modelId: 'ds-pro', reasoningEffort: 'high' },
-    });
-  });
-
-  it('borrows the single engine depth override when the account default is not depth', () => {
-    expect(resolveReviewModelPolicyDepthRefs({
-      modelPolicy: FIXED_ACCOUNT,
-      engines: {
-        codex: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'engine-fast' },
-            deep: { modelId: 'engine-deep' },
-            depthDefault: 'deep',
-          },
-        },
-      },
-    })).toEqual({
-      fast: { modelId: 'engine-fast' },
-      deep: { modelId: 'engine-deep' },
-    });
-  });
-
-  it('refuses to guess when multiple engines define a depth override without a target', () => {
-    expect(resolveReviewModelPolicyDepthRefs({
-      modelPolicy: FIXED_ACCOUNT,
-      engines: {
-        coderabbit: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'cr-fast' },
-            deep: { modelId: 'cr-deep' },
-            depthDefault: 'deep',
-          },
-        },
-        codex: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'codex-fast' },
-            deep: { modelId: 'codex-deep' },
-            depthDefault: 'deep',
-          },
-        },
-      },
-    })).toBeNull();
-  });
-
-  it('resolves a targeted engine override when given', () => {
-    expect(resolveReviewModelPolicyDepthRefs({
-      modelPolicy: FIXED_ACCOUNT,
-      engines: {
-        coderabbit: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'cr-fast' },
-            deep: { modelId: 'cr-deep' },
-            depthDefault: 'deep',
-          },
-        },
-        codex: {
-          modelPolicy: {
-            kind: 'depth',
-            fast: { modelId: 'codex-fast' },
-            deep: { modelId: 'codex-deep' },
-            depthDefault: 'deep',
-          },
-        },
-      },
-    }, 'codex')).toEqual({
-      fast: { modelId: 'codex-fast' },
-      deep: { modelId: 'codex-deep' },
-    });
-  });
-
-  it('falls back to the account default when the targeted engine has no depth override', () => {
-    expect(resolveReviewModelPolicyDepthRefs({
-      modelPolicy: DEPTH_POLICY,
-      engines: {
-        coderabbit: { modelPolicy: FIXED_ENGINE },
-      },
-    }, 'coderabbit')).toEqual({
-      fast: { modelId: 'ds-flash', reasoningEffort: 'low' },
-      deep: { modelId: 'ds-pro', reasoningEffort: 'high' },
-    });
-  });
-
-  it('returns null when no depth policy is configured', () => {
-    expect(resolveReviewModelPolicyDepthRefs(null)).toBeNull();
-    expect(resolveReviewModelPolicyDepthRefs({ modelPolicy: FIXED_ACCOUNT, engines: {} })).toBeNull();
   });
 });

@@ -22,11 +22,7 @@ describe('built-in Happier tools', () => {
     expect(names).toContain('action_spec_get');
     expect(names).toContain('action_options_resolve');
     expect(names).toContain('action_execute');
-    expect(names).toContain('review_start');
-    expect(names).toContain('execution_run_send');
-    // execution_run_action is the generic run-action dispatcher; it is discoverable, not directly
-    // exposed, so a model cannot invoke arbitrary (including danger) run actions.
-    expect(names).not.toContain('execution_run_action');
+    expect(names).not.toContain('review_start');
     expect(names).not.toContain('subagents_plan_start');
     expect(names).not.toContain('subagents_delegate_start');
     expect(names).not.toContain('execution_run_start');
@@ -407,13 +403,11 @@ describe('built-in Happier tools', () => {
   });
 
   it('rejects discoverable-only action-backed tools as direct session-agent calls', async () => {
-    // `subagents_delegate_start` is action-backed but not directly exposed to session agents (unlike
-    // review_start since C1), so a direct call is still unknown here.
     const executeActionByToolName = vi.fn(async () => ok({ unreachable: true }));
 
     const result = await dispatchBuiltInHappierTool({
-      toolName: 'subagents_delegate_start',
-      args: { instructions: 'Do it' },
+      toolName: 'review_start',
+      args: { instructions: 'Check this' },
       sessionId: 'sess-1',
       deps: {
         changeTitle: async () => ({ success: true }),
@@ -425,7 +419,7 @@ describe('built-in Happier tools', () => {
     expect(result).toEqual({
       ok: false,
       errorCode: 'unknown_tool',
-      error: 'Unknown built-in Happier tool: subagents_delegate_start',
+      error: 'Unknown built-in Happier tool: review_start',
     });
     expect(executeActionByToolName).not.toHaveBeenCalled();
   });

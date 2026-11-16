@@ -13,7 +13,6 @@ on:
       - "apps/cli/**"
       - "!**/*.md"
       - ".github/build-8t/cli-tests.txt"
-      - ".github/build-8t/protocol-tests.txt"
       - "packages/agents/**"
       - "packages/cli-common/**"
       - "packages/connection-supervisor/**"
@@ -84,30 +83,14 @@ jobs:
           save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
           args: --frozen-lockfile --ignore-engines
 
-      # The fork's protocol tests. Upstream's "CI — Tests" is off on this fork, so nothing else runs them.
-      - name: Run the fork protocol tests
-        working-directory: packages/protocol
-        run: |
-          set -euo pipefail
-          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/protocol-tests.txt | sed '/^$/d')
-          node ../../node_modules/vitest/vitest.mjs run --config ../../vitest.config.ts "${tests[@]}"
-
       # The fork's CLI changes are written on the phone, which has no dependencies to check them.
       - name: Check the CLI (typecheck and the fork tests)
         working-directory: apps/cli
         run: |
           set -euo pipefail
           yarn -s typecheck
-          # The unit config excludes *.integration.test.ts by pattern, so a listed integration file
-          # would be silently skipped. Split the list so each file runs under the config that owns it.
-          mapfile -t unit_tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d' | grep -v '\.integration\.test\.ts$' || true)
-          mapfile -t integration_tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d' | grep '\.integration\.test\.ts$' || true)
-          if [ "${#unit_tests[@]}" -gt 0 ]; then
-            yarn -s vitest run --config vitest.config.ts "${unit_tests[@]}"
-          fi
-          if [ "${#integration_tests[@]}" -gt 0 ]; then
-            yarn -s vitest run --config vitest.integration.config.ts "${integration_tests[@]}"
-          fi
+          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/cli-tests.txt | sed '/^$/d')
+          yarn -s vitest run --config vitest.config.ts "${tests[@]}"
 
       # The steps of scripts/pipeline/npm/release-packages.mjs for the CLI, without the Windows
       # service launcher (built on Windows there; this tarball is for Linux on the 8T).

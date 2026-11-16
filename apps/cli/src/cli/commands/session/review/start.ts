@@ -9,11 +9,6 @@ import { resolveSessionEncryptionContextFromCredentials, resolveSessionStoredCon
 import { readCommandPositionals, readFlagValue } from '@/cli/commands/shared/argvFlags';
 import { resolveSessionIdOrPrefix } from '@/session/query/resolveSessionId';
 import { cmd, fail } from '@happier-dev/cli-common/output';
-import {
-  resolveReviewCallSitePolicyFlagMapping,
-  resolveReviewModelPolicyDepthRefs,
-} from '@happier-dev/protocol';
-import { bootstrapAccountSettingsContext } from '@/settings/accountSettings/bootstrapAccountSettingsContext';
 
 function splitCsv(value: string | null): string[] {
   if (!value) return [];
@@ -32,7 +27,7 @@ export async function cmdSessionReviewStart(
     startIndex: 2,
     valueFlags: [
       '--engines', '--engine', '--instructions', '--change-type', '--base-branch', '--base-commit',
-      '--coderabbit-config', '--permission-mode', '--model', '--depth',
+      '--coderabbit-config', '--permission-mode',
     ],
   });
   if (!idOrPrefix) {
@@ -48,20 +43,6 @@ export async function cmdSessionReviewStart(
   const baseCommit = readFlagValue(argv, '--base-commit') ?? undefined;
   const coderabbitConfigFiles = splitCsv(readFlagValue(argv, '--coderabbit-config'));
   const permissionMode = readFlagValue(argv, '--permission-mode') ?? undefined;
-
-  const modelRaw = readFlagValue(argv, '--model');
-  const depthRaw = readFlagValue(argv, '--depth');
-  let depth: 'fast' | 'deep' | null = null;
-  if (depthRaw !== null) {
-    if (depthRaw !== 'fast' && depthRaw !== 'deep') {
-      throw new Error("Usage: --depth must be 'fast' or 'deep'");
-    }
-    depth = depthRaw;
-  }
-  const modelFlagMapping = resolveReviewCallSitePolicyFlagMapping({ model: modelRaw, depth });
-  if (!modelFlagMapping.ok) {
-    throw new Error('review_model_policy_conflict: --model and --depth are mutually exclusive');
-  }
 
   if (engineIds.length === 0) {
     throw new Error('Usage: happier session review start <session-id> --engines <id1,id2> [--instructions <text>] [--json]');
@@ -124,31 +105,6 @@ export async function cmdSessionReviewStart(
 
   const ctx = resolveSessionEncryptionContextFromCredentials(credentials, rawSession);
   const mode = resolveSessionStoredContentEncryptionMode(rawSession);
-
-  // Map CLI flags onto the call-site model policy. `--model` is a complete `fixed` policy; `--depth`
-  // names only the side, so it borrows the fast/deep refs from the configured account/engine depth
-  // policy (first depth policy wins: account default, then any engine override).
-  if (modelFlagMapping.kind === 'fixed') {
-    input.modelPolicy = { kind: 'fixed', modelId: modelFlagMapping.modelId };
-  } else if (modelFlagMapping.kind === 'depth') {
-    const settingsCtx = await bootstrapAccountSettingsContext({ credentials, mode: 'fast' });
-    // `--depth` names a single fast/deep pair, so it needs a single target engine to be unambiguous.
-    // Several engines could each define a different depth override; refuse rather than let one win.
-    const targetEngineId = engineIds.length === 1 ? engineIds[0] : null;
-    if (!targetEngineId) {
-      throw new Error(`--depth requires exactly one review engine (got ${engineIds.length}) so the fast/deep policy is unambiguous`);
-    }
-    const refs = resolveReviewModelPolicyDepthRefs(settingsCtx.settings.reviewModelPolicySettingsV1, targetEngineId);
-    if (!refs) {
-      throw new Error('--depth requires a configured depth review model policy (review.modelPolicy or review.engines.<id>.modelPolicy)');
-    }
-    input.modelPolicy = {
-      kind: 'depth',
-      depthDefault: modelFlagMapping.depthDefault,
-      fast: refs.fast,
-      deep: refs.deep,
-    };
-  }
 
   const executor = createCliActionExecutor({ token: credentials.token, credentials, sessionId, mode, ctx });
   const started = await executor.execute('review.start', input, { defaultSessionId: sessionId });
