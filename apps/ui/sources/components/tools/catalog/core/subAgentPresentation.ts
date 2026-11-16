@@ -74,6 +74,8 @@ function resolveModelLabel(params: {
 
 function resolveNativeSessionModelId(agentId: AgentId | null, metadata: Metadata | null): string | null {
     if (!agentId) return null;
+    // Pi subagents take their model from their own agent config, not from the parent chat.
+    if (agentId === 'pi') return null;
     const metadataRecord = metadata as unknown as Record<string, unknown> | null;
     const applied = readSessionAppliedModelMetadataStateV1(metadataRecord);
     if (applied?.provider === agentId) return readNonBlankString(applied.modelId);
