@@ -29,11 +29,12 @@ function subagentCall(): NormalizedMessage {
     };
 }
 
-function resultRow(createdAt: number, content: unknown): NormalizedMessage {
+function resultRow(createdAt: number, content: unknown, serverUpdatedAt?: number): NormalizedMessage {
     return {
         id: 'msg-result-row',
         localId: 'acp_tr_v1_result',
         createdAt,
+        ...(serverUpdatedAt !== undefined ? { serverUpdatedAt } : {}),
         role: 'agent',
         isSidechain: false,
         content: [{ type: 'tool-result', tool_use_id: CALL_ID, content, is_error: false, uuid: 'uuid-result', parentUUID: null }],
@@ -66,5 +67,13 @@ describe('transcript reducer — tool result row revisions', () => {
         const completedAt = readTool(state)?.completedAt;
         expect(reducer(state, [resultRow(2_000, final)]).messages).toHaveLength(0);
         expect(readTool(state)?.completedAt).toBe(completedAt);
+    });
+
+    it('ends the tool when the server last wrote the row, not when the row was created', () => {
+        const state = createReducer();
+        reducer(state, [subagentCall()]);
+        reducer(state, [resultRow(2_000, { _stream: true, stdoutChunk: 'working' }, 2_000)]);
+        reducer(state, [resultRow(2_000, { content: 'Created a.txt', details: {} }, 23_000)]);
+        expect(readTool(state)?.completedAt).toBe(23_000);
     });
 });

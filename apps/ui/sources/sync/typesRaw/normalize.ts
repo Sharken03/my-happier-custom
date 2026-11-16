@@ -103,6 +103,11 @@ export type NormalizedMessage = ({
     sidechainId?: string,
     meta?: MessageMeta,
     usage?: UsageData,
+    /**
+     * When the server last wrote this row. A row that the CLI rewrites in place (a tool's stream
+     * chunks, then its final result) keeps its first `createdAt`; this moves with each write.
+     */
+    serverUpdatedAt?: number,
 } & TranscriptObservationMetadata;
 
 function readNonEmptyString(value: unknown): string | undefined {

@@ -43,10 +43,12 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
   messageId: string;
   toolResult: ToolResultUpdate;
   resultCreatedAt: number;
+  /** When the server last wrote the result row; see `NormalizedMessage.serverUpdatedAt`. */
+  resultUpdatedAt?: number;
   meta?: MessageMeta;
   changed: Set<string>;
 }>): void {
-  const { message, messageId, toolResult, resultCreatedAt, meta, changed } = params;
+  const { message, messageId, toolResult, resultCreatedAt, resultUpdatedAt, meta, changed } = params;
 
   if (!message.tool) return;
 
@@ -116,7 +118,9 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
     message.tool.result,
     toolResult.content
   );
-  message.tool.completedAt = resultCreatedAt;
+  // The final result can arrive in a row that first held stream chunks; that row keeps the first
+  // chunk's createdAt, so its last write is when the tool ended.
+  message.tool.completedAt = Math.max(resultCreatedAt, resultUpdatedAt ?? resultCreatedAt);
 
   if (toolResult.permissions) {
     if (message.tool.permission) {

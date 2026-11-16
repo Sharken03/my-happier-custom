@@ -90,6 +90,7 @@ export function runToolResultsPhase(params: Readonly<{
                         messageId,
                         toolResult,
                         resultCreatedAt: msg.createdAt,
+                        resultUpdatedAt: msg.serverUpdatedAt,
                         meta: resultMeta,
                         changed,
                     });

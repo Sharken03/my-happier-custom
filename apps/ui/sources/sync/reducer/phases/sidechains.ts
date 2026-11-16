@@ -286,6 +286,7 @@ export function runSidechainsPhase(params: Readonly<{
                                 messageId: sidechainMessageId,
                                 toolResult,
                                 resultCreatedAt: msg.createdAt,
+                                resultUpdatedAt: msg.serverUpdatedAt,
                                 meta: resultMeta,
                                 changed,
                             });
@@ -302,6 +303,7 @@ export function runSidechainsPhase(params: Readonly<{
                                 messageId: permissionMessageId,
                                 toolResult,
                                 resultCreatedAt: msg.createdAt,
+                                resultUpdatedAt: msg.serverUpdatedAt,
                                 meta: resultMeta,
                                 changed,
                             });

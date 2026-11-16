@@ -460,6 +460,7 @@ export async function runSessionMessagesPagePipeline(params: {
             });
             if (normalized) {
                 applyTranscriptObservationMetadata(normalized, inputMessage);
+                if (typeof inputMessage.updatedAt === 'number') normalized.serverUpdatedAt = inputMessage.updatedAt;
                 applySidechainScopeMetadata({
                     normalizedMessage: normalized,
                     inputSidechainId: inputMessage?.sidechainId,
