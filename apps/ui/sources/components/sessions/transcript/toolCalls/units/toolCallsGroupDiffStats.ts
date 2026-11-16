@@ -1,4 +1,4 @@
-import type { ToolCall } from '@/sync/domains/messages/messageTypes';
+import type { Message, ToolCall } from '@/sync/domains/messages/messageTypes';
 
 export type ToolCallsGroupDiffStats = Readonly<{ added: number; removed: number }>;
 
@@ -140,4 +140,21 @@ export function computeToolCallsGroupDiffStats(
         parts.push(countToolCall(tool.name ?? '', tool.input));
     }
     return sum(parts);
+}
+
+/**
+ * The tools of a group's calls and of the tool calls under them, such as the edits of a subagent.
+ * A subagent's calls are children of its call; they are there only while its sidechain is loaded.
+ */
+export function collectToolCallsGroupDiffTools(messages: readonly Message[]): ToolCall[] {
+    const tools: ToolCall[] = [];
+    const visit = (list: readonly Message[]) => {
+        for (const message of list) {
+            if (message.kind !== 'tool-call') continue;
+            if (message.tool) tools.push(message.tool);
+            if (message.children?.length) visit(message.children);
+        }
+    };
+    visit(messages);
+    return tools;
 }

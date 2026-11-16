@@ -19,7 +19,7 @@ import { ToolStatusIndicator } from '@/components/tools/shell/presentation/ToolS
 import { ToolTimelineRow } from '@/components/tools/shell/views/ToolTimelineRow';
 import { SessionMessageDetailsView } from '@/components/sessions/transcript/details/SessionMessageDetailsView';
 import { resolveToolCallsGroupStatus } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupChrome';
-import { computeToolCallsGroupDiffStats } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { collectToolCallsGroupDiffTools, computeToolCallsGroupDiffStats } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
 import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
 import { summarizeToolCallsGroup } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupSummary';
 import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveTranscriptInteraction';
@@ -34,6 +34,7 @@ import {
 import { resolveToolCallRowLabel } from './toolCallSheetLabel';
 import { ToolCallsSheetSubagentView } from './ToolCallsSheetSubagentView';
 import { isToolCallsSheetSubagentCall } from './toolCallsSheetSubagent';
+import { useLoadAllSubagentSidechains } from './useLoadAllSubagentSidechains';
 import { TOOL_CALLS_SHEET_DECELERATION_RATE, ToolCallsSheetScrollView, useToolCallsSheetControls } from './ToolCallsBottomSheet';
 
 const EMPTY_CALLS: readonly ToolCallMessage[] = [];
@@ -109,8 +110,11 @@ export const ToolCallsSheetView = React.memo(function ToolCallsSheetView(props: 
         () => summarizeToolCallsGroup(callList.map((call) => call.tool.name)) ?? t('session.toolCalls'),
         [callList],
     );
+    // A subagent's edits are children of its call, and they load with its sidechain. The sheet
+    // loads all pages of its subagents' sidechains, so the diff stats include all those edits.
+    useLoadAllSubagentSidechains(props.sessionId, callList);
     const diffStats = React.useMemo(
-        () => computeToolCallsGroupDiffStats(callList.map((call) => call.tool)),
+        () => computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(callList)),
         [callList],
     );
 

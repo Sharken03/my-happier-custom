@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeToolCallsGroupDiffStats } from './toolCallsGroupDiffStats';
+import type { Message, ToolCall } from '@/sync/domains/messages/messageTypes';
+
+import { collectToolCallsGroupDiffTools, computeToolCallsGroupDiffStats } from './toolCallsGroupDiffStats';
+
+function toolCall(id: string, name: string, input: unknown, children: Message[] = []): Message {
+    return {
+        kind: 'tool-call',
+        id,
+        localId: null,
+        createdAt: 0,
+        tool: { name, input, state: 'completed' } as unknown as ToolCall,
+        children,
+    };
+}
 
 describe('computeToolCallsGroupDiffStats', () => {
     it('counts an Edit by changed lines, ignoring common lines', () => {
@@ -38,5 +51,16 @@ describe('computeToolCallsGroupDiffStats', () => {
             { name: 'Bash', input: { command: '+x' } },
             { name: 'Edit', input: null },
         ])).toEqual({ added: 0, removed: 0 });
+    });
+
+    it('counts the edits of a subagent call through its children', () => {
+        const subagent = toolCall('agent', 'Agent', { prompt: 'fix' }, [
+            { kind: 'agent-text', id: 't', localId: null, createdAt: 0, text: 'ok' } as unknown as Message,
+            toolCall('e1', 'Edit', { old_string: 'a', new_string: 'b' }),
+            toolCall('w1', 'Write', { content: 'x\ny' }),
+        ]);
+        const tools = collectToolCallsGroupDiffTools([toolCall('r', 'Read', { file_path: 'x' }), subagent]);
+        expect(tools.map((tool) => tool.name)).toEqual(['Read', 'Agent', 'Edit', 'Write']);
+        expect(computeToolCallsGroupDiffStats(tools)).toEqual({ added: 3, removed: 1 });
     });
 });
