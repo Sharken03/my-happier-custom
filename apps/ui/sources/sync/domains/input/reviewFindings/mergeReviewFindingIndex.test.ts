@@ -29,7 +29,7 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: KEY,
             runId: 'run-3',
             entries: [entry('run-3', 'd')],
-            liveRunIds: new Set(['run-1', 'run-2', 'run-3']),
+            retainedRunIds: new Set(['run-1', 'run-2', 'run-3']),
         });
 
         expect(result[KEY]?.map((e) => `${e.runId}:${e.findingId}`)).toEqual([
@@ -50,13 +50,13 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: KEY,
             runId: 'run-1',
             entries: [entry('run-1', 'new-1')],
-            liveRunIds: new Set(['run-1', 'run-2']),
+            retainedRunIds: new Set(['run-1', 'run-2']),
         });
 
         expect(result[KEY]?.map((e) => e.findingId)).toEqual(['c', 'new-1']);
     });
 
-    it('removes entries of runs no longer in liveRunIds', () => {
+    it('removes entries of runs no longer retained', () => {
         const current: ReviewFindingIndex = {
             [KEY]: [entry('run-1', 'a'), entry('run-2', 'c')],
         };
@@ -66,7 +66,7 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: KEY,
             runId: 'run-1',
             entries: [entry('run-1', 'a')],
-            liveRunIds: new Set(['run-1']),
+            retainedRunIds: new Set(['run-1']),
         });
 
         expect(result[KEY]?.map((e) => e.findingId)).toEqual(['a']);
@@ -83,7 +83,7 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: KEY,
             runId: 'run-1',
             entries: [],
-            liveRunIds: new Set(['run-2']),
+            retainedRunIds: new Set(['run-2']),
         });
 
         expect(result[KEY]).toBeUndefined();
@@ -99,7 +99,7 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: KEY,
             runId: 'run-1',
             entries: [entry('run-1', 'b')],
-            liveRunIds: new Set(['run-1']),
+            retainedRunIds: new Set(['run-1']),
         });
 
         expect(result).not.toBe(current);
@@ -116,7 +116,7 @@ describe('mergeReviewFindingIndex', () => {
             workspaceCacheKey: '   ',
             runId: 'run-2',
             entries: [entry('run-2', 'b')],
-            liveRunIds: new Set(['run-1', 'run-2']),
+            retainedRunIds: new Set(['run-1', 'run-2']),
         });
 
         expect(result).toBe(current);

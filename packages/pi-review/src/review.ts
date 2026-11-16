@@ -21,7 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 
@@ -44,6 +44,12 @@ const execFileAsync = promisify(execFile);
 
 // pi-review inlines the diff (Happier does not). Cap the inline to protect the
 // model context window; this is a pi-review-specific guard, not a Happier bound.
+/**
+ * Largest untracked file pi-review will inline into the prompt. Checked with `stat` before reading, so the
+ * cap protects memory rather than only prompt length.
+ */
+const MAX_UNTRACKED_FILE_BYTES = 512 * 1024;
+
 const MAX_DIFF_CHARS = 500_000;
 
 // The model returns the V2 shape minus the envelope fields the normalizer adds
@@ -233,6 +239,14 @@ async function gatherDiff(cwd: string, scope: {
       const abs = join(cwd, rel);
       let buffer: Buffer;
       try {
+        // Size-check BEFORE reading: a large untracked file (logs, builds, a stray binary) would otherwise be
+        // pulled fully into memory before the binary check or the character cap could reject it. The phone
+        // has 8 GB shared with everything else, so an unbounded read is an OOM, not a slow path.
+        const info = await stat(abs);
+        if (info.size > MAX_UNTRACKED_FILE_BYTES) {
+          sections.push(`# ${rel}: skipped (${info.size} bytes, larger than ${MAX_UNTRACKED_FILE_BYTES})`);
+          continue;
+        }
         buffer = await readFile(abs);
       } catch (error) {
         sections.push(`# ${rel}: unreadable (${error instanceof Error ? error.message : String(error)})`);

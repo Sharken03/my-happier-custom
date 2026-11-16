@@ -55,5 +55,5 @@ model policy rides along as passthrough keys (`requestedConfiguration`,
   pi-review inlines the diff into the prompt instead.
 - `--model` names a Pi model (`provider/modelId`), not a Happier model id.
 - Scope resolution mirrors Happier's CodeRabbit preflight git commands; see the
-  header comment in `src/diffScope.ts` for the exact edge cases and the two
-  documented divergences.
+  header comment in `src/diffScope.ts` for the exact edge cases it handles and the
+  one place it deliberately differs.

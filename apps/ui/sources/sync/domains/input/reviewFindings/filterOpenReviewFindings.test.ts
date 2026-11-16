@@ -31,17 +31,21 @@ function entry(overrides: {
 }
 
 describe('filterOpenReviewFindings', () => {
-    it('treats unpublished and non-fixed/wontfix findings as open', () => {
+    it('treats every unresolved state as open, published or not', () => {
         expect(isOpenReviewFinding(entry({ findingId: 'a', published: false, resolutionState: 'open' }))).toBe(true);
         expect(isOpenReviewFinding(entry({ findingId: 'b', published: false, resolutionState: 'applying' }))).toBe(true);
         expect(isOpenReviewFinding(entry({ findingId: 'c', published: false, resolutionState: 'still_present' }))).toBe(true);
         expect(isOpenReviewFinding(entry({ findingId: 'd', published: false, resolutionState: 'regressed' }))).toBe(true);
     });
 
-    it('treats published, fixed, and wontfix findings as closed', () => {
-        expect(isOpenReviewFinding(entry({ findingId: 'a', published: true, resolutionState: 'open' }))).toBe(false);
-        expect(isOpenReviewFinding(entry({ findingId: 'b', published: false, resolutionState: 'fixed' }))).toBe(false);
-        expect(isOpenReviewFinding(entry({ findingId: 'c', published: false, resolutionState: 'wontfix' }))).toBe(false);
+    it('treats only fixed and wontfix as closed, and not publishing', () => {
+        // Publishing to the pull request does not close a finding: a published finding that is still
+        // present (or regressed) is exactly the work that remains.
+        expect(isOpenReviewFinding(entry({ findingId: 'a', published: true, resolutionState: 'open' }))).toBe(true);
+        expect(isOpenReviewFinding(entry({ findingId: 'b', published: true, resolutionState: 'still_present' }))).toBe(true);
+        expect(isOpenReviewFinding(entry({ findingId: 'c', published: true, resolutionState: 'regressed' }))).toBe(true);
+        expect(isOpenReviewFinding(entry({ findingId: 'd', published: true, resolutionState: 'fixed' }))).toBe(false);
+        expect(isOpenReviewFinding(entry({ findingId: 'e', published: false, resolutionState: 'wontfix' }))).toBe(false);
     });
 
     it('filters to open findings only', () => {
@@ -53,7 +57,7 @@ describe('filterOpenReviewFindings', () => {
             entry({ findingId: 'e', resolutionState: 'applying' }),
         ];
 
-        expect(filterOpenReviewFindings(entries).map((e) => e.findingId)).toEqual(['a', 'e']);
+        expect(filterOpenReviewFindings(entries).map((e) => e.findingId)).toEqual(['a', 'c', 'e']);
     });
 
     it('groups open findings by severity', () => {

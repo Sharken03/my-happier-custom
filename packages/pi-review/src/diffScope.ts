@@ -134,7 +134,7 @@ async function ensureRemoteRefAvailable(cwd: string, remote: string, branch: str
   return (await tryRunGit(cwd, ['rev-parse', '--verify', ref])) !== null;
 }
 
-async function resolveDefaultBaseRef(cwd: string): Promise<string> {
+async function resolveDefaultBaseRef(cwd: string): Promise<string | null> {
   const upstream = String(
     await tryRunGit(cwd, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']) ?? '',
   ).trim();
@@ -157,7 +157,9 @@ async function resolveDefaultBaseRef(cwd: string): Promise<string> {
     }
   }
 
-  throw new Error('Unable to resolve a default base branch for the review scope.');
+  // No throw: a missing default base is an expected state in a fresh clone or a detached HEAD, and the
+  // caller reports it as `{ ok: false }` like every other scope problem.
+  return null;
 }
 
 async function listCommittedPaths(cwd: string, baseRef: string): Promise<string[]> {
@@ -222,7 +224,11 @@ export async function resolveReviewScope(params: Readonly<{
   if (params.changeType === 'committed' || params.changeType === 'all') {
     baseRef = await resolveReviewBaseRef({ cwd, changeType: params.changeType, base: params.base });
     if (!baseRef) {
-      throw new Error('Review base ref is required for committed scopes.');
+      return {
+        ok: false,
+        error: `Could not resolve a base ref for a "${params.changeType}" review. Pass --base <branch|commit>, `
+          + 'or run the review from a branch with an upstream.',
+      };
     }
     committedPaths = await listCommittedPaths(cwd, baseRef);
   }

@@ -1,13 +1,16 @@
 import type { ReviewFindingIndexEntry, ReviewFindingSeverity } from './reviewFindingIndexTypes';
 
 /**
- * Open = not published AND not resolved as `fixed` or `wontfix`. Every other
- * resolution state (`open`, `applying`, `still_present`, `regressed`) is still
- * open work.
+ * Open = not resolved as `fixed` or `wontfix`. Every other resolution state
+ * (`open`, `applying`, `still_present`, `regressed`) is still open work.
+ *
+ * `published` is deliberately NOT part of this: publishing a finding to the pull
+ * request does not close it, and a published finding that later comes back as
+ * `still_present` or `regressed` is exactly the work that still needs doing. A
+ * caller that wants "not yet on the pull request" filters on `published` itself.
  */
 export function isOpenReviewFinding(entry: ReviewFindingIndexEntry): boolean {
-    return !entry.published
-        && entry.resolutionState !== 'fixed'
+    return entry.resolutionState !== 'fixed'
         && entry.resolutionState !== 'wontfix';
 }
 

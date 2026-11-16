@@ -5,3 +5,9 @@ src/reviews/reviewStart.test.ts
 src/rpc.scm.test.ts
 src/scmPullRequests.contract.test.ts
 src/sessionChanges/mergeTurnChangeSets.test.ts
+src/structuredMessages/reviewFindingsV2.test.ts
+src/structuredMessages/reviewPublishRequestV1.test.ts
+src/structuredMessages/reviewFindingsV2.contract.test.ts
+src/reviews/ReviewFinding.test.ts
+src/actions/actionToolExposure.test.ts
+src/actions/actionSpecs.test.ts
