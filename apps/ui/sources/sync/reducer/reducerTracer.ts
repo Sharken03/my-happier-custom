@@ -63,6 +63,7 @@ import { NormalizedMessage } from '../typesRaw';
 import { isDebugFlagEnabled } from './helpers/debugFlags';
 import { readStreamSegmentMetaV1 } from './helpers/streamSegmentMeta';
 import { readAcpToolCallSnapshotRevision } from './helpers/toolCallSnapshotRevision';
+import { coerceStreamingToolResultChunk } from './helpers/streamingToolResult';
 
 type OrphanBucket = {
     updatedAt: number;
@@ -258,6 +259,12 @@ function getProcessedKey(message: NormalizedMessage): string {
         if (type === 'tool-call') {
             const revision = readAcpToolCallSnapshotRevision(first?.input);
             if (revision !== null) return `tool:${revision}`;
+        }
+        if (type === 'tool-result') {
+            // A result row can hold a stream chunk first and the final result later, under the same
+            // message id. The final result must get a new key, or the tool stays running until reload.
+            // Later chunk revisions keep the chunk key: they are snapshots, and appending them repeats text.
+            return coerceStreamingToolResultChunk(first?.content) ? 'res:stream' : 'res:final';
         }
         return 'v0';
     })();
