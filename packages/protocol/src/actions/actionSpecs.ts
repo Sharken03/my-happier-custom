@@ -1310,6 +1310,7 @@ export const ACTION_SPECS: readonly ActionSpec[] = Object.freeze([
     bindings: { mcpToolName: 'review_finding_apply' },
     examples: {
       mcp: { argsExample: '{"runId":"run_123","findingIds":["f1","f2"],"mode":"send_to_session"}' },
+      voice: { argsExample: '{"runId":"run_123","findingIds":["f1"],"mode":"send_to_session","includePatch":true}' },
     },
     surfaces: {
       ui_button: false,
