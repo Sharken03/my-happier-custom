@@ -24,7 +24,9 @@ describe('built-in Happier tools', () => {
     expect(names).toContain('action_execute');
     expect(names).toContain('review_start');
     expect(names).toContain('execution_run_send');
-    expect(names).toContain('execution_run_action');
+    // execution_run_action is the generic run-action dispatcher; it is discoverable, not directly
+    // exposed, so a model cannot invoke arbitrary (including danger) run actions.
+    expect(names).not.toContain('execution_run_action');
     expect(names).not.toContain('subagents_plan_start');
     expect(names).not.toContain('subagents_delegate_start');
     expect(names).not.toContain('execution_run_start');

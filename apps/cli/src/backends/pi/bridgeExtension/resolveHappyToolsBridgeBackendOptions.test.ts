@@ -78,7 +78,6 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
       'memory_get_window',
       'review_start',
       'execution_run_send',
-      'execution_run_action',
     ]));
     expect(enabled?.sessionConfig.promptAddition).toContain('memory_search');
     expect(enabled?.extensionPath).toBe(resolvePiBridgeExtensionPath(agentDir));
@@ -101,8 +100,9 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
     expect(resolved?.sessionConfig.directTools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
       'review_start',
       'execution_run_send',
-      'execution_run_action',
     ]));
+    // The generic run-action dispatcher stays discoverable-only.
+    expect(resolved?.sessionConfig.directTools.map((tool) => tool.name)).not.toContain('execution_run_action');
 
     const rolledBack = await resolveHappyToolsBridgeBackendOptions({
       agentDir,

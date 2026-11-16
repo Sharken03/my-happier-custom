@@ -730,7 +730,9 @@ describe('publishReviewFindings', () => {
     const harness = runPublish({
       findings: [finding],
       findingIds: ['f1'],
-      publishedFindings: [],
+      // `publishedFindings` must be non-empty per schema, so it carries another finding: the containment
+      // check is what this test exercises, not the schema.
+      publishedFindings: [makeFinding({ id: 'other' })],
       readFileLines: async () => ['const x = 1;'],
     });
     const result = await harness.promise;

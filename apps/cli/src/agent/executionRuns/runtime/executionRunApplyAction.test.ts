@@ -102,6 +102,10 @@ describe('applyExecutionRunAction review.publish / review.finding.apply write-ba
     // The nested danger posture is NOT enforced here (documented in the branch as a known gap: the generic
     // execution.run.action dispatcher carries no approval signal). What this pins is that the action still
     // commits its result and re-emits the tool result, which is the behaviour that regressed before.
+    mockedApply.mockResolvedValue({
+      ok: true,
+      result: { mode: 'send_to_session', findingIds: ['f1'], sessionId: 'session-1' },
+    });
     const { args } = makeHarness({
       params: { actionId: 'review.finding.apply', input: { findingIds: ['f1'], mode: 'send_to_session' } },
       deps: { cwd: '/repo' },

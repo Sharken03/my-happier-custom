@@ -53,8 +53,8 @@ describe('listBuiltInHappierTools', () => {
       'execution_run_wait',
       'review_start',
       'execution_run_send',
-      'execution_run_action',
     ]));
+    expect(names).not.toContain('execution_run_action');
     expect(names).not.toContain('subagents_plan_start');
     expect(names).not.toContain('subagents_delegate_start');
     expect(names).not.toContain('execution_run_start');
