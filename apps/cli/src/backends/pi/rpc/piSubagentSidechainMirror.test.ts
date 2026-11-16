@@ -1,8 +1,8 @@
-import { appendFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ACPMessageData } from '@/api/session/sessionMessageTypes';
 
@@ -43,13 +43,13 @@ function updateEvent(sessionFile: string) {
 describe('readPiSubagentSessionObservation', () => {
   it('reads child session files from subagent update and end events only', () => {
     expect(readPiSubagentSessionObservation(updateEvent('/tmp/s/session.jsonl')))
-      .toEqual({ callId: 'parent-call', sessionFiles: ['/tmp/s/session.jsonl'], final: false });
+      .toEqual({ kind: 'sessions', callId: 'parent-call', sessionFiles: ['/tmp/s/session.jsonl'], final: false });
     expect(readPiSubagentSessionObservation({
       type: 'tool_execution_end',
       toolCallId: 'parent-call',
       toolName: 'subagent',
       result: { details: { results: [{ sessionFile: '/tmp/s/session.jsonl' }] } },
-    })).toEqual({ callId: 'parent-call', sessionFiles: ['/tmp/s/session.jsonl'], final: true });
+    })).toEqual({ kind: 'sessions', callId: 'parent-call', sessionFiles: ['/tmp/s/session.jsonl'], final: true });
     expect(readPiSubagentSessionObservation({ ...updateEvent('/tmp/s/session.jsonl'), toolName: 'bash' })).toBeNull();
     expect(readPiSubagentSessionObservation(updateEvent('relative/session.jsonl'))).toBeNull();
   });
@@ -110,5 +110,88 @@ describe('createPiSubagentSidechainMirror', () => {
       },
     ]);
     expect(new Set(sent.map((item) => item.localId)).size).toBe(sent.length);
+  });
+});
+
+describe('async pi-subagents runs', () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'pi-subagent-async-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('follows the async run status and mirrors its child session into the launching call', async () => {
+    const asyncDir = join(dir, 'run');
+    const sessionFile = join(dir, 'session.jsonl');
+    const sent: ACPMessageData[] = [];
+    const mirror = createPiSubagentSidechainMirror({
+      send: async (body) => {
+        sent.push(body);
+      },
+      asyncStatusPollMs: 5,
+    });
+
+    const launch = readPiSubagentSessionObservation({
+      type: 'tool_execution_end',
+      toolCallId: 'parent-call',
+      toolName: 'subagent',
+      result: { details: { mode: 'single', results: [], asyncId: 'run-1', asyncDir } },
+    });
+    expect(launch).toEqual({ kind: 'async-launch', callId: 'parent-call', runId: 'run-1', asyncDir });
+
+    await writeFile(sessionFile, line(assistantEntry));
+    await mkdir(asyncDir);
+    await writeFile(join(asyncDir, 'status.json'), JSON.stringify({ state: 'running', steps: [{ sessionFile }] }));
+    mirror.observe(launch!);
+    await vi.waitFor(() => expect(sent.length).toBe(3));
+
+    await appendFile(sessionFile, line(toolResultEntry));
+    await writeFile(join(asyncDir, 'status.json'), JSON.stringify({ state: 'complete', sessionFile }));
+    const completion = readPiSubagentSessionObservation({
+      type: 'tool_execution_end',
+      toolCallId: 'wait-call',
+      toolName: 'bg_wait',
+      result: { details: { completions: [{ runId: 'run-1', results: [{ sessionFile }] }] } },
+    });
+    expect(completion).toEqual({ kind: 'async-complete', runId: 'run-1', sessionFiles: [sessionFile] });
+    await mirror.observe(completion!);
+
+    expect(sent.map((body) => body.type)).toEqual(['thinking', 'message', 'tool-call', 'tool-result']);
+    expect(sent.every((body) => body.sidechainId === 'parent-call')).toBe(true);
+  });
+});
+
+describe('nested pi-subagents runs', () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'pi-subagent-nested-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('mirrors a subagent that the child starts into the sidechain of the child call', async () => {
+    const outerFile = join(dir, 'outer.jsonl');
+    const innerFile = join(dir, 'inner.jsonl');
+    await writeFile(innerFile, line({ type: 'message', id: 'i1', message: { role: 'assistant', content: [{ type: 'text', text: 'Inner work' }] } }));
+    await writeFile(outerFile, line({
+      type: 'message',
+      id: 'o1',
+      message: {
+        role: 'toolResult',
+        toolCallId: 'call_sub',
+        toolName: 'subagent',
+        content: [{ type: 'text', text: 'done' }],
+        details: { mode: 'single', results: [{ agent: 'worker', sessionFile: innerFile }] },
+      },
+    }));
+    const sent: ACPMessageData[] = [];
+    const mirror = createPiSubagentSidechainMirror({ send: async (body) => { sent.push(body); } });
+
+    await mirror.observe({ kind: 'sessions', callId: 'parent-call', sessionFiles: [outerFile], final: true });
+    await vi.waitFor(() => expect(sent).toContainEqual({ type: 'message', message: 'Inner work', sidechainId: 'sc:parent-call:call_sub' }));
+    expect(sent[0]).toMatchObject({ type: 'tool-result', callId: 'sc:parent-call:call_sub', sidechainId: 'parent-call' });
   });
 });
