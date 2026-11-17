@@ -24,9 +24,19 @@ const LINK_REFERENCE_CONTAINERS = new Set(['Document', 'Blockquote', 'BulletList
 const MAX_REMEMBERED_PARSES = 4;
 const rememberedParses: { markdown: string; tree: Tree }[] = [];
 
+const PREFIX_COMPARE_CHUNK = 256;
+
 function readCommonPrefixLength(a: string, b: string): number {
+    // A stream delta usually appends, so test that first. Otherwise compare whole chunks natively
+    // and walk single characters only in the first chunk that differs; Hermes runs a
+    // per-character loop slowly.
+    if (b.startsWith(a)) return a.length;
     const max = Math.min(a.length, b.length);
     let index = 0;
+    while (
+        index + PREFIX_COMPARE_CHUNK <= max
+        && a.slice(index, index + PREFIX_COMPARE_CHUNK) === b.slice(index, index + PREFIX_COMPARE_CHUNK)
+    ) index += PREFIX_COMPARE_CHUNK;
     while (index < max && a.charCodeAt(index) === b.charCodeAt(index)) index++;
     return index;
 }
