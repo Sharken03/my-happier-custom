@@ -215,10 +215,12 @@ function SessionHeaderActionMenuInner(props: SessionHeaderActionMenuProps) {
     scopeKind: 'spawn',
     serverId: sessionServerId,
   });
-  const readStateSignature = storage((state) =>
-    buildSessionHeaderReadStateSignature(state, props.sessionId),
-  );
   const [open, setOpen] = React.useState(false);
+  // Read state only shapes the menu items, which show only while the menu is open. A closed menu
+  // must not subscribe to it: its message counters change on every stream delta.
+  const readStateSignature = storage((state) =>
+    open ? buildSessionHeaderReadStateSignature(state, props.sessionId) : null,
+  );
   const session = React.useMemo(
     () => open ? readCurrentSessionForOpenMenu(props.sessionId, props.session) : props.session,
     [open, props.session, props.sessionId],
