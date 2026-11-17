@@ -36,3 +36,4 @@ src/agent/tools/diff/turnDiffEmitter.test.ts
 src/api/session/piSubagentUsageReports.test.ts
 src/backends/pi/rpc/piExtensionDisplayState.test.ts
 src/backends/pi/rpc/PiRpcBackend.extensionUiRequest.test.ts
+src/daemon/memory/memoryWorker.test.ts

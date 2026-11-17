@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { createAuthenticationHttpStatusError, isAuthenticationStatus } from '@/api/client/httpStatusError';
+import { createAuthenticationHttpStatusError, createHttpStatusError, isAuthenticationStatus } from '@/api/client/httpStatusError';
 import { resolveServerHttpBaseUrl } from '@/session/transport/http/serverHttpBaseUrl';
 
 export const DEFAULT_TRANSCRIPT_FETCH_TIMEOUT_MS = 10_000;
@@ -114,7 +114,7 @@ export async function fetchEncryptedTranscriptMessagesPage(params: Readonly<{
       throw createAuthenticationHttpStatusError(response.status, `Unauthorized (${response.status})`);
     }
     if (response.status !== 200) {
-      throw new Error(`Unexpected status from /v1/sessions/:id/messages: ${response.status}`);
+      throw createHttpStatusError(response.status, `Unexpected status from /v1/sessions/:id/messages: ${response.status}`);
     }
 
     // Released server-v0.2.1 returns an explicit page and continuation. A malformed
