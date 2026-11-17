@@ -13,7 +13,7 @@ Versioned copies of the Pi coding agent config from `~/.pi/agent` on the phone.
 | `extensions/describe-images.ts` | Describes each image for a model that reads text only, with an image model of your choice; see [Image descriptions](#image-descriptions) |
 | `describe-images.json` | The image model on the 8T: `deepseek-router/deepseek-flash` |
 | `tests/*.test.mjs` | Tests for the extensions: `node --test termux/pi/tests/*.test.mjs` (Node 24) |
-| `models.json` | Model providers; the API keys are placeholders that the router replaces. The DeepSeek base URL has "openrouter.ai" in it, so Pi takes the cost from the router's answer (the model that answered, peak-hours price); `compat` keeps Pi's other OpenRouter rules off and sets DeepSeek's thinking format |
+| `models.json` | Model providers; the API keys are placeholders that the router replaces. The DeepSeek base URL has "openrouter.ai" in it, so Pi takes the cost from the router's answer (the model that answered, peak-hours price); `compat` keeps Pi's other OpenRouter rules off and sets DeepSeek's thinking format. Models with `contextWindow ≥ 500000` are capped to `320000` (see [Context budget](#context-budget-compaction)) |
 
 This folder holds no credentials, sessions or `auth.json`. Do not add them.
 
@@ -27,6 +27,39 @@ cp -R termux/pi/APPEND_SYSTEM.md termux/pi/models.json termux/pi/describe-images
 ```
 
 Restart Pi to load the changes.
+
+## Context budget (compaction)
+
+`models.json` caps every model with `contextWindow ≥ 500000` to **320000**. Together with the
+compaction settings below, Pi compacts at **256k tokens** instead of letting a session grow toward
+the full 1M window — agent cost grows ~C²·⁵, so each doubling of context costs ~6× more.
+
+`settings.json` is device-local and not in this folder; set the same policy there by hand:
+
+```json
+{
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 64000,
+    "keepRecentTokens": 40000
+  }
+}
+```
+
+- Threshold = `contextWindow − reserveTokens` = 320000 − 64000 = **256000** tokens.
+- `reserveTokens: 64000` also fixes Pi's default of 16384, which caps near-threshold generation
+  at ~12k tokens; 64k raises the ceiling to ~60k, needed for long, tool-heavy turns.
+- `keepRecentTokens: 40000` keeps the last ~40k tokens verbatim and summarizes the rest. DeepSeek
+  summaries are lossy, so the larger keep buffer matters more here than on Claude.
+- Models at 200–262k are left unchanged; only the ≥500k models are capped.
+
+To change the budget, raise/lower `contextWindow` (threshold moves 1:1) and keep `reserveTokens`
+at the desired near-threshold output headroom.
+
+Sources (2026-08): WorkOS "Stop giving your coding agent a million-token context window"
+(Pi-specific; recommends exactly 320000/64000/40000 → 256k); LangWatch "Finding the Optimal
+Context Window for Coding Agents" (cost optimum ~220k, operating range 250–450k, lower bound
+~110–146k).
 
 ## Image descriptions
 
