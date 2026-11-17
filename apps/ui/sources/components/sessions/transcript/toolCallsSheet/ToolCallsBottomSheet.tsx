@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, useWindowDimensions, View, type FlatList, type ScrollView, type ScrollViewProps } from 'react-native';
+import { Keyboard, Pressable, useWindowDimensions, View, type FlatList, type ScrollView, type ScrollViewProps } from 'react-native';
 import { Gesture, GestureDetector, type NativeGesture } from 'react-native-gesture-handler';
 import Animated, {
     runOnJS,
@@ -115,6 +115,9 @@ export function ToolCallsBottomSheet(props: Readonly<{ onClosed: () => void; chi
     const detailRef = useAnimatedRef<ScrollView>();
 
     React.useEffect(() => {
+        // An open keyboard would cover the sheet and take its swipes. Dismiss also blurs the
+        // composer, so the next tap does not show the keyboard again.
+        Keyboard.dismiss();
         translateY.value = withTiming(half, { duration: OPEN_DURATION_MS });
         // Opens once; a size change keeps the position the user chose.
         // eslint-disable-next-line react-hooks/exhaustive-deps
