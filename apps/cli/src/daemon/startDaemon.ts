@@ -3595,12 +3595,17 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                 // A chat folder gets a git repository for the app's changed-files view. Not only the
                 // folder this spawn created: a row-first spawn or a prewarmed runner has already
                 // made it, and initChatFolderRepo itself skips non-chat folders and existing
-                // repositories.
-                const initialized = await initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
-                  logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
-                  return false;
-                });
-                if (initialized) logger.debug(`[DAEMON RUN] Made the chat folder a git repository: ${resolvedDirectory}`);
+                // repositories. The spawn does not wait for it: git init takes about 0.3 s on a phone,
+                // and the first reader (the changed-files view, an agent's first tool call) comes
+                // seconds later.
+                void initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).then(
+                  (initialized) => {
+                    if (initialized) logger.debug(`[DAEMON RUN] Made the chat folder a git repository: ${resolvedDirectory}`);
+                  },
+                  (error: unknown) => {
+                    logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
+                  },
+                );
               }
 
               try {
