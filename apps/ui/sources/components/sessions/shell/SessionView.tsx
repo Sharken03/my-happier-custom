@@ -110,6 +110,7 @@ import { buildNewSessionSourceContextNavigation } from '@/components/sessions/ne
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
 import { buildNewSessionLaunchRouteParams } from '@/components/sessions/new/navigation/newSessionRouteParams';
 import { sessionAbort, resumeSession } from '@/sync/ops';
+import { useInactiveSessionRunnerPrewarm } from './useInactiveSessionRunnerPrewarm';
 import { storage, useActiveServerAccountScope, useEndpointConnectivity, useIsDataReady, useLaunchSelectionMachines, useLocalSetting, useMachine, useOpenApprovalArtifactsForSession, useProfile, useRealtimeStatus, useSessionAutomationsEnabledCount, useSessionConnectedServiceAccountSwitchEvents, useSessionMessages, useSessionOrganizationProjection, useSessionPendingMessages, useSessionTranscriptIds, useSessionUsage, useSessionVisibleReadSeq, useSetting, useSettingMutable, useSettings, useSocketStatus, useSyncError, useWorkspaceReviewCommentsDrafts } from '@/sync/domains/state/storage';
 import { canContinueSessionWithFreshSpawn, canResumeSessionWithOptions } from '@/agents/runtime/resumeCapabilities';
 import { DEFAULT_AGENT_ID, getAgentCore, resolveAgentIdFromFlavor, buildResumeSessionExtrasFromUiState } from '@/agents/catalog/catalog';
@@ -4384,6 +4385,18 @@ function SessionViewLoaded({
         draftStatus,
         draftScope,
     } = useDraft(sessionId, composerTextStore, { active: surfaceFocused });
+    const requestResumeRunnerPrewarm = useInactiveSessionRunnerPrewarm({
+        sessionId,
+        isSessionActive,
+        isResumable,
+        isMachineReachable,
+        machineId: typeof machineId === 'string' ? machineId : null,
+        serverId: capabilityServerId,
+    });
+    const handleComposerChangeText = React.useCallback((text: string) => {
+        setDraftValue(text);
+        requestResumeRunnerPrewarm();
+    }, [requestResumeRunnerPrewarm, setDraftValue]);
     const draftConflictBanner = useSessionDraftConflictComposerBanner(draftConflict);
     const draftSyncStatusBadge = React.useMemo(
         () => buildSessionDraftSyncStatusBadge(draftStatus ?? 'clean'),
@@ -6455,7 +6468,7 @@ function SessionViewLoaded({
                 sessionLatestUsage={session.latestUsage}
                 placeholder={isReadOnly ? t('session.sharing.viewOnlyMode') : t('session.inputPlaceholder')}
                 composerTextStore={composerTextStore}
-                onChangeText={setDraftValue}
+                onChangeText={handleComposerChangeText}
                 sessionId={sessionId}
                 inputComposerClearTransientStateRef={inputComposerClearTransientStateRef}
                 inputComposerCaptureTransientStateRef={inputComposerCaptureTransientStateRef}

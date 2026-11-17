@@ -54,3 +54,4 @@ sources/components/markdown/rendering/splitMarkdownRenderSegments.test.ts
 sources/components/settings/session/TranscriptMarkdownImagesSettingsGroup.test.tsx
 sources/components/sessions/piExtensionUi/piExtensionUiStatusBadges.test.tsx
 sources/components/sessions/workState/sessionActivityPresentation.test.ts
+sources/components/sessions/shell/useInactiveSessionRunnerPrewarm.test.ts
