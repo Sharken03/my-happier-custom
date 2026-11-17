@@ -134,37 +134,35 @@ function extractMarkdownLinkDestination(raw: string): Readonly<{
 }
 
 function normalizeExplicitMarkdownLinks(markdown: string): string {
-    let out = '';
-    const closingDelimiters = indexClosingMarkdownDelimiters(markdown);
+    // An explicit link needs `](`. Without it there is nothing to rewrite, and the delimiter
+    // index below would scan the whole text again on every stream delta.
+    if (!markdown.includes('](')) return markdown;
 
-    for (let index = 0; index < markdown.length; index += 1) {
-        const char = markdown[index];
-        if (char !== '[' || markdown[index - 1] === '!') {
-            out += char;
-            continue;
-        }
+    const closingDelimiters = indexClosingMarkdownDelimiters(markdown);
+    const chunks: string[] = [];
+    let copiedUntil = 0;
+
+    for (let index = markdown.indexOf('['); index >= 0; index = markdown.indexOf('[', index + 1)) {
+        if (markdown[index - 1] === '!') continue;
 
         const labelEnd = closingDelimiters.get(index) ?? -1;
-        if (labelEnd < 0 || markdown[labelEnd + 1] !== '(') {
-            out += char;
-            continue;
-        }
+        if (labelEnd < 0 || markdown[labelEnd + 1] !== '(') continue;
 
         const destinationStart = labelEnd + 1;
         const destinationEnd = closingDelimiters.get(destinationStart) ?? -1;
-        if (destinationEnd < 0) {
-            out += char;
-            continue;
-        }
+        if (destinationEnd < 0) continue;
 
         const label = markdown.slice(index + 1, labelEnd);
         const rawDestination = markdown.slice(destinationStart + 1, destinationEnd);
         const extracted = extractMarkdownLinkDestination(rawDestination);
         if (!extracted) {
-            out += markdown.slice(index, destinationEnd + 1);
             index = destinationEnd;
             continue;
         }
+
+        chunks.push(markdown.slice(copiedUntil, index));
+        copiedUntil = destinationEnd + 1;
+        index = destinationEnd;
 
         // A link whose URL is still streaming carries the repair placeholder. It is not an
         // openable destination — `normalizeMarkdownLinkUrl` rejects it, and that rejection
@@ -174,13 +172,13 @@ function normalizeExplicitMarkdownLinks(markdown: string): string {
         const normalizedDestination = isStreamingIncompleteLinkHref(extracted.destination)
             ? STREAMING_INCOMPLETE_LINK_HREF
             : normalizeMarkdownLinkUrl(extracted.destination);
-        out += normalizedDestination
+        chunks.push(normalizedDestination
             ? `[${label}](${normalizedDestination}${extracted.suffix})`
-            : label;
-        index = destinationEnd;
+            : label);
     }
 
-    return out;
+    chunks.push(markdown.slice(copiedUntil));
+    return chunks.join('');
 }
 
 /**
@@ -190,6 +188,10 @@ function normalizeExplicitMarkdownLinks(markdown: string): string {
  * renderer. Keep the alt text so the content remains readable and accessible.
  */
 export function applyEnrichedMarkdownImagePolicy(markdown: string): string {
+    // Text without `![` holds no image. Return it before the full delimiter scan, which would
+    // otherwise run on every stream delta.
+    if (!markdown.includes('![')) return markdown;
+
     const closingDelimiters = indexClosingMarkdownDelimiters(markdown);
     const chunks: string[] = [];
     const frames: Array<{
@@ -207,11 +209,15 @@ export function applyEnrichedMarkdownImagePolicy(markdown: string): string {
             continue;
         }
 
-        const imageStart = frame.cursor;
-        if (markdown[imageStart] !== '!' || markdown[imageStart + 1] !== '[') {
-            chunks.push(markdown[imageStart]!);
-            frame.cursor += 1;
+        const imageStart = markdown.indexOf('![', frame.cursor);
+        if (imageStart < 0 || imageStart >= frame.end) {
+            chunks.push(markdown.slice(frame.cursor, frame.end));
+            frame.cursor = frame.end;
             continue;
+        }
+        if (imageStart > frame.cursor) {
+            chunks.push(markdown.slice(frame.cursor, imageStart));
+            frame.cursor = imageStart;
         }
 
         const labelStart = imageStart + 1;
