@@ -33,6 +33,11 @@ async function main() {
     // that is not a Pi chat lets it go.
     const warmPi = await import('@/backends/pi/rpc/warmPiProcess');
     warmPi.prewarmPiProcess();
+    // The first parse of the server features builds zod's schema: about 140 ms on a phone, then
+    // 2-3 ms per parse. Each session start parses them; one read here moves that cost out.
+    void import('@/features/serverFeaturesClient')
+      .then(({ fetchServerFeaturesSnapshot }) => fetchServerFeaturesSnapshot({ serverUrl: configuration.apiServerUrl }))
+      .catch((error) => logger.debug('[runner] Server features prewarm failed (non-fatal)', error));
     const maxWaitMs = configuration.runnerPrewarmMaxWaitMs;
     if (!(await awaitPrewarmedRunnerAssignment(process, { maxWaitMs }))) process.exit(0);
     setTimeout(warmPi.releaseWarmPiProcess, 30_000).unref();
