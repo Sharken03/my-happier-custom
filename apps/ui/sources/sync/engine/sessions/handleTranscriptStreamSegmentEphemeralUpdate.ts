@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import type { ApiMessage } from '@/sync/api/types/apiTypes';
 import type { DecryptedMessage, Session } from '@/sync/domains/state/storageTypes';
 import type { SessionMessageRole } from '@happier-dev/protocol';
@@ -77,6 +78,7 @@ async function applyTranscriptStreamSegmentEphemeralUpdate(
     const { update, getSessionEncryption, getSession, applyMessages } = params;
     const sessionId = update.sessionId;
     const isDelta = update.type === 'transcript-stream-segment-delta';
+    diagCount(isDelta ? 'delta' : 'segment');
     const session = getSession(sessionId);
     if (!session) {
         return;

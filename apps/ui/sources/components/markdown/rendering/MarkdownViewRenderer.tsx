@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import * as React from 'react';
 import type { StyleProp, TextStyle } from 'react-native';
 import { Platform, View } from 'react-native';
@@ -77,6 +78,7 @@ function writeStreamingSegmentCache(params: Readonly<{
 }
 
 export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps) => {
+    diagCount('mdRender');
     const preparedMarkdown = usePreparedStreamingMarkdown({
         markdown: props.markdown,
         mode: props.streamingMode,
@@ -90,6 +92,7 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
     const remoteImageHosts = props.remoteImageHosts ?? NO_REMOTE_IMAGE_HOSTS;
     const remoteImageHostsKey = remoteImageHosts.join(',');
     const segments = React.useMemo(() => {
+        diagCount('mdSegments');
         const hosts = remoteImageHostsKey ? remoteImageHostsKey.split(',') : NO_REMOTE_IMAGE_HOSTS;
         // The streaming cache is keyed on the markdown only, as the static one; see the splitter.
         const streamCacheable = hosts.length === 0 || !preparedMarkdown.includes('![');
