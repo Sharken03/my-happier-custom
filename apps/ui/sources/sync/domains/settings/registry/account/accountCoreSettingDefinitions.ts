@@ -357,6 +357,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    sessionListKeepStoppedInActiveDaysV1: {
+        schema: z.number().int().min(0).max(365),
+        default: 0,
+        description: 'Days a stopped session stays in the Active session list after it was last active; 0 hides it when it stops',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListVisibilityScope: {
         schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
         default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,

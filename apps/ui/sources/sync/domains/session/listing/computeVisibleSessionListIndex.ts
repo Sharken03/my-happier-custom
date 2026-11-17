@@ -57,6 +57,8 @@ export type ComputeVisibleSessionListIndexParams = Readonly<{
     source: ReadonlyArray<SessionListIndexItem> | null;
     resolveSessionRow: (serverId: string | null | undefined, sessionId: string) => SessionListRenderableSession | null;
     hideInactiveSessions: boolean;
+    /** With hideInactiveSessions: a stopped session last active at or after this time stays visible. */
+    keepInactiveSinceMs?: number | null;
     sessionListVisibilityScope?: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionListGroupOrderV1: Readonly<Record<string, ReadonlyArray<string> | undefined>>;
@@ -537,7 +539,7 @@ function computeVisibleSessionListIndexUnmeasured(
         })
         : remainderAfterWorking;
     const remainderFiltered = params.hideInactiveSessions
-        ? filterHiddenInactiveSessionListIndexItems(remainderAfterAttention, params.resolveSessionRow)
+        ? filterHiddenInactiveSessionListIndexItems(remainderAfterAttention, params.resolveSessionRow, params.keepInactiveSinceMs ?? null)
         : remainderAfterAttention;
 
     const remainderPresented = applySessionListIndexPresentation(remainderFiltered, {
@@ -553,7 +555,7 @@ function computeVisibleSessionListIndexUnmeasured(
     // any other inactive row.
     const attentionItems = attentionPromotion
         ? (params.hideInactiveSessions
-            ? filterHiddenInactiveSessionListIndexItems(attentionPromotion.attentionItems, params.resolveSessionRow)
+            ? filterHiddenInactiveSessionListIndexItems(attentionPromotion.attentionItems, params.resolveSessionRow, params.keepInactiveSinceMs ?? null)
             : attentionPromotion.attentionItems)
         : [];
 

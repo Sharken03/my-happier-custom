@@ -55,3 +55,4 @@ sources/components/settings/session/TranscriptMarkdownImagesSettingsGroup.test.t
 sources/components/sessions/piExtensionUi/piExtensionUiStatusBadges.test.tsx
 sources/components/sessions/workState/sessionActivityPresentation.test.ts
 sources/components/sessions/shell/useInactiveSessionRunnerPrewarm.test.ts
+sources/sync/domains/session/listing/computeVisibleSessionListIndex.test.ts

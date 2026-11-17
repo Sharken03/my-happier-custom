@@ -28,6 +28,35 @@ export function resolveSessionListHideInactiveSessions(scope: SessionListVisibil
     return scope === 'active';
 }
 
+// Setting sessionListKeepStoppedInActiveDaysV1: how many days a stopped session stays in the Active
+// scope after it was last active. 0 hides it as soon as it stops.
+export const SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1 = [0, 1, 2, 5, 14] as const;
+const HOUR_MS = 60 * 60_000;
+const DAY_MS = 24 * HOUR_MS;
+
+export function normalizeSessionListKeepStoppedInActiveDays(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.min(Math.trunc(value), 365) : 0;
+}
+
+/**
+ * The oldest last-active time that keeps a stopped session in the Active scope, or null when the
+ * setting is off. Rounded down to the hour, so the threshold changes once per hour and not on
+ * every render.
+ */
+export function resolveSessionListKeepInactiveSinceMs(days: number, nowMs: number): number | null {
+    if (days <= 0) return null;
+    return Math.floor(nowMs / HOUR_MS) * HOUR_MS - days * DAY_MS;
+}
+
+export function isInactiveSessionKeptInActiveScope(
+    activeAt: number | null | undefined,
+    keepInactiveSinceMs: number | null | undefined,
+): boolean {
+    return typeof keepInactiveSinceMs === 'number'
+        && typeof activeAt === 'number'
+        && activeAt >= keepInactiveSinceMs;
+}
+
 export type SessionListOrderingSection = 'active' | 'inactive' | 'archived' | 'sessions';
 export type SessionListOrderingSectionMode = 'activity' | 'single';
 export type SessionListOrderingGroupKind = NonNullable<Extract<SessionListIndexItem, { type: 'session' }>['groupKind']>;

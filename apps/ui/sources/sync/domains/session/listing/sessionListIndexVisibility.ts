@@ -1,5 +1,6 @@
 import type { SessionListIndexItem } from './sessionListIndex';
 import { resolveSessionRowForIndexItem, type ResolveSessionListIndexRow } from './sessionListIndexSessionRows';
+import { isInactiveSessionKeptInActiveScope } from './sessionListOrderingRules';
 
 export type VisibleSessionListSourceState = Readonly<{
     hasArchivedSessionItems: boolean;
@@ -132,6 +133,7 @@ export function pruneOrphanSessionListIndexHeaders(items: ReadonlyArray<SessionL
 export function filterHiddenInactiveSessionListIndexItems(
     items: ReadonlyArray<SessionListIndexItem>,
     resolveSessionRow: ResolveSessionListIndexRow,
+    keepInactiveSinceMs: number | null = null,
 ): SessionListIndexItem[] {
     const out: SessionListIndexItem[] = [];
     const headerState = createVisibleSessionListHeaderState();
@@ -150,7 +152,12 @@ export function filterHiddenInactiveSessionListIndexItems(
         const row = resolveSessionRowForIndexItem(item, resolveSessionRow);
         const isArchived = row?.archivedAt != null;
         const isActive = isArchived || item.section === 'active' || row?.active === true;
-        if (!isActive && item.keepVisibleWhenInactive !== true && row?.keepVisibleWhenInactive !== true) {
+        if (
+            !isActive
+            && item.keepVisibleWhenInactive !== true
+            && row?.keepVisibleWhenInactive !== true
+            && !isInactiveSessionKeptInActiveScope(row?.activeAt, keepInactiveSinceMs)
+        ) {
             continue;
         }
         if (headerState.pendingSectionHeader) {

@@ -44,8 +44,11 @@ import {
 import {
     normalizeSessionListOrderingSectionMode,
     normalizeSessionListOrderingModeV1,
+    normalizeSessionListKeepStoppedInActiveDays,
     normalizeSessionListVisibilityScope,
+    isInactiveSessionKeptInActiveScope,
     resolveSessionListHideInactiveSessions,
+    resolveSessionListKeepInactiveSinceMs,
     type SessionListOrderingSectionMode,
     type SessionListOrderingModeV1,
     type SessionListVisibilityScope,
@@ -86,6 +89,7 @@ export type VisibleSessionListViewDataOptions = Readonly<{
 
 type SessionListDataState = Readonly<{
     hideInactiveSessions: boolean;
+    keepInactiveSinceMs: number | null;
     sessionListVisibilityScope: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionAttentionStandingPolicy: SessionAttentionStandingPolicy;
@@ -208,6 +212,7 @@ function buildVisibleSessionListIndexForState(
         source: sourceIndex,
         resolveSessionRow: buildSessionRowResolver(state.folderSource),
         hideInactiveSessions,
+        keepInactiveSinceMs: state.keepInactiveSinceMs,
         sessionListVisibilityScope: state.sessionListVisibilityScope,
         pinnedSessionKeysV1: state.pinnedSessionKeysV1,
         sessionListGroupOrderV1: state.normalizedGroupOrder,
@@ -384,6 +389,7 @@ type VisibleSessionListComputation = Readonly<{
 type RetainedVisibleSessionListProjection = Readonly<{
     folderSource: SessionListViewItem[];
     hideInactiveSessions: boolean;
+    keepInactiveSinceMs: number | null;
     sessionListVisibilityScope: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionAttentionStandingPolicy: SessionAttentionStandingPolicy;
@@ -507,6 +513,7 @@ function canReuseRetainedVisibleSessionListProjection(params: Readonly<{
     if (!cached || !folderSource || !areRetainedSessionListSourcesEquivalent(cached.folderSource, folderSource)) return false;
     if (cached.validUntilMs !== null && params.nowMs >= cached.validUntilMs) return false;
     return cached.hideInactiveSessions === params.state.hideInactiveSessions
+        && cached.keepInactiveSinceMs === params.state.keepInactiveSinceMs
         && cached.sessionListVisibilityScope === params.state.sessionListVisibilityScope
         && areStringListsEqual(cached.pinnedSessionKeysV1, params.state.pinnedSessionKeysV1)
         && areAttentionStandingPoliciesEqual(cached.sessionAttentionStandingPolicy, params.state.sessionAttentionStandingPolicy)
@@ -644,6 +651,7 @@ function useVisibleSessionListComputation(
         retainedVisibleSessionListProjections.set(computation.visible, {
             folderSource: state.folderSource,
             hideInactiveSessions: state.hideInactiveSessions,
+            keepInactiveSinceMs: state.keepInactiveSinceMs,
             sessionListVisibilityScope: state.sessionListVisibilityScope,
             pinnedSessionKeysV1: state.pinnedSessionKeysV1,
             sessionAttentionStandingPolicy: state.sessionAttentionStandingPolicy,
@@ -706,6 +714,7 @@ export type VisibleSessionListSessionSummary = Readonly<{
 function countVisibleSessionListSummaryItems(
     source: SessionListViewItem[] | null,
     hideInactiveSessions: boolean,
+    keepInactiveSinceMs: number | null,
 ): VisibleSessionListSessionSummary {
     if (!source) {
         return { sessionsReady: false, visibleSessionCount: 0 };
@@ -716,7 +725,12 @@ function countVisibleSessionListSummaryItems(
         if (item.type !== 'session') continue;
         if (item.session.archivedAt != null) continue;
         const isActive = item.section === 'active' || item.session.active === true;
-        if (hideInactiveSessions && !isActive && item.session.keepVisibleWhenInactive !== true) continue;
+        if (
+            hideInactiveSessions
+            && !isActive
+            && item.session.keepVisibleWhenInactive !== true
+            && !isInactiveSessionKeptInActiveScope(item.session.activeAt, keepInactiveSinceMs)
+        ) continue;
         visibleSessionCount += 1;
     }
     return { sessionsReady: true, visibleSessionCount };
@@ -793,6 +807,12 @@ function reuseStableVisibleSessionListRows(
     return reusedAnyRow && out ? out : nextVisible;
 }
 
+// The threshold is read at render and rounded to the hour, so it moves at most once per hour.
+function useSessionListKeepInactiveSinceMs(): number | null {
+    const days = normalizeSessionListKeepStoppedInActiveDays(useSetting('sessionListKeepStoppedInActiveDaysV1'));
+    return resolveSessionListKeepInactiveSinceMs(days, Date.now());
+}
+
 function useSessionListDataState(
     storageFilter: SessionListStorageFilter,
     options: Pick<VisibleSessionListViewDataOptions, 'sessionListSurfaceDataActive'> = {},
@@ -802,6 +822,7 @@ function useSessionListDataState(
     const openApprovalSessionIdList = useOpenApprovalSessionIds();
     const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const hideInactiveSessions = resolveSessionListHideInactiveSessions(sessionListVisibilityScope);
+    const keepInactiveSinceMs = useSessionListKeepInactiveSinceMs();
     const sessionListWorkingPlacementMode = normalizeSessionListWorkingPlacementMode(useSetting('sessionListWorkingPlacementModeV1'));
     const backgroundWorkAttentionMode = normalizeSessionListBackgroundWorkAttentionMode(useSetting('sessionListBackgroundWorkAttentionModeV1'));
     const sessionListFolderSortModeV1 = normalizeSessionListFolderSortModeV1(useLocalSetting('sessionListFolderSortModeV1'));
@@ -949,6 +970,7 @@ function useSessionListDataState(
 
     return React.useMemo(() => ({
         hideInactiveSessions,
+        keepInactiveSinceMs,
         sessionListVisibilityScope,
         pinnedSessionKeysV1,
         sessionAttentionStandingPolicy,
@@ -973,6 +995,7 @@ function useSessionListDataState(
         attentionSource,
         folderSource,
         hideInactiveSessions,
+        keepInactiveSinceMs,
         sessionListVisibilityScope,
         normalizedGroupOrder,
         normalizedWorkspaceOrder,
@@ -1001,6 +1024,7 @@ export function useVisibleSessionListSessionSummary(
     const hideInactiveSessions = resolveSessionListHideInactiveSessions(
         normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope')),
     );
+    const keepInactiveSinceMs = useSessionListKeepInactiveSinceMs();
     const selection = useResolvedActiveServerSelection();
     const selectedServerIdsKey = React.useMemo(() => selection.allowedServerIds.join('\u0000'), [selection.allowedServerIds]);
     const selectedServerIdsForCache = selection.enabled
@@ -1030,8 +1054,8 @@ export function useVisibleSessionListSessionSummary(
     );
 
     return React.useMemo(
-        () => countVisibleSessionListSummaryItems(storageFilteredSource, hideInactiveSessions),
-        [hideInactiveSessions, storageFilteredSource],
+        () => countVisibleSessionListSummaryItems(storageFilteredSource, hideInactiveSessions, keepInactiveSinceMs),
+        [hideInactiveSessions, keepInactiveSinceMs, storageFilteredSource],
     );
 }
 
