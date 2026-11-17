@@ -280,9 +280,11 @@ function resolveMessageTimestampPresentation(input: {
   }
 }
 
-function buildStreamingMarkdownParseCacheKey(messageId: string, revision: number | null | undefined): string | null {
-  if (typeof revision !== 'number' || !Number.isFinite(revision)) return null;
-  return `message:${messageId}:revision:${Math.trunc(revision)}`;
+// The parse slot names the message only. The segment cache already checks that the stored text
+// equals the current one, so a revision in the key adds no safety; it changed on every stream
+// delta and made the renderer split the unchanged Markdown again.
+function buildStreamingMarkdownParseCacheKey(messageId: string): string {
+  return `message:${messageId}`;
 }
 
 type MessageViewProps = {
@@ -301,6 +303,7 @@ type MessageViewProps = {
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   onToggleToolPin?: SessionMessagePinToggleHandler;
   historical?: boolean;
+  // Not read below: as a memo input it re-renders the row when a delta bumps the revision.
   messageRevision?: number | null;
   eventEmphasis?: TranscriptEventEmphasis;
   interaction?: TranscriptInteraction;
@@ -376,7 +379,6 @@ export const MessageViewWithSessionCommon = React.memo(function MessageViewWithS
           onToggleMessagePin={props.onToggleMessagePin}
           onToggleToolPin={props.onToggleToolPin}
           historical={props.historical}
-          messageRevision={props.messageRevision}
           eventEmphasis={props.eventEmphasis}
           interaction={interaction}
           canFork={canFork}
@@ -411,7 +413,6 @@ function RenderBlock(props: {
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   onToggleToolPin?: SessionMessagePinToggleHandler;
   historical?: boolean;
-  messageRevision?: number | null;
   eventEmphasis?: TranscriptEventEmphasis;
   forkCommon: TranscriptForkCommon;
   messageDisplayCommon: TranscriptMessageDisplayCommon;
@@ -461,7 +462,6 @@ function RenderBlock(props: {
           messagePins={props.messagePins}
           onToggleMessagePin={props.onToggleMessagePin}
           historical={props.historical}
-          messageRevision={props.messageRevision}
           pinReadOnlyContext={props.interaction.permissionDisabledReason === 'readOnly'}
           forkCommon={props.forkCommon}
           messageDisplayCommon={props.messageDisplayCommon}
@@ -1004,7 +1004,6 @@ function AgentTextBlock(props: {
   messagePins?: readonly PersistedSessionMessagePinV1[];
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   historical?: boolean;
-  messageRevision?: number | null;
   pinReadOnlyContext?: boolean;
   forkCommon: TranscriptForkCommon;
   messageDisplayCommon: TranscriptMessageDisplayCommon;
@@ -1345,7 +1344,7 @@ function AgentTextBlock(props: {
                     {...(thinkingStreamingActive
                       ? {
                           streamingMode: 'streaming' as const,
-                          streamingParseCacheKey: buildStreamingMarkdownParseCacheKey(props.message.id, props.messageRevision),
+                          streamingParseCacheKey: buildStreamingMarkdownParseCacheKey(props.message.id),
                           streamingAnimated: streamingRevealAnimationEnabled,
                           streamingRevealPreset,
                         }
@@ -1365,7 +1364,7 @@ function AgentTextBlock(props: {
                   profile="transcript"
                   textStyle={styles.transcriptMarkdownText}
                   streamingMode="streaming"
-                  streamingParseCacheKey={buildStreamingMarkdownParseCacheKey(props.message.id, props.messageRevision)}
+                  streamingParseCacheKey={buildStreamingMarkdownParseCacheKey(props.message.id)}
                   streamingAnimated={streamingRevealAnimationEnabled}
                   streamingRevealPreset={streamingRevealPreset}
                   remoteImageHosts={props.messageDisplayCommon.markdownRemoteImageHosts}
