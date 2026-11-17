@@ -42,7 +42,7 @@ import {
 } from '../domains/session/readCursor/resolveSessionReadableSeq';
 import { resolveSessionWorkspacePath } from '../domains/session/resolveSessionWorkspacePath';
 import { resolveSessionMachineId } from '../domains/session/directSessions/resolveSessionMachineId';
-import { buildSessionMetadataStabilitySignature } from '../domains/session/metadata/sessionMetadataStability';
+import { areSessionMetadataStabilityEqual } from '../domains/session/metadata/sessionMetadataStability';
 import {
   buildSessionOrganizationProjection,
   type SessionOrganizationProjection,
@@ -246,8 +246,10 @@ export function useSessionReferenceTarget(sessionId: string): SessionReferenceTa
   );
 }
 
+// The selector runs on every store notification, also for each stream delta. The same metadata
+// object returns the cached value at once; a new object is compared entry by entry.
 const sessionForkSupportSourceCache = new Map<string, Readonly<{
-  signature: string;
+  metadata: Session['metadata'];
   value: SessionForkSupportSource;
 }>>();
 
@@ -257,12 +259,15 @@ export function useSessionForkSupportSource(sessionId: string | null): SessionFo
       const session = sessionId ? state.sessions[sessionId] ?? null : null;
       if (!session || !sessionId) return null;
 
-      const signature = buildSessionMetadataStabilitySignature(session.metadata);
       const cached = sessionForkSupportSourceCache.get(sessionId);
-      if (cached?.signature === signature) return cached.value;
+      if (cached?.metadata === session.metadata) return cached.value;
+      if (cached && areSessionMetadataStabilityEqual(cached.metadata, session.metadata)) {
+        sessionForkSupportSourceCache.set(sessionId, { metadata: session.metadata, value: cached.value });
+        return cached.value;
+      }
 
       const value: SessionForkSupportSource = { metadata: session.metadata };
-      sessionForkSupportSourceCache.set(sessionId, { signature, value });
+      sessionForkSupportSourceCache.set(sessionId, { metadata: session.metadata, value });
       return value;
     })
   );
