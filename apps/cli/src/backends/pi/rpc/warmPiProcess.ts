@@ -166,15 +166,24 @@ export function takeWarmPiProcess(launch: Readonly<{
   cwd: string;
   env: NodeJS.ProcessEnv;
 }>): ChildProcessWithoutNullStreams | null {
+  // Hits and misses go to the runner's log file at info level, so a start's timing shows
+  // whether it used the prewarmed process.
   const entry = warm;
-  if (!entry) return null;
+  if (!entry) {
+    if (process.env[HAPPIER_PI_PREWARM_ENV_KEY] === '1') logger.infoFile('[pi] No prewarmed Pi process waits; starting Pi cold');
+    return null;
+  }
   const { child } = entry;
   if (child.exitCode !== null || child.stdin.writableEnded) {
     warm = null;
+    logger.infoFile('[pi] The prewarmed Pi process has ended; starting Pi cold');
     return null;
   }
   const program = resolvePiProgram(launch.command, launch.args);
-  if (!program || program.runtimePath !== entry.runtimePath) return null;
+  if (!program || program.runtimePath !== entry.runtimePath) {
+    logger.infoFile('[pi] The prewarmed Pi process does not fit this launch; starting Pi cold');
+    return null;
+  }
 
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(launch.env)) {
@@ -182,6 +191,6 @@ export function takeWarmPiProcess(launch: Readonly<{
   }
   warm = null;
   child.stdin.write(`${JSON.stringify({ entry: program.entryPath, args: program.args, cwd: launch.cwd, env })}\n`);
-  logger.debug(`[pi] Using the prewarmed Pi process ${child.pid}`);
+  logger.infoFile(`[pi] Using the prewarmed Pi process ${child.pid}`);
   return child;
 }
