@@ -25,6 +25,7 @@ import type { SavedSecret } from '@/sync/domains/settings/savedSecretTypes';
 import type { ServerAccountScope } from '@/sync/domains/scope/serverAccountScope';
 import { resolveEffectiveWindowsRemoteSessionLaunchMode } from '@/sync/domains/session/spawn/windowsRemoteSessionLaunchMode';
 import { getAgentCore, type AgentId } from '@/agents/catalog/catalog';
+import { log } from '@/log';
 import { buildSpawnEnvironmentVariablesFromUiState, buildSpawnSessionExtrasFromUiState, getAgentResumeExperimentsFromSettings, getNewSessionPreflightIssues } from '@/agents/catalog/catalog';
 import { buildProfileEnvironmentVariablesForSession } from '@/components/sessions/new/modules/profileHelpers';
 import type { NewSessionPromptStore } from '@/components/sessions/new/hooks/screenModel/newSessionPromptStore';
@@ -1331,12 +1332,23 @@ export function useCreateNewSession(params: Readonly<{
                     launchAttempt = markNewSessionLaunchAttemptComplete(launchAttempt);
                 }
 
-                await requireSpawnedSessionVisibleForRoute({
-                    sessionId: createdSessionId,
-                    serverId: resolvedTargetServerId,
-                    getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
-                    ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
-                });
+                // The spawn confirmed the session and the follow-up is done, so a slow local
+                // hydration must not keep the user on this screen. The session route hydrates
+                // the session itself.
+                try {
+                    await requireSpawnedSessionVisibleForRoute({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
+                        ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
+                    });
+                } catch (visibilityError) {
+                    log.log(
+                        `[newSession] opening ${createdSessionId} before local hydration finished: ${
+                            visibilityError instanceof Error ? visibilityError.message : String(visibilityError)
+                        }`,
+                    );
+                }
 
                 const firstTurnTextForRoute = handedFirstTurnToDaemon
                     ? daemonFirstTurnText
