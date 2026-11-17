@@ -845,14 +845,22 @@ describe('memoryWorker', () => {
       const liveSessionFetches = () => fetchEncryptedTranscriptMessagesPage.mock.calls
         .filter(([args]) => args.sessionId === 'sess-live').length;
 
-      await vi.advanceTimersByTimeAsync(6_500);
+      // The worker also waits on real I/O (SQLite, settings files), so fake time alone does not
+      // fix when a tick runs. Advance one tick at a time until the expected fetch happens.
+      const advanceTicksUntil = async (done: () => boolean) => {
+        for (let tick = 0; tick < 200 && !done(); tick += 1) {
+          await vi.advanceTimersByTimeAsync(500);
+        }
+      };
+
+      await advanceTicksUntil(() => deletedSessionFetches() > 0);
       const deletedAfterFirstVisit = deletedSessionFetches();
-      const liveAfterFirstVisit = liveSessionFetches();
       expect(deletedAfterFirstVisit).toBeGreaterThan(0);
 
-      await vi.advanceTimersByTimeAsync(10_000);
+      const liveAfterFirstVisit = liveSessionFetches();
+      await advanceTicksUntil(() => liveSessionFetches() > liveAfterFirstVisit + 2);
+      expect(liveSessionFetches()).toBeGreaterThan(liveAfterFirstVisit + 2);
       expect(deletedSessionFetches()).toBe(deletedAfterFirstVisit);
-      expect(liveSessionFetches()).toBeGreaterThan(liveAfterFirstVisit);
 
       worker.stop();
     } finally {
