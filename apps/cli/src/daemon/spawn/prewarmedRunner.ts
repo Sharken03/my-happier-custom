@@ -178,6 +178,16 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
         cwd: launch.cwd,
       };
       storeLaunch(remembered);
+      // A waiting process from an older launch fits no later launch; let the next prewarm
+      // replace it instead of holding the slot until its time limit.
+      if (warm && (
+        warm.launch.filePath !== remembered.filePath
+        || !sameArgs(warm.launch.baseArgs, remembered.baseArgs)
+        || !sameRecord(warm.launch.env, remembered.env)
+      )) {
+        logDebug('[DAEMON RUN] The remembered launch changed; releasing the prewarmed runner', {});
+        release();
+      }
     },
 
     /** Starts the prewarmed process, unless one waits already. */

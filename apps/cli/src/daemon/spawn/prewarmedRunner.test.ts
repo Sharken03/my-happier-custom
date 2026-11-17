@@ -129,6 +129,33 @@ describe('prewarmed runner slot', () => {
     expect(slot.take(launch)).toBe(children[0]);
   });
 
+  it('replaces a waiting process when the remembered launch changes', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    const newArgs = ['--no-warnings', '/cli/v2/index.mjs'];
+    const launch = { filePath: '/bin/node', baseArgs: newArgs, userArgs: ['pi'], env: ENV, cwd: '/work' };
+
+    expect(slot.take(launch)).toBeNull();
+    slot.rememberLaunch({ ...BASE, baseArgs: newArgs, env: ENV });
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+    slot.prewarm();
+
+    expect(spawnChild).toHaveBeenCalledTimes(2);
+    expect(slot.take(launch)).toBe(children[1]);
+  });
+
+  it('keeps a waiting process when the same launch is remembered again', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    slot.rememberLaunch({ ...BASE, cwd: '/elsewhere', env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/a.json' } });
+    slot.prewarm();
+
+    expect(spawnChild).toHaveBeenCalledTimes(1);
+    expect(children[0]!.stdin.writableEnded).toBe(false);
+  });
+
   it('lets an unused process end after the time limit and after it exits', () => {
     const { slot, spawnChild, children } = setup();
     slot.rememberLaunch({ ...BASE, env: ENV });
