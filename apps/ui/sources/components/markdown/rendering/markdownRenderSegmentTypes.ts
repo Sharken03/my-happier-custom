@@ -9,7 +9,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     first: boolean;
@@ -19,7 +18,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     blocks: readonly MarkdownBlock[];
@@ -31,7 +29,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     url: string;
@@ -44,7 +41,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     first: boolean;

@@ -18,7 +18,6 @@ import { readStandaloneMarkdownRemoteImage } from './markdownRemoteImages';
 type LocatedMarkdownBlockSource = MarkdownBlockSource & Readonly<{
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
 }>;
 
@@ -27,7 +26,6 @@ type PendingEnrichedGroup = Readonly<{
     markdown: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
 }>;
 
@@ -37,27 +35,23 @@ type DraftMarkdownRenderSegment =
     | Omit<Extract<MarkdownRenderSegment, { type: 'remote-image' }>, 'first' | 'last'>
     | Omit<Extract<MarkdownRenderSegment, { type: 'container-block' }>, 'first' | 'last'>;
 
-function hashMarkdownSource(source: string): string {
-    let hash = 2166136261;
-    for (let index = 0; index < source.length; index++) {
-        hash ^= source.charCodeAt(index);
-        hash = Math.imul(hash, 16777619);
-    }
-    return (hash >>> 0).toString(36);
-}
-
 function locateSources(markdown: string, sources: readonly MarkdownBlockSource[]): LocatedMarkdownBlockSource[] {
-    let cursor = 0;
+    // indexOf finds each line break once, natively; a per-character loop is slow on Hermes.
     let line = 1;
+    let nextBreak = markdown.indexOf('\n');
+    const countBreaksBefore = (position: number) => {
+        while (nextBreak >= 0 && nextBreak < position) {
+            line++;
+            nextBreak = markdown.indexOf('\n', nextBreak + 1);
+        }
+    };
     return sources.map((source) => {
-        while (cursor < source.sourceStart) if (markdown.charCodeAt(cursor++) === 10) line++;
+        countBreaksBefore(source.sourceStart);
         const startLine = line;
-        const end = source.sourceStart + source.source.length;
-        while (cursor < end) if (markdown.charCodeAt(cursor++) === 10) line++;
+        countBreaksBefore(source.sourceStart + source.source.length);
         return {
             ...source,
             sourceLength: source.source.length,
-            sourceHash: hashMarkdownSource(source.source),
             sourceRange: { startLine, endLine: line },
         };
     });
@@ -141,7 +135,6 @@ function buildGroup(markdown: string, sources: readonly LocatedMarkdownBlockSour
         markdown: groupMarkdown,
         sourceStart,
         sourceLength,
-        sourceHash: hashMarkdownSource(groupMarkdown),
         sourceRange: { startLine: firstSource.sourceRange.startLine, endLine: lastSource.sourceRange.endLine },
     };
 }
@@ -168,7 +161,6 @@ function buildEnrichedSegment(source: LocatedMarkdownBlockSource, nextSegmentKey
         key: nextSegmentKey(),
         sourceStart: source.sourceStart,
         sourceLength: source.sourceLength,
-        sourceHash: source.sourceHash,
         sourceRange: source.sourceRange,
         markdown: source.source,
         renderMarkdown: withReferenceDefinitions(source.source, source.referenceDefinitions),
@@ -222,7 +214,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
             key: nextSegmentKey(),
             sourceStart: group.sourceStart,
             sourceLength: group.sourceLength,
-            sourceHash: group.sourceHash,
             sourceRange: group.sourceRange,
             markdown: group.markdown,
             renderMarkdown: withReferenceDefinitions(group.markdown, group.sources[0]?.referenceDefinitions ?? ''),
@@ -240,7 +231,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
                 key: nextSegmentKey(),
                 sourceStart: source.sourceStart,
                 sourceLength: source.sourceLength,
-                sourceHash: source.sourceHash,
                 sourceRange: source.sourceRange,
                 markdown: source.source,
                 url: remoteImage.url,
@@ -265,7 +255,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
                 key: nextSegmentKey(),
                 sourceStart: source.sourceStart,
                 sourceLength: source.sourceLength,
-                sourceHash: source.sourceHash,
                 sourceRange: source.sourceRange,
                 markdown: source.source,
                 container: source.container,
@@ -277,7 +266,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
             key: nextSegmentKey(),
             sourceStart: source.sourceStart,
             sourceLength: source.sourceLength,
-            sourceHash: source.sourceHash,
             sourceRange: source.sourceRange,
             markdown: source.source,
             blocks: parseMarkdownBlockSource(source),

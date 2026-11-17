@@ -45,6 +45,17 @@ type MarkdownViewRendererProps = Readonly<{
 
 const NO_REMOTE_IMAGE_HOSTS: readonly string[] = [];
 
+// Segment keys for a source-range observer follow the segment text, so a segment keeps its key
+// when text before it changes. Only that observer needs it; plain views key by position.
+function hashMarkdownSource(source: string): string {
+    let hash = 2166136261;
+    for (let index = 0; index < source.length; index++) {
+        hash ^= source.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+}
+
 function readStreamingSegmentCache(params: Readonly<{
     parseCacheKey: string | null | undefined;
     preparedMarkdown: string;
@@ -121,9 +132,10 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
         if (!props.sourceRangeLayoutObserver) return segments.map((segment) => segment.key);
         const occurrences = new Map<string, number>();
         return segments.map((segment) => {
-            const occurrence = occurrences.get(segment.sourceHash) ?? 0;
-            occurrences.set(segment.sourceHash, occurrence + 1);
-            return `${segment.sourceHash}:${occurrence}`;
+            const sourceHash = hashMarkdownSource(segment.markdown);
+            const occurrence = occurrences.get(sourceHash) ?? 0;
+            occurrences.set(sourceHash, occurrence + 1);
+            return `${sourceHash}:${occurrence}`;
         });
     }, [segments, props.sourceRangeLayoutObserver]);
     const contentRef = React.useRef<View>(null);
