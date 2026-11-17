@@ -33,6 +33,13 @@ export type StreamingTextPacerConfig = Readonly<{
     flushCps: number;
     /** A single append larger than this is shown immediately instead of paced. */
     largeAppendChars: number;
+    /**
+     * Minimum time between two published text changes. Every change re-renders
+     * the streamed message, so frames inside this window reveal nothing and the
+     * next commit takes their budget. 30 ms gives about 30 changes/s on
+     * 60, 90 and 120 Hz frame cadences.
+     */
+    minCommitIntervalMs: number;
     /** Reveal-rate ceiling while input is active without backlog pressure (chars/s). */
     maxActiveCps: number;
     /** Ceiling for the smoothed base reveal rate (chars/s). */
@@ -68,6 +75,7 @@ export const STREAMING_TEXT_PACER_CONFIG: StreamingTextPacerConfig = {
     maxActiveCps: 56,
     maxCps: 44,
     maxFlushCps: 96,
+    minCommitIntervalMs: 30,
     minCps: 12,
     settleAfterMs: 520,
     settleDrainMaxMs: 900,
@@ -149,6 +157,7 @@ export function createStreamingTextPacer(params: Readonly<{
     let lastInputAtMs = params.nowMs;
     let lastInputCount = targetCount;
     let lastTickAtMs: number | null = null;
+    let lastCommitAtMs: number | null = null;
     let settleDeadlineAtMs: number | null = null;
     // Fractional reveal budget carried across frames so braked sub-char-per-frame
     // rates still make steady progress instead of being floored away.
@@ -166,6 +175,7 @@ export function createStreamingTextPacer(params: Readonly<{
         chunkSizeEma = 1;
         arrivalCpsEma = config.defaultCps;
         lastTickAtMs = null;
+        lastCommitAtMs = null;
         settleDeadlineAtMs = null;
         revealCarry = 0;
     };
@@ -216,6 +226,12 @@ export function createStreamingTextPacer(params: Readonly<{
         if (backlog <= 0) {
             lastTickAtMs = nowMs;
             return { changed: false, drained: true, wakeDelayMs: null };
+        }
+
+        if (lastCommitAtMs != null && nowMs - lastCommitAtMs < config.minCommitIntervalMs) {
+            // Commit cap: lastTickAtMs stays put, so the next commit's frame
+            // interval covers the skipped frames and the reveal speed holds.
+            return { changed: false, drained: false, wakeDelayMs: null };
         }
 
         const frameIntervalMs = lastTickAtMs == null ? 16 : Math.max(0, nowMs - lastTickAtMs);
@@ -334,6 +350,7 @@ export function createStreamingTextPacer(params: Readonly<{
             displayedCount = targetCount;
         }
 
+        lastCommitAtMs = nowMs;
         return { changed: true, drained: displayedCount >= targetCount, wakeDelayMs: null };
     };
 
@@ -341,6 +358,7 @@ export function createStreamingTextPacer(params: Readonly<{
         displayText = targetText;
         displayedCount = targetCount;
         lastTickAtMs = null;
+        lastCommitAtMs = null;
         settleDeadlineAtMs = null;
         revealCarry = 0;
     };
