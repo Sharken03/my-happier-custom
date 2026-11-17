@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import * as React from 'react';
 import { useSessionArchivePending } from '@/hooks/session/useSessionArchivePending';
 import { Pressable, View } from 'react-native';
@@ -191,6 +192,7 @@ function didSessionHeaderActionMenuPropsChange(
 }
 
 function SessionHeaderActionMenuInner(props: SessionHeaderActionMenuProps) {
+  diagCount('headerMenu');
   const { theme } = useUnistyles();
   const router = useRouter();
   const navigateToSession = useNavigateToSession();

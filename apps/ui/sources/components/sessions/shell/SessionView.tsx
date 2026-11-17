@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import { canUseDirectPendingDeliveryActions } from '@/components/sessions/pending/pendingMessageVisualState';
 import { sendPendingMessageWithIntent } from '@/components/sessions/pending/pendingMessageSendActions';
 import { resolveNewSessionCapabilityProbeContext } from '@/components/sessions/new/modules/newSessionCapabilityProbeContext';
@@ -2409,6 +2410,7 @@ function SessionViewLoaded({
     sessionRunnerRuntimeStatusMachineId,
     onSessionRunnerRuntimeStatusInvalidated,
 }: SessionViewLoadedProps) {
+    diagCount('sessionViewLoaded');
     const { theme } = useUnistyles();
     const auth = useAuth();
     const credentials = auth.credentials;

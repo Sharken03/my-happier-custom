@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import * as React from "react";
 import { View, Pressable, Platform } from 'react-native';
 import { isRecoveredHistoryTranscriptObservationProvenance, readSessionMessageProvenanceV1, type SessionMessageProvenanceV1 } from '@happier-dev/protocol';
@@ -1009,6 +1010,7 @@ function AgentTextBlock(props: {
   forkCommon: TranscriptForkCommon;
   messageDisplayCommon: TranscriptMessageDisplayCommon;
 }) {
+  diagCount('agentTextBlock');
   const { isHovered: isMessageHovered, hoverProps } = useRowActionHoverHost();
   const quoteMarkdownProps = useTranscriptQuoteMarkdownProps(props.sessionId, props.historical !== true && !props.message.isThinking);
   const [isCopyButtonHovered, setIsCopyButtonHovered] = React.useState(false);

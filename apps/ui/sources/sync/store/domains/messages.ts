@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import type { PermissionMode } from '@/sync/domains/permissions/permissionTypes';
 import { parsePermissionIntentAlias } from '@happier-dev/agents';
 import { isRecoveredHistoryTranscriptObservationProvenance } from '@happier-dev/protocol';
@@ -511,6 +512,7 @@ export function createMessagesDomain<S extends MessagesDomain & MessagesDomainDe
             return toolCallMessage.tool?.name ? isToolPotentiallyMutableForScm(toolCallMessage.tool?.name) : true;
         },
         applyMessages: (sessionId: string, messages: NormalizedMessage[]) => {
+            diagCount('storeApplyMessages');
             const telemetryFields: Record<string, number> = { messages: messages.length };
             return syncPerformanceTelemetry.measure(
                 'sync.store.messages.apply',

@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import * as React from 'react';
 
 import { createStreamingTextPacer, type StreamingTextPacer } from './streamingTextPacer';
@@ -141,7 +142,7 @@ export function useStreamingTextSmoothing(params: Readonly<{
         if (pacer == null) return;
         const result = pacer.tick(Date.now());
         if (result.changed) {
-            setDisplayText(pacer.getDisplayText());
+            diagCount('pacerPublish'); setDisplayText(pacer.getDisplayText());
         }
         if (result.drained) {
             armSettleTimer();
@@ -191,7 +192,7 @@ export function useStreamingTextSmoothing(params: Readonly<{
             }
             if (pacer.isDrained()) {
                 // Non-append or oversized delta jumped straight to the target.
-                setDisplayText(pacer.getDisplayText());
+                diagCount('pacerPublish'); setDisplayText(pacer.getDisplayText());
                 armSettleTimer();
             } else {
                 cancelFrame();
@@ -222,7 +223,7 @@ export function useStreamingTextSmoothing(params: Readonly<{
             if (pacer == null || pacer.isDrained()) return;
             cancelFrame();
             pacer.flush();
-            setDisplayText(pacer.getDisplayText());
+            diagCount('pacerPublish'); setDisplayText(pacer.getDisplayText());
             armSettleTimer();
         };
         documentMaybe.addEventListener('visibilitychange', onVisibilityChange);
