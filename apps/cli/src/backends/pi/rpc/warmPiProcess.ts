@@ -17,19 +17,71 @@ const PI_FIXED_ENV: Readonly<Record<string, string>> = { NODE_ENV: 'production',
  * Loads the modules of Pi's CLI, waits for one JSON line on stdin ({ entry, args, cwd, env }),
  * and then runs the CLI as a cold `pi` start with those values would. The rest of stdin stays
  * for Pi. When stdin ends before the line, the process exits.
+ *
+ * While it waits, it also imports the modules of Pi's extensions (about 1 s of a Pi start on a
+ * phone; measured on 17/11-2026 with Pi 1.5.0). Pi keeps imported extension modules for one
+ * working directory and drops them when the directory changes. A load hook changes two places
+ * in Pi's chunk: the import step can stop before it runs an extension, and the first directory
+ * change keeps the modules. When Pi's code no longer holds both places, nothing is changed and
+ * no extension is imported early.
  */
-const LOADER_SOURCE = `import { enableCompileCache } from "node:module";
+const LOADER_SOURCE = `import { enableCompileCache, registerHooks } from "node:module";
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 try { enableCompileCache(); } catch {}
 const runtimePath = process.argv[2];
+const CACHE_CLEAR = "return extensionCacheCwd!==void 0&&!pathsEqual(extensionCacheCwd,resolvedCwd)&&clearExtensionCache(),";
+const MODULE_IMPORTED = "let factory=await loadExtensionModule(resolvedPath,cacheToken);";
+const warmState = globalThis.__happierPiWarm = {
+  patched: false,
+  modulesOnly: false,
+  keepOnce: false,
+  keepCache() { const keep = this.keepOnce; this.keepOnce = false; return keep; },
+};
+const chunksUrl = pathToFileURL(join(dirname(runtimePath), "chunks")).href + "/";
+try {
+  registerHooks({
+    load(url, context, nextLoad) {
+      const result = nextLoad(url, context);
+      if (warmState.patched || !url.startsWith(chunksUrl) || result.source == null) return result;
+      const text = typeof result.source === "string" ? result.source : Buffer.from(result.source).toString("utf8");
+      if (!text.includes(CACHE_CLEAR) || !text.includes(MODULE_IMPORTED)) return result;
+      warmState.patched = true;
+      const source = text
+        .replace(CACHE_CLEAR, CACHE_CLEAR.replace("&&clearExtensionCache()", "&&!globalThis.__happierPiWarm.keepCache()&&clearExtensionCache()"))
+        .replace(MODULE_IMPORTED, MODULE_IMPORTED + "if(globalThis.__happierPiWarm.modulesOnly)return{extension:null,error:null};");
+      return { ...result, source };
+    },
+  });
+} catch {}
 try {
   const text = readFileSync(runtimePath, "utf8");
   for (const match of text.matchAll(/(?:from|import)\\s*"(\\.\\/chunks\\/[^"]+)"/g)) {
     await import(pathToFileURL(join(dirname(runtimePath), match[1])).href);
   }
 } catch {}
+async function importExtensionModules() {
+  if (!warmState.patched) return;
+  const pi = await import(pathToFileURL(join(dirname(runtimePath), "index.js")).href);
+  // stdout becomes Pi's RPC channel; an extension that prints while it loads must not write there.
+  const write = process.stdout.write;
+  process.stdout.write = (_chunk, encoding, callback) => {
+    const done = typeof encoding === "function" ? encoding : callback;
+    if (typeof done === "function") done();
+    return true;
+  };
+  warmState.modulesOnly = true;
+  try {
+    await new pi.DefaultResourceLoader({ cwd: homedir(), agentDir: pi.getAgentDir() }).reload();
+    warmState.keepOnce = true;
+  } finally {
+    warmState.modulesOnly = false;
+    process.stdout.write = write;
+  }
+}
+const extensionsImported = importExtensionModules().catch(() => {});
 function readFirstLine(stream) {
   return new Promise((resolve) => {
     let buffered = Buffer.alloc(0);
@@ -57,6 +109,7 @@ const launch = JSON.parse(line);
 for (const key of Object.keys(process.env)) if (!(key in launch.env)) delete process.env[key];
 Object.assign(process.env, launch.env);
 process.chdir(launch.cwd);
+await extensionsImported;
 process.argv.splice(1, process.argv.length - 1, launch.entry, ...launch.args);
 await import(pathToFileURL(runtimePath).href);
 `;
@@ -95,7 +148,7 @@ function resolvePiProgram(command: string, args: readonly string[]): PiProgram |
 
 function materializeLoader(): string {
   const directory = join(configuration.happyHomeDir, 'tmp');
-  const path = join(directory, 'pi-warm-loader-v1.mjs');
+  const path = join(directory, 'pi-warm-loader-v2.mjs');
   try {
     if (readFileSync(path, 'utf8') === LOADER_SOURCE) return path;
   } catch {
