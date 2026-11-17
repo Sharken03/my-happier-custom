@@ -76,7 +76,7 @@ import {
   SESSION_ACTION_UNARCHIVE_ID,
   SESSION_ACTION_UNPIN_ID,
 } from '@/components/sessions/actions/sessionActionIds';
-import { buildSessionMetadataStabilitySignature } from '@/sync/domains/session/metadata/sessionMetadataStability';
+import { areSessionMetadataStabilityEqual } from '@/sync/domains/session/metadata/sessionMetadataStability';
 import { getSessionName, getSessionStatus } from '@/utils/sessions/sessionUtils';
 import { nowServerMs } from '@/sync/runtime/time';
 import { safeRouterBack } from '@/utils/navigation/safeRouterBack';
@@ -172,8 +172,7 @@ function areSessionActionMenuMetadataSemanticallyEqual(
   prev: Session['metadata'],
   next: Session['metadata'],
 ): boolean {
-  if (prev === next) return true;
-  return buildSessionMetadataStabilitySignature(prev) === buildSessionMetadataStabilitySignature(next);
+  return areSessionMetadataStabilityEqual(prev, next);
 }
 
 function didSessionHeaderActionMenuPropsChange(

@@ -59,3 +59,20 @@ describe('actionsSettings', () => {
         expect(isActionEnabledInState(defaultState, 'review.start' as any, { surface: 'ui_button', placement: 'command_palette' } as any)).toBe(true);
     });
 });
+
+describe('resolveActionsSettingsV1FromState', () => {
+    it('returns the same parsed settings for the same stored settings object', async () => {
+        const { resolveActionsSettingsV1FromState } = await import('./actionsSettings');
+        const actionsSettingsV1 = { v: 1, actions: { 'review.start': { enabled: false } } };
+
+        const first = resolveActionsSettingsV1FromState({ settings: { actionsSettingsV1 } });
+        const second = resolveActionsSettingsV1FromState({ settings: { actionsSettingsV1 } });
+        const changed = resolveActionsSettingsV1FromState({
+            settings: { actionsSettingsV1: { v: 1, actions: {} } },
+        });
+
+        expect(second).toBe(first);
+        expect(changed).not.toBe(first);
+        expect(changed.actions).toEqual({});
+    });
+});
