@@ -657,6 +657,12 @@ function augmentCliCapabilityWithProbeModels(cap: Capability, agentId: AgentCata
 
 type CliCapabilitiesOptions = Readonly<{
     hasSessionAgentTransition?: () => boolean;
+    /**
+     * Build the service right after registration (default). A session runner turns this off:
+     * the build imports every agent's capability modules (about 0.3 s CPU on a phone) while the
+     * session starts, and a session is rarely asked for capabilities.
+     */
+    prewarm?: boolean;
 }>;
 
 export async function createCliCapabilitiesService(options?: CliCapabilitiesOptions): Promise<ReturnType<typeof createCapabilitiesService>> {
@@ -720,9 +726,11 @@ export function registerCapabilitiesHandlers(rpcHandlerManager: RpcHandlerRegist
     // Warm capability loaders after registration has returned. Several capability
     // modules import through the backend catalog; deferring one macrotask avoids
     // caching a partial catalog while daemon startup import cycles are settling.
-    setTimeout(() => {
-        void getService().catch(() => undefined);
-    }, 0);
+    if (options?.prewarm !== false) {
+        setTimeout(() => {
+            void getService().catch(() => undefined);
+        }, 0);
+    }
 
     rpcHandlerManager.registerHandler<{}, CapabilitiesDescribeResponse>(RPC_METHODS.CAPABILITIES_DESCRIBE, async () => {
         return (await getService()).describe();

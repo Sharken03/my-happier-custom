@@ -1076,6 +1076,8 @@ export class ApiSessionClient extends EventEmitter {
         });
         this.rebuildSessionRuntimeControls();
         this.rpcLifecycleRegistrations.push(registerSessionHandlers(this.rpcHandlerManager, this.metadata?.path, {
+            // The session starts now; capabilities are built on the first request instead.
+            prewarmCapabilities: false,
             getSessionMetadata: () => this.getMetadataSnapshot(),
             updateSessionMetadata: (handler) => this.updateMetadata(handler),
             updateSessionMetadataWithResult: (handler) => this.updateMetadataWithResult(handler),

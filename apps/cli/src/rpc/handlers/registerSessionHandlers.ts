@@ -272,6 +272,8 @@ export function registerSessionHandlers(
         setAdditionalAllowedWriteDirs?: (dirs: string[]) => void;
         accessPolicy?: FilesystemAccessPolicy;
         hasSessionAgentTransition?: () => boolean;
+        /** False skips the capabilities prewarm; see `registerCapabilitiesHandlers`. */
+        prewarmCapabilities?: boolean;
         sessionRuntimeControls?: SessionRuntimeControls | null;
         getUsageLimitRecoveryCheckNow?: () => SessionRuntimeControls['checkUsageLimitRecoveryNow'];
         /** QAE-1: daemon-side propagation for successful wait-resume cancels. */
@@ -302,6 +304,7 @@ export function registerSessionHandlers(
     // Checklist-based machine capability registry (replaces legacy detect-cli / detect-capabilities / dep-status).
     registerCapabilitiesHandlers(rpcHandlerManager, {
         hasSessionAgentTransition: opts?.hasSessionAgentTransition,
+        prewarm: opts?.prewarmCapabilities,
     });
     registerPreviewEnvHandler(rpcHandlerManager);
     registerSessionTransferRpcHandlers(rpcHandlerManager, {
