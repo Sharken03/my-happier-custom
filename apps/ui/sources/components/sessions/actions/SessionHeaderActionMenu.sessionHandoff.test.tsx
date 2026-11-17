@@ -376,6 +376,8 @@ vi.mock('@/sync/ops/sessionMachineTarget', async (importOriginal) => {
 
 vi.mock('@/sync/ops', async () => ({
   sessionDeleteWithServerScope: (await import('@/sync/ops/sessions')).sessionDeleteWithServerScope,
+  // A machine RPC after a delete; the daemon keeps the chat folder here.
+  machineCleanupDeletedChatFolder: async () => ({ success: true, removed: false }),
   sessionArchiveWithServerScope: (
     sessionId: string,
     opts?: Readonly<{ serverId?: string | null }>,
