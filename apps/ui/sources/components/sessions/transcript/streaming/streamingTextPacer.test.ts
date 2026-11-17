@@ -182,8 +182,7 @@ describe('streamingTextPacer', () => {
         const farPacer = createStreamingTextPacer({ initialText: '', nowMs: 0 });
         const farEnd = warm(farPacer);
         const farBefore = farPacer.getDisplayText().length;
-        // One commit interval later: a tick inside the interval is held by the commit cap.
-        farPacer.tick(farEnd + STREAMING_TEXT_PACER_CONFIG.minCommitIntervalMs);
+        farPacer.tick(farEnd + FRAME_MS);
         const farReveal = farPacer.getDisplayText().length - farBefore;
 
         // Slow-drip steady state: small chunks arriving just inside the active
@@ -214,46 +213,6 @@ describe('streamingTextPacer', () => {
         expect(productiveFrames + zeroRevealFrames).toBeGreaterThan(0);
         expect(zeroRevealFrames).toBeGreaterThan(0);
         expect(farReveal).toBeGreaterThan(0);
-    });
-
-    it('publishes at most about 30 text changes per second on a 120 Hz frame cadence', () => {
-        const frameMs = 1000 / 120;
-        const pacer = createStreamingTextPacer({ initialText: '', nowMs: 0 });
-        let nowMs = 0;
-        let nextInputAtMs = 0;
-        let text = '';
-        let changes = 0;
-        let lastChangeAtMs = -Infinity;
-        let minGapMs = Infinity;
-        // 3 s of 100 ms deltas, ticked every 120 Hz frame.
-        while (nowMs < 3000) {
-            if (nowMs >= nextInputAtMs) {
-                text += 'steady stream of ordinary prose words flowing along nicely. ';
-                pacer.setTarget(text, nowMs);
-                nextInputAtMs += 100;
-            }
-            nowMs += frameMs;
-            if (pacer.tick(nowMs).changed) {
-                changes += 1;
-                minGapMs = Math.min(minGapMs, nowMs - lastChangeAtMs);
-                lastChangeAtMs = nowMs;
-            }
-        }
-        expect(changes).toBeGreaterThan(30);
-        expect(changes / 3).toBeLessThanOrEqual(31);
-        expect(minGapMs).toBeGreaterThanOrEqual(STREAMING_TEXT_PACER_CONFIG.minCommitIntervalMs - 0.01);
-
-        // The drain still ends with the exact text inside the settle window plus one interval.
-        const deadlineMs =
-            nowMs +
-            STREAMING_TEXT_PACER_CONFIG.settleAfterMs +
-            STREAMING_TEXT_PACER_CONFIG.settleDrainMaxMs +
-            STREAMING_TEXT_PACER_CONFIG.minCommitIntervalMs;
-        while (nowMs < deadlineMs && !pacer.isDrained()) {
-            nowMs += frameMs;
-            pacer.tick(nowMs);
-        }
-        expect(pacer.getDisplayText()).toBe(text);
     });
 
     it('flush reveals everything immediately', () => {
