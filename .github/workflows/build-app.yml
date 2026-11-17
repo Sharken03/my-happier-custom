@@ -418,6 +418,9 @@ jobs:
           echo "cert_sha256=$(echo "$certs" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)" >> "$GITHUB_OUTPUT"
           mkdir -p dist/8t
           cp "$apk" "dist/8t/happier-${GITHUB_SHA::7}-arm64-v8a.apk"
+          # Diagnostic build: the Hermes source map, to symbolicate sampling profiler traces.
+          map="$(find apps/ui/android/app/build/generated/sourcemaps -name '*.map' -print -quit 2>/dev/null || true)"
+          if [ -n "$map" ]; then gzip -c "$map" > "dist/8t/happier-${GITHUB_SHA::7}-index.android.bundle.map.gz"; else echo "no source map found"; fi
           ls -l dist/8t
 
       - name: Publish

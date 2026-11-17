@@ -1,3 +1,4 @@
+import { diagCount } from '@/dev/streamDiagCounters';
 import * as React from 'react';
 import {
     getStorage,
@@ -300,6 +301,7 @@ const TRANSCRIPT_SCROLL_AUTO_REPIN_THROTTLE_MS = 200;
 const TRANSCRIPT_SCROLL_USER_INTENT_AUTO_PIN_DELAY_MS = 250;
 const TRANSCRIPT_SCROLL_USER_INTENT_RECENT_MS = 500;
 export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
+    diagCount('chatListInternal');
     // Historical Agent attribution, resolved once for the whole transcript.
     // A Session can change Agent without changing identity, and every tool row
     // below this point needs to know which Agent produced it. Rows look the
