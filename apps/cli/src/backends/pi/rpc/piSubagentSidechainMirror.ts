@@ -76,7 +76,8 @@ function readResultSessionFiles(results: unknown): string[] {
  * `action: "list"`).
  */
 /**
- * A foreground run reports its session files only when it ends. While it runs, the paths follow
+ * Before pi-subagents 0.89.0, a foreground run reports its session files only when it ends, and its
+ * progress rows name none. While it runs, the paths follow
  * pi-subagents' default layout: `<parent session file without .jsonl>/<runId>/run-<index>/session.jsonl`.
  * A configured session directory or a forked context uses other paths; those files never appear,
  * so the mirror sends nothing until the end event gives the real paths.
@@ -120,6 +121,12 @@ export function readPiSubagentSessionObservation(
   if (!callId) return null;
   const sessionFiles = readResultSessionFiles(details?.results);
   if (sessionFiles.length > 0) return { kind: 'sessions', callId, sessionFiles, final: type === 'tool_execution_end' };
+
+  // pi-subagents 0.89.0 and later name each running child's session file in its progress row.
+  const progressSessionFiles = readResultSessionFiles(details?.progress);
+  if (type === 'tool_execution_update' && progressSessionFiles.length > 0) {
+    return { kind: 'sessions', callId, sessionFiles: progressSessionFiles, final: false };
+  }
 
   const parentSessionFile = asNonEmptyString(options.parentSessionFile);
   if (type === 'tool_execution_update' && parentSessionFile && isAbsolute(parentSessionFile)) {
@@ -434,6 +441,9 @@ export function createPiSubagentSidechainMirror(params: {
       addSessionFile(sessionFiles, status.sessionFile);
       const steps = Array.isArray(status.steps) ? status.steps : [];
       for (const step of steps) addSessionFile(sessionFiles, asRecord(step)?.sessionFile);
+      // A workflow names its children's session files in `workflowChildren` (pi-subagents 0.89.0).
+      const children = asRecord(status.workflowChildren)?.children;
+      for (const child of Array.isArray(children) ? children : []) addSessionFile(sessionFiles, asRecord(child)?.sessionFile);
     }
     if (sessionFiles.length > 0) await enqueue(follow.callId, sessionFiles, false);
     const state = asNonEmptyString(status?.state);

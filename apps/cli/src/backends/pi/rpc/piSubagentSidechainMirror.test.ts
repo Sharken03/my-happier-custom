@@ -85,6 +85,29 @@ describe('readPiSubagentSessionObservation', () => {
     });
     expect(readPiSubagentSessionObservation(running)).toBeNull();
   });
+
+  it('uses the session files that the progress rows of a running foreground call name', () => {
+    // A forked context or a configured session directory puts the child outside the derived layout.
+    const running = {
+      type: 'tool_execution_update',
+      toolCallId: 'parent-call',
+      toolName: 'subagent',
+      partialResult: {
+        details: {
+          mode: 'single',
+          runId: 'run-7',
+          results: [{ agent: 'worker' }],
+          progress: [{ agent: 'worker', status: 'running', sessionFile: '/forks/child.jsonl' }],
+        },
+      },
+    };
+    expect(readPiSubagentSessionObservation(running, { parentSessionFile: '/s/2026_abc.jsonl' })).toEqual({
+      kind: 'sessions',
+      callId: 'parent-call',
+      sessionFiles: ['/forks/child.jsonl'],
+      final: false,
+    });
+  });
 });
 
 describe('createPiSubagentSidechainMirror', () => {
@@ -207,6 +230,30 @@ describe('async pi-subagents runs', () => {
         id: 'pi-subagent-parent-call-async-final',
       },
     ]);
+  });
+
+  it('mirrors the children that an async workflow names in its status', async () => {
+    const asyncDir = join(dir, 'workflow');
+    const sessionFile = join(dir, 'child.jsonl');
+    const sent: ACPMessageData[] = [];
+    const mirror = createPiSubagentSidechainMirror({
+      send: async (body) => {
+        sent.push(body);
+      },
+      asyncStatusPollMs: 5,
+    });
+    await writeFile(sessionFile, line(assistantEntry));
+    await mkdir(asyncDir);
+    await writeFile(join(asyncDir, 'status.json'), JSON.stringify({
+      state: 'running',
+      mode: 'workflow',
+      workflowChildren: { version: 1, children: [{ childId: 'c1', state: 'running', sessionFile }] },
+    }));
+    mirror.observe({ kind: 'async-launch', callId: 'parent-call', runId: 'wf-1', asyncDir });
+    await vi.waitFor(() => expect(sent.filter((body) => body.sidechainId === 'parent-call').length).toBe(3));
+    // Ending the run stops the poll.
+    await writeFile(join(asyncDir, 'status.json'), JSON.stringify({ state: 'complete', mode: 'workflow' }));
+    await vi.waitFor(() => expect(sent.some((body) => body.sidechainId === undefined)).toBe(true));
   });
 });
 
