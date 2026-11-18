@@ -8397,6 +8397,7 @@ settingsSession: {
                 groupTitle: "Images in replies",
                 groupFooter: "Show markdown images from hosts you trust. Images from other hosts stay hidden. Each image loads from its host when the chat opens.",
                 enabled: { title: "Show images from allowed hosts", subtitle: "A reply line that is only an image is shown as a picture" },
+                sharedImages: { title: "Show images the agent shares", subtitle: "An image the agent shows you appears full width in the chat" },
                 hosts: { title: "Allowed hosts", subtitle: "One host per line, for example happy.example.org. Only https links on these exact hosts are shown." },
             },
         layout: {

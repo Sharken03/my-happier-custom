@@ -9088,6 +9088,7 @@ settingsSession: {
             groupTitle: "返信内の画像",
             groupFooter: "信頼するホストのMarkdown画像を表示します。他のホストの画像は非表示のままです。各画像はチャットを開いたときにそのホストから読み込まれます。",
             enabled: { title: "許可したホストの画像を表示", subtitle: "画像だけの返信行を画像として表示します" },
+            sharedImages: { title: "エージェントが共有する画像を表示", subtitle: "エージェントが見せる画像をチャットの全幅で表示します" },
             hosts: { title: "許可するホスト", subtitle: "1行に1ホスト(例: happy.example.org)。これらのホストの https リンクのみ表示されます。" },
         },
         layout: {

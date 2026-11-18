@@ -8840,6 +8840,7 @@ settingsSession: {
             groupTitle: "Imágenes en respuestas",
             groupFooter: "Muestra imágenes markdown de hosts de confianza. Las imágenes de otros hosts siguen ocultas. Cada imagen se carga desde su host al abrir el chat.",
             enabled: { title: "Mostrar imágenes de hosts permitidos", subtitle: "Una línea de respuesta que solo es una imagen se muestra como imagen" },
+            sharedImages: { title: "Mostrar imágenes que comparte el agente", subtitle: "Una imagen que el agente te muestra aparece a todo el ancho del chat" },
             hosts: { title: "Hosts permitidos", subtitle: "Un host por línea, por ejemplo happy.example.org. Solo se muestran enlaces https de estos hosts exactos." },
         },
         layout: {

@@ -8365,6 +8365,7 @@ settingsSession: {
                 groupTitle: "Bilder in Antworten",
                 groupFooter: "Markdown-Bilder von vertrauenswürdigen Hosts anzeigen. Bilder von anderen Hosts bleiben verborgen. Jedes Bild wird beim Öffnen des Chats von seinem Host geladen.",
                 enabled: { title: "Bilder von erlaubten Hosts anzeigen", subtitle: "Eine Antwortzeile, die nur ein Bild ist, wird als Bild angezeigt" },
+                sharedImages: { title: "Bilder anzeigen, die der Agent teilt", subtitle: "Ein Bild, das der Agent zeigt, erscheint in voller Breite im Chat" },
                 hosts: { title: "Erlaubte Hosts", subtitle: "Ein Host pro Zeile, z. B. happy.example.org. Nur https-Links auf genau diesen Hosts werden angezeigt." },
             },
         layout: {

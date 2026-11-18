@@ -219,6 +219,14 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
             serializeCurrent: (value: unknown) => (Array.isArray(value) ? value.length : 0),
         },
     },
+    // 8T fork: the Happier show_image tool; see components/sessions/sessionMedia/sharedImageToolCall.ts.
+    transcriptSharedImagesEnabled: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show an image the agent shares with the show_image tool full width in the transcript, instead of as a tool call',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptMessageSendToSessionEnabled: {
         schema: z.boolean(),
         default: false,

@@ -9,6 +9,7 @@ import { installSessionSettingsCommonModuleMocks } from './sessionSettingsViewTe
 
 const setEnabled = vi.fn();
 const setHosts = vi.fn();
+const setSharedImagesEnabled = vi.fn();
 const state = vi.hoisted(() => ({ enabled: true as boolean }));
 
 installSessionSettingsCommonModuleMocks({
@@ -20,6 +21,7 @@ installSessionSettingsCommonModuleMocks({
                 useSettingMutable: (name: string) => {
                     if (name === 'transcriptMarkdownRemoteImagesEnabled') return [state.enabled, setEnabled];
                     if (name === 'transcriptMarkdownRemoteImageHosts') return [['happy.example.org'], setHosts];
+                    if (name === 'transcriptSharedImagesEnabled') return [true, setSharedImagesEnabled];
                     return [null, vi.fn()];
                 },
             },
@@ -62,6 +64,16 @@ describe('TranscriptMarkdownImagesSettingsGroup', () => {
         state.enabled = true;
         setEnabled.mockClear();
         setHosts.mockClear();
+        setSharedImagesEnabled.mockClear();
+    });
+
+    it('turns off images the agent shares, separately from the markdown image setting', async () => {
+        const { TranscriptMarkdownImagesSettingsGroup } = await import('./TranscriptMarkdownImagesSettingsGroup');
+        const screen = await renderSettingsView(React.createElement(TranscriptMarkdownImagesSettingsGroup));
+
+        screen.findByProps({ testID: 'settings-session-transcript-shared-images-enabled' }).props.onPress?.();
+        expect(setSharedImagesEnabled).toHaveBeenCalledWith(false);
+        expect(setEnabled).not.toHaveBeenCalled();
     });
 
     it('toggles the setting and saves the parsed hosts when the field loses focus', async () => {

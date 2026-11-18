@@ -8369,6 +8369,7 @@ settingsSession: {
                   groupTitle: "Imatges a les respostes",
                   groupFooter: "Mostra imatges markdown dels servidors de confiança. Les imatges d'altres servidors queden ocultes. Cada imatge es carrega del seu servidor quan s'obre el xat.",
                   enabled: { title: "Mostra imatges de servidors permesos", subtitle: "Una línia de resposta que només és una imatge es mostra com a imatge" },
+                  sharedImages: { title: "Mostra les imatges que comparteix l'agent", subtitle: "Una imatge que l'agent et mostra apareix a tota l'amplada del xat" },
                   hosts: { title: "Servidors permesos", subtitle: "Un servidor per línia, per exemple happy.example.org. Només es mostren enllaços https d'aquests servidors exactes." },
               },
         layout: {

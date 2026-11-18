@@ -8352,6 +8352,7 @@ settingsSession: {
                 groupTitle: "Images dans les réponses",
                 groupFooter: "Affiche les images markdown des hôtes de confiance. Les images des autres hôtes restent masquées. Chaque image est chargée depuis son hôte à l'ouverture du chat.",
                 enabled: { title: "Afficher les images des hôtes autorisés", subtitle: "Une ligne de réponse qui n'est qu'une image s'affiche comme image" },
+                sharedImages: { title: "Afficher les images partagées par l'agent", subtitle: "Une image que l'agent vous montre s'affiche en pleine largeur dans le chat" },
                 hosts: { title: "Hôtes autorisés", subtitle: "Un hôte par ligne, par exemple happy.example.org. Seuls les liens https de ces hôtes exacts sont affichés." },
             },
         layout: {

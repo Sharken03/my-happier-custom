@@ -9173,6 +9173,7 @@ settingsSession: {
             groupTitle: "Immagini nelle risposte",
             groupFooter: "Mostra immagini markdown da host attendibili. Le immagini da altri host restano nascoste. Ogni immagine viene caricata dal suo host all'apertura della chat.",
             enabled: { title: "Mostra immagini da host consentiti", subtitle: "Una riga di risposta che è solo un'immagine viene mostrata come immagine" },
+            sharedImages: { title: "Mostra le immagini condivise dall'agente", subtitle: "Un'immagine che l'agente ti mostra appare a tutta larghezza nella chat" },
             hosts: { title: "Host consentiti", subtitle: "Un host per riga, ad esempio happy.example.org. Vengono mostrati solo link https di questi host esatti." },
         },
         layout: {

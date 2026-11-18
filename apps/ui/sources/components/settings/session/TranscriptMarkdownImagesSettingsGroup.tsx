@@ -16,13 +16,15 @@ function hostsToText(hosts: unknown): string {
 }
 
 /**
- * Markdown images from allowed hosts: an on/off switch and the host list. The text field keeps
+ * Images in replies: the switch for images the agent shares with `show_image`, and markdown
+ * images from allowed hosts with an on/off switch and the host list. The text field keeps
  * a local draft and saves the parsed hosts when it loses focus, so a half-typed host is not stored.
  */
 export function TranscriptMarkdownImagesSettingsGroup() {
     const { theme } = useUnistyles();
     const [enabled, setEnabled] = useSettingMutable('transcriptMarkdownRemoteImagesEnabled');
     const [hosts, setHosts] = useSettingMutable('transcriptMarkdownRemoteImageHosts');
+    const [sharedImagesEnabled, setSharedImagesEnabled] = useSettingMutable('transcriptSharedImagesEnabled');
     const savedText = hostsToText(hosts);
     const [draft, setDraft] = React.useState(savedText);
 
@@ -41,6 +43,14 @@ export function TranscriptMarkdownImagesSettingsGroup() {
             title={t('settingsSession.transcript.markdownImages.groupTitle')}
             footer={t('settingsSession.transcript.markdownImages.groupFooter')}
         >
+            <Item
+                testID="settings-session-transcript-shared-images-enabled"
+                title={t('settingsSession.transcript.markdownImages.sharedImages.title')}
+                subtitle={t('settingsSession.transcript.markdownImages.sharedImages.subtitle')}
+                rightElement={<Switch value={sharedImagesEnabled === true} onValueChange={setSharedImagesEnabled} />}
+                showChevron={false}
+                onPress={() => setSharedImagesEnabled(!(sharedImagesEnabled === true))}
+            />
             <Item
                 testID="settings-session-transcript-markdown-images-enabled"
                 title={t('settingsSession.transcript.markdownImages.enabled.title')}

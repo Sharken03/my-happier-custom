@@ -7516,6 +7516,7 @@ settingsSession: {
                 groupTitle: "回覆中的圖片",
                 groupFooter: "顯示來自可信主機的 Markdown 圖片。其他主機的圖片保持隱藏。開啟聊天時，每張圖片從其主機載入。",
                 enabled: { title: "顯示允許主機的圖片", subtitle: "只包含一張圖片的回覆行將顯示為圖片" },
+                sharedImages: { title: "顯示代理分享的圖片", subtitle: "代理展示的圖片以聊天全寬顯示" },
                 hosts: { title: "允許的主機", subtitle: "每行一個主機，例如 happy.example.org。僅顯示這些主機上的 https 連結。" },
             },
             layout: {
