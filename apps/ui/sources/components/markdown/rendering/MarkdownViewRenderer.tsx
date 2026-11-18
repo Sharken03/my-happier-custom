@@ -14,6 +14,7 @@ import {
     readMarkdownRenderSegmentsCache,
     writeMarkdownRenderSegmentsCache,
 } from './markdownRenderSegmentsCache';
+import { reuseUnchangedMarkdownRenderSegments } from './reuseUnchangedMarkdownRenderSegments';
 import { splitMarkdownRenderSegments } from './splitMarkdownRenderSegments';
 import { StaticMarkdownRenderPlaceholder } from './StaticMarkdownRenderPlaceholder';
 import { useDelayedStaticMarkdownRenderPlaceholder } from './useDelayedStaticMarkdownRenderPlaceholder';
@@ -61,7 +62,7 @@ function readStreamingSegmentCache(params: Readonly<{
     preparedMarkdown: string;
     streamingMode: MarkdownStreamingMode;
     splitEnrichedSourceRanges: boolean;
-}>): readonly MarkdownRenderSegment[] | null {
+}>): MarkdownRenderSegment[] | null {
     if (params.streamingMode !== 'streaming') return null;
     if (params.splitEnrichedSourceRanges) return null;
     const key = typeof params.parseCacheKey === 'string' && params.parseCacheKey.length > 0
@@ -100,6 +101,8 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
     );
     const remoteImageHosts = props.remoteImageHosts ?? NO_REMOTE_IMAGE_HOSTS;
     const remoteImageHostsKey = remoteImageHosts.join(',');
+    // Last split for the same split options; reused per unchanged segment while a message grows.
+    const previousSplitRef = React.useRef<Readonly<{ options: string; segments: MarkdownRenderSegment[] }> | null>(null);
     const segments = React.useMemo(() => {
         const hosts = remoteImageHostsKey ? remoteImageHostsKey.split(',') : NO_REMOTE_IMAGE_HOSTS;
         // The streaming cache is keyed on the markdown only, as the static one; see the splitter.
@@ -110,16 +113,18 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
             streamingMode: props.streamingMode,
             splitEnrichedSourceRanges: sourceRangeInteractionsActive,
         }) : null;
-        if (cached) return cached;
-
-        const nextSegments = splitMarkdownRenderSegments({
+        const splitOptions = `${props.streamingMode}:${sourceRangeInteractionsActive}:${remoteImageHostsKey}`;
+        const previous = previousSplitRef.current?.options === splitOptions ? previousSplitRef.current.segments : null;
+        const nextSegments = reuseUnchangedMarkdownRenderSegments(previous, cached ?? splitMarkdownRenderSegments({
             markdown: preparedMarkdown,
             streamingMode: props.streamingMode,
             streamingRepair: 'prepared',
             splitEnrichedSourceRanges: sourceRangeInteractionsActive,
             remoteImageHosts: hosts,
-        });
-        if (streamCacheable) writeStreamingSegmentCache({
+        }));
+        previousSplitRef.current = { options: splitOptions, segments: nextSegments };
+        if (cached || !streamCacheable) return nextSegments;
+        writeStreamingSegmentCache({
             parseCacheKey: props.streamingParseCacheKey,
             preparedMarkdown,
             streamingMode: props.streamingMode,
