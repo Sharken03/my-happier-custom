@@ -21,6 +21,8 @@ export {
   CHANGE_TITLE_TOOL_NAME_ALIASES,
   isChangeTitleToolLikeName,
   isChangeTitleToolNameAlias,
+  isShowImageToolNameAlias,
+  SHOW_IMAGE_TOOL_NAME_ALIASES,
   type ChangeTitleToolNameAlias,
 } from './aliases.js';
 
