@@ -245,7 +245,7 @@ const settingsAppearanceTranslationExtension = {
       githubLight: 'GitHub Light',
       claudeCode: 'Claude Dark',
       claudeCodeDarker: 'Claude Darker',
-      claudeCodeLight: 'Claude Code Light',
+      claudeCodeLight: 'Claude Light',
     },
     readOnlyPreset: 'Read-only preset',
     clonePreset: 'Clone preset',
