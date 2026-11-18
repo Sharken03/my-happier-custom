@@ -44,7 +44,11 @@ async function setQuillSetting(enabled: boolean) {
 
 describe('ComposerStatusMark', () => {
     beforeEach(() => {
-        vi.stubGlobal('window', { matchMedia: () => motionPreference });
+        // A web window needs a location: config modules read its hostname when they load.
+        vi.stubGlobal('window', {
+            matchMedia: () => motionPreference,
+            location: { hostname: 'localhost', origin: 'http://localhost', href: 'http://localhost/', protocol: 'http:' },
+        });
         vi.stubGlobal('document', Object.assign(new EventTarget(), {
             visibilityState: 'visible',
             getElementById: () => null,
