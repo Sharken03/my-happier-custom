@@ -4313,7 +4313,7 @@ export class ApiSessionClient extends EventEmitter {
         });
     }
 
-    private prepareCodexMessage(body: any) {
+    private prepareCodexMessage(body: any, meta?: Record<string, unknown>) {
         const normalizedBody = normalizeCodexSessionMessageBody({
             body,
             toolCallCanonicalNameByProviderAndId: this.toolCallCanonicalNameByProviderAndId,
@@ -4328,6 +4328,7 @@ export class ApiSessionClient extends EventEmitter {
                 data: normalizedBody  // This wraps the entire Codex message
             },
             meta: {
+                ...meta,
                 sentFrom: 'cli',
                 source: 'cli',
             }
@@ -4336,8 +4337,8 @@ export class ApiSessionClient extends EventEmitter {
         return { normalizedBody, content };
     }
 
-    sendCodexMessage(body: any) {
-        const { normalizedBody, content } = this.prepareCodexMessage(body);
+    sendCodexMessage(body: any, opts?: { meta?: Record<string, unknown> }) {
+        const { normalizedBody, content } = this.prepareCodexMessage(body, opts?.meta);
 
         recordCodexToolTraceEventIfNeeded({ sessionId: this.sessionId, body: normalizedBody });
         

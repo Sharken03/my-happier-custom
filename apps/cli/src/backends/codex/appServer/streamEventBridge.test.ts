@@ -706,7 +706,7 @@ describe('createCodexAppServerStreamEventBridge', () => {
         ]);
     });
 
-    it('maps image blocks of MCP tool results to session media and keeps the bytes out of the tool result', () => {
+    it('puts image blocks of MCP tool results on the tool result as session media without the bytes', () => {
         const bridge = createCodexAppServerStreamEventBridge();
         bridge.onNotification({
             method: 'item/started',
@@ -744,10 +744,6 @@ describe('createCodexAppServerStreamEventBridge', () => {
                         { type: 'text', text: '{"shown":true}' },
                     ],
                 },
-            },
-            {
-                type: 'session-media',
-                itemId: 'tool_img',
                 media: [expect.objectContaining({
                     kind: 'base64',
                     data: 'iVBORw0KGgo=',

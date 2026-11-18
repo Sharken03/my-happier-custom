@@ -53,7 +53,7 @@ export type DeferredApiSessionTarget = Readonly<{
     body: unknown,
     opts: { localId: string; meta?: Record<string, unknown>; provenance?: SessionTranscriptObservationProvenanceV1 },
   ) => Promise<void>;
-  sendCodexMessage: (body: unknown) => void;
+  sendCodexMessage: (body: unknown, opts?: { meta?: Record<string, unknown> }) => void;
   sendCodexMessageCommitted?: (body: unknown, opts: { localId: string }) => Promise<unknown>;
   sendUserTextMessage: (text: string, opts?: { localId?: string; meta?: Record<string, unknown> }) => void;
   sendUserTextMessageCommitted?: (
@@ -354,17 +354,17 @@ export class DeferredApiSessionClient {
     );
   }
 
-  sendCodexMessage(_body: unknown): void {
+  sendCodexMessage(_body: unknown, _opts?: { meta?: Record<string, unknown> }): void {
     const target = this.target;
     if (target && !this.flushInFlight) {
-      target.sendCodexMessage(_body);
+      target.sendCodexMessage(_body, _opts);
       return;
     }
 
     if (this.cancelled) {
       return;
     }
-    this.pushBufferedCall((t) => t.sendCodexMessage(_body), { hint: 'sendCodexMessage' });
+    this.pushBufferedCall((t) => t.sendCodexMessage(_body, _opts), { hint: 'sendCodexMessage' });
   }
 
   sendCodexMessageCommitted(_body: unknown, _opts: { localId: string }): Promise<unknown> {

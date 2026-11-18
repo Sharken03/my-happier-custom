@@ -860,6 +860,18 @@ async function writeFakeCodexAppServerScript(params: Readonly<{
         '            }, 20);',
         '            continue;',
         '        }',
+        '        if (text === "bridge-mcp-show-image") {',
+        '            setTimeout(() => {',
+        '                process.stdout.write(JSON.stringify({ method: "item/started", params: { item: { id: "mcp_show_1", type: "mcpToolCall", server: "happier", tool: "show_image", arguments: { path: "chart.png" } } } }) + "\\n");',
+        '            }, 6);',
+        '            setTimeout(() => {',
+        '                process.stdout.write(JSON.stringify({ method: "item/completed", params: { item: { id: "mcp_show_1", type: "mcpToolCall", result: { Ok: { content: [{ type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" }, { type: "text", text: "{\\"shown\\":true}" }], isError: false } } } } }) + "\\n");',
+        '            }, 10);',
+        '            setTimeout(() => {',
+        '                process.stdout.write(JSON.stringify({ method: "turn/completed", params: { threadId: msg.params?.threadId ?? null, turn: { id: turnId } } }) + "\\n");',
+        '            }, 20);',
+        '            continue;',
+        '        }',
         '        if (text === "bridge-mcp-title-tool-completed-content-envelope") {',
         '            setTimeout(() => {',
         '                process.stdout.write(JSON.stringify({ method: "item/started", params: { item: { id: "mcp_title_content_1", type: "mcpToolCall", server: "happier", tool: "change_title", arguments: { title: "Content Envelope Title" } } } }) + "\\n");',
@@ -5930,6 +5942,50 @@ describe('createCodexAppServerRuntime', () => {
         });
         expect(JSON.stringify(finalAssistant?.opts.meta)).not.toContain('iVBORw0KGgo=');
         expect(JSON.stringify(finalAssistant?.opts.meta)).not.toContain('attachments.v1');
+    });
+
+    it('puts show_image media on the Codex tool-call-result message, like other providers', async () => {
+        const { root } = await createRuntimeFixture('happier-codex-app-server-runtime-show-image-');
+        const persistedMediaItem = {
+            id: 'media-show-1',
+            role: 'output',
+            category: 'tool-output',
+            mediaKind: 'image',
+            mimeType: 'image/png',
+            name: 'chart.png',
+            path: '.happier/uploads/tool-output/mcp_show_1/media-show-1.png',
+            sizeBytes: 8,
+            origin: { source: 'tool-output', toolCallId: 'mcp_show_1' },
+        } as const;
+        const session = {
+            updateMetadata: vi.fn(),
+            sendAgentMessageCommitted: vi.fn(async () => {}),
+            sendCodexMessage: vi.fn(),
+        };
+        const sessionMediaPersist = vi.fn(async (_message: RuntimeSessionMediaMessage) => ({
+            media: [persistedMediaItem],
+            unavailable: [],
+        }));
+        const runtime = createCodexAppServerRuntime({
+            directory: root,
+            onThinkingChange: vi.fn(),
+            session: session as any,
+            sessionMedia: { persist: sessionMediaPersist },
+        });
+
+        await runtime.startOrLoad({});
+        await runtime.sendPrompt('bridge-mcp-show-image');
+
+        expect(sessionMediaPersist).toHaveBeenCalledOnce();
+        const resultCall = (session.sendCodexMessage.mock.calls as unknown as Array<[{ type?: string; callId?: string; output?: unknown }, { meta?: Record<string, any> }?]>)
+            .find(([body]) => body?.type === 'tool-call-result' && body.callId === 'mcp_show_1');
+        expect(resultCall?.[1]?.meta).toMatchObject({
+            happier: { kind: 'session_media.v1', payload: { media: [persistedMediaItem] } },
+        });
+        expect(JSON.stringify(resultCall?.[0]?.output)).not.toContain('iVBORw0KGgo=');
+        const committedMeta = session.sendAgentMessageCommitted.mock.calls
+            .map((call) => JSON.stringify((call as unknown[])[2] ?? null));
+        expect(committedMeta.some((meta) => meta.includes('media-show-1'))).toBe(false);
     });
 
     it('bounds large and mixed persister results to the canonical combined media envelope limit', async () => {

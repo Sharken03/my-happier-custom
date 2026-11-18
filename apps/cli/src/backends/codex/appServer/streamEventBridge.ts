@@ -42,7 +42,7 @@ export type CodexAppServerStreamUpdate =
     | Readonly<{ type: 'context-compaction'; phase: 'started' | 'completed'; itemId: string }>
     | Readonly<{ type: 'turn-diff-updated'; turnId: string | null; unifiedDiff: string }>
     | Readonly<{ type: 'tool-call'; toolKind: ToolKind; callId: string; name: string; input: unknown }>
-    | Readonly<{ type: 'tool-result'; toolKind: ToolKind; callId: string; name?: string; input?: unknown; output: unknown }>
+    | Readonly<{ type: 'tool-result'; toolKind: ToolKind; callId: string; name?: string; input?: unknown; output: unknown; media?: SessionMediaSource[] }>
     | Readonly<{
         type: 'approval-request';
         requestKind: 'command-execution' | 'file-change';
@@ -233,8 +233,8 @@ function replaceInlineMediaData(value: unknown, data: ReadonlySet<string>): unkn
 }
 
 /**
- * Image blocks in an MCP tool result (for example from show_image) become session media,
- * as image generation results do. The tool result keeps a placeholder instead of the bytes.
+ * Image blocks in an MCP tool result (for example from show_image) become session media on the
+ * tool result, as for the other providers. The output keeps a placeholder instead of the bytes.
  */
 function withMcpToolResultMedia(
     itemId: string,
@@ -402,8 +402,8 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
                     name: synthesizedToolContext.name,
                     input: synthesizedToolContext.input,
                     output: toolResult.output,
+                    ...(toolResult.media.length > 0 ? { media: toolResult.media } : {}),
                 },
-                ...(toolResult.media.length > 0 ? [{ type: 'session-media' as const, itemId, media: toolResult.media }] : []),
             ];
             if (rememberedToolContext) return resultUpdates;
             return [
