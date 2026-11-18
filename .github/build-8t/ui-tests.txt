@@ -56,3 +56,13 @@ sources/components/sessions/piExtensionUi/piExtensionUiStatusBadges.test.tsx
 sources/components/sessions/workState/sessionActivityPresentation.test.ts
 sources/components/sessions/shell/useInactiveSessionRunnerPrewarm.test.ts
 sources/sync/domains/session/listing/computeVisibleSessionListIndex.test.ts
+sources/__tests__/routes/(app)/rootLayout.friendsHeaderRight.test.tsx
+sources/__tests__/routes/(app)/rootLayout.headerClose.test.tsx
+sources/__tests__/routes/(app)/rootLayout.notifications.spec.tsx
+sources/__tests__/routes/(app)/rootLayout.pets.spec.tsx
+sources/__tests__/routes/(app)/rootLayout.serverOverride.spec.tsx
+sources/components/sessions/agentInput/components/ComposerStatusMark.test.tsx
+sources/activity/notifications/runtime/PermissionRequestHapticsRuntime.test.ts
+sources/components/navigation/connectionStatus/connectionRecoveryTracker.test.ts
+sources/components/navigation/connectionStatus/ConnectionRecoveryBanner.test.tsx
+sources/components/sessions/transcript/MessageView.copyButtonHitSlop.test.tsx
