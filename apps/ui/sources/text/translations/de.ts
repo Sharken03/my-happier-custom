@@ -8043,6 +8043,8 @@ settingsSession: {
 	              activeColorAttentionOnlySubtitle: 'Die aktive Farbe nur für Sessions nutzen, die deine Aufmerksamkeit brauchen.',
 	              activeColorAllActiveTitle: 'Alle aktiven Sessions',
 	              activeColorAllActiveSubtitle: 'Die aktive Farbe für jede aktive verbundene Session nutzen.',
+	              highlightAttentionTitle: "Sessions mit Neuem hervorheben",
+	              highlightAttentionSubtitle: "Eine Zeile mit neuer Antwort, Anfrage oder Fehler behält einen dunklen, fetten Titel, auch wenn der Agent offline ist.",
 	              folderSortModeTitle: 'Reihenfolge der Ordner',
 	              folderSortModeSubtitle: 'Lege fest, wie Ordner und Sessions sich die Liste teilen.',
 	              folderSortModeFoldersFirstTitle: 'Ordner zuerst',

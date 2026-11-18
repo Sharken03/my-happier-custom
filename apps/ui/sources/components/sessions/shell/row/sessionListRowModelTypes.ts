@@ -39,6 +39,8 @@ export type SessionListRowPresentationSettings = Readonly<{
     compactMinimal: boolean;
     identityDisplay: 'avatar' | 'agentLogo' | 'none';
     activeColorMode: 'activityAndAttention' | 'attentionOnly' | 'allActive';
+    /** Rows that wait for the user keep the primary title color, also offline. */
+    highlightAttention?: boolean;
     workingIndicatorMode: 'spinner' | 'pulse';
     workingTextMode: 'animated' | 'static';
     backgroundWorkAttentionMode?: SessionListBackgroundWorkAttentionMode;
@@ -155,6 +157,8 @@ export type SessionListRowModel = Readonly<{
     compactMinimal: boolean;
     identityDisplay: 'avatar' | 'agentLogo' | 'none';
     activeColorMode: 'activityAndAttention' | 'attentionOnly' | 'allActive';
+    /** Rows that wait for the user keep the primary title color, also offline. */
+    highlightAttention?: boolean;
     workingIndicatorMode: 'spinner' | 'pulse';
     /** Retained working placement: show the working indicator without animation. */
     workingIndicatorPaused: boolean;

@@ -8747,6 +8747,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: '注意が必要なセッションにのみアクティブ色を使います。',
 	        activeColorAllActiveTitle: 'すべてのアクティブセッション',
 	        activeColorAllActiveSubtitle: 'アクティブで接続中のすべてのセッションにアクティブ色を使います。',
+	        highlightAttentionTitle: "新着のあるセッションを強調",
+	        highlightAttentionSubtitle: "新しい返信・リクエスト・エラーがある行は、エージェントがオフラインでもタイトルを濃い太字で表示します。",
 	        folderSortModeTitle: 'フォルダーの順序',
 	        folderSortModeSubtitle: 'フォルダーとセッションをリスト内でどう並べるかを選びます。',
 	        folderSortModeFoldersFirstTitle: 'フォルダーを先に表示',

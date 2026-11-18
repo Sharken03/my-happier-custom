@@ -188,6 +188,7 @@ type SessionItemRenderProps = Omit<SessionItemBaseProps, 'activityTimeMode' | 's
     rowAttentionAnimationEnabled: boolean;
     sessionListIdentityDisplay: SessionListIdentityDisplay;
     sessionListActiveColorMode: SessionItemActiveColorMode;
+    sessionListHighlightAttention?: boolean;
     hideInactiveSessions: boolean;
 }>;
 
@@ -739,6 +740,7 @@ const SessionItemContent = React.memo(
         rowAttentionAnimationEnabled,
         sessionListIdentityDisplay,
         sessionListActiveColorMode,
+        sessionListHighlightAttention,
         hideInactiveSessions,
     }: SessionItemRenderProps) => {
         const styles = stylesheet;
@@ -1283,6 +1285,7 @@ const SessionItemContent = React.memo(
             isSessionActive: resolvedSession.active === true,
             attentionState: rowAttentionState,
             titleTone: rowPresentation.titleTone,
+            highlightAttention: sessionListHighlightAttention,
         });
         const sessionTitleColor = theme.colors.text[sessionTitleColorRole];
         const sessionTitleStyle = [
@@ -1919,6 +1922,7 @@ function SessionItemFromRowModel(props: SessionItemProps & { rowModel: SessionLi
             rowAttentionAnimationEnabled={itemProps.rowAttentionAnimationEnabled !== false}
             sessionListIdentityDisplay={normalizeSessionListIdentityDisplay(rowModel.identityDisplay)}
             sessionListActiveColorMode={normalizeSessionItemActiveColorMode(rowModel.activeColorMode)}
+            sessionListHighlightAttention={rowModel.highlightAttention === true}
             hideInactiveSessions={itemProps.hideInactiveSessions ?? rowModel.hideInactiveSessions}
         />
     );

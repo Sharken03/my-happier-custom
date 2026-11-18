@@ -8477,6 +8477,8 @@ settingsSession: {
 	          activeColorAttentionOnlySubtitle: 'Usa el color activo solo para sesiones que necesitan tu atención.',
 	          activeColorAllActiveTitle: 'Todas las sesiones activas',
 	          activeColorAllActiveSubtitle: 'Usa el color activo para cada sesión activa y conectada.',
+	          highlightAttentionTitle: "Resaltar sesiones con novedades",
+	          highlightAttentionSubtitle: "Una fila con una respuesta nueva, una solicitud o un error mantiene el título oscuro y en negrita, aunque el agente esté desconectado.",
 	          folderSortModeTitle: 'Orden de carpetas',
 	          folderSortModeSubtitle: 'Elige cómo comparten la lista las carpetas y las sesiones.',
 	          folderSortModeFoldersFirstTitle: 'Carpetas primero',

@@ -8607,6 +8607,8 @@ settingsSession: {
 	          activeColorAttentionOnlySubtitle: 'Use a cor ativa apenas para sessões que precisam da sua atenção.',
 	          activeColorAllActiveTitle: 'Todas as sessões ativas',
 	          activeColorAllActiveSubtitle: 'Use a cor ativa para cada sessão ativa e conectada.',
+	          highlightAttentionTitle: "Destacar sessões com novidades",
+	          highlightAttentionSubtitle: "Uma linha com nova resposta, pedido ou erro mantém o título escuro e em negrito, mesmo com o agente offline.",
 	          folderSortModeTitle: 'Ordem das pastas',
 	          folderSortModeSubtitle: 'Escolha como pastas e sessões compartilham a lista.',
 	          folderSortModeFoldersFirstTitle: 'Pastas primeiro',

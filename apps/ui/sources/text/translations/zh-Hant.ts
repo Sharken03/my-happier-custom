@@ -7212,6 +7212,8 @@ settingsSession: {
 	              activeColorAttentionOnlySubtitle: '僅對需要你注意的工作階段使用作用中色彩。',
 	              activeColorAllActiveTitle: '所有作用中工作階段',
 	              activeColorAllActiveSubtitle: '對每個作用中且已連線的工作階段使用作用中色彩。',
+	              highlightAttentionTitle: "醒目顯示有新內容的工作階段",
+	              highlightAttentionSubtitle: "有新回覆、請求或錯誤的列即使代理程式離線，也保持深色粗體標題。",
 	              folderSortModeTitle: '資料夾順序',
 	              folderSortModeSubtitle: '選擇資料夾與工作階段如何共用列表。',
 	              folderSortModeFoldersFirstTitle: '資料夾優先',

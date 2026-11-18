@@ -61,6 +61,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [sessionListDensity, setSessionListDensity] = useSettingMutable('sessionListDensity');
     const [sessionListIdentityDisplay, setSessionListIdentityDisplay] = useSettingMutable('sessionListIdentityDisplay');
     const [sessionListActiveColorMode, setSessionListActiveColorMode] = useSettingMutable('sessionListActiveColorModeV1');
+    const [sessionListHighlightAttention, setSessionListHighlightAttention] = useSettingMutable('sessionListHighlightAttention');
     const [sessionListAttentionPromotionMode, setSessionListAttentionPromotionMode] = useSettingMutable('sessionListAttentionPromotionModeV1');
     const [sessionListBackgroundWorkAttentionMode, setSessionListBackgroundWorkAttentionMode] = useSettingMutable('sessionListBackgroundWorkAttentionModeV1');
     const [sessionListAttentionStandingDefault, setSessionListAttentionStandingDefault] = useSettingMutable('sessionListAttentionStandingDefaultV1');
@@ -844,6 +845,15 @@ export default React.memo(function SessionSettingsScreen() {
                     }}
                     items={sessionListActiveColorModeItems}
                     onSelect={handleSessionListActiveColorModeSelect}
+                />
+                <Item
+                    testID="settings-session-sessionListHighlightAttention"
+                    title={t('settingsSession.sessionList.highlightAttentionTitle')}
+                    subtitle={t('settingsSession.sessionList.highlightAttentionSubtitle')}
+                    icon={<Icon name="text-b" size={29} color={theme.colors.accent.purple} />}
+                    rightElement={<Switch value={sessionListHighlightAttention === true} onValueChange={setSessionListHighlightAttention} />}
+                    showChevron={false}
+                    onPress={() => setSessionListHighlightAttention(!(sessionListHighlightAttention === true))}
                 />
                 <DropdownMenu
                     open={openWorkspacePathDisplayMenu}

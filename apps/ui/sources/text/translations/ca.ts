@@ -8040,6 +8040,8 @@ settingsSession: {
 	                activeColorAttentionOnlySubtitle: 'Fes servir el color actiu només per a sessions que necessiten la teva atenció.',
 	                activeColorAllActiveTitle: 'Totes les sessions actives',
 	                activeColorAllActiveSubtitle: 'Fes servir el color actiu per a cada sessió activa i connectada.',
+	                highlightAttentionTitle: "Destaca les sessions amb novetats",
+	                highlightAttentionSubtitle: "Una fila amb una resposta nova, una sol·licitud o un error manté el títol fosc i en negreta, encara que l’agent estigui fora de línia.",
 	                folderSortModeTitle: 'Ordre de carpetes',
 	                folderSortModeSubtitle: 'Tria com comparteixen la llista les carpetes i les sessions.',
 	                folderSortModeFoldersFirstTitle: 'Carpetes primer',

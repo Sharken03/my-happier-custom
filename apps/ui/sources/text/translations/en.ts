@@ -8075,6 +8075,8 @@ settingsSession: {
 	              activeColorAttentionOnlySubtitle: 'Use active color only for sessions that need your attention.',
 	              activeColorAllActiveTitle: 'All active sessions',
 	              activeColorAllActiveSubtitle: 'Use active color for every active connected session.',
+	              highlightAttentionTitle: "Highlight sessions with news",
+	              highlightAttentionSubtitle: "A row with a new reply, a request or an error keeps a dark, bold title, also when the agent is offline.",
 	              folderSortModeTitle: 'Folder order',
 	              folderSortModeSubtitle: 'Choose how folders and sessions share the list.',
 	              folderSortModeFoldersFirstTitle: 'Folders first',

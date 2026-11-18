@@ -8242,6 +8242,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: '仅为需要你注意的会话使用活跃颜色。',
 	        activeColorAllActiveTitle: '所有活跃会话',
 	        activeColorAllActiveSubtitle: '为每个活跃且已连接的会话使用活跃颜色。',
+	        highlightAttentionTitle: "突出显示有新内容的会话",
+	        highlightAttentionSubtitle: "有新回复、请求或错误的行即使代理离线，也保持深色粗体标题。",
 	        folderSortModeTitle: '文件夹顺序',
 	        folderSortModeSubtitle: '选择文件夹和会话如何共用列表。',
 	        folderSortModeFoldersFirstTitle: '文件夹优先',

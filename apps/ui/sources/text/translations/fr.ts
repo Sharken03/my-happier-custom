@@ -8030,6 +8030,8 @@ settingsSession: {
 	              activeColorAttentionOnlySubtitle: 'Utilise la couleur active uniquement pour les sessions qui demandent ton attention.',
 	              activeColorAllActiveTitle: 'Toutes les sessions actives',
 	              activeColorAllActiveSubtitle: 'Utilise la couleur active pour toutes les sessions actives connectées.',
+	              highlightAttentionTitle: "Mettre en avant les sessions avec du nouveau",
+	              highlightAttentionSubtitle: "Une ligne avec une nouvelle réponse, une demande ou une erreur garde un titre sombre et gras, même si l’agent est hors ligne.",
 	              folderSortModeTitle: 'Ordre des dossiers',
 	              folderSortModeSubtitle: 'Choisis comment dossiers et sessions se partagent la liste.',
 	              folderSortModeFoldersFirstTitle: 'Dossiers d’abord',

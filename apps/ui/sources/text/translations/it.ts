@@ -8826,6 +8826,8 @@ settingsSession: {
 	          activeColorAttentionOnlySubtitle: 'Usa il colore attivo solo per le sessioni che richiedono la tua attenzione.',
 	          activeColorAllActiveTitle: 'Tutte le sessioni attive',
 	          activeColorAllActiveSubtitle: 'Usa il colore attivo per ogni sessione attiva e connessa.',
+	          highlightAttentionTitle: "Evidenzia le sessioni con novità",
+	          highlightAttentionSubtitle: "Una riga con una nuova risposta, una richiesta o un errore mantiene il titolo scuro e in grassetto, anche se l’agente è offline.",
 	          folderSortModeTitle: 'Ordine cartelle',
 	          folderSortModeSubtitle: 'Scegli come cartelle e sessioni condividono l’elenco.',
 	          folderSortModeFoldersFirstTitle: 'Prima le cartelle',

@@ -8473,6 +8473,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: 'Использовать активный цвет только для сессий, требующих вашего внимания.',
 	        activeColorAllActiveTitle: 'Все активные сессии',
 	        activeColorAllActiveSubtitle: 'Использовать активный цвет для каждой активной подключенной сессии.',
+	        highlightAttentionTitle: "Выделять сессии с новым",
+	        highlightAttentionSubtitle: "Строка с новым ответом, запросом или ошибкой сохраняет тёмный жирный заголовок, даже если агент не в сети.",
 	        folderSortModeTitle: 'Порядок папок',
 	        folderSortModeSubtitle: 'Выберите, как папки и сессии располагаются в списке.',
 	        folderSortModeFoldersFirstTitle: 'Сначала папки',

@@ -647,6 +647,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
     const sessionListAgentActivityCountEnabled = useSetting('sessionListAgentActivityCountEnabled');
     const sessionListIdentityDisplay = useSessionListIdentityDisplay();
     const sessionListActiveColorMode = useSetting('sessionListActiveColorModeV1');
+    const sessionListHighlightAttention = useSetting('sessionListHighlightAttention') === true;
     const sessionListSectionModeRaw = useSetting('sessionListSectionModeV1');
     const sessionListShowArchivedLink = useSetting('showArchivedSessionsLink') !== false;
     const sessionReplayEnabled = useSetting('sessionReplayEnabled');
@@ -944,6 +945,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
             compactMinimal,
             identityDisplay: sessionListIdentityDisplay,
             activeColorMode: normalizeActiveColorMode(sessionListActiveColorMode),
+            highlightAttention: sessionListHighlightAttention,
             workingIndicatorMode: normalizeWorkingIndicatorMode(sessionListWorkingIndicatorStyle),
             workingTextMode: 'static',
             backgroundWorkAttentionMode,
@@ -981,6 +983,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableSessionDisplayByKeyRecord,
         sessionListAgentActivityCountEnabled,
         sessionListActiveColorMode,
+        sessionListHighlightAttention,
         sessionListIdentityDisplay,
         sessionListWorkingIndicatorStyle,
         backgroundWorkAttentionMode,
@@ -2106,6 +2109,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableDisplaySignature,
         rowLabelsSignature,
         sessionListActiveColorMode: rowPresentationSettings.activeColorMode,
+        sessionListHighlightAttention: rowPresentationSettings.highlightAttention === true,
         sessionListAgentActivityCountEnabled: rowPresentationSettings.agentActivityCountEnabled,
         sessionListHideInactiveSessions: rowPresentationSettings.hideInactiveSessions,
         sessionListIdentityDisplay: rowPresentationSettings.identityDisplay,
@@ -2148,6 +2152,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableDisplaySignature,
         rowLabelsSignature,
         rowPresentationSettings.activeColorMode,
+        rowPresentationSettings.highlightAttention,
         rowPresentationSettings.agentActivityCountEnabled,
         rowPresentationSettings.hideInactiveSessions,
         rowPresentationSettings.identityDisplay,

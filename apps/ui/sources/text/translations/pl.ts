@@ -8489,6 +8489,8 @@ settingsSession: {
 	          activeColorAttentionOnlySubtitle: 'Używaj aktywnego koloru tylko dla sesji wymagających Twojej uwagi.',
 	          activeColorAllActiveTitle: 'Wszystkie aktywne sesje',
 	          activeColorAllActiveSubtitle: 'Używaj aktywnego koloru dla każdej aktywnej i połączonej sesji.',
+	          highlightAttentionTitle: "Wyróżniaj sesje z nowościami",
+	          highlightAttentionSubtitle: "Wiersz z nową odpowiedzią, prośbą lub błędem ma ciemny, pogrubiony tytuł, także gdy agent jest offline.",
 	          folderSortModeTitle: 'Kolejność folderów',
 	          folderSortModeSubtitle: 'Wybierz, jak foldery i sesje współdzielą listę.',
 	          folderSortModeFoldersFirstTitle: 'Najpierw foldery',
