@@ -2,10 +2,15 @@ import * as React from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
-import { AttachmentImagePreviewModal } from '@/components/sessions/attachments/preview/AttachmentImagePreviewModal';
+import { buildMarkdownRemoteViewerImage } from '@/components/sessions/attachments/preview/chatImageGallery';
+import {
+    openChatImageViewer,
+    useChatImageGallerySessionId,
+} from '@/components/sessions/attachments/preview/openChatImageViewer';
 import { Icon } from '@/components/ui/icons/Icon';
 import { Text } from '@/components/ui/text/Text';
-import { Modal } from '@/modal';
+
+import { markdownRemoteImageTitle } from './markdownRemoteImages';
 
 /** Space above and below the box, except at the start and end of the markdown. */
 export const MARKDOWN_REMOTE_IMAGE_MARGIN_PX = 8;
@@ -23,13 +28,11 @@ export const MarkdownRemoteImage = React.memo(function MarkdownRemoteImage(props
 }>) {
     const { theme } = useUnistyles();
     const [failed, setFailed] = React.useState(false);
-    const title = props.alt || hostOf(props.url);
+    const title = markdownRemoteImageTitle(props.url, props.alt);
+    const sessionId = useChatImageGallerySessionId();
     const onPress = React.useCallback(() => {
-        Modal.show({
-            component: AttachmentImagePreviewModal,
-            props: { images: [{ kind: 'direct', uri: props.url, title }], initialIndex: 0 },
-        });
-    }, [props.url, title]);
+        openChatImageViewer({ sessionId, image: buildMarkdownRemoteViewerImage(props.url, props.alt) });
+    }, [props.alt, props.url, sessionId]);
 
     return (
         <Pressable
@@ -62,14 +65,6 @@ export const MarkdownRemoteImage = React.memo(function MarkdownRemoteImage(props
         </Pressable>
     );
 });
-
-function hostOf(url: string): string {
-    try {
-        return new URL(url).hostname;
-    } catch {
-        return url;
-    }
-}
 
 const styles = StyleSheet.create((theme) => ({
     box: {

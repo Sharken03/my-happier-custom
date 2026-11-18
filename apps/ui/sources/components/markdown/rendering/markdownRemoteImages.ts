@@ -69,3 +69,13 @@ export function readStandaloneMarkdownRemoteImage(source: string, hosts: readonl
     if (!isAllowedMarkdownRemoteImageUrl(url, hosts)) return null;
     return { url, alt: match[1]!.trim() };
 }
+
+/** The viewer title of a markdown image: its alt text, else the host of its URL. */
+export function markdownRemoteImageTitle(url: string, alt: string): string {
+    if (alt) return alt;
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return url;
+    }
+}

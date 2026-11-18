@@ -28,6 +28,7 @@ import { AttachmentFilePicker } from '@/components/sessions/attachments/Attachme
 import type { AttachmentDraft } from '@/components/sessions/attachments/attachmentDraftModel';
 import type { AttachmentFilePickerHandle, PickedAttachment } from '@/components/sessions/attachments/AttachmentFilePicker.types';
 import { openAttachmentFilePickerFiles, openAttachmentFilePickerImages } from '@/components/sessions/attachments/attachmentFilePickerActions';
+import { ChatImageGallerySessionProvider } from '@/components/sessions/attachments/preview/openChatImageViewer';
 import { resolveReviewCommentDraftAnchorsForPrompt } from '@/components/sessions/reviews/comments/resolveReviewCommentDraftAnchorsForPrompt';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
 import { useSessionFileUploadAvailability } from '@/components/sessions/files/useSessionFileUploadAvailability';
@@ -2227,21 +2228,23 @@ const SessionTranscriptContent = React.memo(function SessionTranscriptContent({
     return (
         <Deferred enabled={transcriptCanMountWithoutDeferredWindow} fallback={transcriptDeferredFallback}>
             {shouldRenderChatTimeline ? (
-                <ChatList
-                    session={session}
-                    bottomNotice={bottomNotice}
-                    controlledByUserOverride={controlledByUserOverride}
-                    controlSwitchTo={controlSwitchTo}
-                    onRequestSwitchToRemote={onRequestSwitchToRemote}
-                    directControlFooter={directControlFooter}
-                    approvalRequests={approvalRequests}
-                    jumpToSeq={jumpToSeq}
-                    followBottomIntentKey={followBottomIntentKey}
-                    onJumpLanded={handleTranscriptJumpLanded}
-                    onViewportChange={onViewportChange}
-                    onEditPendingMessage={onEditPendingMessage}
-                    routeHydrationPending={routeHydrationPending}
-                />
+                <ChatImageGallerySessionProvider value={sessionId}>
+                    <ChatList
+                        session={session}
+                        bottomNotice={bottomNotice}
+                        controlledByUserOverride={controlledByUserOverride}
+                        controlSwitchTo={controlSwitchTo}
+                        onRequestSwitchToRemote={onRequestSwitchToRemote}
+                        directControlFooter={directControlFooter}
+                        approvalRequests={approvalRequests}
+                        jumpToSeq={jumpToSeq}
+                        followBottomIntentKey={followBottomIntentKey}
+                        onJumpLanded={handleTranscriptJumpLanded}
+                        onViewportChange={onViewportChange}
+                        onEditPendingMessage={onEditPendingMessage}
+                        routeHydrationPending={routeHydrationPending}
+                    />
+                </ChatImageGallerySessionProvider>
             ) : null}
         </Deferred>
     );

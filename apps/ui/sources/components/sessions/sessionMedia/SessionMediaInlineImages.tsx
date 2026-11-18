@@ -7,13 +7,11 @@ import {
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
-import { Modal } from '@/modal';
 import { t } from '@/text';
 import { useSessionImagePreview } from '@/components/sessions/files/content/imagePreview/useSessionImagePreview';
-import {
-    AttachmentImagePreviewModal,
-    type AttachmentImagePreviewModalImage,
-} from '@/components/sessions/attachments/preview/AttachmentImagePreviewModal';
+import type { AttachmentImagePreviewModalImage } from '@/components/sessions/attachments/preview/AttachmentImagePreviewModal';
+import { buildSessionMediaViewerImage } from '@/components/sessions/attachments/preview/chatImageGallery';
+import { openChatImageViewer } from '@/components/sessions/attachments/preview/openChatImageViewer';
 import * as FlashListCompat from '@/components/ui/lists/flashListCompat/FlashListCompat';
 import { SafeNativeSvgXml } from '@/components/ui/media/SafeNativeSvgXml';
 import type { SessionMediaInlineImageSummary } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
@@ -209,15 +207,7 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
             result.push({
                 media,
                 mimeType,
-                modalImage: {
-                    kind: 'session-image',
-                    title: media.name,
-                    sessionId: props.sessionId,
-                    filePath: media.path,
-                    mimeType,
-                    sizeBytes: media.sizeBytes,
-                    cacheKey: media.sha256 ?? null,
-                },
+                modalImage: buildSessionMediaViewerImage(props.sessionId, media, mimeType),
             });
         }
         return result;
@@ -258,12 +248,12 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
                         imageTestIDPrefix={imageTestIDPrefix}
                         previewTestIDPrefix={previewTestIDPrefix}
                         onOpenPreview={(imageIndex) => {
-                            Modal.show({
-                                component: AttachmentImagePreviewModal,
-                                props: {
-                                    images: images.map((imageEntry) => imageEntry.modalImage),
-                                    initialIndex: imageIndex,
-                                },
+                            const image = images[imageIndex]?.modalImage;
+                            if (!image) return;
+                            openChatImageViewer({
+                                sessionId: props.sessionId,
+                                image,
+                                siblings: images.map((imageEntry) => imageEntry.modalImage),
                             });
                         }}
                     />
