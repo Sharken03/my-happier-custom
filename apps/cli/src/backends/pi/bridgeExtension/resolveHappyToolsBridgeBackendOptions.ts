@@ -118,6 +118,7 @@ export async function resolveHappyToolsBridgeBackendOptions(params: Readonly<{
       executionRunsFeatureEnabled: false,
       memoryRecallGuidanceEnabled: memoryGuidanceEnabled,
       sessionTitleToolAvailable: directToolNames.has('change_title'),
+      showImageToolAvailable: directToolNames.has('show_image'),
     })),
     sessionTitleReminder: resolvePiSessionTitleReminder({
       settings: params.settings,
