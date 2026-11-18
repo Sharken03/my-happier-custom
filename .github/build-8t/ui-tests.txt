@@ -66,3 +66,4 @@ sources/activity/notifications/runtime/PermissionRequestHapticsRuntime.test.ts
 sources/components/navigation/connectionStatus/connectionRecoveryTracker.test.ts
 sources/components/navigation/connectionStatus/ConnectionRecoveryBanner.test.tsx
 sources/components/sessions/transcript/MessageView.copyButtonHitSlop.test.tsx
+sources/components/sessions/transcript/MessageView.userBubbleWidth.test.tsx
