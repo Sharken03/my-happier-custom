@@ -9103,6 +9103,7 @@ settingsSession: {
         toolAppearanceTitle: "ツールの見た目",
         toolAppearanceSubtitle:
           "トランスクリプト内のツール表示をカスタマイズします。",
+        workingQuill: { title: "作業中の羽ペン", subtitle: "エージェントの作業中、ステータス行で点滅する点の代わりに羽ペンがページに書きます。" },
         motionTitle: "モーション",
         motionFooter: "トランスクリプトのアニメーションを制御します。",
         motionPickerTitle: "アニメーション",

@@ -70,6 +70,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
     const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
+    const [composerWorkingQuillMarkEnabled, setComposerWorkingQuillMarkEnabled] = useSettingMutable('composerWorkingQuillMarkEnabled');
     const [transcriptMessageSendToSessionEnabled, setTranscriptMessageSendToSessionEnabled] = useSettingMutable('transcriptMessageSendToSessionEnabled');
     const [transcriptMessageSendToSessionTemplate, setTranscriptMessageSendToSessionTemplate] = useSettingMutable('transcriptMessageSendToSessionTemplate');
     const [transcriptBulkCopyFormat, setTranscriptBulkCopyFormat] = useSettingMutable('transcriptBulkCopyFormat');
@@ -971,6 +972,14 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     }}
                 />
 
+                <Item
+                    testID="settings-session-transcript-working-quill"
+                    title={t('settingsSession.transcript.workingQuill.title')}
+                    subtitle={t('settingsSession.transcript.workingQuill.subtitle')}
+                    rightElement={<Switch value={composerWorkingQuillMarkEnabled === true} onValueChange={setComposerWorkingQuillMarkEnabled} />}
+                    showChevron={false}
+                    onPress={() => setComposerWorkingQuillMarkEnabled(!(composerWorkingQuillMarkEnabled === true))}
+                />
                 <Item
                     title={t('settingsSession.transcript.advancedMotionTitle')}
                     subtitle={t('settingsSession.transcript.advancedMotionSubtitle')}

@@ -8377,6 +8377,7 @@ settingsSession: {
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Tool-Aussehen',
             toolAppearanceSubtitle: 'Anpassen, wie Tools im Transkript aussehen.',
+            workingQuill: { title: "Schreibende Feder bei Arbeit", subtitle: "Während der Agent arbeitet, schreibt eine Feder in der Statuszeile auf ein Blatt statt des pulsierenden Punkts." },
             motionTitle: 'Bewegung',
             motionFooter: 'Animationen im Transkript steuern.',
             motionPickerTitle: 'Animationen',

@@ -8364,6 +8364,7 @@ settingsSession: {
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Apparence des outils',
             toolAppearanceSubtitle: 'Personnalise l’apparence des outils dans le transcript.',
+            workingQuill: { title: "Plume pendant le travail", subtitle: "Pendant que l'agent travaille, une plume écrit sur une page dans la ligne d'état au lieu du point pulsant." },
             motionTitle: 'Animations',
             motionFooter: 'Contrôle les animations du transcript.',
             motionPickerTitle: 'Animations',

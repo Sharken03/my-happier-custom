@@ -1381,6 +1381,7 @@ const SessionAgentInputRuntimeStatusBoundary = React.memo(function SessionAgentI
         isPulsing: connectedServicesRestartState?.status === 'restarting'
             || connectedServicesRestartState?.status === 'pending_confirmation'
             || sessionStatus.isPulsing,
+        working: sessionStatus.state === 'thinking',
     }), [
         connectedServicesRestartState?.status,
         inactiveStatusText,

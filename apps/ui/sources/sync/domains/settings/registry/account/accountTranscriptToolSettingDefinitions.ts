@@ -183,6 +183,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    composerWorkingQuillMarkEnabled: {
+        schema: z.boolean(),
+        default: true,
+        description: 'While the agent works, the composer status shows a quill writing on a page instead of the pulsing dot',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     // 8T fork: markdown images from allowed hosts; see components/markdown/rendering/markdownRemoteImages.ts.
     transcriptMarkdownRemoteImagesEnabled: {
         schema: z.boolean(),

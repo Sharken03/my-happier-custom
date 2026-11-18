@@ -8833,6 +8833,7 @@ settingsSession: {
         toolAppearanceTitle: "Вид инструментов",
         toolAppearanceSubtitle:
           "Настройте, как инструменты выглядят в стенограмме.",
+        workingQuill: { title: "Перо во время работы", subtitle: "Пока агент работает, в строке состояния перо пишет на странице вместо мигающей точки." },
         motionTitle: "Анимации",
         motionFooter: "Управляйте анимациями в стенограмме.",
         motionPickerTitle: "Анимации",

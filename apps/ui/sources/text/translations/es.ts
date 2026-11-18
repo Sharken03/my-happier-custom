@@ -8855,6 +8855,7 @@ settingsSession: {
         toolAppearanceTitle: "Apariencia de herramientas",
         toolAppearanceSubtitle:
           "Personaliza cómo se ven las herramientas en la transcripción.",
+        workingQuill: { title: "Pluma mientras trabaja", subtitle: "Mientras el agente trabaja, una pluma escribe en una página en la línea de estado en lugar del punto que parpadea." },
         motionTitle: "Movimiento",
         motionFooter: "Controla las animaciones en la transcripción.",
         motionPickerTitle: "Animaciones",

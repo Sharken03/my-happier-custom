@@ -8968,6 +8968,7 @@ settingsSession: {
         toolAppearanceTitle: "Aparência das ferramentas",
         toolAppearanceSubtitle:
           "Personalize como as ferramentas aparecem na transcrição.",
+        workingQuill: { title: "Pena enquanto trabalha", subtitle: "Enquanto o agente trabalha, uma pena escreve numa página na linha de estado em vez do ponto a piscar." },
         motionTitle: "Movimento",
         motionFooter: "Controle animações na transcrição.",
         motionPickerTitle: "Animações",

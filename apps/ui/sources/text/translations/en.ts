@@ -8409,6 +8409,7 @@ settingsSession: {
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: 'Tool appearance',
             toolAppearanceSubtitle: 'Customize how tools look in the transcript.',
+            workingQuill: { title: "Writing quill while working", subtitle: "While the agent works, a quill writes on a page in the status line instead of the pulsing dot." },
             motionTitle: 'Motion',
             motionFooter: 'Control animations in the transcript.',
             motionPickerTitle: 'Animations',

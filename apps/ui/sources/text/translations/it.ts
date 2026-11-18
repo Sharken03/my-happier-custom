@@ -9188,6 +9188,7 @@ settingsSession: {
         toolAppearanceTitle: "Aspetto strumenti",
         toolAppearanceSubtitle:
           "Personalizza come appaiono gli strumenti nella trascrizione.",
+        workingQuill: { title: "Piuma durante il lavoro", subtitle: "Mentre l'agente lavora, una piuma scrive su una pagina nella riga di stato al posto del punto pulsante." },
         motionTitle: "Movimento",
         motionFooter: "Controlla le animazioni nella trascrizione.",
         motionPickerTitle: "Animazioni",

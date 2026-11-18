@@ -26,7 +26,7 @@ import {
 import { describeEffectivePermissionMode } from '@/sync/domains/permissions/describeEffectivePermissionMode';
 import { hapticsLight, hapticsError } from '@/components/ui/theme/haptics';
 import { type ShakeInstance } from '@/components/ui/feedback/Shaker';
-import { StatusDot } from '@/components/ui/status/StatusDot';
+import { ComposerStatusMark } from './components/ComposerStatusMark';
 import { useActiveSuggestions, type ActiveSuggestionsHandler } from '@/components/autocomplete/useActiveSuggestions';
 import { TextInputState, MultiTextInputHandle } from '@/components/ui/forms/MultiTextInput';
 import { applySuggestion } from '@/components/autocomplete/applySuggestion';
@@ -327,6 +327,8 @@ interface AgentInputProps {
         color: string;
         dotColor: string;
         isPulsing?: boolean;
+        /** The agent is working on a turn; the status mark can then show the writing quill. */
+        working?: boolean;
     };
     statusBadges?: ReadonlyArray<AgentInputStatusBadgeDescriptor>;
     statusTrailingActions?: React.ReactNode;
@@ -838,6 +840,9 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     statusDot: {
         marginRight: 6,
+    },
+    statusQuill: {
+        marginRight: 4,
     },
     statusCost: {
         marginLeft: 10,
@@ -3412,11 +3417,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         <View style={styles.statusRow}>
                             {props.connectionStatus && (
                                 <View style={styles.connectionStatusGroup}>
-                                    <StatusDot
-                                        color={props.connectionStatus.dotColor}
+                                    <ComposerStatusMark
+                                        working={props.connectionStatus.working === true}
                                         isPulsing={props.connectionStatus.isPulsing}
-                                        size={6}
-                                        style={styles.statusDot}
+                                        dotColor={props.connectionStatus.dotColor}
+                                        inkColor={props.connectionStatus.color}
+                                        dotStyle={styles.statusDot}
+                                        quillStyle={styles.statusQuill}
                                     />
                                     <Text
                                         testID={AGENT_INPUT_TEST_IDS.connectionStatusText}

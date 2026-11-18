@@ -8381,6 +8381,7 @@ settingsSession: {
               toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
               toolAppearanceTitle: 'Aparença d’eines',
               toolAppearanceSubtitle: 'Personalitza com es veuen les eines a la transcripció.',
+              workingQuill: { title: "Ploma mentre treballa", subtitle: "Mentre l'agent treballa, una ploma escriu en una pàgina a la línia d'estat en lloc del punt que parpelleja." },
               motionTitle: 'Moviment',
               motionFooter: 'Controla les animacions a la transcripció.',
               motionPickerTitle: 'Animacions',

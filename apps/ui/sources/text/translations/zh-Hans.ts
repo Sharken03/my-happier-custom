@@ -8606,6 +8606,7 @@ settingsSession: {
       toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",
+      workingQuill: { title: "工作时显示羽毛笔", subtitle: "代理工作时，状态栏中的羽毛笔在纸上书写，代替闪烁的圆点。" },
       motionTitle: "动效",
       motionFooter: "控制会话记录中的动画。",
       motionPickerTitle: "动画",

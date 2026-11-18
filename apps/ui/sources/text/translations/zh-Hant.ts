@@ -7528,6 +7528,7 @@ settingsSession: {
             toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
             toolAppearanceTitle: '工具外觀',
             toolAppearanceSubtitle: '自訂工具在逐字稿中的外觀。',
+            workingQuill: { title: "工作時顯示羽毛筆", subtitle: "代理工作時，狀態列中的羽毛筆在紙上書寫，取代閃爍的圓點。" },
             motionTitle: '動畫',
             motionFooter: '控制逐字稿中的動畫。',
             motionPickerTitle: '動畫效果',
