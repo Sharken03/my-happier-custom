@@ -87,7 +87,7 @@ describe('OpenCode session-scoped MCP projection', () => {
     const custom = projectedNameOf(projection, 'custom');
     const rules = buildOpenCodeSessionScopedPermissionRuleset('default', projection);
 
-    expect(rules.slice(-9)).toEqual([
+    expect(rules.slice(-10)).toEqual([
       { permission: 'happier-session-*', pattern: '*', action: 'deny' },
       { permission: `${happier}_*`, pattern: '*', action: 'ask' },
       { permission: `${custom}_*`, pattern: '*', action: 'ask' },
@@ -97,6 +97,7 @@ describe('OpenCode session-scoped MCP projection', () => {
       { permission: `${happier}_action_spec_search`, pattern: '*', action: 'allow' },
       { permission: `${happier}_action_spec_get`, pattern: '*', action: 'allow' },
       { permission: `${happier}_action_options_resolve`, pattern: '*', action: 'allow' },
+      { permission: `${happier}_show_image`, pattern: '*', action: 'allow' },
     ]);
   });
 
