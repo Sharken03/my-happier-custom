@@ -119,7 +119,8 @@ describe('AttachmentImagePreviewModal', () => {
         await screen.pressByTestIdAsync('attachment-image-preview-next');
 
         const currentLayer = screen.findByTestId('attachment-image-preview-gallery-current-layer');
-        expect(currentLayer.findByType('Image').props.source).toEqual({ uri: 'blob:second' });
+        expect(currentLayer).not.toBeNull();
+        expect(currentLayer!.findByType('Image').props.source).toEqual({ uri: 'blob:second' });
         expect(setChrome).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 kind: 'card',
