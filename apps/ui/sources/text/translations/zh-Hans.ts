@@ -7672,6 +7672,11 @@ export const zhHans: TranslationStructure = {
         binaryFile: "二进制文件",
         videoPreview: '视频预览',
         imagePreviewTooLarge: "图片预览过大，无法显示",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+            share: '分享图片',
+            save: '保存图片',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `打开生成的图片 ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `打开附件图片 ${name}`,

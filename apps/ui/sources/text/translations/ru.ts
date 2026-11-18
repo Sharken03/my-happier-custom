@@ -7896,6 +7896,11 @@ export const ru: TranslationStructure = {
         binaryFile: "Бинарный файл",
         videoPreview: 'Предпросмотр видео',
         imagePreviewTooLarge: "Предпросмотр изображения слишком большой для отображения",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} из ${total}`,
+            share: 'Поделиться изображением',
+            save: 'Сохранить изображение',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Открыть сгенерированное изображение ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Открыть прикрепленное изображение ${name}`,

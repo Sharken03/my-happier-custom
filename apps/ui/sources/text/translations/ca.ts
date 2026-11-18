@@ -7436,6 +7436,11 @@ deps: {
             binaryFile: 'Fitxer binari',
             videoPreview: 'Previsualització de vídeo',
             imagePreviewTooLarge: "La previsualització de la imatge és massa gran per mostrar-la",
+            imageViewer: {
+                position: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
+                share: 'Comparteix la imatge',
+                save: 'Desa la imatge',
+            },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Obre la imatge generada ${name}`,
                 attachmentImageA11y: ({ name }: { name: string }) => `Obre la imatge adjunta ${name}`,

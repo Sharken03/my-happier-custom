@@ -7468,6 +7468,11 @@ export const en = {
             binaryFile: 'Binary File',
             videoPreview: 'Video preview',
             imagePreviewTooLarge: 'Image preview is too large to display',
+            imageViewer: {
+                position: ({ current, total }: { current: number; total: number }) => `${current} of ${total}`,
+                share: 'Share image',
+                save: 'Save image',
+            },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Open generated image ${name}`,
                 attachmentImageA11y: ({ name }: { name: string }) => `Open attached image ${name}`,

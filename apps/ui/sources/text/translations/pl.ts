@@ -7913,6 +7913,11 @@ export const pl: TranslationStructure = {
         binaryFile: "Plik binarny",
         videoPreview: 'Podgląd wideo',
         imagePreviewTooLarge: "Podgląd obrazu jest zbyt duży, aby go wyświetlić",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} z ${total}`,
+            share: 'Udostępnij obraz',
+            save: 'Zapisz obraz',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Otwórz wygenerowany obraz ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Otwórz załączony obraz ${name}`,

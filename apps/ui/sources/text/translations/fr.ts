@@ -7423,6 +7423,11 @@ export const fr: TranslationStructure = {
             binaryFile: 'Fichier binaire',
             videoPreview: 'Aperçu vidéo',
             imagePreviewTooLarge: 'L’aperçu de l’image est trop grand pour être affiché',
+            imageViewer: {
+                position: ({ current, total }: { current: number; total: number }) => `${current} sur ${total}`,
+                share: 'Partager l’image',
+                save: 'Enregistrer l’image',
+            },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Ouvrir l’image générée ${name}`,
                 attachmentImageA11y: ({ name }: { name: string }) => `Ouvrir l’image jointe ${name}`,

@@ -8030,6 +8030,11 @@ export const pt: TranslationStructure = {
         binaryFile: "Arquivo binário",
         videoPreview: 'Prévia do vídeo',
         imagePreviewTooLarge: "A pré-visualização da imagem é grande demais para ser exibida",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
+            share: 'Compartilhar imagem',
+            save: 'Salvar imagem',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Abrir imagem gerada ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Abrir imagem anexada ${name}`,

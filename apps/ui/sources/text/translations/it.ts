@@ -8249,6 +8249,11 @@ export const it: TranslationStructure = {
         binaryFile: "File binario",
         videoPreview: 'Anteprima video',
         imagePreviewTooLarge: "L'anteprima dell'immagine è troppo grande per essere visualizzata",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} di ${total}`,
+            share: 'Condividi immagine',
+            save: 'Salva immagine',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Apri immagine generata ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Apri immagine allegata ${name}`,

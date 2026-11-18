@@ -6669,6 +6669,11 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         binaryFile: '二進位檔案',
         videoPreview: '影片預覽',
         imagePreviewTooLarge: '圖片預覽太大，無法顯示',
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+            share: '分享圖片',
+            save: '儲存圖片',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `開啟生成的圖片 ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `開啟附件圖片 ${name}`,

@@ -7436,6 +7436,11 @@ export const de: TranslationStructure = {
             binaryFile: 'Binärdatei',
             videoPreview: 'Videovorschau',
             imagePreviewTooLarge: 'Die Bildvorschau ist zu groß zum Anzeigen',
+            imageViewer: {
+                position: ({ current, total }: { current: number; total: number }) => `${current} von ${total}`,
+                share: 'Bild teilen',
+                save: 'Bild speichern',
+            },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Erzeugtes Bild öffnen: ${name}`,
                 attachmentImageA11y: ({ name }: { name: string }) => `Angehängtes Bild öffnen: ${name}`,

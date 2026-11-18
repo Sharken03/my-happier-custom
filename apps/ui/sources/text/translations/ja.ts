@@ -8170,6 +8170,11 @@ localTailscale: {
         binaryFile: "バイナリファイル",
         videoPreview: '動画プレビュー',
         imagePreviewTooLarge: "画像プレビューが大きすぎて表示できません",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+            share: '画像を共有',
+            save: '画像を保存',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `生成画像 ${name} を開く`,
           attachmentImageA11y: ({ name }: { name: string }) => `添付画像 ${name} を開く`,
