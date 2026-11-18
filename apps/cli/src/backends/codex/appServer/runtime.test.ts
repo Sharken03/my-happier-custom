@@ -5949,7 +5949,7 @@ describe('createCodexAppServerRuntime', () => {
         const persistedMediaItem = {
             id: 'media-show-1',
             role: 'output',
-            category: 'tool-output',
+            category: 'tool-artifact',
             mediaKind: 'image',
             mimeType: 'image/png',
             name: 'chart.png',

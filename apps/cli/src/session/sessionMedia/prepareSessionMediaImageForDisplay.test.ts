@@ -7,7 +7,7 @@ import { sniffSessionMediaMimeType } from './sessionMediaMime';
 // 40x30 HEVC-coded HEIC (ImageMagick output). Prebuilt sharp has no HEVC decoder.
 const HEIC_40X30_BASE64 = 'AAAAGGZ0eXBoZWl4AAAAAG1pZjFoZWl4AAABZ21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAHBpY3QAAAAAAAAAAAAAAAAAAAAAImlsb2MAAAAAREAAAQABAAAAAAGHAAEAAAAAAAAATwAAACNpaW5mAAAAAAABAAAAFWluZmUCAAAAAAEAAGh2YzEAAAAADnBpdG0AAAAAAAEAAADnaXBycAAAAMhpcGNvAAAAdGh2Y0MBBAgAAACZuAAAAAAe8AD8/fz8AAAPA2AAAQAXQAEMAf//BAgAAAMAmbgAAAMAAB66AkBhAAEAKUIBAQQIAAADAJm4AAADAAAeoCCBBFKW6q6a5uAhoMCAAAAMgAAAAwCEYgABAAZEAcFzwYkAAAAUaXNwZQAAAAAAAABAAAAAQAAAAChjbGFwAAAAKAAAAAEAAAAeAAAAAf///+gAAAAC////3gAAAAIAAAAQcGl4aQAAAAADDAwMAAAAF2lwbWEAAAAAAAAAAQABBIECBIMAAABXbWRhdAAAAEsoAa8TIWtnwPVBwYX2t2NyKIhSnvMQW8xDk1oxmOi72Nirs33FcOzwQRDeG4Oy8NAxO/J2dL8CjMz+ml/JA/LGeJStroC0lqKx1sA=';
 
-async function solidImage(width: number, height: number): Promise<sharp.Sharp> {
+async function solidImage(width: number, height: number): Promise<ReturnType<typeof sharp>> {
   return sharp({ create: { width, height, channels: 3, background: { r: 200, g: 40, b: 10 } } });
 }
 
