@@ -706,6 +706,58 @@ describe('createCodexAppServerStreamEventBridge', () => {
         ]);
     });
 
+    it('maps image blocks of MCP tool results to session media and keeps the bytes out of the tool result', () => {
+        const bridge = createCodexAppServerStreamEventBridge();
+        bridge.onNotification({
+            method: 'item/started',
+            params: {
+                item: { id: 'tool_img', type: 'mcpToolCall', server: 'happier', tool: 'show_image', arguments: { path: 'chart.png' } },
+            },
+        });
+
+        const updates = bridge.onNotification({
+            method: 'item/completed',
+            params: {
+                item: {
+                    id: 'tool_img',
+                    type: 'mcpToolCall',
+                    result: {
+                        content: [
+                            { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+                            { type: 'text', text: '{"shown":true}' },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(updates).toEqual([
+            {
+                type: 'tool-result',
+                toolKind: 'mcp',
+                callId: 'tool_img',
+                name: 'mcp__happier__show_image',
+                input: { path: 'chart.png' },
+                output: {
+                    content: [
+                        { type: 'image', data: '[session media]', mimeType: 'image/png' },
+                        { type: 'text', text: '{"shown":true}' },
+                    ],
+                },
+            },
+            {
+                type: 'session-media',
+                itemId: 'tool_img',
+                media: [expect.objectContaining({
+                    kind: 'base64',
+                    data: 'iVBORw0KGgo=',
+                    mimeType: 'image/png',
+                    origin: { source: 'tool-output', toolCallId: 'tool_img', contentIndex: 0 },
+                })],
+            },
+        ]);
+    });
+
     it('maps file-change items and approval requests', () => {
         const bridge = createCodexAppServerStreamEventBridge();
         const changes = [

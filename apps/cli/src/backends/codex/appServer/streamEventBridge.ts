@@ -4,6 +4,7 @@ import { readCodexMessageContentText } from '../utils/readCodexMessageContentTex
 import { readCodexUserMessageContent } from '../utils/readCodexUserMessageContent';
 import { canonicalizeCodexMcpToolName } from '../utils/canonicalizeCodexMcpToolName';
 import { extractCodexGeneratedMedia } from '../media/extractCodexGeneratedMedia';
+import { extractAcpMediaContentBlocks } from '@/agent/acp/media/extractAcpMediaContentBlocks';
 import type { SessionMediaSource } from '@/agent/core/AgentMessage';
 
 type RecordLike = Record<string, unknown>;
@@ -222,6 +223,36 @@ function readToolResultOutput(item: RecordLike, itemType: string | null, input?:
     return itemType === 'mcptoolcall' && 'result' in item ? extractMcpToolCallResultOutput(item.result) : output;
 }
 
+function replaceInlineMediaData(value: unknown, data: ReadonlySet<string>): unknown {
+    if (typeof value === 'string') return data.has(value.trim()) ? '[session media]' : value;
+    if (Array.isArray(value)) return value.map((item) => replaceInlineMediaData(item, data));
+    const record = asRecord(value);
+    return record
+        ? Object.fromEntries(Object.entries(record).map(([key, item]) => [key, replaceInlineMediaData(item, data)]))
+        : value;
+}
+
+/**
+ * Image blocks in an MCP tool result (for example from show_image) become session media,
+ * as image generation results do. The tool result keeps a placeholder instead of the bytes.
+ */
+function withMcpToolResultMedia(
+    itemId: string,
+    itemType: string,
+    output: unknown,
+): Readonly<{ output: unknown; media: SessionMediaSource[] }> {
+    if (itemType !== 'mcptoolcall') return { output, media: [] };
+    const extracted = extractAcpMediaContentBlocks(output, {
+        source: 'codex-mcp-tool-result',
+        originSource: 'tool-output',
+        toolCallId: itemId,
+        dedupePrefix: 'codex:mcp-tool-result',
+    });
+    if (extracted.media.length === 0) return { output, media: [] };
+    const persistedData = new Set(extracted.media.flatMap((item) => item.kind === 'base64' ? [item.data] : []));
+    return { output: replaceInlineMediaData(output, persistedData), media: extracted.media };
+}
+
 export function createCodexAppServerStreamEventBridge(): Readonly<{
     onNotification: (notification: NotificationEnvelope) => CodexAppServerStreamUpdate[];
     onServerRequest: (request: ServerRequestEnvelope) => CodexAppServerStreamUpdate[];
@@ -358,16 +389,23 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
             const synthesizedToolContext = rememberedToolContext ?? readToolContextFromItem(item);
             if (!synthesizedToolContext) return [];
             toolContextByCallId.delete(itemId);
-            if (rememberedToolContext) {
-                return [{
+            const toolResult = withMcpToolResultMedia(
+                itemId,
+                itemType,
+                readToolResultOutput(item, itemType, rememberedToolContext ? undefined : synthesizedToolContext.input),
+            );
+            const resultUpdates: CodexAppServerStreamUpdate[] = [
+                {
                     type: 'tool-result',
-                    toolKind: rememberedToolContext.toolKind,
+                    toolKind: synthesizedToolContext.toolKind,
                     callId: itemId,
-                    name: rememberedToolContext.name,
-                    input: rememberedToolContext.input,
-                    output: readToolResultOutput(item, itemType),
-                }];
-            }
+                    name: synthesizedToolContext.name,
+                    input: synthesizedToolContext.input,
+                    output: toolResult.output,
+                },
+                ...(toolResult.media.length > 0 ? [{ type: 'session-media' as const, itemId, media: toolResult.media }] : []),
+            ];
+            if (rememberedToolContext) return resultUpdates;
             return [
                 {
                     type: 'tool-call',
@@ -376,14 +414,7 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
                     name: synthesizedToolContext.name,
                     input: synthesizedToolContext.input,
                 },
-                {
-                    type: 'tool-result',
-                    toolKind: synthesizedToolContext.toolKind,
-                    callId: itemId,
-                    name: synthesizedToolContext.name,
-                    input: synthesizedToolContext.input,
-                    output: readToolResultOutput(item, itemType, synthesizedToolContext.input),
-                },
+                ...resultUpdates,
             ];
         },
 
