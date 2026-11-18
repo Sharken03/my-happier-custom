@@ -4504,6 +4504,8 @@ export const zhHans: TranslationStructure = {
     feedback: "反馈",
     haptics: "触感反馈",
     hapticsDescription: "在此设备上为操作和重新排序提供触感反馈。",
+    permissionHaptics: "权限请求时振动",
+    permissionHapticsDescription: "当代理请求你的许可时振动。",
     backdropBlur: "背景模糊",
     backdropBlurDescription: "在弹窗和菜单后使用背景模糊。关闭后可提升浏览器性能。",
     multiPanePanels: "右侧面板",

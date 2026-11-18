@@ -4321,6 +4321,8 @@ export const fr: TranslationStructure = {
         feedback: "Retour",
         haptics: "Retour haptique",
         hapticsDescription: "Utilise le retour tactile pour les actions et la réorganisation sur cet appareil.",
+        permissionHaptics: "Vibrer pour les demandes d'autorisation",
+        permissionHapticsDescription: "Vibrer quand un agent demande votre autorisation.",
         backdropBlur: 'Flou d’arrière-plan',
         backdropBlurDescription: 'Utilise un flou dépoli derrière les modales et les menus. Désactive-le pour améliorer les performances du navigateur.',
         multiPanePanels: 'Panneaux de droite',

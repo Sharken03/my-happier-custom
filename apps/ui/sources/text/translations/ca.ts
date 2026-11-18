@@ -4410,6 +4410,8 @@ export const ca: TranslationStructure = {
         feedback: "Resposta",
         haptics: "Resposta hàptica",
         hapticsDescription: "Utilitza la resposta tàctil per a les accions i la reordenació en aquest dispositiu.",
+        permissionHaptics: "Vibra amb les sol·licituds de permís",
+        permissionHapticsDescription: "Vibra quan un agent demana el teu permís.",
         backdropBlur: 'Desenfocament de fons',
         backdropBlurDescription: 'Aplica desenfocament de fons darrere de modals i menús. Desactiva\'l per millorar el rendiment del navegador.',
         multiPanePanels: 'Panells a la dreta',

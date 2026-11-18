@@ -4341,6 +4341,8 @@ export const en = {
         feedback: "Feedback",
         haptics: "Haptic feedback",
         hapticsDescription: "Use touch feedback for actions and reordering on this device.",
+        permissionHaptics: "Vibrate for permission requests",
+        permissionHapticsDescription: "Vibrate when an agent asks for your permission.",
         backdropBlur: 'Backdrop blur',
         backdropBlurDescription: 'Use frosted background blur behind modals and menus. Disable to improve browser performance.',
         multiPanePanels: 'Right panels',

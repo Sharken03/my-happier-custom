@@ -4284,6 +4284,8 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         feedback: "回饋",
         haptics: "觸覺回饋",
         hapticsDescription: "在此裝置上為操作和重新排序提供觸覺回饋。",
+        permissionHaptics: "權限請求時震動",
+        permissionHapticsDescription: "當代理請求你的許可時震動。",
         backdropBlur: '背景模糊',
         backdropBlurDescription: '在彈窗與選單後方使用背景模糊。關閉後可提升瀏覽器效能。',
         multiPanePanels: '右側面板',

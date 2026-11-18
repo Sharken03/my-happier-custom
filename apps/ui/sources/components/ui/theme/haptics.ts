@@ -41,3 +41,9 @@ export function hapticsDragStart(): Promise<void> {
     return emitHaptic('drag-start', () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
         () => Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Drag_Start));
 }
+
+/** A request that needs the user's answer, such as an agent's permission prompt. */
+export function hapticsAttention(): Promise<void> {
+    const warning = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    return emitHaptic('attention', warning, warning);
+}

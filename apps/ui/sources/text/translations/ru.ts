@@ -4567,6 +4567,8 @@ export const ru: TranslationStructure = {
     feedback: "Отклик",
     haptics: "Тактильный отклик",
     hapticsDescription: "Использовать тактильный отклик для действий и изменения порядка на этом устройстве.",
+    permissionHaptics: "Вибрация при запросах разрешения",
+    permissionHapticsDescription: "Вибрировать, когда агент запрашивает ваше разрешение.",
     backdropBlur: "Размытие фона",
     backdropBlurDescription:
       "Использовать размытие фона за модальными окнами и меню. Отключите, чтобы повысить производительность браузера.",

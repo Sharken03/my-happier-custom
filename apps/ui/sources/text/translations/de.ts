@@ -4321,6 +4321,8 @@ export const de: TranslationStructure = {
         feedback: "Rückmeldung",
         haptics: "Haptisches Feedback",
         hapticsDescription: "Berührungsfeedback für Aktionen und das Umordnen auf diesem Gerät verwenden.",
+        permissionHaptics: "Bei Berechtigungsanfragen vibrieren",
+        permissionHapticsDescription: "Vibrieren, wenn ein Agent um deine Erlaubnis bittet.",
         backdropBlur: 'Hintergrund-Blur',
         backdropBlurDescription: 'Milchigen Hintergrund-Blur hinter Modals und Menüs nutzen. Deaktivieren verbessert die Browser-Performance.',
         multiPanePanels: 'Rechte Panels',

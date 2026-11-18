@@ -110,6 +110,7 @@ export default React.memo(function AppearanceSettingsScreen() {
     const [uiMultiPanePanelsEnabled, setUiMultiPanePanelsEnabled] = useLocalSettingMutable('uiMultiPanePanelsEnabled');
     const [uiBackdropBlurEnabled, setUiBackdropBlurEnabled] = useLocalSettingMutable('uiBackdropBlurEnabled');
     const [hapticsEnabled, setHapticsEnabled] = useLocalSettingMutable('hapticsEnabled');
+    const [permissionRequestHapticsEnabled, setPermissionRequestHapticsEnabled] = useLocalSettingMutable('permissionRequestHapticsEnabled');
     const [detailsPaneTabsBehavior, setDetailsPaneTabsBehavior] = useLocalSettingMutable('detailsPaneTabsBehavior');
     const [tabBarGitBadgeMode, setTabBarGitBadgeMode] = useSettingMutable('tabBarGitBadgeMode');
     const [tabBarFriendsBadgeEnabled, setTabBarFriendsBadgeEnabled] = useSettingMutable('tabBarFriendsBadgeEnabled');
@@ -534,6 +535,22 @@ export default React.memo(function AppearanceSettingsScreen() {
                                 testID="settings-appearance-haptics-switch"
                                 value={hapticsEnabled !== false}
                                 onValueChange={setHapticsEnabled}
+                            />
+                        }
+                        showChevron={false}
+                    />
+                    <Item
+                        testID="settings-appearance-permission-haptics"
+                        title={t('settingsAppearance.permissionHaptics')}
+                        subtitle={t('settingsAppearance.permissionHapticsDescription')}
+                        icon={<Icon name="shield-check" size={29} color={theme.colors.accent.orange} />}
+                        disabled={hapticsEnabled === false}
+                        rightElement={
+                            <Switch
+                                testID="settings-appearance-permission-haptics-switch"
+                                value={hapticsEnabled !== false && permissionRequestHapticsEnabled !== false}
+                                disabled={hapticsEnabled === false}
+                                onValueChange={setPermissionRequestHapticsEnabled}
                             />
                         }
                         showChevron={false}

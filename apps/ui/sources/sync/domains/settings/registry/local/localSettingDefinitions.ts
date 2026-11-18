@@ -208,6 +208,12 @@ export const LOCAL_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Enable haptic feedback on this device',
         storageScope: 'local',
     },
+    permissionRequestHapticsEnabled: {
+        schema: z.boolean().catch(true),
+        default: true,
+        description: 'Vibrate when an agent asks for permission on this device',
+        storageScope: 'local',
+    },
     systemTabBarEnabled: {
         // A malformed/newer value must not reset every other device preference.
         schema: z.boolean().catch(true),

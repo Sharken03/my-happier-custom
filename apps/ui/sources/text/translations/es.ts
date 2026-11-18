@@ -4612,6 +4612,8 @@ export const es: TranslationStructure = {
     feedback: "Respuesta",
     haptics: "Respuesta háptica",
     hapticsDescription: "Usa la respuesta táctil para las acciones y la reordenación en este dispositivo.",
+    permissionHaptics: "Vibrar con solicitudes de permiso",
+    permissionHapticsDescription: "Vibrar cuando un agente pide tu permiso.",
     backdropBlur: "Desenfoque de fondo",
     backdropBlurDescription:
       "Usa desenfoque de fondo detrás de modales y menús. Desactívalo para mejorar el rendimiento del navegador.",

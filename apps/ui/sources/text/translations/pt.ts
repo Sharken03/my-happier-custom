@@ -4737,6 +4737,8 @@ export const pt: TranslationStructure = {
     feedback: "Resposta",
     haptics: "Resposta tátil",
     hapticsDescription: "Use a resposta tátil para ações e reordenação neste dispositivo.",
+    permissionHaptics: "Vibrar em pedidos de permissão",
+    permissionHapticsDescription: "Vibrar quando um agente pede sua permissão.",
     backdropBlur: "Desfoque de fundo",
     backdropBlurDescription:
       "Use desfoque de fundo atrás de modais e menus. Desative para melhorar o desempenho do navegador.",

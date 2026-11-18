@@ -4647,6 +4647,8 @@ export const pl: TranslationStructure = {
     feedback: "Informacje zwrotne",
     haptics: "Wibracje dotykowe",
     hapticsDescription: "Używaj wibracji przy działaniach i zmianie kolejności na tym urządzeniu.",
+    permissionHaptics: "Wibruj przy prośbach o zgodę",
+    permissionHapticsDescription: "Wibruj, gdy agent prosi o Twoją zgodę.",
     backdropBlur: "Rozmycie tła",
     backdropBlurDescription:
       "Używaj rozmycia tła za modalami i menu. Wyłącz, aby poprawić wydajność przeglądarki.",
