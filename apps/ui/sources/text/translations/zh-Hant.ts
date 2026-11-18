@@ -2106,6 +2106,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         thisComputerRelayConnected: '已連線',
         thisComputerRelayOffline: '離線',
         thisComputerRelayNeedsAttention: '需要處理',
+        recoveryBanner: { reconnecting: "正在重新連線…", reconnected: "已重新連線" },
         thisComputerSetUpFor: ({ relay }: { relay: string }) => `已為 ${relay} 設定`,
         labels: {
             server: '伺服器',
@@ -4286,6 +4287,8 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
         hapticsDescription: "在此裝置上為操作和重新排序提供觸覺回饋。",
         permissionHaptics: "權限請求時震動",
         permissionHapticsDescription: "當代理請求你的許可時震動。",
+        connectionBanner: "連線橫幅",
+        connectionBannerDescription: "伺服器連線恢復時，在頂部顯示簡短提示。",
         backdropBlur: '背景模糊',
         backdropBlurDescription: '在彈窗與選單後方使用背景模糊。關閉後可提升瀏覽器效能。',
         multiPanePanels: '右側面板',

@@ -1299,6 +1299,7 @@ export const ca: TranslationStructure = {
         thisComputerRelayConnected: 'Connectat',
         thisComputerRelayOffline: 'Desconnectat',
         thisComputerRelayNeedsAttention: 'Cal revisar-ho',
+        recoveryBanner: { reconnecting: "Reconnectant…", reconnected: "Reconnectat" },
         thisComputerSetUpFor: ({ relay }: { relay: string }) => `Configurat per a ${relay}`,
         labels: {
             server: 'Servidor',
@@ -4412,6 +4413,8 @@ export const ca: TranslationStructure = {
         hapticsDescription: "Utilitza la resposta tàctil per a les accions i la reordenació en aquest dispositiu.",
         permissionHaptics: "Vibra amb les sol·licituds de permís",
         permissionHapticsDescription: "Vibra quan un agent demana el teu permís.",
+        connectionBanner: "Avís de connexió",
+        connectionBannerDescription: "Mostra un avís breu a dalt mentre es recupera la connexió amb el servidor.",
         backdropBlur: 'Desenfocament de fons',
         backdropBlurDescription: 'Aplica desenfocament de fons darrere de modals i menús. Desactiva\'l per millorar el rendiment del navegador.',
         multiPanePanels: 'Panells a la dreta',

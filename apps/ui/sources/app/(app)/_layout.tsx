@@ -15,6 +15,7 @@ import {
 } from '@/utils/navigation/createSocialStackScreenOptions';
 import { ActivityBadgeRuntime } from '@/activity/badges/ActivityBadgeRuntime';
 import { ActivityLocalNotificationRuntime } from '@/activity/notifications/runtime/ActivityLocalNotificationRuntime';
+import { ConnectionRecoveryBanner } from '@/components/navigation/connectionStatus/ConnectionRecoveryBanner';
 import { PermissionRequestHapticsRuntime } from '@/activity/notifications/runtime/PermissionRequestHapticsRuntime';
 import { PushNotificationPermissionPrimingRuntime } from '@/activity/notifications/permission/PushNotificationPermissionPrimingRuntime';
 import { DesktopTrayRuntime } from '@/desktop/tray/DesktopTrayRuntime';
@@ -646,6 +647,7 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
             </Stack>
             </NavigatorSafeAreaBleed>
             <MobileBottomChromeHost newSessionRendersFloatingComposer={newSessionRendersFloatingComposer} />
+            {auth.isAuthenticated ? <ConnectionRecoveryBanner /> : null}
         </SessionCockpitChromeRegistryProvider>
     );
 });

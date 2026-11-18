@@ -214,6 +214,12 @@ export const LOCAL_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Vibrate when an agent asks for permission on this device',
         storageScope: 'local',
     },
+    connectionRecoveryBannerEnabled: {
+        schema: z.boolean().catch(true),
+        default: true,
+        description: 'Show a banner while the server connection recovers',
+        storageScope: 'local',
+    },
     systemTabBarEnabled: {
         // A malformed/newer value must not reset every other device preference.
         schema: z.boolean().catch(true),

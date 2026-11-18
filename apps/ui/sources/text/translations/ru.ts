@@ -4569,6 +4569,8 @@ export const ru: TranslationStructure = {
     hapticsDescription: "Использовать тактильный отклик для действий и изменения порядка на этом устройстве.",
     permissionHaptics: "Вибрация при запросах разрешения",
     permissionHapticsDescription: "Вибрировать, когда агент запрашивает ваше разрешение.",
+    connectionBanner: "Баннер подключения",
+    connectionBannerDescription: "Показывать короткое уведомление вверху, пока соединение с сервером восстанавливается.",
     backdropBlur: "Размытие фона",
     backdropBlurDescription:
       "Использовать размытие фона за модальными окнами и меню. Отключите, чтобы повысить производительность браузера.",
@@ -5957,6 +5959,7 @@ export const ru: TranslationStructure = {
     thisComputerRelayConnected: 'Подключено',
     thisComputerRelayOffline: 'Не в сети',
     thisComputerRelayNeedsAttention: 'Требует внимания',
+    recoveryBanner: { reconnecting: "Переподключение…", reconnected: "Подключено снова" },
     thisComputerSetUpFor: ({ relay }: { relay: string }) => `Настроено для ${relay}`,
     labels: {
       server: "Сервер",

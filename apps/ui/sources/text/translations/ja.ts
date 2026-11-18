@@ -1685,6 +1685,7 @@ export const ja: TranslationStructure = {
 	    thisComputerRelayConnected: '接続済み',
 	    thisComputerRelayOffline: 'オフライン',
 	    thisComputerRelayNeedsAttention: '確認が必要です',
+	    recoveryBanner: { reconnecting: "再接続中…", reconnected: "再接続しました" },
 	    thisComputerSetUpFor: ({ relay }: { relay: string }) => `${relay} 用に設定済み`,
 	    labels: {
 	      server: "サーバー",
@@ -4915,6 +4916,8 @@ localTailscale: {
     hapticsDescription: "このデバイスで操作や並べ替え時に触覚フィードバックを使用します。",
     permissionHaptics: "許可リクエストで振動",
     permissionHapticsDescription: "エージェントが許可を求めたときに振動します。",
+    connectionBanner: "接続バナー",
+    connectionBannerDescription: "サーバー接続の復旧中、画面上部に短い通知を表示します。",
     backdropBlur: "背景ぼかし",
     backdropBlurDescription:
       "モーダルやメニューの背後に背景ぼかしを適用します。ブラウザー性能を優先する場合は無効にしてください。",

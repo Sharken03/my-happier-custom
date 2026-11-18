@@ -1407,6 +1407,7 @@ export const pt: TranslationStructure = {
       thisComputerRelayConnected: 'Conectado',
       thisComputerRelayOffline: 'Desconectado',
       thisComputerRelayNeedsAttention: 'Precisa de atenção',
+      recoveryBanner: { reconnecting: "Reconectando…", reconnected: "Reconectado" },
       thisComputerSetUpFor: ({ relay }: { relay: string }) => `Configurado para ${relay}`,
       labels: {
         server: "Servidor",
@@ -4739,6 +4740,8 @@ export const pt: TranslationStructure = {
     hapticsDescription: "Use a resposta tátil para ações e reordenação neste dispositivo.",
     permissionHaptics: "Vibrar em pedidos de permissão",
     permissionHapticsDescription: "Vibrar quando um agente pede sua permissão.",
+    connectionBanner: "Aviso de conexão",
+    connectionBannerDescription: "Mostrar um aviso curto no topo enquanto a conexão com o servidor se recupera.",
     backdropBlur: "Desfoque de fundo",
     backdropBlurDescription:
       "Use desfoque de fundo atrás de modais e menus. Desative para melhorar o desempenho do navegador.",

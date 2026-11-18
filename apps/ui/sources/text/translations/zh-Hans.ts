@@ -1340,6 +1340,7 @@ export const zhHans: TranslationStructure = {
     thisComputerRelayConnected: '已连接',
     thisComputerRelayOffline: '离线',
     thisComputerRelayNeedsAttention: '需要处理',
+    recoveryBanner: { reconnecting: "正在重新连接…", reconnected: "已重新连接" },
     thisComputerSetUpFor: ({ relay }: { relay: string }) => `已为 ${relay} 设置`,
     labels: {
       server: "服务器",
@@ -4506,6 +4507,8 @@ export const zhHans: TranslationStructure = {
     hapticsDescription: "在此设备上为操作和重新排序提供触感反馈。",
     permissionHaptics: "权限请求时振动",
     permissionHapticsDescription: "当代理请求你的许可时振动。",
+    connectionBanner: "连接横幅",
+    connectionBannerDescription: "服务器连接恢复时，在顶部显示简短提示。",
     backdropBlur: "背景模糊",
     backdropBlurDescription: "在弹窗和菜单后使用背景模糊。关闭后可提升浏览器性能。",
     multiPanePanels: "右侧面板",

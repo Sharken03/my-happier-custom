@@ -1198,6 +1198,7 @@ export const en = {
         thisComputerRelayConnected: 'Connected',
         thisComputerRelayOffline: 'Offline',
         thisComputerRelayNeedsAttention: 'Needs attention',
+        recoveryBanner: { reconnecting: "Reconnecting…", reconnected: "Reconnected" },
         thisComputerSetUpFor: ({ relay }: { relay: string }) => `Set up for ${relay}`,
         labels: {
             server: 'Server',
@@ -4343,6 +4344,8 @@ export const en = {
         hapticsDescription: "Use touch feedback for actions and reordering on this device.",
         permissionHaptics: "Vibrate for permission requests",
         permissionHapticsDescription: "Vibrate when an agent asks for your permission.",
+        connectionBanner: "Connection banner",
+        connectionBannerDescription: "Show a short notice at the top while the server connection recovers.",
         backdropBlur: 'Backdrop blur',
         backdropBlurDescription: 'Use frosted background blur behind modals and menus. Disable to improve browser performance.',
         multiPanePanels: 'Right panels',

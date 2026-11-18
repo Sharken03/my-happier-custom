@@ -1380,6 +1380,7 @@ export const pl: TranslationStructure = {
 	    thisComputerRelayConnected: 'Połączono',
 	    thisComputerRelayOffline: 'Niedostępny',
 	    thisComputerRelayNeedsAttention: 'Wymaga uwagi',
+	    recoveryBanner: { reconnecting: "Ponowne łączenie…", reconnected: "Połączono ponownie" },
 	    thisComputerSetUpFor: ({ relay }: { relay: string }) => `Skonfigurowano dla ${relay}`,
 	    labels: {
 	      server: "Serwer",
@@ -4649,6 +4650,8 @@ export const pl: TranslationStructure = {
     hapticsDescription: "Używaj wibracji przy działaniach i zmianie kolejności na tym urządzeniu.",
     permissionHaptics: "Wibruj przy prośbach o zgodę",
     permissionHapticsDescription: "Wibruj, gdy agent prosi o Twoją zgodę.",
+    connectionBanner: "Baner połączenia",
+    connectionBannerDescription: "Pokazuj krótki komunikat u góry, gdy połączenie z serwerem jest przywracane.",
     backdropBlur: "Rozmycie tła",
     backdropBlurDescription:
       "Używaj rozmycia tła za modalami i menu. Wyłącz, aby poprawić wydajność przeglądarki.",

@@ -1200,6 +1200,7 @@ export const de: TranslationStructure = {
         thisComputerRelayConnected: 'Verbunden',
         thisComputerRelayOffline: 'Nicht verbunden',
         thisComputerRelayNeedsAttention: 'Braucht Aufmerksamkeit',
+        recoveryBanner: { reconnecting: "Verbindung wird wiederhergestellt…", reconnected: "Wieder verbunden" },
         thisComputerSetUpFor: ({ relay }: { relay: string }) => `Eingerichtet für ${relay}`,
         labels: {
             server: 'Server',
@@ -4323,6 +4324,8 @@ export const de: TranslationStructure = {
         hapticsDescription: "Berührungsfeedback für Aktionen und das Umordnen auf diesem Gerät verwenden.",
         permissionHaptics: "Bei Berechtigungsanfragen vibrieren",
         permissionHapticsDescription: "Vibrieren, wenn ein Agent um deine Erlaubnis bittet.",
+        connectionBanner: "Verbindungsbanner",
+        connectionBannerDescription: "Oben einen kurzen Hinweis zeigen, während die Serververbindung wiederhergestellt wird.",
         backdropBlur: 'Hintergrund-Blur',
         backdropBlurDescription: 'Milchigen Hintergrund-Blur hinter Modals und Menüs nutzen. Deaktivieren verbessert die Browser-Performance.',
         multiPanePanels: 'Rechte Panels',

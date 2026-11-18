@@ -109,6 +109,7 @@ export default React.memo(function AppearanceSettingsScreen() {
     const [uiContentWidthMode, setUiContentWidthMode] = useLocalSettingMutable('uiContentWidthMode');
     const [uiMultiPanePanelsEnabled, setUiMultiPanePanelsEnabled] = useLocalSettingMutable('uiMultiPanePanelsEnabled');
     const [uiBackdropBlurEnabled, setUiBackdropBlurEnabled] = useLocalSettingMutable('uiBackdropBlurEnabled');
+    const [connectionRecoveryBannerEnabled, setConnectionRecoveryBannerEnabled] = useLocalSettingMutable('connectionRecoveryBannerEnabled');
     const [hapticsEnabled, setHapticsEnabled] = useLocalSettingMutable('hapticsEnabled');
     const [permissionRequestHapticsEnabled, setPermissionRequestHapticsEnabled] = useLocalSettingMutable('permissionRequestHapticsEnabled');
     const [detailsPaneTabsBehavior, setDetailsPaneTabsBehavior] = useLocalSettingMutable('detailsPaneTabsBehavior');
@@ -494,6 +495,20 @@ export default React.memo(function AppearanceSettingsScreen() {
                         <Switch
                             value={uiBackdropBlurEnabled !== false}
                             onValueChange={setUiBackdropBlurEnabled}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-appearance-connection-banner"
+                    title={t('settingsAppearance.connectionBanner')}
+                    subtitle={t('settingsAppearance.connectionBannerDescription')}
+                    icon={<Icon name="wifi-high" size={29} color={theme.colors.accent.green} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-appearance-connection-banner-switch"
+                            value={connectionRecoveryBannerEnabled !== false}
+                            onValueChange={setConnectionRecoveryBannerEnabled}
                         />
                     }
                     showChevron={false}
