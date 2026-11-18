@@ -513,6 +513,17 @@ vi.mock('expo-constants', () => ({
 // source entrypoints that Vitest cannot transform safely under Node.
 vi.mock('expo-modules-core', async () => await import('./expoModulesCoreStub'));
 
+// `posthog-react-native` is the analytics SDK boundary. Its CommonJS entry runs optional
+// `require()` probes (for example `@react-navigation/native`) outside Vite. That native
+// require(esm) fails on React Native Flow source and leaves the navigation ESM graph in
+// Node's module cache uninstantiated. A later Vite import of `@react-navigation/core` then
+// fails with ERR_INTERNAL_ASSERTION ("imported again after being required. Status = 0").
+// Tests that check the SDK wiring mock it locally.
+vi.mock('posthog-react-native', () => ({
+    default: class PostHogStub {},
+    PostHogProvider: ({ children }: { children?: unknown }) => children,
+}));
+
 // `expo-updates` is native-oriented and pulls in platform-specific modules that Node/Vitest can't parse.
 vi.mock('expo-updates', () => ({
     useUpdates: () => ({
