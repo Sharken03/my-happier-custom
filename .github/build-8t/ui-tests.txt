@@ -67,3 +67,4 @@ sources/components/navigation/connectionStatus/connectionRecoveryTracker.test.ts
 sources/components/navigation/connectionStatus/ConnectionRecoveryBanner.test.tsx
 sources/components/sessions/transcript/MessageView.copyButtonHitSlop.test.tsx
 sources/components/sessions/transcript/MessageView.userBubbleWidth.test.tsx
+sources/text/i18n.integrity.test.ts
