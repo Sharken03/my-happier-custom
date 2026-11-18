@@ -8415,6 +8415,7 @@ settingsSession: {
             toolAppearanceTitle: 'Tool appearance',
             toolAppearanceSubtitle: 'Customize how tools look in the transcript.',
             workingQuill: { title: "Writing quill while working", subtitle: "While the agent works, a quill writes on a page in the status line instead of the pulsing dot." },
+            userBubbleNarrow: { title: "Narrow message bubbles", subtitle: "Your messages take at most 80% of the width and sit on the right, as in the Claude app." },
             motionTitle: 'Motion',
             motionFooter: 'Control animations in the transcript.',
             motionPickerTitle: 'Animations',

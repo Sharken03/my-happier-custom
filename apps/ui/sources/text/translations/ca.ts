@@ -8387,6 +8387,7 @@ settingsSession: {
               toolAppearanceTitle: 'Aparença d’eines',
               toolAppearanceSubtitle: 'Personalitza com es veuen les eines a la transcripció.',
               workingQuill: { title: "Ploma mentre treballa", subtitle: "Mentre l'agent treballa, una ploma escriu en una pàgina a la línia d'estat en lloc del punt que parpelleja." },
+              userBubbleNarrow: { title: "Bombolles de missatge estretes", subtitle: "Els teus missatges ocupen com a màxim el 80% de l’amplada i van a la dreta, com a l’app de Claude." },
               motionTitle: 'Moviment',
               motionFooter: 'Controla les animacions a la transcripció.',
               motionPickerTitle: 'Animacions',

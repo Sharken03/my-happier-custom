@@ -8856,6 +8856,7 @@ settingsSession: {
         toolAppearanceSubtitle:
           "Dostosuj wygląd narzędzi w transkrypcie.",
         workingQuill: { title: "Pióro podczas pracy", subtitle: "Gdy agent pracuje, w wierszu stanu pióro pisze na stronie zamiast pulsującej kropki." },
+        userBubbleNarrow: { title: "Wąskie dymki wiadomości", subtitle: "Twoje wiadomości zajmują najwyżej 80% szerokości i są po prawej, jak w aplikacji Claude." },
         motionTitle: "Animacje",
         motionFooter: "Kontroluj animacje w transkrypcie.",
         motionPickerTitle: "Animacje",

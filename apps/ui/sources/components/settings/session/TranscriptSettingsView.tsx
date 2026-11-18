@@ -71,6 +71,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
     const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
     const [composerWorkingQuillMarkEnabled, setComposerWorkingQuillMarkEnabled] = useSettingMutable('composerWorkingQuillMarkEnabled');
+    const [transcriptUserBubbleNarrow, setTranscriptUserBubbleNarrow] = useSettingMutable('transcriptUserBubbleNarrow');
     const [transcriptMessageSendToSessionEnabled, setTranscriptMessageSendToSessionEnabled] = useSettingMutable('transcriptMessageSendToSessionEnabled');
     const [transcriptMessageSendToSessionTemplate, setTranscriptMessageSendToSessionTemplate] = useSettingMutable('transcriptMessageSendToSessionTemplate');
     const [transcriptBulkCopyFormat, setTranscriptBulkCopyFormat] = useSettingMutable('transcriptBulkCopyFormat');
@@ -432,6 +433,15 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                         setTranscriptMessageTimestampDisplayMode(id as TranscriptMessageTimestampDisplayMode);
                         setOpenTimestampMenu(false);
                     }}
+                />
+                <Item
+                    testID="settings-session-transcript-user-bubble-narrow"
+                    title={t('settingsSession.transcript.userBubbleNarrow.title')}
+                    subtitle={t('settingsSession.transcript.userBubbleNarrow.subtitle')}
+                    icon={<Icon name="chat-text" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={<Switch value={transcriptUserBubbleNarrow === true} onValueChange={setTranscriptUserBubbleNarrow} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptUserBubbleNarrow(!(transcriptUserBubbleNarrow === true))}
                 />
             </ItemGroup>
 

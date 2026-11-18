@@ -8612,6 +8612,7 @@ settingsSession: {
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",
       workingQuill: { title: "工作时显示羽毛笔", subtitle: "代理工作时，状态栏中的羽毛笔在纸上书写，代替闪烁的圆点。" },
+      userBubbleNarrow: { title: "窄消息气泡", subtitle: "你的消息最多占宽度的 80%，靠右显示，与 Claude 应用一致。" },
       motionTitle: "动效",
       motionFooter: "控制会话记录中的动画。",
       motionPickerTitle: "动画",

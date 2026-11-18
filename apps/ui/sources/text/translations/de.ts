@@ -8383,6 +8383,7 @@ settingsSession: {
             toolAppearanceTitle: 'Tool-Aussehen',
             toolAppearanceSubtitle: 'Anpassen, wie Tools im Transkript aussehen.',
             workingQuill: { title: "Schreibende Feder bei Arbeit", subtitle: "Während der Agent arbeitet, schreibt eine Feder in der Statuszeile auf ein Blatt statt des pulsierenden Punkts." },
+            userBubbleNarrow: { title: "Schmale Nachrichtenblasen", subtitle: "Deine Nachrichten nehmen höchstens 80 % der Breite ein und stehen rechts, wie in der Claude-App." },
             motionTitle: 'Bewegung',
             motionFooter: 'Animationen im Transkript steuern.',
             motionPickerTitle: 'Animationen',

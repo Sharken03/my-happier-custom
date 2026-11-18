@@ -7534,6 +7534,7 @@ settingsSession: {
             toolAppearanceTitle: '工具外觀',
             toolAppearanceSubtitle: '自訂工具在逐字稿中的外觀。',
             workingQuill: { title: "工作時顯示羽毛筆", subtitle: "代理工作時，狀態列中的羽毛筆在紙上書寫，取代閃爍的圓點。" },
+            userBubbleNarrow: { title: "窄訊息氣泡", subtitle: "你的訊息最多佔寬度的 80%，靠右顯示，與 Claude 應用程式一致。" },
             motionTitle: '動畫',
             motionFooter: '控制逐字稿中的動畫。',
             motionPickerTitle: '動畫效果',

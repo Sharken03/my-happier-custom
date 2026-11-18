@@ -8370,6 +8370,7 @@ settingsSession: {
             toolAppearanceTitle: 'Apparence des outils',
             toolAppearanceSubtitle: 'Personnalise l’apparence des outils dans le transcript.',
             workingQuill: { title: "Plume pendant le travail", subtitle: "Pendant que l'agent travaille, une plume écrit sur une page dans la ligne d'état au lieu du point pulsant." },
+            userBubbleNarrow: { title: "Bulles de message étroites", subtitle: "Vos messages occupent au plus 80 % de la largeur et sont alignés à droite, comme dans l’app Claude." },
             motionTitle: 'Animations',
             motionFooter: 'Contrôle les animations du transcript.',
             motionPickerTitle: 'Animations',

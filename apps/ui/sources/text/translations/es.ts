@@ -8861,6 +8861,7 @@ settingsSession: {
         toolAppearanceSubtitle:
           "Personaliza cómo se ven las herramientas en la transcripción.",
         workingQuill: { title: "Pluma mientras trabaja", subtitle: "Mientras el agente trabaja, una pluma escribe en una página en la línea de estado en lugar del punto que parpadea." },
+        userBubbleNarrow: { title: "Burbujas de mensaje estrechas", subtitle: "Tus mensajes ocupan como máximo el 80 % del ancho y se alinean a la derecha, como en la app de Claude." },
         motionTitle: "Movimiento",
         motionFooter: "Controla las animaciones en la transcripción.",
         motionPickerTitle: "Animaciones",

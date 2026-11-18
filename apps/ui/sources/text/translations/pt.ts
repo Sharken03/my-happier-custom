@@ -8974,6 +8974,7 @@ settingsSession: {
         toolAppearanceSubtitle:
           "Personalize como as ferramentas aparecem na transcrição.",
         workingQuill: { title: "Pena enquanto trabalha", subtitle: "Enquanto o agente trabalha, uma pena escreve numa página na linha de estado em vez do ponto a piscar." },
+        userBubbleNarrow: { title: "Balões de mensagem estreitos", subtitle: "Suas mensagens ocupam no máximo 80% da largura e ficam à direita, como no app do Claude." },
         motionTitle: "Movimento",
         motionFooter: "Controle animações na transcrição.",
         motionPickerTitle: "Animações",

@@ -9194,6 +9194,7 @@ settingsSession: {
         toolAppearanceSubtitle:
           "Personalizza come appaiono gli strumenti nella trascrizione.",
         workingQuill: { title: "Piuma durante il lavoro", subtitle: "Mentre l'agente lavora, una piuma scrive su una pagina nella riga di stato al posto del punto pulsante." },
+        userBubbleNarrow: { title: "Bolle dei messaggi strette", subtitle: "I tuoi messaggi occupano al massimo l’80% della larghezza e stanno a destra, come nell’app Claude." },
         motionTitle: "Movimento",
         motionFooter: "Controlla le animazioni nella trascrizione.",
         motionPickerTitle: "Animazioni",

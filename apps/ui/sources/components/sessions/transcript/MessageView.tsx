@@ -570,6 +570,7 @@ function UserTextBlock(props: {
   const provenance = readSessionMessageProvenanceV1(props.message.meta);
   const quoteMarkdownProps = useTranscriptQuoteMarkdownProps(props.sessionId, !isDiscarded && props.historical !== true);
   const handleJumpToAnchor = useStructuredMessageJumpHandler(props.sessionId, props.canOpenFiles);
+  const userBubbleNarrow = useSetting('transcriptUserBubbleNarrow') === true;
 
   const isVoiceAgentTurn = React.useMemo(() => {
     const envelope = parseHappierMetaEnvelope(props.message.meta);
@@ -871,7 +872,10 @@ function UserTextBlock(props: {
           {...(isWeb ? {} : { pointerEvents: 'box-none' as const })}
         >
           {provenance ? <SessionMessageProvenanceAttribution messageId={props.message.id} provenance={provenance} /> : null}
-          <View style={styles.userMessageBubbleAligner}>
+          <View
+            testID={`transcript-user-bubble:${props.message.id}`}
+            style={[styles.userMessageBubbleAligner, userBubbleNarrow ? styles.userMessageBubbleAlignerNarrow : null]}
+          >
             <UserMessageLongPressMenu enabled={copyOnly} text={copyText} messageId={props.message.id}>
               <TranscriptJumpAttention
                 sessionId={props.sessionId}
@@ -1874,6 +1878,9 @@ const styles = StyleSheet.create((theme) => ({
       // on one line, since maxWidth:'100%' only clamps the box, it does not bound the text).
       alignSelf: 'flex-end',
       maxWidth: '100%',
+    },
+    userMessageBubbleAlignerNarrow: {
+      maxWidth: '80%',
     },
     userMessageBubble: {
       backgroundColor: theme.colors.message.user.background,

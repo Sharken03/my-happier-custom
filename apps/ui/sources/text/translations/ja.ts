@@ -9109,6 +9109,7 @@ settingsSession: {
         toolAppearanceSubtitle:
           "トランスクリプト内のツール表示をカスタマイズします。",
         workingQuill: { title: "作業中の羽ペン", subtitle: "エージェントの作業中、ステータス行で点滅する点の代わりに羽ペンがページに書きます。" },
+        userBubbleNarrow: { title: "幅の狭いメッセージ吹き出し", subtitle: "自分のメッセージは幅の最大80%で右側に表示されます（Claudeアプリと同じ）。" },
         motionTitle: "モーション",
         motionFooter: "トランスクリプトのアニメーションを制御します。",
         motionPickerTitle: "アニメーション",

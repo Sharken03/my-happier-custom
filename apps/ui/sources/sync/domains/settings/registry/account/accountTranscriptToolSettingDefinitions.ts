@@ -183,6 +183,13 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptUserBubbleNarrow: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Cap the user message bubble at 80% of the transcript width, as the Claude app does',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     composerWorkingQuillMarkEnabled: {
         schema: z.boolean(),
         default: true,
