@@ -25,7 +25,9 @@ import {
     SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
     resolveImageDimensions,
     resolveThumbnailSize,
+    type ImageDimensions,
 } from './sessionMediaThumbnailLayout';
+import { SHARED_IMAGE_GAP_PX, resolveSharedImageBoxSize } from './sessionMediaSharedImageLayout';
 import { Icon } from '@/components/ui/icons/Icon';
 
 const fallbackSessionMediaMappingHelper: FlashListCompat.FlashListMappingHelper = {
@@ -45,6 +47,11 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: SESSION_MEDIA_INLINE_IMAGES_GAP_PX,
+    },
+    fullWidthContainer: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: SHARED_IMAGE_GAP_PX,
     },
     tile: {
         borderRadius: 12,
@@ -81,6 +88,7 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
     media: SessionMediaInlineImageSummary;
     mimeType: string;
     imageIndex: number;
+    size: ImageDimensions;
     onOpenPath: (path: string) => void;
     fileOpenEnabled: boolean;
     onOpenPreview: (index: number) => void;
@@ -89,8 +97,6 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
 }>): React.ReactElement {
     const { theme } = useUnistyles();
     const styles = stylesheet;
-    // Sized from the metadata only, as the transcript estimate is: the size never changes on load.
-    const thumbnailSize = resolveThumbnailSize(resolveImageDimensions(props.media));
 
     const preview = useSessionImagePreview({
         sessionId: props.sessionId,
@@ -116,7 +122,7 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
                 }
                 props.onOpenPreview(props.imageIndex);
             }}
-            style={[styles.tile, thumbnailSize]}
+            style={[styles.tile, props.size]}
         >
             {preview.status === 'loaded' ? (
                 Platform.OS !== 'web' && preview.svgXml ? (
@@ -146,18 +152,18 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
 
 function SessionMediaInlineImageInertTile(props: Readonly<{
     media: SessionMediaInlineImageSummary;
+    size: ImageDimensions;
     imageTestIDPrefix: string;
 }>): React.ReactElement {
     const { theme } = useUnistyles();
     const styles = stylesheet;
-    const thumbnailSize = resolveThumbnailSize(resolveImageDimensions(props.media));
 
     return (
         <View
             testID={`${props.imageTestIDPrefix}:${props.media.path}`}
             accessibilityRole="image"
             accessibilityLabel={resolveSessionMediaAccessibilityLabel(props.media)}
-            style={[styles.tile, thumbnailSize]}
+            style={[styles.tile, props.size]}
         >
             <View style={styles.placeholder}>
                 <Icon
@@ -179,6 +185,11 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
     containerTestID?: string;
     imageTestIDPrefix?: string;
     previewTestIDPrefix?: string;
+    /**
+     * Stack the images in boxes as wide as this width allows (`resolveSharedImageBoxSize`),
+     * as for an image the agent shares, instead of a row of thumbnails.
+     */
+    fullWidthPx?: number;
 }>) {
     const styles = stylesheet;
     const containerTestID = props.containerTestID ?? 'message-session-media-inline-images';
@@ -214,15 +225,21 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
 
     if (images.length === 0) return null;
 
+    const fullWidthPx = props.fullWidthPx;
     return (
-        <View testID={containerTestID} style={styles.container}>
+        <View testID={containerTestID} style={fullWidthPx === undefined ? styles.container : styles.fullWidthContainer}>
             {images.map((entry, index) => {
                 const key = getMappingKey(`${entry.media.path}:${entry.media.name}`, index);
+                // Sized from the metadata only, as the transcript estimate is: the size never changes on load.
+                const size = fullWidthPx === undefined
+                    ? resolveThumbnailSize(resolveImageDimensions(entry.media))
+                    : resolveSharedImageBoxSize(entry.media, fullWidthPx);
                 if (!props.mediaPreviewEnabled) {
                     return (
                         <SessionMediaInlineImageInertTile
                             key={key}
                             media={entry.media}
+                            size={size}
                             imageTestIDPrefix={imageTestIDPrefix}
                         />
                     );
@@ -235,6 +252,7 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
                         media={entry.media}
                         mimeType={entry.mimeType}
                         imageIndex={index}
+                        size={size}
                         onOpenPath={props.onOpenPath}
                         fileOpenEnabled={props.fileOpenEnabled}
                         imageTestIDPrefix={imageTestIDPrefix}

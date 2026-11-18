@@ -18,6 +18,16 @@ import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessio
 import { transcriptMarkdownTextStyle } from '@/components/sessions/transcript/transcriptMarkdownTypography';
 import { resolveUserTextDisplayText } from '@/components/sessions/transcript/messageSelection/resolveSelectableMessageText';
 import { resolveSessionMediaInlineImagesHeightPx } from '@/components/sessions/sessionMedia/sessionMediaThumbnailLayout';
+import {
+    SHARED_IMAGE_CAPTION_MARGIN_TOP_PX,
+    SHARED_IMAGE_ROW_PADDING_BOTTOM_PX,
+    resolveSharedImageAvailableWidthPx,
+    resolveSharedImagesHeightPx,
+} from '@/components/sessions/sessionMedia/sessionMediaSharedImageLayout';
+import {
+    resolveSharedImageToolCallPresentation,
+    type SharedImageToolCallPresentation,
+} from '@/components/sessions/sessionMedia/sharedImageToolCall';
 import type { Message } from '@/sync/domains/messages/messageTypes';
 import { settingsDefaults } from '@/sync/domains/settings/settings';
 import type { PendingMessage } from '@/sync/domains/state/storageTypes';
@@ -634,7 +644,27 @@ type TranscriptTextEstimateInput = Readonly<{
     uiFontScale: number;
     /** False on web: the web capture found the flat model exact for a user bubble's text. */
     wrapUserBubbleAtWidth: boolean;
+    sharedImagesEnabled: boolean;
 }>;
+
+/**
+ * A `show_image` row as `SharedImageToolCallRow` paints it: the image boxes from the same layout
+ * function, the padding under the row, and the caption. The caption uses the reply line height and
+ * the flat wrap model, so only its text is a prediction; the image part is exact.
+ */
+function estimateSharedImageRowPx(
+    presentation: SharedImageToolCallPresentation,
+    text: TranscriptTextEstimateInput,
+): number {
+    const imagesPx = resolveSharedImagesHeightPx(
+        presentation.images,
+        resolveSharedImageAvailableWidthPx(text.transcriptContentWidthPx),
+    );
+    const captionPx = presentation.caption
+        ? SHARED_IMAGE_CAPTION_MARGIN_TOP_PX + estimateWrappedLineCount(presentation.caption) * text.lineHeightPx
+        : 0;
+    return imagesPx + captionPx + SHARED_IMAGE_ROW_PADDING_BOTTOM_PX;
+}
 
 function estimateMessagePx(
     message: Message | null,
@@ -652,6 +682,12 @@ function estimateMessagePx(
     }
     if (message.kind === 'agent-text') {
         return estimateTextBlockPx(message.text, COMMITTED_AGENT_TEXT_CHROME_PX, text.lineHeightPx);
+    }
+    // Same condition as the paint: the list provides `TranscriptSharedImagesContext` only while the
+    // setting is on and the width is known.
+    if (message.kind === 'tool-call' && text.sharedImagesEnabled && text.transcriptContentWidthPx > 0) {
+        const sharedImage = resolveSharedImageToolCallPresentation(message);
+        if (sharedImage) return estimateSharedImageRowPx(sharedImage, text);
     }
     // The whole tool surface of `cards` mode, since grouping is off there. Measured 2026-07-29: a
     // standalone `MessageView` tool row is 50px in either feed variant (the compact constant is
@@ -715,6 +751,11 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
      * bubble wraps in. `0` while unknown. REQUIRED for the reason `toolCallsGroupChromeVariant` is.
      */
     transcriptContentWidthPx: number;
+    /**
+     * `transcriptSharedImagesEnabled`: a `show_image` call is then an image row, not a tool row.
+     * Absent means off, which is how rows without that tool are sized either way.
+     */
+    sharedImagesEnabled?: boolean;
 }>): number | undefined {
     const { item, toolCallsGroupChromeVariant } = params;
     const unitRowHeights = resolveToolGroupUnitRowHeights(toolCallsGroupChromeVariant);
@@ -728,6 +769,7 @@ export function estimateTranscriptRowHeightFromContent(params: Readonly<{
                 transcriptContentWidthPx: params.transcriptContentWidthPx,
                 wrapUserBubbleAtWidth: !params.platformIsWeb,
                 uiFontScale: params.uiFontScale,
+                sharedImagesEnabled: params.sharedImagesEnabled === true,
             },
         );
     }

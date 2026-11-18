@@ -19,6 +19,10 @@ import {
 } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
 import { TranscriptMotionProvider } from '@/components/sessions/transcript/motion/TranscriptMotionProvider';
 import {
+    TranscriptSharedImagesContext,
+    type TranscriptSharedImages,
+} from '@/components/sessions/sessionMedia/TranscriptSharedImagesContext';
+import {
     type TranscriptViewportTelemetryEvent,
     type TranscriptViewportTelemetryObservationReason,
     type TranscriptViewportTelemetryMvcpPolicy,
@@ -689,6 +693,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const transcriptUiFontScale = useLocalSetting('uiFontScale');
     const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');
     const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
+    const transcriptSharedImagesEnabled = useSetting('transcriptSharedImagesEnabled') !== false;
     const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
@@ -1280,6 +1285,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             uiFontScale: transcriptUiFontScale,
             wrapCodeBlocks: transcriptWrapCodeBlocks,
             markdownRemoteImageHosts,
+            sharedImagesEnabled: transcriptSharedImagesEnabled,
         }),
         rowWidthBucket: listLayoutWidthBucket,
         sessionActive: props.sessionActive,
@@ -1494,6 +1500,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             },
             uiFontScale: transcriptUiFontScale,
             transcriptContentWidthPx: Math.min(listLayoutWidthPx, transcriptContentMaxWidth),
+            sharedImagesEnabled: transcriptSharedImagesEnabled,
         });
     }, [
         buildRowShellSignature,
@@ -1503,8 +1510,17 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         thinkingRowEstimateInput,
         toolCallsGroupChromeVariant,
         transcriptContentMaxWidth,
+        transcriptSharedImagesEnabled,
         transcriptUiFontScale,
     ]);
+    // `show_image` rows paint at the width the estimate above reads. Null while the setting is off
+    // or the width is unknown: the row is then a tool call, as the estimate assumes.
+    const sharedImagesContentWidthPx = Math.min(listLayoutWidthPx, transcriptContentMaxWidth);
+    const sharedImages = React.useMemo<TranscriptSharedImages | null>(() => (
+        transcriptSharedImagesEnabled && sharedImagesContentWidthPx > 0
+            ? { transcriptContentWidthPx: sharedImagesContentWidthPx }
+            : null
+    ), [sharedImagesContentWidthPx, transcriptSharedImagesEnabled]);
     const getItemSizeVersion = React.useCallback((item: ChatTranscriptListItem): React.Key => (
         buildTranscriptItemHeightSignatureKey(buildRowShellSignature(item))
     ), [buildRowShellSignature]);
@@ -2614,6 +2630,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     ]);
     return (
         <SessionTranscriptAgentAttributionProvider value={agentAttributionIndex}>
+        <TranscriptSharedImagesContext.Provider value={sharedImages}>
         <TranscriptMotionProvider sessionKey={props.sessionId} config={motionConfig}>
               <View
                 style={{ flex: 1 }}
@@ -2687,6 +2704,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 ) : null}
               </View>
         </TranscriptMotionProvider>
+        </TranscriptSharedImagesContext.Provider>
         </SessionTranscriptAgentAttributionProvider>
     );
 });

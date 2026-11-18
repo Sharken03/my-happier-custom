@@ -811,6 +811,26 @@ describe('buildChatListItemsCached', () => {
         expect(r1.items[3]?.kind === 'tool-calls-group' && r1.items[3].toolMessageIds).toEqual(['t2']);
     });
 
+    it('keeps a show_image call outside tool-call groups so it renders as its own row', () => {
+        const messages: Message[] = [
+            buildToolCallMessage({ id: 't1', localId: null, createdAt: 1 }),
+            buildToolCallMessage({ id: 'img', localId: null, createdAt: 2, name: 'mcp__happier__show_image', input: { path: 'chart.png' } }),
+            buildToolCallMessage({ id: 't2', localId: null, createdAt: 3 }),
+        ];
+        const messagesById = Object.fromEntries(messages.map((m) => [m.id, m]));
+
+        const r1 = buildChatListItemsCached({
+            cache: null,
+            messageIdsOldestFirst: ['t1', 'img', 't2'],
+            messagesById,
+            pendingMessages: [],
+            groupConsecutiveToolCalls: true,
+        });
+
+        expect(r1.items.map((item) => item.kind)).toEqual(['tool-calls-group', 'message', 'tool-calls-group']);
+        expect(r1.items[1]?.kind === 'message' && r1.items[1].messageId).toBe('img');
+    });
+
     it('keeps canonical turn-diff recap tools outside consecutive tool-call groups', () => {
         const messages: Message[] = [
             buildToolCallMessage({ id: 't1', localId: null, createdAt: 1 }),

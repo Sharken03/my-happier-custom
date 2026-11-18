@@ -37,6 +37,15 @@ describe('resolveTranscriptRowPresentationKey', () => {
             .toBe(resolveTranscriptRowPresentationKey(base));
     });
 
+    // With the setting on, a show_image call is an image row; off, it is a tool row. The key for
+    // the default (on) is the one from before the setting existed.
+    it('gives images the agent shares turned off their own key', () => {
+        expect(resolveTranscriptRowPresentationKey({ ...base, sharedImagesEnabled: false }))
+            .not.toBe(resolveTranscriptRowPresentationKey(base));
+        expect(resolveTranscriptRowPresentationKey({ ...base, sharedImagesEnabled: true }))
+            .toBe(resolveTranscriptRowPresentationKey(base));
+    });
+
     // A wrapped code block paints more lines than one that scrolls sideways.
     it('gives the code block wrap default its own key', () => {
         expect(resolveTranscriptRowPresentationKey({ ...base, wrapCodeBlocks: true }))

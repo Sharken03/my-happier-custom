@@ -43,6 +43,9 @@ import { SessionMediaUnavailableItems } from '@/components/sessions/sessionMedia
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
 import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 import { ToolResultMedia } from '@/components/sessions/sessionMedia/ToolResultMedia';
+import { SharedImageToolCallRow } from '@/components/sessions/sessionMedia/SharedImageToolCallRow';
+import { TranscriptSharedImagesContext } from '@/components/sessions/sessionMedia/TranscriptSharedImagesContext';
+import { resolveSharedImageToolCallPresentation } from '@/components/sessions/sessionMedia/sharedImageToolCall';
 import { canForkFromMessage } from '@/sync/domains/sessionFork/forkUiSupport';
 import { resolveForkFromMessageSemantics } from '@/sync/domains/sessionFork/forkFromMessageSemantics';
 import { openSessionForkStrategyFlow } from '@/components/sessions/fork/openSessionForkStrategyFlow';
@@ -1723,6 +1726,13 @@ function ToolCallBlock(props: {
     () => parseSessionMediaMessageMeta(props.message.meta),
     [props.message.meta],
   );
+  // An image the agent shares (`show_image`) is drawn full width in the main transcript list.
+  const sharedImages = React.useContext(TranscriptSharedImagesContext);
+  const sharedImagesActive = sharedImages != null && props.layoutContext === 'transcript';
+  const sharedImagePresentation = React.useMemo(
+    () => (sharedImagesActive ? resolveSharedImageToolCallPresentation(props.message) : null),
+    [sharedImagesActive, props.message],
+  );
   const hasToolMedia = sessionMedia.inlineImages.length > 0 || sessionMedia.unavailableMedia.length > 0;
   const toolMedia = hasToolMedia ? (
     <ToolResultMedia sessionId={props.sessionId} media={sessionMedia} interaction={props.interaction} />
@@ -1737,6 +1747,17 @@ function ToolCallBlock(props: {
   const reducerState = props.toolRouteCommon.reducerState;
   if (!props.message.tool) {
     return null;
+  }
+  if (sharedImages && sharedImagePresentation) {
+    return (
+      <SharedImageToolCallRow
+        sessionId={props.sessionId}
+        messageId={props.message.id}
+        presentation={sharedImagePresentation}
+        transcriptContentWidthPx={sharedImages.transcriptContentWidthPx}
+        interaction={props.interaction}
+      />
+    );
   }
   const structuredNode = renderStructuredMessage({
     message: props.message,

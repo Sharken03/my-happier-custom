@@ -34,7 +34,8 @@ export function resolveFontScaleKey(): string {
  * The transcript markdown scales with the in-app text size (`useEnrichedMarkdownStyle`), and the
  * code block wrap default decides whether long code lines wrap or scroll sideways. Allowed markdown
  * image hosts turn an image line into a 16:9 box; the part is absent while that setting is off, so
- * the keys of everyone else stay as they were.
+ * the keys of everyone else stay as they were. Images the agent shares (`show_image`) are image
+ * rows while that setting is on (the default) and tool rows while it is off; only "off" adds a part.
  */
 export function resolveTranscriptRowPresentationKey(params: Readonly<{
     chatFont: unknown;
@@ -43,6 +44,7 @@ export function resolveTranscriptRowPresentationKey(params: Readonly<{
     uiFontScale: unknown;
     wrapCodeBlocks: unknown;
     markdownRemoteImageHosts?: readonly string[];
+    sharedImagesEnabled?: boolean;
 }>): string {
     const chatFont = params.chatFont === 'dm-sans' ? 'dm-sans' : 'default';
     const thinkingDisplayMode = params.thinkingDisplayMode === 'hidden' || params.thinkingDisplayMode === 'tool'
@@ -57,5 +59,6 @@ export function resolveTranscriptRowPresentationKey(params: Readonly<{
         + `|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}|code:${codeWrap}`
         + (params.markdownRemoteImageHosts && params.markdownRemoteImageHosts.length > 0
             ? `|md-images:${params.markdownRemoteImageHosts.join(',')}`
-            : '');
+            : '')
+        + (params.sharedImagesEnabled === false ? '|shared-images:off' : '');
 }
