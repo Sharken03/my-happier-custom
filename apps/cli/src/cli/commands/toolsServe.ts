@@ -57,7 +57,13 @@ async function runCall(
       return {
         ok: true,
         kind: 'tools_call',
-        data: { source: 'happier', tool: request.tool, isError: false, output: result.result },
+        data: {
+          source: 'happier',
+          tool: request.tool,
+          isError: false,
+          output: result.result,
+          ...(result.content ? { content: result.content } : {}),
+        },
       };
     }
     const candidates = 'candidates' in result && Array.isArray(result.candidates) ? result.candidates : undefined;

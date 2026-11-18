@@ -39,4 +39,28 @@ describe('serveToolCalls', () => {
       process.off('unhandledRejection', unhandled);
     }
   });
+
+  it('passes tool-result content blocks through to the bridge', async () => {
+    const input = new PassThrough();
+    const written: string[] = [];
+    const content = [{ type: 'image' as const, data: 'AAAA', mimeType: 'image/png' }];
+    const serving = serveToolCalls({ sessionId: 'sess-1' }, {
+      readCredentials: async () => ({ token: 'token' }) as never,
+      callBuiltInHappierTool: (async () => ({ ok: true as const, result: { shown: true }, content })) as never,
+      input,
+      writeLine: (line) => written.push(line),
+      idleExitMs: null,
+    });
+
+    input.write(JSON.stringify({ type: 'happier-tools-serve-call', id: 1, tool: 'show_image', args: { path: 'a.png' } }) + '\n');
+    await vi.waitFor(() => expect(written).toHaveLength(2));
+    input.end();
+    await serving;
+
+    expect(JSON.parse(written[1]!).envelope).toEqual({
+      ok: true,
+      kind: 'tools_call',
+      data: { source: 'happier', tool: 'show_image', isError: false, output: { shown: true }, content },
+    });
+  });
 });

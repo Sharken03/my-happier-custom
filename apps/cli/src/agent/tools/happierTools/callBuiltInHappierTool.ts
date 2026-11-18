@@ -3,6 +3,7 @@ import { isActionEnabledByEnv, readActionsSettingsFromEnv } from '@/settings/act
 import { dispatchBuiltInHappierTool } from './dispatchBuiltInHappierTool';
 import { createActionToolExecutorBridge } from './createActionToolExecutorBridge';
 import { createChangeTitleToolHandler } from './createChangeTitleToolHandler';
+import { createShowImageToolHandler } from './createShowImageToolHandler';
 import { normalizeExecutionRunToolResult } from './normalizeExecutionRunToolResult';
 import { createCliActionExecutor } from '@/session/actions/createCliActionExecutor';
 import { createDaemonMemoryActionDeps } from '@/session/actions/createDaemonMemoryActionDeps';
@@ -121,6 +122,12 @@ export async function callBuiltInHappierTool(params: Readonly<{
         executor,
         surface,
         resolveCallerPermissionMode: () => callerPermissionMode,
+      }),
+      showImage: createShowImageToolHandler({
+        resolveWorkingDirectory: () => {
+          const path = (sessionMetadata as { path?: unknown } | null)?.path;
+          return typeof path === 'string' ? path : null;
+        },
       }),
       startExecutionRun: async (hostSessionId, request) => {
         const result = await startExecutionRun({

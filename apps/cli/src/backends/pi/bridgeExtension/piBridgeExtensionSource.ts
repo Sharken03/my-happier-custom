@@ -124,7 +124,13 @@ function envelopeToToolResult(envelope) {
       ? envelope.data.output
       : (envelope.data ?? null);
     const projected = truncateToolOutput(JSON.stringify(output) ?? "null");
-    return { content: [{ type: "text", text: projected.content }], details: { truncation: projected } };
+    // Image blocks (show_image) go to Pi as image content, ahead of the JSON text.
+    const images = envelope.data && typeof envelope.data === "object" && Array.isArray(envelope.data.content)
+      ? envelope.data.content.filter((block) => block && block.type === "image"
+        && typeof block.data === "string" && typeof block.mimeType === "string")
+        .map((block) => ({ type: "image", data: block.data, mimeType: block.mimeType }))
+      : [];
+    return { content: [...images, { type: "text", text: projected.content }], details: { truncation: projected } };
   }
   const error = envelope.error && typeof envelope.error === "object" ? envelope.error : {};
   const parts = ["code=" + (typeof error.code === "string" && error.code ? error.code : "unknown")];

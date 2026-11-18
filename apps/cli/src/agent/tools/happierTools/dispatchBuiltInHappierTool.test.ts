@@ -46,6 +46,46 @@ describe('built-in Happier tools', () => {
     expect(result).toEqual({ ok: true, result: { success: true, title: 'New title' } });
   });
 
+  it('lists show_image and dispatches it with the parsed path and caption', async () => {
+    expect(listBuiltInHappierTools({ surface: 'session_agent' }).map((tool) => tool.name)).toContain('show_image');
+    const shown: HappierBuiltInToolDispatchResult = {
+      ok: true,
+      result: { shown: true },
+      content: [{ type: 'image', data: 'AAAA', mimeType: 'image/png' }],
+    };
+    const showImage = vi.fn(async () => shown);
+
+    const result = await dispatchBuiltInHappierTool({
+      toolName: 'show_image',
+      args: { path: 'chart.png', caption: 'Totals' },
+      sessionId: 'sess-1',
+      deps: {
+        changeTitle: async () => ({ success: true }),
+        showImage,
+        startExecutionRun: async () => unsupported(),
+        executeActionByToolName: async () => unsupported(),
+      },
+    });
+
+    expect(showImage).toHaveBeenCalledWith({ path: 'chart.png', caption: 'Totals' });
+    expect(result).toBe(shown);
+  });
+
+  it('rejects show_image without a path or without a handler on this surface', async () => {
+    const deps = {
+      changeTitle: async () => ({ success: true }),
+      startExecutionRun: async () => unsupported(),
+      executeActionByToolName: async () => unsupported(),
+    };
+
+    expect(await dispatchBuiltInHappierTool({
+      toolName: 'show_image', args: {}, sessionId: 'sess-1', deps: { ...deps, showImage: async () => ok({}) },
+    })).toMatchObject({ ok: false, errorCode: 'invalid_action_input' });
+    expect(await dispatchBuiltInHappierTool({
+      toolName: 'show_image', args: { path: 'a.png' }, sessionId: 'sess-1', deps,
+    })).toMatchObject({ ok: false, errorCode: 'show_image_unavailable' });
+  });
+
   it('surfaces change_title failures as tool errors', async () => {
     const result = await dispatchBuiltInHappierTool({
       toolName: 'change_title',

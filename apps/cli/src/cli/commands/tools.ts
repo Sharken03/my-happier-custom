@@ -250,9 +250,9 @@ export async function handleToolsCommand(args: string[], overrides?: Partial<Too
       const parsedArgs = JSON.parse(argsJson);
 
       let result: ToolCallResult;
+      const sessionAgentBridge = args.includes('--session-agent-bridge');
       if (source === 'happier') {
         const context = await resolveToolsBaseContext(args, deps, { requireSessionId: true });
-        const sessionAgentBridge = args.includes('--session-agent-bridge');
         const toolCallId = sessionAgentBridge ? (getFlagValue(args, '--tool-call-id') ?? '') : '';
         result = await deps.callBuiltInHappierTool({
           credentials: context.credentials,
@@ -286,6 +286,9 @@ export async function handleToolsCommand(args: string[], overrides?: Partial<Too
               tool: toolName,
               isError: false,
               output: result.result,
+              // Content blocks (images) go only to the session-agent bridge, which turns them
+              // into tool-result content. A shell caller would get the base64 data as text.
+              ...(sessionAgentBridge && 'content' in result && result.content ? { content: result.content } : {}),
             },
           }, { exitCode: 0 });
         } else {

@@ -455,6 +455,78 @@ if (argv[0] === 'tools' && argv[1] === 'serve') {
     }
   });
 
+  it('returns image content blocks of a tool result to Pi before the JSON text', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-image-'));
+    try {
+      const configPath = join(dir, 'config.json');
+      writeFileSync(configPath, JSON.stringify({
+        v: 1,
+        sessionId: 'sess-image',
+        directTools: [{
+          name: 'show_image',
+          title: 'Show Image',
+          description: 'Show the user an image file',
+          inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+          call: { toolName: 'show_image', actionId: null },
+        }],
+        promptAddition: '',
+        launch: { filePath: process.execPath, argPrefix: [join(dir, 'unused-cli.cjs')], env: {} },
+        hostToolsFd: PI_BRIDGE_HOST_TOOLS_FD,
+      }));
+      const extensionPath = join(dir, 'extension.mjs');
+      writeFileSync(extensionPath, buildPiBridgeExtensionSource(), 'utf8');
+      const piPath = join(dir, 'fake-pi.mjs');
+      writeFileSync(piPath, `
+const tools = [];
+const handlers = new Map();
+const pi = {
+  registerFlag() {},
+  registerTool: (def) => tools.push(def),
+  getFlag: (name) => name === ${JSON.stringify(PI_BRIDGE_CONFIG_PATH_FLAG)} ? ${JSON.stringify(configPath)} : undefined,
+  on: (event, handler) => handlers.set(event, [...(handlers.get(event) ?? []), handler]),
+};
+const emit = async (event, value) => { for (const handler of handlers.get(event) ?? []) await handler(value, {}); };
+const extension = (await import(${JSON.stringify(pathToFileURL(extensionPath).href)})).default;
+extension(pi);
+await emit('session_start', {});
+const result = await tools[0].execute('call-1', { path: 'chart.png' }, new AbortController().signal, undefined, { cwd: process.cwd() });
+process.stdout.write(JSON.stringify(result.content) + '\\n');
+await emit('session_shutdown', {});
+`, 'utf8');
+
+      const child = spawn(process.execPath, [piPath], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe', 'pipe'] });
+      const channel = child.stdio[PI_BRIDGE_HOST_TOOLS_FD] as Duplex;
+      channel.on('error', () => {});
+      void serveToolCalls({ sessionId: 'host-session' }, {
+        readCredentials: async () => ({ token: 'token' }) as never,
+        callBuiltInHappierTool: (async () => ({
+          ok: true as const,
+          result: { shown: true },
+          content: [
+            { type: 'image', data: 'AAAA', mimeType: 'image/png' },
+            { type: 'unknown', data: 'ignored' },
+          ],
+        })) as never,
+        input: channel,
+        writeLine: (line) => { channel.write(line + '\n'); },
+        idleExitMs: null,
+      });
+      let stdout = '';
+      let stderr = '';
+      child.stdout!.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+      child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
+      const code = await new Promise<number | null>((resolve) => child.once('close', resolve));
+
+      expect({ code, stderr }).toEqual({ code: 0, stderr: '' });
+      expect(JSON.parse(stdout.trim())).toEqual([
+        { type: 'image', data: 'AAAA', mimeType: 'image/png' },
+        { type: 'text', text: JSON.stringify({ shown: true }) },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('serves tool calls through the host pipe named in the config, without a tools serve process', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'happier-pi-bridge-host-'));
     try {

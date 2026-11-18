@@ -9,6 +9,7 @@ import { linkChatFolderTitle } from '@/daemon/chatFolders/chatFolderTitleLink';
 import { registerHappierMcpResources } from '@/mcp/resources/registerHappierMcpResources';
 import { createActionToolExecutorBridge } from '@/agent/tools/happierTools/createActionToolExecutorBridge';
 import { createChangeTitleToolHandler } from '@/agent/tools/happierTools/createChangeTitleToolHandler';
+import { createShowImageToolHandler } from '@/agent/tools/happierTools/createShowImageToolHandler';
 import { createStartExecutionRunToolHandler } from '@/agent/tools/happierTools/createStartExecutionRunToolHandler';
 import { normalizeExecutionRunRpcPayload } from '@/session/services/executionRuns';
 import { registerHappierMcpBuiltInTools } from '@/mcp/server/registerHappierMcpBuiltInTools';
@@ -292,6 +293,11 @@ export function createHappierMcpServer(
             });
           }
         },
+      }),
+      showImage: createShowImageToolHandler({
+        resolveWorkingDirectory: () => resolveLiveClientLocation(client)?.path
+          ?? client.getMetadataSnapshot?.()?.path
+          ?? null,
       }),
       startExecutionRun: createStartExecutionRunToolHandler({ executor, surface: toolSurface }),
       executeActionByToolName: actionToolBridge.executeActionByToolName,

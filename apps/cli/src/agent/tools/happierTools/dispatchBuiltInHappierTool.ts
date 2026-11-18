@@ -24,6 +24,7 @@ import {
   actionExecuteToolInputSchema,
   changeTitleToolInputSchema,
   executionRunStartToolInputSchema,
+  showImageToolInputSchema,
   normalizeExecutionRunStartToolInput,
 } from './manualToolContracts';
 
@@ -33,6 +34,8 @@ type DispatchDeps = Readonly<{
     title: string,
     options?: Readonly<{ approvalOrigin?: ApprovalRequestOriginV1 | null }>,
   ) => Promise<unknown>;
+  /** Absent on surfaces that have no session working directory; the tool is then unavailable. */
+  showImage?: (args: Readonly<{ path: string; caption?: string }>) => Promise<HappierBuiltInToolDispatchResult>;
   startExecutionRun: (sessionId: string, request: ExecutionRunStartRequest) => Promise<HappierBuiltInToolDispatchResult>;
   executeActionByToolName: (
     toolName: string,
@@ -199,6 +202,16 @@ export async function dispatchBuiltInHappierTool(params: Readonly<{
       parsed.data.title,
       ...(actionExecutionOptions ? [actionExecutionOptions] as const : [] as const),
     ));
+  }
+
+  if (params.toolName === 'show_image') {
+    const parsed = showImageToolInputSchema.safeParse(params.args ?? {});
+    if (!parsed.success) return err('invalid_action_input', 'show_image needs a "path" string and an optional "caption" string');
+    if (!params.deps.showImage) return err('show_image_unavailable', 'show_image is not available on this surface');
+    return await params.deps.showImage({
+      path: parsed.data.path,
+      ...(parsed.data.caption !== undefined ? { caption: parsed.data.caption } : {}),
+    });
   }
 
   if (params.toolName === 'action_spec_search') {
