@@ -89,6 +89,60 @@ export function sniffSessionMediaMimeType(bytes: Uint8Array): SupportedSessionMe
     return null;
 }
 
+/**
+ * Image types a source file can have. Only `SupportedSessionMediaMimeType` values are stored
+ * as session media; the others are converted first (see prepareSessionMediaImageForDisplay).
+ */
+export type SessionMediaSourceImageType =
+    | SupportedSessionMediaMimeType
+    | 'image/avif'
+    | 'image/heic'
+    | 'image/heif'
+    | 'image/bmp'
+    | 'image/x-icon'
+    | 'image/tiff';
+
+const BMP_DIB_HEADER_SIZES = new Set([12, 40, 52, 56, 64, 108, 124]);
+const AVIF_BRANDS = new Set(['avif', 'avis']);
+const HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis']);
+const HEIF_BRANDS = new Set(['mif1', 'msf1']);
+
+function sniffIsoBmffImageType(bytes: Uint8Array): SessionMediaSourceImageType | null {
+    if (bytes.length < 16) return null;
+    const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (buffer.toString('ascii', 4, 8) !== 'ftyp') return null;
+    const boxEnd = Math.min(buffer.readUInt32BE(0), buffer.length);
+    // Major brand at 8, minor version at 12, compatible brands from 16.
+    const brands = [buffer.toString('ascii', 8, 12)];
+    for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+        brands.push(buffer.toString('ascii', offset, offset + 4));
+    }
+    if (brands.some((brand) => AVIF_BRANDS.has(brand))) return 'image/avif';
+    if (brands.some((brand) => HEIC_BRANDS.has(brand))) return 'image/heic';
+    if (brands.some((brand) => HEIF_BRANDS.has(brand))) return 'image/heif';
+    return null;
+}
+
+export function sniffSessionMediaSourceImageType(bytes: Uint8Array): SessionMediaSourceImageType | null {
+    const supported = sniffSessionMediaMimeType(bytes);
+    if (supported) return supported;
+    if (bytes.length >= 26 && bytes[0] === 0x42 && bytes[1] === 0x4d) {
+        const dibHeaderSize = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).readUInt32LE(14);
+        if (BMP_DIB_HEADER_SIZES.has(dibHeaderSize)) return 'image/bmp';
+    }
+    if (bytes.length >= 6 && bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0 && (bytes[4]! > 0 || bytes[5]! > 0)) {
+        return 'image/x-icon';
+    }
+    if (
+        bytes.length >= 4
+        && ((bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00)
+            || (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a))
+    ) {
+        return 'image/tiff';
+    }
+    return sniffIsoBmffImageType(bytes);
+}
+
 export function sniffSessionMediaMimeTypeFromBase64(data: string): SupportedSessionMediaMimeType | null {
     try {
         const bytes = Buffer.from(data, 'base64');
