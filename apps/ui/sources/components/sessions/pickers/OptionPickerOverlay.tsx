@@ -553,6 +553,7 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                                     accessible
                                                                     accessibilityRole="text"
                                                                     accessibilityLabel={price.accessibilityLabel ?? undefined}
+                                                                    importantForAccessibility="yes"
                                                                 >
                                                                     <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
                                                                 </View>

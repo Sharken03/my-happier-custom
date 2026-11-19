@@ -1,7 +1,8 @@
 # Model price tiers in the model picker
 
 Decision record for showing a price level (`$` … `$$$$`) instead of exact per-token
-numbers in the model picker. Status: implemented in the new-session model picker (expanded list and compact dropdown).
+numbers in the model picker. Status: implemented in the new-session model picker (expanded list and compact dropdown)
+and on the in-session model cards.
 
 ## Decision: the price level is independent of thinking level
 
