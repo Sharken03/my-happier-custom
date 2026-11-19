@@ -39,6 +39,12 @@ export type AppTextProps = RNTextProps & Readonly<{
     useDefaultTypography?: boolean;
     /** Whether the text should be selectable. Defaults to false. */
     selectable?: boolean;
+    /**
+     * Web only: inherit the parent's `user-select` instead of writing this node's own value.
+     * react-native-web turns `selectable={false}` into `user-select: none`, so a fragment inside a
+     * selectable text root must inherit to stay selectable.
+     */
+    inheritWebTextSelection?: boolean;
     /** Escape hatch for special surfaces (defaults to false). */
     disableUiFontScaling?: boolean;
 }>;
@@ -49,6 +55,7 @@ export const Text = React.memo(
             style,
             useDefaultTypography = true,
             selectable,
+            inheritWebTextSelection = false,
             disableUiFontScaling = false,
             ...props
         },
@@ -57,7 +64,8 @@ export const Text = React.memo(
         const uiFontScaleSetting = useLocalSetting('uiFontScale');
         const uiFontScale = disableUiFontScaling ? 1 : uiFontScaleSetting;
         const selectableFromScope = React.useContext(TextSelectabilityContext);
-        const effectiveSelectable = useNativeTextSelectable(selectable ?? selectableFromScope);
+        const scopedSelectable = useNativeTextSelectable(selectable ?? selectableFromScope);
+        const effectiveSelectable = inheritWebTextSelection && Platform.OS === 'web' ? undefined : scopedSelectable;
         const { accessibilityLabel, testID, ...restProps } = props;
 
         const scaledStyle = React.useMemo(() => scaleTextStyle(style as any, uiFontScale), [style, uiFontScale]);

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, View, type LayoutChangeEvent, type ViewStyle } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { IconAction } from '@/components/ui/buttons/IconAction';
@@ -79,6 +79,7 @@ export function MarkdownTableBlock(props: MarkdownTableContent & MarkdownTableCe
                 <HorizontalOverflowScrollView
                     testID="markdown-table-scroll"
                     showsHorizontalScrollIndicator={true}
+                    keepNativeTextSelection={selectable}
                     style={styles.scrollView}
                     contentContainerStyle={[styles.content, contentSizeStyle]}
                     onScroll={fades.onScroll}
@@ -124,6 +125,9 @@ const styles = StyleSheet.create((theme) => ({
         alignSelf: 'flex-start',
         maxWidth: '100%',
         overflow: Platform.OS === 'web' ? 'visible' : 'hidden',
+        // Web: a host page can set a blocking `user-select` on an ancestor; the table is content
+        // the reader must be able to copy, so opt the whole frame in.
+        ...(Platform.OS === 'web' ? ({ userSelect: 'text' } as unknown as ViewStyle) : null),
     },
     first: {
         marginTop: 0,

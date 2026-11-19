@@ -34,6 +34,7 @@ function injectRevealStyle(): void {
 export function StreamingTextReveal(props: {
     text: string;
     selectable?: boolean;
+    inheritWebTextSelection?: boolean;
     style?: StyleProp<TextStyle>;
     animated?: boolean;
     preset?: StreamingTextRevealPreset;
@@ -70,14 +71,22 @@ export function StreamingTextReveal(props: {
 
     if (Platform.OS !== 'web' || revealConfig == null) {
         return (
-            <Text selectable={props.selectable} style={props.style}>
+            <Text
+                selectable={props.selectable}
+                inheritWebTextSelection={props.inheritWebTextSelection}
+                style={props.style}
+            >
                 {props.text}
             </Text>
         );
     }
 
     return (
-        <Text selectable={props.selectable} style={props.style}>
+        <Text
+            selectable={props.selectable}
+            inheritWebTextSelection={props.inheritWebTextSelection}
+            style={props.style}
+        >
             {parts.map((part, index) => {
                 if (!part.animated) {
                     return part.text;

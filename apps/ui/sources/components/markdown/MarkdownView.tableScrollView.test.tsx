@@ -103,14 +103,14 @@ describe('MarkdownView (tables)', () => {
         expect(shellStyle.maxWidth).toBe('100%');
     }, 60_000);
 
-    it('keeps table text selectable on iOS but not inside the Android horizontal scroller, where selection fights the scroll gesture', async () => {
+    it('keeps table text selectable on every platform, including inside the Android horizontal scroller', async () => {
         const markdown = [
             '| A | B |',
             '|---|---|',
             '| 1 | 2 |',
         ].join('\n');
 
-        for (const [os, expected] of [['ios', true], ['android', false]] as const) {
+        for (const os of ['ios', 'android', 'web'] as const) {
             vi.resetModules();
             mockPlatform(os);
             const { MarkdownView } = await import('./MarkdownView');
@@ -120,9 +120,70 @@ describe('MarkdownView (tables)', () => {
             const findTextNode = (text: string) =>
                 screen.findAllByType('Text' as any).find((n) => n.props?.children === text)!;
 
-            expect(findTextNode('A').props.selectable, os).toBe(expected);
-            expect(findTextNode('1').props.selectable, os).toBe(expected);
+            expect(findTextNode('A').props.selectable, os).toBe(true);
+            expect(findTextNode('1').props.selectable, os).toBe(true);
         }
+    }, 60_000);
+
+    it('lets formatted table cells be selected on web instead of writing user-select: none on their spans', async () => {
+        mockPlatform('web');
+        const { MarkdownView } = await import('./MarkdownView');
+
+        const markdown = [
+            '| Rum | Tid |',
+            '|---|---|',
+            '| **Stue** | `26,5 %` |',
+        ].join('\n');
+
+        const screen = await renderScreen(<MarkdownView markdown={markdown} selectable profile="transcript" />);
+
+        const findTextNode = (text: string) =>
+            screen.findAllByType('Text' as any).find((n) => n.props?.children === text)!;
+
+        // The cell root stays selectable; the formatted spans inherit it (no explicit `selectable`
+        // prop) instead of opting out, which react-native-web would render as `user-select: none`.
+        expect(findTextNode('Stue').props.selectable).toBeUndefined();
+        expect(findTextNode('26,5 %').props.selectable).toBeUndefined();
+    }, 60_000);
+
+    it('keeps formatted table cell spans non-selectable on native, where a selectable nested Text breaks the parent', async () => {
+        mockPlatform('android');
+        const { MarkdownView } = await import('./MarkdownView');
+
+        const markdown = [
+            '| Rum | Tid |',
+            '|---|---|',
+            '| **Stue** | plain |',
+        ].join('\n');
+
+        const screen = await renderScreen(<MarkdownView markdown={markdown} selectable profile="transcript" />);
+
+        const findTextNode = (text: string) =>
+            screen.findAllByType('Text' as any).find((n) => n.props?.children === text)!;
+
+        expect(findTextNode('Stue').props.selectable).toBe(false);
+    }, 60_000);
+
+    it('does not make table cells selectable when the message is copy-only', async () => {
+        mockPlatform('web');
+        const { MarkdownView } = await import('./MarkdownView');
+
+        const markdown = [
+            '| Rum | Tid |',
+            '|---|---|',
+            '| **Stue** | plain |',
+        ].join('\n');
+
+        const screen = await renderScreen(<MarkdownView markdown={markdown} selectable={false} />);
+
+        const findTextNode = (text: string) =>
+            screen.findAllByType('Text' as any).find((n) => n.props?.children === text)!;
+
+        // Nothing opts into selection; the formatted span inherits the copy-only root's value.
+        expect(screen.findAllByType('Text' as any).some((n) => n.props?.selectable === true)).toBe(false);
+        expect(findTextNode('plain').props.selectable).toBe(false);
+        // The formatted span inherits the copy-only root instead of forcing a value.
+        expect(findTextNode('Stue').props.selectable).toBeUndefined();
     }, 60_000);
 
     it('copies the table as markdown from its copy button, preserving alignment, escaped pipes and the rendered column count', async () => {
@@ -181,7 +242,7 @@ describe('MarkdownView (tables)', () => {
         );
 
         expect(screen.findAllByType('ScrollView' as any)).toHaveLength(1);
-        expect(screen.findAllByType('EnrichedMarkdownText').map((node) => node.props.selectable)).toEqual([false, false]);
+        expect(screen.findAllByType('EnrichedMarkdownText').map((node) => node.props.selectable)).toEqual([true, true]);
         expect(screen.findAllByType('EnrichedMarkdownText').map((node) => node.props.markdown)).toEqual([
             '\\(x_i\\)',
             '$y_i$',
