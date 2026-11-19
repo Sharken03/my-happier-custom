@@ -672,6 +672,8 @@ export type Metadata = {
       description?: string,
       contextWindowTokens?: number,
       extendedContextModelId?: string,
+      costInputPerMTok?: number,
+      costOutputPerMTok?: number,
       modelOptions?: Array<{
         id: string,
         name: string,
@@ -698,6 +700,8 @@ export type Metadata = {
       description?: string,
       contextWindowTokens?: number,
       extendedContextModelId?: string,
+      costInputPerMTok?: number,
+      costOutputPerMTok?: number,
       modelOptions?: Array<{
         id: string,
         name: string,

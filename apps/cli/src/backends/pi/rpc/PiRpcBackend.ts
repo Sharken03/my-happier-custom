@@ -3503,6 +3503,7 @@ export class PiRpcBackend implements AgentBackend {
         supportsThinking: model?.reasoning === true,
         thinkingEffort: this.currentThinkingLevel,
         thinkingLevelMap: model?.thinkingLevelMap,
+        cost: model?.cost,
       });
       return projected ? [projected] : [];
     });

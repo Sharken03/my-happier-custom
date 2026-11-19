@@ -22,6 +22,10 @@ export type ModelOption = Readonly<{
      * `value` and this variant through the regular model-override pipeline.
      */
     extendedContextModelId?: string;
+    /** USD per million input tokens; the price level shown in the row is derived from it. */
+    costInputPerMTok?: number;
+    /** USD per million output tokens; the price level shown in the row is derived from it. */
+    costOutputPerMTok?: number;
     modelOptions?: readonly SessionConfigOption[];
 }>;
 
@@ -83,10 +87,20 @@ export type PreflightModelList = Readonly<{
         description?: string;
         contextWindowTokens?: number;
         extendedContextModelId?: string;
+        costInputPerMTok?: number;
+        costOutputPerMTok?: number;
         modelOptions?: readonly SessionConfigOption[];
     }>>;
     supportsFreeform: boolean;
 }>;
+
+/**
+ * A price the row can show: zero is a real price for a free model, while a negative or
+ * non-finite value is a catalog placeholder and stays absent so the row renders no price.
+ */
+function readPricePerMTok(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
 
 type DynamicModelRowInput = Readonly<{
     id: unknown;
@@ -94,6 +108,8 @@ type DynamicModelRowInput = Readonly<{
     description?: unknown;
     contextWindowTokens?: unknown;
     extendedContextModelId?: unknown;
+    costInputPerMTok?: unknown;
+    costOutputPerMTok?: unknown;
     modelOptions?: unknown;
 }>;
 
@@ -127,11 +143,15 @@ function projectDynamicModelRows(rows: readonly DynamicModelRowInput[]): ModelOp
         const modelOptions = Array.isArray(row.modelOptions) && row.modelOptions.length > 0
             ? row.modelOptions as readonly SessionConfigOption[]
             : null;
+        const costInputPerMTok = readPricePerMTok(row.costInputPerMTok);
+        const costOutputPerMTok = readPricePerMTok(row.costOutputPerMTok);
         return [{
             value: String(row.id),
             label: String(row.name),
             description: typeof row.description === 'string' ? row.description : '',
             ...(extendedContextModelId ? { extendedContextModelId } : {}),
+            ...(costInputPerMTok !== undefined ? { costInputPerMTok } : {}),
+            ...(costOutputPerMTok !== undefined ? { costOutputPerMTok } : {}),
             ...(modelOptions ? { modelOptions } : {}),
         }];
     });

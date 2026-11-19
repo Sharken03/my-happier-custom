@@ -25,7 +25,7 @@ export default function happierModelDiscovery(pi) {
       if (registry.getError()) { emit(publication, {error:"refresh-failed"}); return; }
       const readModels = () => registry.getAvailable().map(model => ({
         id:model.id, provider:model.provider, name:model.name, reasoning:model.reasoning,
-        thinkingLevelMap:model.thinkingLevelMap,
+        thinkingLevelMap:model.thinkingLevelMap, cost:model.cost,
       }));
       // Older Pi registries reload local files without a refresh receipt. They cannot
       // establish network freshness; never label their snapshot as a fresh observation.

@@ -51,6 +51,10 @@ export type SessionModelsMetadataStateV1 = Readonly<{
     description?: string;
     contextWindowTokens?: number;
     extendedContextModelId?: string;
+    /** USD per million input tokens, as the provider catalog declares it. */
+    costInputPerMTok?: number;
+    /** USD per million output tokens, as the provider catalog declares it. */
+    costOutputPerMTok?: number;
     modelOptions?: readonly SessionModelOptionMetadataV1[];
     [key: string]: unknown;
   }>[];

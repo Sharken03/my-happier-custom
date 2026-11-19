@@ -1,3 +1,5 @@
+import { readPricePerMTokFromCostRecord } from '@/backends/modelCapabilities/pricePerMTok';
+
 export type PiThinkingEffort = 'off' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export type PiModelCatalogEntry = Readonly<{
@@ -5,6 +7,10 @@ export type PiModelCatalogEntry = Readonly<{
   name: string;
   description: string;
   modelOptions?: unknown[];
+  /** USD per million input tokens, when the provider catalog declares a price. */
+  costInputPerMTok?: number;
+  /** USD per million output tokens, when the provider catalog declares a price. */
+  costOutputPerMTok?: number;
 }>;
 
 export function normalizePiThinkingEffort(raw: unknown): PiThinkingEffort | null {
@@ -33,6 +39,8 @@ export function createPiModelCatalogEntry(params: Readonly<{
    * support, and an `off` value lets the model run without thinking.
    */
   thinkingLevelMap?: unknown;
+  /** Pi's `cost` record for the model: USD per million tokens (input, output, cache*). */
+  cost?: unknown;
 }>): PiModelCatalogEntry | null {
   const provider = typeof params.provider === 'string' ? params.provider.trim() : '';
   const id = qualifyPiModelId(provider, params.modelId);
@@ -45,10 +53,15 @@ export function createPiModelCatalogEntry(params: Readonly<{
   const requested = normalizePiThinkingEffort(params.thinkingEffort) ?? 'medium';
   const thinkingEffort = levels.some((level) => level.value === requested) ? requested : levels[0]?.value ?? requested;
 
+  const costInputPerMTok = readPricePerMTokFromCostRecord(params.cost, 'input');
+  const costOutputPerMTok = readPricePerMTokFromCostRecord(params.cost, 'output');
+
   return {
     id,
     name,
     description: provider,
+    ...(costInputPerMTok !== undefined ? { costInputPerMTok } : {}),
+    ...(costOutputPerMTok !== undefined ? { costOutputPerMTok } : {}),
     ...(params.supportsThinking === true ? {
       modelOptions: [{
         id: 'reasoning_effort',

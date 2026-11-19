@@ -85,6 +85,84 @@ describe('NewSessionModelSelectionContent', () => {
         expect(items.filter((item) => item.props.testID === 'new-session-model:gpt-5.4')).toHaveLength(1);
     });
 
+    it('shows the price level in a fixed column and hides it for free and unpriced models', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                    { value: 'free-model', label: 'Free', description: 'No charge', costInputPerMTok: 0, costOutputPerMTok: 0 },
+                    { value: 'unpriced-model', label: 'Unpriced', description: 'No catalog price' },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        const priceTexts = screen.findAllByType('Text' as any)
+            .map((node) => node.props.children)
+            .filter((child) => typeof child === 'string' && /^\$+$/.test(child));
+        expect(priceTexts).toEqual(['$$$']);
+
+        // Free and unpriced rows still render their column, so the star and the check mark
+        // never move; they simply have no symbol in it.
+        const priceColumns = screen.findAllByType('View' as any)
+            .filter((node) => node.props.style && Number(node.props.style.width) === 44);
+        expect(priceColumns).toHaveLength(3);
+    });
+
+    it('announces a price level instead of the dollar signs', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                    { value: 'free-model', label: 'Free', description: 'No charge', costInputPerMTok: 0, costOutputPerMTok: 0 },
+                    { value: 'unpriced-model', label: 'Unpriced', description: 'No catalog price' },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        const labels = screen.findAllByType('View' as any)
+            .map((node) => node.props.accessibilityLabel)
+            .filter((label) => typeof label === 'string');
+        expect(labels).toEqual(['Cost: 3/4']);
+    });
+
+    it('shows the price level in the compact dropdown too', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 8, costOutputPerMTok: 40 },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        // The double does not mount dropdown items, so the row element is checked for the
+        // price it will render; the rendering itself is pinned by the expanded-list case.
+        const dropdown = screen.findByType('DropdownMenu' as any);
+        expect(dropdown.props.items[0]?.rightElement?.props?.model).toMatchObject({
+            id: 'paid-model',
+            costInputPerMTok: 8,
+            costOutputPerMTok: 40,
+        });
+    });
+
     it('keeps stale favorite models removable without making them selectable', async () => {
         const onFavoriteModelSelectionsChange = vi.fn();
         const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
@@ -183,8 +261,11 @@ describe('NewSessionModelSelectionContent', () => {
             />,
         );
 
-        const menu = screen.root.findByType('DropdownMenu' as any);
-        const favoriteControl = menu.props.items[0]?.rightElement;
+        // The compact row keeps a price column, so the favorite action lives inside the
+        // row's rightElement rather than being the rightElement itself. The DropdownMenu
+        // double does not mount its items, so the action is read from the element tree.
+        const compactMenu = screen.root.findByType('DropdownMenu' as any);
+        const favoriteControl = compactMenu.props.items[0]?.rightElement?.props?.favoriteAction;
         expect(favoriteControl?.props?.disabled).toBe(false);
 
         favoriteControl?.props?.onPress?.({ stopPropagation: vi.fn() });
@@ -236,7 +317,9 @@ describe('NewSessionModelSelectionContent', () => {
         );
 
         const menu = compact.root.findByType('DropdownMenu' as any);
-        expect(menu.props.items[0]?.rightElement).toBeUndefined();
+        // A row without a favorite action still carries the price column, so the star's
+        // absence is asserted on the action itself.
+        expect(menu.props.items[0]?.rightElement?.props?.favoriteAction).toBeUndefined();
     });
 
     it('shows the selected model as the compact dropdown trigger subtitle', async () => {

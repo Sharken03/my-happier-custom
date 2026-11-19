@@ -39,3 +39,27 @@ describe('Pi model catalog thinking levels', () => {
   });
 });
 
+
+describe('Pi model catalog price', () => {
+  it('carries the per-million prices so the picker can derive a level', () => {
+    const entry = createPiModelCatalogEntry({
+      provider: 'openrouter-router', modelId: 'deepseek/deepseek-v4-flash',
+      cost: { input: 0.09, output: 0.18, cacheRead: 0.018, cacheWrite: 0.09 },
+    });
+    expect(entry).toMatchObject({ costInputPerMTok: 0.09, costOutputPerMTok: 0.18 });
+  });
+
+  it('keeps a free model free instead of treating zero as absent', () => {
+    const entry = createPiModelCatalogEntry({
+      provider: 'openrouter-router', modelId: 'inclusionai/ling-3.2-flash:free',
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    });
+    expect(entry).toMatchObject({ costInputPerMTok: 0, costOutputPerMTok: 0 });
+  });
+
+  it('omits the prices when the catalog has none', () => {
+    const entry = createPiModelCatalogEntry({ provider: 'p', modelId: 'm' });
+    expect(entry).not.toHaveProperty('costInputPerMTok');
+    expect(entry).not.toHaveProperty('costOutputPerMTok');
+  });
+});

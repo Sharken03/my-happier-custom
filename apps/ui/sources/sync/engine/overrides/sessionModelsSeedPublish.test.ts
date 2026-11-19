@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Metadata } from '@/sync/domains/state/storageTypes';
+import { MetadataSchema, type Metadata } from '@/sync/domains/state/storageTypes';
 import { getModelOptionsForSession, type PreflightModelList } from '@/sync/domains/models/modelOptions';
 import { readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
 
@@ -162,5 +162,50 @@ describe('seeded metadata resolves through the in-session model options reader',
         expect(values).toContain('zai/glm-5.3');
         expect(values).toContain('lmstudio/hadees/lfm2.5-2.6b@q8_0');
         expect(options.find((option) => option.value === 'zai/glm-5.3')?.label).toBe('GLM-5.3');
+    });
+});
+
+describe('session model prices survive the metadata hop', () => {
+    const PRICED_MODELS = [
+        { id: 'paid', name: 'Paid', description: 'Mid tier', costInputPerMTok: 2, costOutputPerMTok: 6 },
+        { id: 'free', name: 'Free', costInputPerMTok: 0, costOutputPerMTok: 0 },
+        { id: 'unpriced', name: 'Unpriced' },
+    ] as const;
+
+    it('keeps the prices when the seed is written', () => {
+        const next = computeNextSessionModelsSeedMetadata({
+            metadata: buildSpawnMetadata(),
+            provider: 'pi',
+            currentModelId: 'paid',
+            availableModels: PRICED_MODELS,
+            updatedAt: 1234,
+        });
+
+        expect(next.sessionModelsV1?.availableModels).toEqual(PRICED_MODELS);
+        // The picker reads this list, so a row without a price would render no level.
+        const options = getModelOptionsForSession('pi', next);
+        expect(options.find((option) => option.value === 'paid')).toMatchObject({
+            costInputPerMTok: 2,
+            costOutputPerMTok: 6,
+        });
+        expect(options.find((option) => option.value === 'free')).toMatchObject({
+            costInputPerMTok: 0,
+            costOutputPerMTok: 0,
+        });
+    });
+
+    it('keeps the prices through the metadata schema the client decodes', () => {
+        const parsed = MetadataSchema.parse({
+            flavor: 'pi',
+            sessionModelsV1: {
+                v: 1,
+                provider: 'pi',
+                updatedAt: 1234,
+                currentModelId: 'paid',
+                availableModels: PRICED_MODELS,
+            },
+        });
+
+        expect(parsed.sessionModelsV1?.availableModels).toEqual(PRICED_MODELS);
     });
 });

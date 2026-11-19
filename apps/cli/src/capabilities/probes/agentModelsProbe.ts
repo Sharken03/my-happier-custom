@@ -18,6 +18,7 @@ import { resolveAgentProbeVariant } from './resolveAgentProbeVariant';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
 import { normalizeContextWindowTokens } from '@/backends/modelCapabilities/contextWindowTokens';
+import { normalizePricePerMTok } from '@/backends/modelCapabilities/pricePerMTok';
 import { applyObservedAcpModelOptions, isAcpModelScopedConfigOption } from '@/agent/acp/runtime/sessionModelsState';
 import { lazySchema } from '@happier-dev/protocol';
 
@@ -43,6 +44,8 @@ export type ProbedAgentModel = Readonly<{
   contextWindowTokens?: number;
   extendedContextModelId?: string;
   modelOptions?: ReadonlyArray<ProbedAgentModelOption>;
+  costInputPerMTok?: number;
+  costOutputPerMTok?: number;
 }>;
 
 export type ProbedAgentModelsResult = Readonly<{
@@ -92,6 +95,8 @@ const ProbeDynamicModelInputSchema = lazySchema(() => z.object({
   contextWindowTokens: z.unknown().optional(),
   extendedContextModelId: ProbeNonEmptyStringSchema.optional(),
   modelOptions: z.array(z.unknown()).optional(),
+  costInputPerMTok: z.unknown().optional(),
+  costOutputPerMTok: z.unknown().optional(),
 }));
 const ProbeConfigOptionCandidateSchema = lazySchema(() => z.object({
   id: z.string().optional(),
@@ -191,6 +196,12 @@ function normalizeProbeModel(modelRaw: unknown): ProbedAgentModel | null {
       : {}),
     ...(normalizeContextWindowTokens(parsed.data.contextWindowTokens) !== undefined
       ? { contextWindowTokens: normalizeContextWindowTokens(parsed.data.contextWindowTokens) }
+      : {}),
+    ...(normalizePricePerMTok(parsed.data.costInputPerMTok) !== undefined
+      ? { costInputPerMTok: normalizePricePerMTok(parsed.data.costInputPerMTok) }
+      : {}),
+    ...(normalizePricePerMTok(parsed.data.costOutputPerMTok) !== undefined
+      ? { costOutputPerMTok: normalizePricePerMTok(parsed.data.costOutputPerMTok) }
       : {}),
     ...(normalizedOptions && normalizedOptions.length > 0 ? { modelOptions: normalizedOptions } : {}),
   };

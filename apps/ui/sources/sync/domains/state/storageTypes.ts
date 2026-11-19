@@ -128,6 +128,8 @@ const MetadataObjectSchema = z.object({
             description: z.string().optional(),
             contextWindowTokens: z.number().int().positive().optional(),
             extendedContextModelId: z.string().optional(),
+            costInputPerMTok: z.number().finite().nonnegative().optional(),
+            costOutputPerMTok: z.number().finite().nonnegative().optional(),
             modelOptions: z.array(z.object({
                 id: z.string(),
                 name: z.string(),
@@ -154,6 +156,8 @@ const MetadataObjectSchema = z.object({
             description: z.string().optional(),
             contextWindowTokens: z.number().int().positive().optional(),
             extendedContextModelId: z.string().optional(),
+            costInputPerMTok: z.number().finite().nonnegative().optional(),
+            costOutputPerMTok: z.number().finite().nonnegative().optional(),
             modelOptions: z.array(z.object({
                 id: z.string(),
                 name: z.string(),

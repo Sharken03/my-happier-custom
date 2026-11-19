@@ -88,6 +88,7 @@ async function probePiModels(params: PreflightSessionControlsProbeParams): Promi
             provider: model.provider, modelId: model.id, name: model.name,
             supportsThinking: model.reasoning === true,
             thinkingLevelMap: model.thinkingLevelMap,
+            cost: model.cost,
           });
           return entry ? [entry] : [];
         });

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import type { ResolvedBackendCatalogEntry } from '@/agents/backendCatalog/getResolvedBackendCatalogEntries';
@@ -16,12 +16,17 @@ import {
     type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
+import { readModelPriceTier } from '@/sync/domains/models/priceTier';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 
 export type NewSessionModelOption = Readonly<{
     value: ModelMode;
     label: string;
+    /** USD per million input tokens; the row's price level is derived from it. */
+    costInputPerMTok?: number;
+    /** USD per million output tokens; the row's price level is derived from it. */
+    costOutputPerMTok?: number;
     description: string;
 }>;
 
@@ -41,6 +46,8 @@ type ModelSelectionRow = Readonly<{
     id: string;
     title: string;
     subtitle: string;
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
     available: boolean;
     favoritable: boolean;
     favorite: boolean;
@@ -89,6 +96,8 @@ function buildRows(params: Readonly<{
             id: modelId,
             title: option?.label || favorite.modelLabel || modelId,
             subtitle: option?.description || favorite.backendLabel || t('agentInput.model.configureInCli'),
+            ...(typeof option?.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+            ...(typeof option?.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
             available: Boolean(option),
             favoritable: true,
             favorite: true,
@@ -103,6 +112,8 @@ function buildRows(params: Readonly<{
             id: modelId,
             title: option.label,
             subtitle: option.description,
+            ...(typeof option.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+            ...(typeof option.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
             available: true,
             favoritable: isFavoriteModelSelectableId(modelId),
             favorite: false,
@@ -142,6 +153,36 @@ function FavoriteToggle(props: Readonly<{
     );
 }
 
+function ModelPriceColumn(props: Readonly<{
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
+}>) {
+    const { theme } = useUnistyles();
+    const priceTier = readModelPriceTier({
+        costInputPerMTok: props.costInputPerMTok,
+        costOutputPerMTok: props.costOutputPerMTok,
+    });
+    // The symbols alone read as "dollar dollar dollar", so the column announces a level
+    // instead. Free and unpriced rows have nothing to announce and stay hidden.
+    const priceAccessibilityLabel = priceTier === 'free' || priceTier === 'unknown'
+        ? undefined
+        : `${t('usage.cost')}: ${priceTier.length}/4`;
+    return (
+        <View
+            style={styles.priceColumn}
+            accessible={priceAccessibilityLabel !== undefined}
+            accessibilityRole={priceAccessibilityLabel !== undefined ? 'text' : undefined}
+            accessibilityLabel={priceAccessibilityLabel}
+            accessibilityElementsHidden={priceAccessibilityLabel === undefined}
+            importantForAccessibility={priceAccessibilityLabel === undefined ? 'no-hide-descendants' : 'auto'}
+        >
+            {priceTier === 'free' || priceTier === 'unknown' ? null : (
+                <Text style={[styles.priceText, { color: theme.colors.text.secondary }]}>{priceTier}</Text>
+            )}
+        </View>
+    );
+}
+
 function ModelRightElement(props: Readonly<{
     model: ModelSelectionRow;
     selected: boolean;
@@ -152,6 +193,12 @@ function ModelRightElement(props: Readonly<{
 }>) {
     return (
         <View style={styles.rightElement}>
+            {/* Fixed-width column, right-aligned: the star and the check mark must not move
+                between rows. Free and unknown prices render nothing at all. */}
+            <ModelPriceColumn
+                costInputPerMTok={props.model.costInputPerMTok}
+                costOutputPerMTok={props.model.costOutputPerMTok}
+            />
             {props.showFavoriteAction ? (
                 <FavoriteToggle
                     model={props.model}
@@ -166,6 +213,21 @@ function ModelRightElement(props: Readonly<{
                 color={props.selectedIndicatorColor}
                 style={{ opacity: props.selected ? 1 : 0 }}
             />
+        </View>
+    );
+}
+
+function CompactRowRightElement(props: Readonly<{
+    model: ModelSelectionRow;
+    favoriteAction?: React.ReactNode;
+}>) {
+    return (
+        <View style={styles.rightElement}>
+            <ModelPriceColumn
+                costInputPerMTok={props.model.costInputPerMTok}
+                costOutputPerMTok={props.model.costOutputPerMTok}
+            />
+            {props.favoriteAction ?? null}
         </View>
     );
 }
@@ -262,14 +324,19 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                 category: t('profiles.groups.favorites'),
                 disabled: !row.available,
                 icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: row.favoritable ? (
-                    <FavoriteToggle
+                rightElement: (
+                    <CompactRowRightElement
                         model={row}
-                        disabled={false}
-                        selectedIndicatorColor={props.selectedIndicatorColor}
-                        onPress={() => toggleFavorite(row)}
+                        favoriteAction={row.favoritable ? (
+                            <FavoriteToggle
+                                model={row}
+                                disabled={false}
+                                selectedIndicatorColor={props.selectedIndicatorColor}
+                                onPress={() => toggleFavorite(row)}
+                            />
+                        ) : undefined}
                     />
-                ) : undefined,
+                ),
             })),
             ...rows.allRows.map((row) => ({
                 id: row.id,
@@ -278,14 +345,19 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                 category: t('common.all'),
                 disabled: !row.available,
                 icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: row.favoritable ? (
-                    <FavoriteToggle
+                rightElement: (
+                    <CompactRowRightElement
                         model={row}
-                        disabled={!props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange}
-                        selectedIndicatorColor={props.selectedIndicatorColor}
-                        onPress={() => toggleFavorite(row)}
+                        favoriteAction={row.favoritable ? (
+                            <FavoriteToggle
+                                model={row}
+                                disabled={!props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange}
+                                selectedIndicatorColor={props.selectedIndicatorColor}
+                                onPress={() => toggleFavorite(row)}
+                            />
+                        ) : undefined}
                     />
-                ) : undefined,
+                ),
             })),
         ];
         return (
@@ -334,6 +406,16 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
 }
 
 const styles = StyleSheet.create(() => ({
+    priceColumn: {
+        width: 44,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+    },
+    priceText: {
+        fontFamily: 'monospace',
+        fontSize: 13,
+        letterSpacing: 0.5,
+    },
     rightElement: {
         minWidth: 60,
         flexDirection: 'row',
