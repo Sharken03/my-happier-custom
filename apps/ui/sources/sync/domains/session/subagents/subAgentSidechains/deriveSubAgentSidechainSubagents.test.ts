@@ -220,6 +220,17 @@ describe('deriveSubAgentSidechainSubagents — an async launch acknowledgement i
         expect(subagent.status).toBe('running');
     });
 
+    it('reports the launch answer of an async pi-subagents run as running', () => {
+        // pi-subagents answers an async call with the run id and no results; the CLI sends the
+        // real result when the run ends.
+        const subagent = deriveSingle([
+            createAsyncLaunchedSubAgentMessage({ content: 'Detached.', details: { asyncId: 'run-1', results: [] } }),
+        ]);
+
+        expect(subagent.status).toBe('running');
+        expect(subagent.timestamps.finishedAtMs).toBeUndefined();
+    });
+
     it('reports the agent as succeeded once a real result supersedes the acknowledgement', () => {
         const subagent = deriveSingle([
             createAsyncLaunchedSubAgentMessage('All six findings closed at one owner each.'),

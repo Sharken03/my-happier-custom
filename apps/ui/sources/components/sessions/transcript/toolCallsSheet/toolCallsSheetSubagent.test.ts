@@ -33,6 +33,15 @@ describe('toolCallsSheetSubagent', () => {
         expect(readToolCallsSheetSubagentPrompt({ input: { chain: [{ agent: 'planner', task: 'Plan' }] } })).toBe('planner: Plan');
     });
 
+    it('reads the tasks and the agent of a pi-subagents workflow call', () => {
+        const parallel = { input: { workflow: 'parallel', args: { tasks: [{ agent: 'worker', task: 'Map the image' }, { agent: 'worker', task: 'Map the RAM' }] } } };
+        expect(readToolCallsSheetSubagentPrompt(parallel)).toBe('worker: Map the image\n\nworker: Map the RAM');
+        expect(readToolCallsSheetSubagentPrompt({ input: { workflow: 'chain', args: { chain: [{ agent: 'planner', task: 'Plan' }] } } })).toBe('planner: Plan');
+        const single = { input: { workflow: 'single', args: { agent: 'scout', task: 'Map the parser' } } };
+        expect(readToolCallsSheetSubagentType(single)).toBe('scout');
+        expect(readToolCallsSheetSubagentPrompt(single)).toBe('Map the parser');
+    });
+
     it('reads the report from string and content results', () => {
         expect(readToolCallsSheetSubagentReport({ state: 'completed', result: 'Done' })).toBe('Done');
         expect(readToolCallsSheetSubagentReport({

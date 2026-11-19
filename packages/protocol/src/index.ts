@@ -932,7 +932,7 @@ export {
   type ClaudeTodoWriteTodo,
 } from './providers/claude/index.js';
 
-export { isPiAsyncSubagentLaunchToolResult } from './providers/pi/asyncSubagentLaunch.js';
+export { isAsyncSubagentLaunchToolResult } from './providers/asyncSubagentLaunch.js';
 
 export {
   ActivityWebhookPayloadV1Schema,

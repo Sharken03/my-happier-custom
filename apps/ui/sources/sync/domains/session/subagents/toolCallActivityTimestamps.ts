@@ -1,4 +1,4 @@
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 
 import type { ToolCall, ToolCallMessage } from '@/sync/domains/messages/messageTypes';
 
@@ -45,7 +45,7 @@ export function readToolCallStartedAtMs(toolMessage: ToolCallMessage): number | 
 export function readToolCallFinishedAtMs(toolMessage: ToolCallMessage): number | null {
     const tool: ToolCall | undefined = toolMessage.tool;
     if (!tool || tool.state === 'running' || tool.state === 'unavailable') return null;
-    if (tool.state === 'completed' && isClaudeAsyncAgentLaunchToolResult(tool.result)) return null;
+    if (tool.state === 'completed' && isAsyncSubagentLaunchToolResult(tool.result)) return null;
     return readFiniteNumber(tool.completedAt);
 }
 

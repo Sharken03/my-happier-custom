@@ -222,6 +222,21 @@ describe('transcript reducer — an async-launched subagent outlives nothing', (
         expect(readAgentTool(state)?.completedAt).toBe(4_000);
     });
 
+    it('closes an async pi-subagents run once the session process that followed it is gone', () => {
+        // The CLI process follows the run and sends its real result; once it is gone, no result comes.
+        const state = createReducer();
+        reducer(state, [agentToolCall()]);
+        reducer(state, [toolResult({
+            id: 'msg-pi-async-launch',
+            createdAt: 1_003,
+            content: { content: 'Detached.', details: { asyncId: 'run-1', results: [] } },
+        })]);
+
+        reducer(state, [], null, { ownerProcessGoneSinceMs: 4_000 });
+
+        expect(readAgentTool(state)?.state).toBe('unavailable');
+    });
+
     it('keeps an async-launched subagent open when its sidechain spoke after the process was last seen', () => {
         // The resumable case: the instant we last saw the process is stale, not final.
         const state = launchedAgentState();

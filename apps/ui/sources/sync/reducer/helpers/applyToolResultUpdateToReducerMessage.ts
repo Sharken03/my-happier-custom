@@ -1,4 +1,4 @@
-import { isClaudeAsyncAgentLaunchToolResult, isPiAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 
 import { sameJsonValue } from '@/utils/json/sameJsonValue';
 
@@ -80,10 +80,8 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
   // An async `pi-subagents` run works the same way: the CLI sends the run's real result when it ends.
   const supersedesAsyncAgentLaunch =
     message.tool.state === 'completed' &&
-    ((isClaudeAsyncAgentLaunchToolResult(message.tool.result) &&
-      !isClaudeAsyncAgentLaunchToolResult(toolResult.content)) ||
-      (isPiAsyncSubagentLaunchToolResult(message.tool.result) &&
-        !isPiAsyncSubagentLaunchToolResult(toolResult.content)));
+    isAsyncSubagentLaunchToolResult(message.tool.result) &&
+    !isAsyncSubagentLaunchToolResult(toolResult.content);
 
   if (
     message.tool.state !== 'running' &&

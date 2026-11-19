@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 import { ToolStatusIndicator } from '@/components/tools/shell/presentation/ToolStatusIndicator';
 
 import type { Message, ToolCall } from '@/sync/domains/messages/messageTypes';
@@ -159,7 +159,8 @@ export const SubAgentSummarySection = React.memo<{
         inferredOperation === 'run' &&
         ((tool.input as any)?.run_in_background === true || typeof (tool.input as any)?.subagent_type === 'string');
     // A background run's first result is only its launch acknowledgement; its delivered report is the outcome.
-    const isAwaitingBackgroundResult = isBackgroundRun && (tool.result == null || isClaudeAsyncAgentLaunchToolResult(tool.result));
+    // pi-subagents marks an async call only in that answer, not in the input.
+    const isAwaitingBackgroundResult = isAsyncSubagentLaunchToolResult(tool.result) || (isBackgroundRun && tool.result == null);
     const shouldShowResultInline = isFullView || !(opts?.hideResultInlineWhenBackgroundRun ?? true) || !isAwaitingBackgroundResult;
     const taskResultContent = shouldShowResultInline ? coerceTaskResultText(tool.result) : null;
 

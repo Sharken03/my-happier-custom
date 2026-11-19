@@ -17,9 +17,19 @@ export function isToolCallsSheetSubagentCall(tool: Pick<ToolCall, 'name'>): bool
     return isSubAgentTranscriptToolName(tool.name);
 }
 
+/**
+ * The fields of a subagent call. A pi-subagents workflow call (`{ workflow, args }`) holds the
+ * `agent`, `task`, `tasks` and `chain` fields in `args`.
+ */
+function readSubagentInput(tool: Pick<ToolCall, 'input'>): Record<string, unknown> | null {
+    const input = asRecord(tool.input);
+    if (!input || readNonBlankString(input.workflow) === null) return input;
+    return asRecord(input.args) ?? input;
+}
+
 /** The subagent type of a call, such as "Explore" or "general-purpose". Null when the input has none. */
 export function readToolCallsSheetSubagentType(tool: Pick<ToolCall, 'input'>): string | null {
-    const input = asRecord(tool.input);
+    const input = readSubagentInput(tool);
     if (!input) return null;
     // `agent` is the pi-subagents name of the same field.
     for (const key of ['subagent_type', 'agent_type', 'role', 'nickname', 'agent'] as const) {
@@ -31,7 +41,7 @@ export function readToolCallsSheetSubagentType(tool: Pick<ToolCall, 'input'>): s
 
 /** The task prompt that the parent gave to the subagent. Null when the input has none. */
 export function readToolCallsSheetSubagentPrompt(tool: Pick<ToolCall, 'input'>): string | null {
-    const input = asRecord(tool.input);
+    const input = readSubagentInput(tool);
     if (!input) return null;
     return readNonBlankString(input.prompt)
         ?? readNonBlankString(input.task)

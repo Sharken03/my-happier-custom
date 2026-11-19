@@ -1,4 +1,4 @@
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 import { isGenericSubAgentToolName, isSubAgentTranscriptToolName } from '@happier-dev/protocol/tools/v2';
 
 import type { ReducerState } from '../reducer';
@@ -65,14 +65,16 @@ function readLatestLinkedSubagentSidechainActivityAt(params: Readonly<{
 }
 
 /**
- * A subagent launch Claude only ACKNOWLEDGED, which nothing has superseded yet.
+ * A subagent launch that was only ACKNOWLEDGED, which nothing has superseded yet.
  *
  * Claude launches its generic subagent tool asynchronously, so the launching call completes within
  * milliseconds while the agent runs on for as long as its work takes. Reading that acknowledgement
  * as an answer is what drew live agents as finished, and the fix — treating it as a start — moved
  * the row OUT of this sweep, which only ever looked at `running` calls. The agent is a child of the
- * session process, so once that process is gone the agent is gone with it; without this a dead
- * session left every plain subagent it launched presenting as work in progress, permanently.
+ * session process, so once that process is gone the agent is gone with it. A pi-subagents run
+ * gets its result from the session process, so without that process no result comes. Without this
+ * sweep, a dead session left every plain subagent it launched presenting as work in progress,
+ * permanently.
  *
  * Bounded twice, so the sweep cannot widen: only the generic subagent tools, and only while the
  * recorded result is still the acknowledgement. A real result is never overwritten, and an
@@ -82,7 +84,7 @@ function readLatestLinkedSubagentSidechainActivityAt(params: Readonly<{
 function isUnsupersededAsyncSubagentLaunch(tool: ToolCall): boolean {
     if (tool.state !== 'completed') return false;
     if (!isGenericSubAgentToolName(tool.name)) return false;
-    return isClaudeAsyncAgentLaunchToolResult(tool.result);
+    return isAsyncSubagentLaunchToolResult(tool.result);
 }
 
 export function markRunningToolsUnavailable(params: Readonly<{
