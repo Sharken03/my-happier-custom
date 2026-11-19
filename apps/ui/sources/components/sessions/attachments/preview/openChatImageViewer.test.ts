@@ -79,4 +79,17 @@ describe('openChatImageViewer', () => {
         expect(props.images.map((image) => image.title)).toEqual(['one.png', 'two.png']);
         expect(props.initialIndex).toBe(1);
     });
+
+    it('opens fullscreen and passes the session for markup', () => {
+        seedChat([toolResultWithImage('t1', 'one.png')]);
+
+        openChatImageViewer({
+            sessionId: 's1',
+            image: { kind: 'session-image', title: 'one.png', sessionId: 's1', filePath: 'one.png', mimeType: 'image/png', sizeBytes: 10, cacheKey: null },
+        });
+
+        const config = modal.show.mock.calls[0]?.[0] as { chrome?: unknown; props: { sessionId?: string } };
+        expect(config.chrome).toEqual({ kind: 'fullscreen' });
+        expect(config.props.sessionId).toBe('s1');
+    });
 });

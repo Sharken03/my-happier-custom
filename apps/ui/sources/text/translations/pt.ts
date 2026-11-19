@@ -8034,6 +8034,9 @@ export const pt: TranslationStructure = {
             position: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
             share: 'Compartilhar imagem',
             save: 'Salvar imagem',
+            edit: 'Marcar imagem',
+            undo: 'Desfazer',
+            penColor: 'Cor da caneta',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Abrir imagem gerada ${name}`,

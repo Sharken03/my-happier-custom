@@ -7440,6 +7440,9 @@ deps: {
                 position: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
                 share: 'Comparteix la imatge',
                 save: 'Desa la imatge',
+                edit: 'Marca la imatge',
+                undo: 'Desfés',
+                penColor: 'Color del llapis',
             },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Obre la imatge generada ${name}`,

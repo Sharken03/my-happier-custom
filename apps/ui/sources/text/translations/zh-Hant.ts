@@ -6673,6 +6673,9 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
             position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
             share: '分享圖片',
             save: '儲存圖片',
+            edit: '標註圖片',
+            undo: '復原',
+            penColor: '筆的顏色',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `開啟生成的圖片 ${name}`,

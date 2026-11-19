@@ -7440,6 +7440,9 @@ export const de: TranslationStructure = {
                 position: ({ current, total }: { current: number; total: number }) => `${current} von ${total}`,
                 share: 'Bild teilen',
                 save: 'Bild speichern',
+                edit: 'Bild markieren',
+                undo: 'Rückgängig',
+                penColor: 'Stiftfarbe',
             },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Erzeugtes Bild öffnen: ${name}`,

@@ -7472,6 +7472,9 @@ export const en = {
                 position: ({ current, total }: { current: number; total: number }) => `${current} of ${total}`,
                 share: 'Share image',
                 save: 'Save image',
+                edit: 'Mark up image',
+                undo: 'Undo',
+                penColor: 'Pen color',
             },
             sessionMedia: {
                 generatedImageA11y: ({ name }: { name: string }) => `Open generated image ${name}`,

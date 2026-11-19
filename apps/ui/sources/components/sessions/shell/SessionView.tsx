@@ -29,6 +29,7 @@ import type { AttachmentDraft } from '@/components/sessions/attachments/attachme
 import type { AttachmentFilePickerHandle, PickedAttachment } from '@/components/sessions/attachments/AttachmentFilePicker.types';
 import { openAttachmentFilePickerFiles, openAttachmentFilePickerImages } from '@/components/sessions/attachments/attachmentFilePickerActions';
 import { ChatImageGallerySessionProvider } from '@/components/sessions/attachments/preview/openChatImageViewer';
+import { registerSessionComposerAttachmentSink } from '@/components/sessions/attachments/sessionComposerAttachmentSink';
 import { resolveReviewCommentDraftAnchorsForPrompt } from '@/components/sessions/reviews/comments/resolveReviewCommentDraftAnchorsForPrompt';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
 import { useSessionFileUploadAvailability } from '@/components/sessions/files/useSessionFileUploadAvailability';
@@ -4252,6 +4253,11 @@ function SessionViewLoaded({
     }, [patchAttachmentDraft, sessionId]);
     const addAttachments = attachmentDraftManager.addWebFiles;
     const addPickedAttachments = attachmentDraftManager.addPickedAttachments;
+    // Lets the fullscreen image viewer add a marked-up image to this composer's draft.
+    React.useEffect(() => {
+        if (!attachmentsUploadsEnabled) return undefined;
+        return registerSessionComposerAttachmentSink(sessionId, addPickedAttachments);
+    }, [addPickedAttachments, attachmentsUploadsEnabled, sessionId]);
     const pasteAttachmentImage = React.useCallback(() => {
         fireAndForget((async () => {
             const picked = await nativeReadClipboardImageAttachment();

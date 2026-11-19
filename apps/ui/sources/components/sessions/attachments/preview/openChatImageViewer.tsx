@@ -52,6 +52,8 @@ export function openChatImageViewer(params: Readonly<{
     const gallery = resolveChatGallery(chatImages, params.image, params.siblings);
     Modal.show({
         component: AttachmentImagePreviewModal,
-        props: { images: gallery.images, initialIndex: gallery.initialIndex },
+        props: { images: gallery.images, initialIndex: gallery.initialIndex, sessionId: params.sessionId },
+        // Fullscreen from the first frame, so the viewer never shows a card while it mounts.
+        chrome: { kind: 'fullscreen' },
     });
 }

@@ -7900,6 +7900,9 @@ export const ru: TranslationStructure = {
             position: ({ current, total }: { current: number; total: number }) => `${current} из ${total}`,
             share: 'Поделиться изображением',
             save: 'Сохранить изображение',
+            edit: 'Пометить изображение',
+            undo: 'Отменить',
+            penColor: 'Цвет пера',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Открыть сгенерированное изображение ${name}`,

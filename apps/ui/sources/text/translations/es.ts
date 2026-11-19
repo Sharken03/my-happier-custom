@@ -7903,6 +7903,9 @@ export const es: TranslationStructure = {
             position: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
             share: 'Compartir imagen',
             save: 'Guardar imagen',
+            edit: 'Marcar imagen',
+            undo: 'Deshacer',
+            penColor: 'Color del lápiz',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Abrir imagen generada ${name}`,

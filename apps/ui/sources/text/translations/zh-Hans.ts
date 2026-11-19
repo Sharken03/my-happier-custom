@@ -7676,6 +7676,9 @@ export const zhHans: TranslationStructure = {
             position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
             share: '分享图片',
             save: '保存图片',
+            edit: '标注图片',
+            undo: '撤销',
+            penColor: '画笔颜色',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `打开生成的图片 ${name}`,

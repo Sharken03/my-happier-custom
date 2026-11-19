@@ -8174,6 +8174,9 @@ localTailscale: {
             position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
             share: '画像を共有',
             save: '画像を保存',
+            edit: '画像に書き込む',
+            undo: '元に戻す',
+            penColor: 'ペンの色',
         },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `生成画像 ${name} を開く`,
