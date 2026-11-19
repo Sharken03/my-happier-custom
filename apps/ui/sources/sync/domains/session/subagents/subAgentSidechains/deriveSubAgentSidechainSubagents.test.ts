@@ -126,6 +126,12 @@ describe('deriveSubAgentSidechainSubagents — the row title reads the names pro
         })).toBe('Lovelace');
     });
 
+    it('reads the agent and the task of a pi-subagents call', () => {
+        expect(titleFor({ agent: 'scout', task: 'Map the parser' })).toBe('scout');
+        expect(titleFor({ workflow: 'single', args: { agent: 'scout', task: 'Map the parser' } })).toBe('scout');
+        expect(titleFor({ workflow: 'parallel', args: { tasks: [{ agent: 'worker', task: 'Map the image' }] } })).toBe('worker: Map the image');
+    });
+
     it('falls back to the Codex role when the agent was spawned without a nickname', () => {
         expect(titleFor({
             threadId: 'thread_unnamed',

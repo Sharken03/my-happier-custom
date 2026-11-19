@@ -13,6 +13,7 @@ import { resolveSubAgentSidechainProviderLabel } from './resolveSubAgentSidechai
 import { isGenericSubAgentToolName } from '@happier-dev/protocol/tools/v2';
 import { isAsyncSubagentLaunchToolResult, normalizeClaudeActivityStatusSignal, readClaudeAgentSdkProviderTaskStatus } from '@happier-dev/protocol';
 import { resolvePendingPermissionRouteForSubAgentTool } from './resolvePendingPermissionRouteForSubAgentTool';
+import { readSubagentCallPrompt, readSubagentCallType } from '../subagentCallInput';
 
 function readNonEmptyString(value: unknown): string | null {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -49,8 +50,11 @@ function readBoundedDisplayTitle(value: unknown): string | null {
  *                     e.g. "Lovelace") — the only field that tells sibling agents apart,
  *   description       what this run is doing (Claude `Task`, Cursor native tasks),
  *   role              Codex's categorical agent role (`new_agent_role`/`agent_type`),
- *   subagent_type     the same categorical answer from Claude/ACP producers,
- *   prompt            last resort, and only for a live agent whose prompt is its sole description.
+ *   subagent_type     the same categorical answer from Claude/ACP producers (pi-subagents `agent`),
+ *   prompt            last resort, and only for a live agent whose prompt is its sole description
+ *                     (Claude `prompt`, pi-subagents `task` or `tasks`).
+ *
+ * The type and the prompt come from `subagentCallInput`, the reader the other subagent surfaces use.
  *
  * Every candidate is bounded identically: a title is a row label, so no producer field — least of
  * all a whole prompt — may arrive at the layout unbounded.
@@ -66,9 +70,9 @@ function readSubAgentDisplayTitle(
         input?.nickname,
         input?.description,
         input?.role,
-        input?.subagent_type,
+        readSubagentCallType(toolMessage.tool),
     ];
-    if (!completionOnly) candidates.push(input?.prompt);
+    if (!completionOnly) candidates.push(readSubagentCallPrompt(toolMessage.tool));
     for (const candidate of candidates) {
         const title = readBoundedDisplayTitle(candidate);
         if (title) return title;

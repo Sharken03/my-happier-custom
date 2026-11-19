@@ -24,10 +24,9 @@ import {
 import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
 
 import { ToolCallsSheetScrollView } from './ToolCallsBottomSheet';
+import { readSubagentCallPrompt, readSubagentCallType } from '@/sync/domains/session/subagents/subagentCallInput';
 import {
-    readToolCallsSheetSubagentPrompt,
     readToolCallsSheetSubagentReport,
-    readToolCallsSheetSubagentType,
     shouldShowToolCallsSheetSubagentPrompt,
     shouldShowToolCallsSheetSubagentReport,
 } from './toolCallsSheetSubagent';
@@ -83,8 +82,8 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
         () => readSubagentResultDiffStats(tool) ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(message.children)),
         [message.children, tool],
     );
-    const subagentType = readToolCallsSheetSubagentType(tool);
-    const prompt = shouldShowToolCallsSheetSubagentPrompt(visibleMessages) ? readToolCallsSheetSubagentPrompt(tool) : null;
+    const subagentType = readSubagentCallType(tool);
+    const prompt = shouldShowToolCallsSheetSubagentPrompt(visibleMessages) ? readSubagentCallPrompt(tool) : null;
     const fullReport = readToolCallsSheetSubagentReport(tool);
     const report = fullReport && shouldShowToolCallsSheetSubagentReport(fullReport, visibleMessages) ? fullReport : null;
 
