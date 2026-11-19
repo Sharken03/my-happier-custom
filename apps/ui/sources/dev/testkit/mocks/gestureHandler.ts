@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type TestGestureKind = 'pan' | 'tap' | 'longPress' | 'simultaneous' | 'exclusive' | 'race';
+export type TestGestureKind = 'pan' | 'pinch' | 'tap' | 'longPress' | 'simultaneous' | 'exclusive' | 'race';
 export type TestGestureCallback = (...args: any[]) => void;
 
 export type TestGestureHitSlop = number | {
@@ -22,6 +22,10 @@ export type TestGestureChain = {
     enabled(value: boolean): TestGestureChain;
     hitSlop(value: TestGestureHitSlop): TestGestureChain;
     minDistance(value: number): TestGestureChain;
+    minPointers(value: number): TestGestureChain;
+    maxPointers(value: number): TestGestureChain;
+    numberOfTaps(value: number): TestGestureChain;
+    maxDelay(value: number): TestGestureChain;
     activateAfterLongPress(value: number): TestGestureChain;
     minDuration(value: number): TestGestureChain;
     maxDuration(value: number): TestGestureChain;
@@ -48,6 +52,7 @@ export type TestGestureChain = {
 
 export type TestGestureFactories = {
     Pan(): TestGestureChain;
+    Pinch(): TestGestureChain;
     Tap(): TestGestureChain;
     LongPress(): TestGestureChain;
     Simultaneous(...gestures: TestGestureChain[]): TestGestureChain;
@@ -76,6 +81,10 @@ function createGestureChain(kind: TestGestureKind, gestures?: TestGestureChain[]
         enabled: (value: boolean) => configure('enabled', value),
         hitSlop: (value: TestGestureHitSlop) => configure('hitSlop', value),
         minDistance: (value: number) => configure('minDistance', value),
+        minPointers: (value: number) => configure('minPointers', value),
+        maxPointers: (value: number) => configure('maxPointers', value),
+        numberOfTaps: (value: number) => configure('numberOfTaps', value),
+        maxDelay: (value: number) => configure('maxDelay', value),
         activateAfterLongPress: (value: number) => configure('activateAfterLongPress', value),
         minDuration: (value: number) => configure('minDuration', value),
         maxDuration: (value: number) => configure('maxDuration', value),
@@ -119,6 +128,7 @@ export function createGestureFactories(
 
     return {
         Pan: () => create('pan'),
+        Pinch: () => create('pinch'),
         Tap: () => create('tap'),
         LongPress: () => create('longPress'),
         Simultaneous: (...gestures: TestGestureChain[]) => create('simultaneous', gestures),
