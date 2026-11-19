@@ -450,6 +450,12 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                 costInputPerMTok: option.costInputPerMTok,
                                                 costOutputPerMTok: option.costOutputPerMTok,
                                             });
+                                            // The card itself is the accessible element, so the level
+                                            // joins its label and the glyph stays decorative; a
+                                            // nested focus stop would only repeat the row.
+                                            const cardAccessibilityLabel = [option.accessibilityLabel, price.accessibilityLabel]
+                                                .filter((part): part is string => typeof part === 'string' && part.length > 0)
+                                                .join(', ') || undefined;
                                             return (
                                                 <View
                                                     key={option.value}
@@ -464,7 +470,7 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                         onPressIn={() => { selectionPressPendingRef.current = true; }}
                                                         onPress={() => handleSelectOption(option.value)}
                                                         accessibilityRole="button"
-                                                        accessibilityLabel={option.accessibilityLabel}
+                                                        accessibilityLabel={cardAccessibilityLabel}
                                                         accessibilityState={{ selected: isSelected }}
                                                         style={(state) => {
                                                             const { pressed } = state;
@@ -550,10 +556,8 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                             {price.symbol === null ? null : (
                                                                 <View
                                                                     style={styles.optionCardPrice}
-                                                                    accessible
-                                                                    accessibilityRole="text"
-                                                                    accessibilityLabel={price.accessibilityLabel ?? undefined}
-                                                                    importantForAccessibility="yes"
+                                                                    accessibilityElementsHidden
+                                                                    importantForAccessibility="no-hide-descendants"
                                                                 >
                                                                     <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
                                                                 </View>

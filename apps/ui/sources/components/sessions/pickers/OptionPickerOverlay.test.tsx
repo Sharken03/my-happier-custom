@@ -55,10 +55,15 @@ describe('OptionPickerOverlay model price', () => {
             .filter((child: unknown) => typeof child === 'string' && /^\$+$/.test(child));
         expect(symbols).toEqual(['$$$']);
 
-        const labels = screen.findAllByType(View as any)
+        // The card is the accessible element, so the level must sit on the card's own label.
+        const cardLabels = screen.root.findAllByProps({ accessibilityRole: 'button' })
             .map((node: any) => node.props.accessibilityLabel)
             .filter((label: unknown) => typeof label === 'string');
-        expect(labels).toContain('usage.cost: 3/4');
+        expect(cardLabels.some((label: string) => label.includes('usage.cost: 3/4'))).toBe(true);
+        const viewLabels = screen.findAllByType(View as any)
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        expect(viewLabels).not.toContain('usage.cost: 3/4');
     });
 });
 
