@@ -16,7 +16,7 @@ import {
     type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
-import { readModelPriceTier } from '@/sync/domains/models/priceTier';
+import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 
@@ -158,26 +158,22 @@ function ModelPriceColumn(props: Readonly<{
     costOutputPerMTok?: number;
 }>) {
     const { theme } = useUnistyles();
-    const priceTier = readModelPriceTier({
+    const price = readModelPriceDisplay({
         costInputPerMTok: props.costInputPerMTok,
         costOutputPerMTok: props.costOutputPerMTok,
     });
-    // The symbols alone read as "dollar dollar dollar", so the column announces a level
-    // instead. Free and unpriced rows have nothing to announce and stay hidden.
-    const priceAccessibilityLabel = priceTier === 'free' || priceTier === 'unknown'
-        ? undefined
-        : `${t('usage.cost')}: ${priceTier.length}/4`;
+    const label = price.accessibilityLabel ?? undefined;
     return (
         <View
             style={styles.priceColumn}
-            accessible={priceAccessibilityLabel !== undefined}
-            accessibilityRole={priceAccessibilityLabel !== undefined ? 'text' : undefined}
-            accessibilityLabel={priceAccessibilityLabel}
-            accessibilityElementsHidden={priceAccessibilityLabel === undefined}
-            importantForAccessibility={priceAccessibilityLabel === undefined ? 'no-hide-descendants' : 'auto'}
+            accessible={label !== undefined}
+            accessibilityRole={label !== undefined ? 'text' : undefined}
+            accessibilityLabel={label}
+            accessibilityElementsHidden={label === undefined}
+            importantForAccessibility={label === undefined ? 'no-hide-descendants' : 'auto'}
         >
-            {priceTier === 'free' || priceTier === 'unknown' ? null : (
-                <Text style={[styles.priceText, { color: theme.colors.text.secondary }]}>{priceTier}</Text>
+            {price.symbol === null ? null : (
+                <Text style={[styles.priceText, { color: theme.colors.text.secondary }]}>{price.symbol}</Text>
             )}
         </View>
     );
@@ -316,6 +312,9 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
     ]);
 
     if (props.presentation === 'compact') {
+        // Both compact builds must agree: a star that cannot record a favorite is disabled,
+        // so the row never offers an action that silently does nothing.
+        const favoritesDisabled = !props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange;
         const dropdownItems: DropdownMenuItem[] = [
             ...rows.favoriteRows.map((row) => ({
                 id: row.id,
@@ -330,7 +329,7 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                         favoriteAction={row.favoritable ? (
                             <FavoriteToggle
                                 model={row}
-                                disabled={false}
+                                disabled={favoritesDisabled}
                                 selectedIndicatorColor={props.selectedIndicatorColor}
                                 onPress={() => toggleFavorite(row)}
                             />
@@ -351,7 +350,7 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                         favoriteAction={row.favoritable ? (
                             <FavoriteToggle
                                 model={row}
-                                disabled={!props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange}
+                                disabled={favoritesDisabled}
                                 selectedIndicatorColor={props.selectedIndicatorColor}
                                 onPress={() => toggleFavorite(row)}
                             />

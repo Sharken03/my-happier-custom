@@ -25,6 +25,8 @@ type AgentInputEngineModelOption = Readonly<{
   trailingStatusIcon?: React.ReactNode;
   accessibilityLabel?: string;
   description: string;
+  costInputPerMTok?: number;
+  costOutputPerMTok?: number;
   modelOptions?: ReadonlyArray<SessionConfigOption>;
 }>;
 

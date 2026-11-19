@@ -789,6 +789,24 @@ describe('NewSessionWizard', () => {
         expect(flattenStyle((codexRow.props.rightElement as any)?.props?.style).width).toBe(28);
     });
 
+    it('collapses to the compact model dropdown above eight models, so the price column must live there', async () => {
+        const nineCostedModels = Array.from({ length: 9 }, (_, index) => ({
+            value: `model-${index}`,
+            label: `Model ${index}`,
+            description: 'Priced',
+            costInputPerMTok: 2,
+            costOutputPerMTok: 6,
+        }));
+
+        const screen = await renderWizardForModelRefresh({ modelOptions: nineCostedModels });
+
+        // Above the threshold the picker auto-collapses, so the expanded rows are absent and
+        // the dropdown is the only surface that can show the level.
+        const itemTestIds = screen.findAllByType('Item' as any).map((node: any) => node.props?.testID).filter(Boolean);
+        expect(itemTestIds).toContain('new-session-model-dropdown-trigger');
+        expect(itemTestIds).not.toContain('new-session-model:model-0');
+    });
+
     it('renders the wizard model refresh action when model options can be refreshed', async () => {
         const onRefresh = vi.fn();
 

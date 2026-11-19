@@ -282,6 +282,38 @@ describe('NewSessionModelSelectionContent', () => {
         ]);
     });
 
+    it('disables the compact favorite action when no change handler can record it', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={[{ value: 'gpt-5.5', label: 'GPT-5.5', description: 'Deep' }]}
+                selectedModelId="gpt-5.5"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={[
+                    {
+                        backendTargetKey: 'agent:codex',
+                        providerAgentId: 'codex',
+                        builtInAgentId: 'codex',
+                        configuredBackendId: null,
+                        modelId: 'gpt-5.5',
+                        modelLabel: 'GPT-5.5',
+                        backendLabel: 'Codex',
+                        addedAtMs: 1,
+                    },
+                ]}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        // The favorites-category row and the all-models row must agree: no handler, no action.
+        const menu = screen.root.findByType('DropdownMenu' as any);
+        expect(menu.props.items[0]?.category).toBe('Favorites');
+        expect(menu.props.items[0]?.rightElement?.props?.favoriteAction?.props?.disabled).toBe(true);
+    });
+
     it('does not render favorite actions for the CLI settings model in list or dropdown mode', async () => {
         const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
 

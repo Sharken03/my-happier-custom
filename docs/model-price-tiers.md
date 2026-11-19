@@ -48,7 +48,8 @@ at `$$$`. Resulting split over the catalog: 62 / 124 / 121 / 52 plus 17 free.
 ## Display
 
 A fixed-width column (~44 px) right-aligned between the row subtitle and the favorite
-star, so the stars and the selected check mark stay on the same x for every row.
+star, so the stars and the selected check mark stay on the same x for every row. The
+in-session picker uses cards instead of rows and shows the glyph in the card header.
 
 - Symbols in the mono variant, `text.secondary`, slight letter-spacing: `$` reads as one
   unit instead of four loose characters.
@@ -76,8 +77,10 @@ narrow screens where it matters, and it turns the subtitle into a mixed-purpose 
   before the fields existed are discarded instead of showing unpriced rows for 30 days.
 - The new-session picker auto-collapses to the compact dropdown above 8 models, so both
   presentations render the column from the same `ModelPriceColumn` component.
-- The in-session model picker (`ModelPickerOverlay.tsx`) does not render the level yet; it
-  is the remaining surface.
+- The in-session model picker renders cards rather than rows, so it shows the same level as a
+  right-aligned glyph in the card header, before the check mark, with the same label.
+- Both surfaces read the display decision from `readModelPriceDisplay`, so the glyph and the
+  announcement cannot drift apart.
 
 ## Where the numbers come from
 

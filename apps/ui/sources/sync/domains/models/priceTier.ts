@@ -10,6 +10,8 @@
  */
 export type ModelPriceTier = 'free' | 'unknown' | '$' | '$$' | '$$$' | '$$$$';
 
+import { t } from '@/text';
+
 /**
  * Blend used for the band: input plus three times output, the typical session mix. Prices are
  * log-normally distributed across the OpenRouter catalog, so the thresholds are geometric —
@@ -39,4 +41,20 @@ export function readModelPriceTier(params: Readonly<{
     const blend = input + BLEND_OUTPUT_WEIGHT * output;
     const level = 1 + BAND_THRESHOLDS.filter((threshold) => blend > threshold).length;
     return `$$$$$$$$`.slice(0, level) as ModelPriceTier;
+}
+
+/**
+ * What a row shows for a model: the glyph and what a screen reader should say instead.
+ *
+ * Free and unpriced models show nothing and announce nothing, so every surface that renders a
+ * price gets the display decision from one place.
+ */
+export function readModelPriceDisplay(params: Readonly<{
+    costInputPerMTok?: unknown;
+    costOutputPerMTok?: unknown;
+}>): Readonly<{ tier: ModelPriceTier; symbol: string | null; accessibilityLabel: string | null }> {
+    const tier = readModelPriceTier(params);
+    if (tier === 'free' || tier === 'unknown') return { tier, symbol: null, accessibilityLabel: null };
+    // The symbols alone read as "dollar dollar dollar"; a level announcement is useful.
+    return { tier, symbol: tier, accessibilityLabel: `${t('usage.cost')}: ${tier.length}/4` };
 }

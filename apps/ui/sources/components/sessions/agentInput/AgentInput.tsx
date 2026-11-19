@@ -2248,6 +2248,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         && (typeof option.description !== 'string' || option.description.trim().length === 0)
                             ? t('agentInput.model.configureInCli')
                             : option.description,
+                    ...(typeof option.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+                    ...(typeof option.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
                     ...(option.modelOptions ? { modelOptions: option.modelOptions } : {}),
                 }))}
                 selectedModelId={effectiveModelPolicy.selectedModelId}
