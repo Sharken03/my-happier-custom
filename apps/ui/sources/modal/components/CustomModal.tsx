@@ -45,6 +45,8 @@ function areChromeConfigsEqual(
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
 
+    if (a.kind === 'fullscreen' && b.kind === 'fullscreen') return true;
+
     if (a.kind === 'card' && b.kind === 'card') {
         return a.title === b.title
             && a.subtitle === b.subtitle
@@ -109,6 +111,7 @@ export function CustomModal({ config, onClose, showBackdrop = true, visible, zIn
     const [chromeOverride, setChromeOverride] = React.useState<CustomModalChromeConfig | null | undefined>(undefined);
     const effectiveChrome = chromeOverride === undefined ? config.chrome : chromeOverride;
     const chrome = effectiveChrome?.kind === 'card' ? effectiveChrome : null;
+    const fullscreen = effectiveChrome?.kind === 'fullscreen';
 
     const setChrome = React.useCallback((nextChrome: CustomModalChromeConfig | null) => {
         setChromeOverride((prevOverride) => {
@@ -134,6 +137,7 @@ export function CustomModal({ config, onClose, showBackdrop = true, visible, zIn
         <BaseModal
             visible={visible}
             onClose={onClose}
+            fullscreen={fullscreen}
             accessibilityLabel={typeof chrome?.title === 'string' ? chrome.title : undefined}
             closeOnBackdrop={config.closeOnBackdrop ?? true}
             showBackdrop={showBackdrop}
