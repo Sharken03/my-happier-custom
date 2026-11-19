@@ -6,6 +6,10 @@ import { renderScreen } from '@/dev/testkit';
 import type { CustomModalChromeConfig } from '@/modal/types';
 import { SessionReminderDateTimeModal } from './SessionReminderDateTimeModal';
 
+function cardFooter(chrome: CustomModalChromeConfig | null | undefined): React.ReactNode {
+    return chrome?.kind === 'card' ? chrome.footer : null;
+}
+
 vi.mock('@/components/ui/text/Text', async () => {
     const { createUiTextModuleMock } = await import('@/dev/testkit/mocks/uiText');
     return createUiTextModuleMock();
@@ -26,7 +30,7 @@ describe('SessionReminderDateTimeModal', () => {
         />);
 
         await act(async () => screen.find((node) => typeof node.props.onValueChange === 'function').props.onValueChange(true));
-        const footer = await renderScreen(<>{setChrome.mock.lastCall?.[0]?.footer}</>);
+        const footer = await renderScreen(<>{cardFooter(setChrome.mock.lastCall?.[0])}</>);
         const buttons = footer.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button');
         await act(async () => buttons[1].props.onPress());
         expect(onResolve).toHaveBeenCalledWith({
@@ -45,7 +49,7 @@ describe('SessionReminderDateTimeModal', () => {
             onResolve={onResolve} onClose={onClose} setChrome={setChrome}
         />);
         await act(async () => screen.changeTextByTestId('session-reminder-date-input', '2026-02-30'));
-        const footer = await renderScreen(<>{setChrome.mock.lastCall?.[0]?.footer}</>);
+        const footer = await renderScreen(<>{cardFooter(setChrome.mock.lastCall?.[0])}</>);
         const buttons = footer.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button');
         expect(buttons[1].props.disabled).toBe(true);
         await act(async () => buttons[0].props.onPress());
