@@ -13,36 +13,6 @@ vi.mock('@/text', async () => {
     });
 });
 
-describe('ModelPickerOverlay price', () => {
-    it('shows the price level on the model card and hides it for free models', async () => {
-        const { ModelPickerOverlay } = await import('./ModelPickerOverlay');
-
-        const screen = await renderScreen(<ModelPickerOverlay
-                    title="Model"
-                    effectiveLabel="Default"
-                    notes={[]}
-                    options={[
-                        { value: 'paid', label: 'Paid', description: 'p', costInputPerMTok: 2, costOutputPerMTok: 6 },
-                        { value: 'free', label: 'Free', description: 'f', costInputPerMTok: 0, costOutputPerMTok: 0 },
-                    ]}
-                    selectedValue="paid"
-                    emptyText="empty"
-                    canEnterCustomModel={false}
-                    onSelect={vi.fn()}
-                />);
-
-        const symbols = screen.findAllByType('Text' as any)
-            .map((node: any) => node.props.children)
-            .filter((child: unknown) => typeof child === 'string' && /^\$+$/.test(child));
-        expect(symbols).toEqual(['$$$']);
-
-        const labels = screen.findAllByType('View' as any)
-            .map((node: any) => node.props.accessibilityLabel)
-            .filter((label: unknown) => typeof label === 'string');
-        expect(labels).toContain('usage.cost: 3/4');
-    });
-});
-
 describe('ModelPickerOverlay', () => {
     it('selects a named option', async () => {
         const onSelect = vi.fn();

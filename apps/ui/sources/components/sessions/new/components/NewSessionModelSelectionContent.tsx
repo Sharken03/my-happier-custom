@@ -141,7 +141,7 @@ function FavoriteToggle(props: Readonly<{
                 event.stopPropagation?.();
                 props.onPress();
             }}
-            style={styles.favoriteButton}
+            style={[styles.favoriteButton, props.disabled ? styles.favoriteButtonDisabled : null]}
         >
             <Icon
                 name="star"
@@ -421,6 +421,9 @@ const styles = StyleSheet.create(() => ({
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: 8,
+    },
+    favoriteButtonDisabled: {
+        opacity: 0.4,
     },
     favoriteButton: {
         width: 28,

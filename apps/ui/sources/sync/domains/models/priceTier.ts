@@ -1,3 +1,5 @@
+import { t } from '@/text';
+
 /**
  * The price level shown in the model picker.
  *
@@ -9,8 +11,6 @@
  * a different rate. See docs/model-price-tiers.md.
  */
 export type ModelPriceTier = 'free' | 'unknown' | '$' | '$$' | '$$$' | '$$$$';
-
-import { t } from '@/text';
 
 /**
  * Blend used for the band: input plus three times output, the typical session mix. Prices are

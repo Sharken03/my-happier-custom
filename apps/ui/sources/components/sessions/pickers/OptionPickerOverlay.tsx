@@ -18,6 +18,7 @@ import {
 import { shadowLevelStyle } from '@/shadowElevation';
 import { t } from '@/text';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
+import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
 import { Typography } from '@/constants/Typography';
 import { Icon } from '@/components/ui/icons/Icon';
 
@@ -33,6 +34,8 @@ export type OptionPickerOption = Readonly<{
     trailingStatusIcon?: React.ReactNode;
     accessibilityLabel?: string;
     description?: string;
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
 }>;
 
 export type OptionPickerProbeState = Readonly<{
@@ -440,6 +443,13 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                             const canToggleFavorite = (isSelected || isFavorite)
                                                 && Boolean(props.favoriteOptions)
                                                 && (props.favoriteOptions?.isFavoritable?.(option) ?? true);
+                                            // The card shows the same level as a model row: the
+                                            // glyph right-aligned in the content row, the level
+                                            // for assistive tech.
+                                            const price = readModelPriceDisplay({
+                                                costInputPerMTok: option.costInputPerMTok,
+                                                costOutputPerMTok: option.costOutputPerMTok,
+                                            });
                                             return (
                                                 <View
                                                     key={option.value}
@@ -537,6 +547,16 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                                     </Text>
                                                                 ) : null}
                                                             </View>
+                                                            {price.symbol === null ? null : (
+                                                                <View
+                                                                    style={styles.optionCardPrice}
+                                                                    accessible
+                                                                    accessibilityRole="text"
+                                                                    accessibilityLabel={price.accessibilityLabel ?? undefined}
+                                                                >
+                                                                    <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
+                                                                </View>
+                                                            )}
                                                         </View>
                                                     </Pressable>
                                                     {isSelected ? (
@@ -754,6 +774,18 @@ const stylesheet = StyleSheet.create((theme) => ({
     optionCardTitleSelected: {
         ...Typography.default('semiBold'),
         color: theme.colors.text.primary,
+    },
+    optionCardPrice: {
+        minWidth: 34,
+        paddingLeft: 6,
+        alignItems: 'flex-end',
+        justifyContent: 'flex-start',
+    },
+    optionCardPriceText: {
+        fontFamily: 'monospace',
+        fontSize: 11,
+        letterSpacing: 0.5,
+        color: theme.colors.text.secondary,
     },
     optionCardIndicator: {
         position: 'absolute',

@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { readModelPriceTier } from './priceTier';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/text', async () => {
+    const { createTextModuleMock } = await import('@/dev/testkit/mocks/text');
+    return createTextModuleMock({ translate: (key: string) => key });
+});
+import { readModelPriceDisplay, readModelPriceTier } from './priceTier';
 
 describe('readModelPriceTier', () => {
     it('reserves the free level for models priced at zero on both sides', () => {
@@ -39,5 +44,22 @@ describe('readModelPriceTier', () => {
         // A reasoning-heavy model bills reasoning tokens at the output rate, so the band is
         // a property of the model. There is deliberately no effort argument to pass.
         expect(readModelPriceTier.length).toBe(1);
+    });
+});
+
+describe('readModelPriceDisplay', () => {
+    it('gives paid rows a glyph and a spoken level', () => {
+        expect(readModelPriceDisplay({ costInputPerMTok: 2, costOutputPerMTok: 6 })).toEqual({
+            tier: '$$$', symbol: '$$$', accessibilityLabel: 'usage.cost: 3/4',
+        });
+    });
+
+    it('shows and says nothing for free and unpriced models', () => {
+        expect(readModelPriceDisplay({ costInputPerMTok: 0, costOutputPerMTok: 0 })).toEqual({
+            tier: 'free', symbol: null, accessibilityLabel: null,
+        });
+        expect(readModelPriceDisplay({})).toEqual({
+            tier: 'unknown', symbol: null, accessibilityLabel: null,
+        });
     });
 });

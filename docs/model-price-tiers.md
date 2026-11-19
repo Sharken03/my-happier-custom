@@ -49,7 +49,8 @@ at `$$$`. Resulting split over the catalog: 62 / 124 / 121 / 52 plus 17 free.
 
 A fixed-width column (~44 px) right-aligned between the row subtitle and the favorite
 star, so the stars and the selected check mark stay on the same x for every row. The
-in-session picker uses cards instead of rows and shows the glyph in the card header.
+in-session picker is `OptionPickerOverlay`, which renders cards instead of rows; there the
+glyph sits right-aligned at the end of the card's content row.
 
 - Symbols in the mono variant, `text.secondary`, slight letter-spacing: `$` reads as one
   unit instead of four loose characters.
@@ -77,10 +78,11 @@ narrow screens where it matters, and it turns the subtitle into a mixed-purpose 
   before the fields existed are discarded instead of showing unpriced rows for 30 days.
 - The new-session picker auto-collapses to the compact dropdown above 8 models, so both
   presentations render the column from the same `ModelPriceColumn` component.
-- The in-session model picker renders cards rather than rows, so it shows the same level as a
-  right-aligned glyph in the card header, before the check mark, with the same label.
-- Both surfaces read the display decision from `readModelPriceDisplay`, so the glyph and the
-  announcement cannot drift apart.
+- The in-session picker is `OptionPickerOverlay` (cards, `surfaceVariant="carded"` from
+  `AgentInputEngineDetail`), not `ModelPickerOverlay` — that component has no production
+  importers and must not be relied on.
+- Every surface reads the glyph and the announcement from `readModelPriceDisplay`, so they
+  cannot drift apart.
 
 ## Where the numbers come from
 

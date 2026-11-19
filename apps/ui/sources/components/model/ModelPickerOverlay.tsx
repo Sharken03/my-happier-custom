@@ -15,7 +15,6 @@ import {
 } from '@/sync/domains/sessionControl/configOptionsControl';
 import { t } from '@/text';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
-import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
 import { Icon } from '@/components/ui/icons/Icon';
 
 
@@ -23,8 +22,6 @@ export type ModelPickerOption = Readonly<{
     value: string;
     label: string;
     description?: string;
-    costInputPerMTok?: number;
-    costOutputPerMTok?: number;
 }>;
 
 export type ModelPickerProbeState = Readonly<{
@@ -282,12 +279,6 @@ export function ModelPickerOverlay(props: {
                         <View style={styles.cardsGrid}>
                             {filteredOptions.map((option) => {
                                 const isSelected = selectedTileValue === option.value;
-                                // The card carries the same level as the list row: the glyph
-                                // in the header, the level for assistive tech.
-                                const price = readModelPriceDisplay({
-                                    costInputPerMTok: option.costInputPerMTok,
-                                    costOutputPerMTok: option.costOutputPerMTok,
-                                });
                                 return (
                                     <Pressable
                                         key={option.value}
@@ -303,16 +294,6 @@ export function ModelPickerOverlay(props: {
                                             <Text style={styles.optionCardTitle}>
                                                 {option.label}
                                             </Text>
-                                            {price.symbol === null ? null : (
-                                                <View
-                                                    style={styles.optionCardPrice}
-                                                    accessible
-                                                    accessibilityRole="text"
-                                                    accessibilityLabel={price.accessibilityLabel ?? undefined}
-                                                >
-                                                    <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
-                                                </View>
-                                            )}
                                             <View
                                                 testID={isSelected ? `model-picker-overlay-option-selected-indicator:${option.value}` : undefined}
                                                 style={styles.optionCardIndicator}
@@ -473,17 +454,6 @@ const stylesheet = StyleSheet.create((theme) => ({
         lineHeight: 15,
         fontWeight: '700',
         color: theme.colors.text.primary,
-    },
-    optionCardPrice: {
-        minWidth: 34,
-        alignItems: 'flex-end',
-        paddingTop: 1,
-    },
-    optionCardPriceText: {
-        fontFamily: 'monospace',
-        fontSize: 11,
-        letterSpacing: 0.5,
-        color: theme.colors.text.secondary,
     },
     optionCardIndicator: {
         minWidth: 18,

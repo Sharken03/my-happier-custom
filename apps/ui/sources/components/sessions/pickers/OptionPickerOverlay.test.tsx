@@ -34,6 +34,33 @@ vi.mock('react-native-unistyles', async () => {
     return createUnistylesMock();
 });
 
+describe('OptionPickerOverlay model price', () => {
+    it('shows the price level on the model card and hides it for free models', async () => {
+        const { OptionPickerOverlay } = await import('./OptionPickerOverlay');
+
+        const screen = await renderScreen(<OptionPickerOverlay
+            title="Model"
+            subtitle="Choose"
+            options={[
+                { value: 'paid', label: 'Paid', description: 'p', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'free', label: 'Free', description: 'f', costInputPerMTok: 0, costOutputPerMTok: 0 },
+            ]}
+            selectedValue="paid"
+            onSelect={vi.fn()}
+        />);
+
+        const symbols = screen.findAllByType(Text as any)
+            .map((node: any) => node.props.children)
+            .filter((child: unknown) => typeof child === 'string' && /^\$+$/.test(child));
+        expect(symbols).toEqual(['$$$']);
+
+        const labels = screen.findAllByType(View as any)
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        expect(labels).toContain('usage.cost: 3/4');
+    });
+});
+
 describe('OptionPickerOverlay', () => {
     function flattenStyleFromCallback(
         styleProp: unknown,

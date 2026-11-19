@@ -789,7 +789,7 @@ describe('NewSessionWizard', () => {
         expect(flattenStyle((codexRow.props.rightElement as any)?.props?.style).width).toBe(28);
     });
 
-    it('collapses to the compact model dropdown above eight models, so the price column must live there', async () => {
+    it('collapses to the compact model dropdown above eight models', async () => {
         const nineCostedModels = Array.from({ length: 9 }, (_, index) => ({
             value: `model-${index}`,
             label: `Model ${index}`,
