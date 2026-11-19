@@ -18,7 +18,7 @@ export type ModelPriceTier = 'free' | 'unknown' | '$' | '$$' | '$$$' | '$$$$';
  * each step is roughly ×5.7 — instead of linear.
  */
 const BLEND_OUTPUT_WEIGHT = 3;
-const BAND_THRESHOLDS = [1.25, 7, 36] as const;
+const BAND_THRESHOLDS = [1.25, 5, 36] as const;
 
 function readPrice(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;

@@ -39,7 +39,7 @@ models (61 `:batch` variants and 8 sentinel-priced entries excluded):
 | `free` | input = output = 0 |
 | `?` | unknown or sentinel price (catalog uses `-1000000` for `openrouter/auto*`, `nvidia/switchyard`, `typesafe/jev-router`) |
 | `$` | 0 < blend ≤ 1.25 |
-| `$$` | ≤ 7 |
+| `$$` | ≤ 5 |
 | `$$$` | ≤ 36 |
 | `$$$$` | > 36 |
 
