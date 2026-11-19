@@ -88,6 +88,9 @@ narrow screens where it matters, and it turns the subtitle into a mixed-purpose 
 - Every surface reads the glyph and the announcement from `readModelPriceDisplay`, so they
   cannot drift apart.
 
+- The favorites surface (`NewSessionFavoriteModelsDetail`) reuses the preflight rows and now
+  passes the prices on, so a favorite card shows the same level as the session card.
+
 ## Where the numbers come from
 
 Read `cost.input` / `cost.output` from the provider-scoped model metadata that Pi already

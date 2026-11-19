@@ -42,6 +42,8 @@ type FavoriteModelOption = Readonly<{
     label: string;
     icon?: React.ReactNode;
     description: string;
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
 }>;
 
 type FavoriteModelSnapshot = Readonly<{
@@ -265,13 +267,25 @@ function FavoriteBackendModelsCollector(props: Readonly<{
         return out;
     }, [matchingFavorites, selectableFavorites]);
 
+    // The favorites reuse the preflight rows, so a priced model keeps its level here too.
+    const modelOptionByValue = React.useMemo(() => new Map(selectableFavorites.flatMap((model) => {
+        const option = modelOptions.find((candidate) => candidate.value === model.modelId) ?? null;
+        return option ? [[buildFavoriteOptionValue(props.entry, model.modelId), option] as const] : [];
+    })), [modelOptions, props.entry, selectableFavorites]);
+
     const options = React.useMemo(() => [
-        ...selectableFavorites.map((model) => ({
-            value: buildFavoriteOptionValue(props.entry, model.modelId),
-            label: model.modelLabel,
-            icon: renderFavoriteModelOptionIcon(props.entry),
-            description: model.backendLabel ?? props.entry.title,
-        })),
+        ...selectableFavorites.map((model) => {
+            const value = buildFavoriteOptionValue(props.entry, model.modelId);
+            const priced = modelOptionByValue.get(value) ?? null;
+            return {
+                value,
+                label: model.modelLabel,
+                icon: renderFavoriteModelOptionIcon(props.entry),
+                description: model.backendLabel ?? props.entry.title,
+                ...(typeof priced?.costInputPerMTok === 'number' ? { costInputPerMTok: priced.costInputPerMTok } : {}),
+                ...(typeof priced?.costOutputPerMTok === 'number' ? { costOutputPerMTok: priced.costOutputPerMTok } : {}),
+            };
+        }),
         ...staleFavorites.map((favorite) => {
             const modelId = normalizeFavoriteModelId(favorite.modelId);
             return {
@@ -281,7 +295,7 @@ function FavoriteBackendModelsCollector(props: Readonly<{
                 description: props.entry.title,
             };
         }),
-    ], [props.entry, selectableFavorites, staleFavorites]);
+    ], [modelOptionByValue, props.entry, selectableFavorites, staleFavorites]);
 
     const favoriteValues = React.useMemo(() => options.map((option) => option.value), [options]);
     const availableValues = React.useMemo(() => selectableFavorites.map((model) => (
@@ -298,11 +312,6 @@ function FavoriteBackendModelsCollector(props: Readonly<{
             modelLabel: model.modelLabel,
         },
     ] as const)), [props.entry, selectableFavorites]);
-    const modelOptionByValue = React.useMemo(() => new Map(selectableFavorites.flatMap((model) => {
-        const option = modelOptions.find((candidate) => candidate.value === model.modelId) ?? null;
-        return option ? [[buildFavoriteOptionValue(props.entry, model.modelId), option] as const] : [];
-    })), [modelOptions, props.entry, selectableFavorites]);
-
     const selectedValue = props.selectedBackendTargetKey === props.entry.targetKey
         ? buildFavoriteOptionValue(props.entry, props.selectedModelId)
         : '';
