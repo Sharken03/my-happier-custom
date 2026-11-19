@@ -451,9 +451,17 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                                 costOutputPerMTok: option.costOutputPerMTok,
                                             });
                                             // The card itself is the accessible element, so the level
-                                            // joins its label and the glyph stays decorative; a
-                                            // nested focus stop would only repeat the row.
-                                            const cardAccessibilityLabel = [option.accessibilityLabel, price.accessibilityLabel]
+                                            // joins its label and the glyph stays decorative. An
+                                            // explicit label wins; otherwise the visible text is the
+                                            // base, so a priced card still announces its model name.
+                                            const priceLabel = price.accessibilityLabel;
+                                            const baseLabel = option.accessibilityLabel
+                                                ?? (priceLabel
+                                                    ? [option.label, option.description]
+                                                        .filter((part): part is string => typeof part === 'string' && part.length > 0)
+                                                        .join(', ')
+                                                    : '');
+                                            const cardAccessibilityLabel = [baseLabel, priceLabel]
                                                 .filter((part): part is string => typeof part === 'string' && part.length > 0)
                                                 .join(', ') || undefined;
                                             return (

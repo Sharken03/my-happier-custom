@@ -62,8 +62,10 @@ glyph sits right-aligned at the end of the card's content row.
 - No colour coding by price level: expensive is not an error state.
 - Accessibility: the column announces `Cost: 3/4` (reusing the existing `usage.cost` key), so a
   screen reader does not read "dollar dollar dollar". Free and unpriced rows announce nothing
-  because they show nothing. On the in-session cards the level joins the card button's own
-  label and the glyph itself is decorative, because the card button is the accessible element.
+  because they show nothing. On the in-session cards the level joins the card button's label and the
+  glyph itself is decorative, because the card button is the accessible element. When a card has
+  no explicit label the visible name and description become the base, so a priced card still
+  announces which model it is.
 - No translation keys are needed at all: the symbols are language-neutral and the free
   tier is silent.
 

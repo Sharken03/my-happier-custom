@@ -56,10 +56,12 @@ describe('OptionPickerOverlay model price', () => {
         expect(symbols).toEqual(['$$$']);
 
         // The card is the accessible element, so the level must sit on the card's own label.
+        // The card is the accessible element: the level joins the visible text, so a priced
+        // card still announces its model name, and the free card announces neither.
         const cardLabels = screen.root.findAllByProps({ accessibilityRole: 'button' })
             .map((node: any) => node.props.accessibilityLabel)
             .filter((label: unknown) => typeof label === 'string');
-        expect(cardLabels.some((label: string) => label.includes('usage.cost: 3/4'))).toBe(true);
+        expect(cardLabels).toEqual(['Paid, p, usage.cost: 3/4']);
         const viewLabels = screen.findAllByType(View as any)
             .map((node: any) => node.props.accessibilityLabel)
             .filter((label: unknown) => typeof label === 'string');
