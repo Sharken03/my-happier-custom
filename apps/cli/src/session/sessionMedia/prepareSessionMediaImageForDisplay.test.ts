@@ -143,16 +143,36 @@ describe('prepareSessionMediaImageForDisplay', () => {
     expect(result.image.bytes.length).toBeLessThan(bytes.length);
   });
 
-  it('names HEIC when this machine cannot decode it', async () => {
+  it('converts HEIC on this machine, or names the missing decoder', async () => {
     const result = await prepareSessionMediaImageForDisplay(Buffer.from(HEIC_40X30_BASE64, 'base64'));
 
     if (result.ok) {
-      // A sharp build with an HEVC decoder converts it like the other types.
+      // sharp with an HEVC decoder, or a HEIF decoder on the machine, converts it.
       expect(result.image).toMatchObject({ mimeType: 'image/png', width: 40, height: 30, sourceMimeType: 'image/heic' });
       return;
     }
     expect(result.code).toBe('image_decode_unavailable');
     expect(result.error).toContain('image/heic');
+  });
+
+  it('converts HEIC with the system HEIF decoder when the image library has no HEVC decoder', async () => {
+    const png = await (await solidImage(40, 30)).png().toBuffer();
+    const decodeHeif = async () => png;
+    const result = await prepareSessionMediaImageForDisplay(Buffer.from(HEIC_40X30_BASE64, 'base64'), { decodeHeif });
+
+    expect(result).toMatchObject({ ok: true, image: { mimeType: 'image/png', width: 40, height: 30, sourceMimeType: 'image/heic' } });
+  });
+
+  it('names the tools to install when no HEIF decoder is available', async () => {
+    const result = await prepareSessionMediaImageForDisplay(Buffer.from(HEIC_40X30_BASE64, 'base64'), { decodeHeif: async () => null });
+
+    if (result.ok) {
+      // A sharp build with an HEVC decoder never asks the system decoder.
+      expect(result.image.sourceMimeType).toBe('image/heic');
+      return;
+    }
+    expect(result.code).toBe('image_decode_unavailable');
+    expect(result.error).toContain('heif-dec');
   });
 
   it('rejects bytes that are not an image, and unsafe SVG', async () => {

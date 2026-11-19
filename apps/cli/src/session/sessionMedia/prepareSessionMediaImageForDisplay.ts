@@ -1,3 +1,4 @@
+import { decodeHeifWithSystemTool } from './decodeHeifWithSystemTool';
 import { decodeBmpImage, decodeIcoImage, type DecodedBitmap } from './decodeWindowsBitmapImage';
 import { sniffSessionMediaSourceImageType, type SessionMediaSourceImageType } from './sessionMediaMime';
 
@@ -48,10 +49,12 @@ function decodeWindowsBitmap(bytes: Buffer, type: SessionMediaSourceImageType): 
  * Small images of those four types keep their bytes (GIF animation stays).
  * Other types (SVG, TIFF, AVIF, HEIC/HEIF, BMP, ICO) become PNG, and an image over the
  * bounds is scaled down and, if still over the byte budget, re-encoded as WebP.
+ * HEIC/HEIF that the image library cannot decode (no HEVC decoder) goes through `decodeHeif`,
+ * by default a HEIF decoder installed on the machine.
  */
 export async function prepareSessionMediaImageForDisplay(
   bytes: Buffer,
-  options: Readonly<{ maxBytes?: number; maxEdge?: number }> = {},
+  options: Readonly<{ maxBytes?: number; maxEdge?: number; decodeHeif?: (bytes: Buffer) => Promise<Buffer | null> }> = {},
 ): Promise<PrepareDisplayImageResult> {
   const maxBytes = options.maxBytes ?? DISPLAY_IMAGE_MAX_BYTES;
   const maxEdge = options.maxEdge ?? DISPLAY_IMAGE_MAX_EDGE;
@@ -80,8 +83,9 @@ export async function prepareSessionMediaImageForDisplay(
     ? sharp(input, { raw: rawInput })
     : sharp(input, { failOn: 'none' });
 
-  let width: number;
-  let height: number;
+  let width = 0;
+  let height = 0;
+  let heifDecoderMissing = false;
   try {
     if (rawInput) {
       width = rawInput.width;
@@ -98,9 +102,18 @@ export async function prepareSessionMediaImageForDisplay(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     if ((sourceMimeType === 'image/heic' || sourceMimeType === 'image/heif') && /compression format|plugin|decoder/i.test(detail)) {
-      return failure('image_decode_unavailable', `${sourceMimeType} images cannot be decoded on this machine: the image library has no HEVC decoder. Convert the file to PNG or JPEG first.`);
+      heifDecoderMissing = true;
+    } else {
+      return failure('image_decode_failed', `The ${sourceMimeType} image cannot be decoded`);
     }
-    return failure('image_decode_failed', `The ${sourceMimeType} image cannot be decoded`);
+  }
+  if (heifDecoderMissing) {
+    const png = await (options.decodeHeif ?? decodeHeifWithSystemTool)(bytes);
+    if (!png || sniffSessionMediaSourceImageType(png) !== 'image/png') {
+      return failure('image_decode_unavailable', `${sourceMimeType} images cannot be decoded on this machine: the image library has no HEVC decoder, and no HEIF decoder is installed. Install heif-dec (libheif) or ImageMagick with HEIF support, or convert the file to PNG or JPEG first.`);
+    }
+    const converted = await prepareSessionMediaImageForDisplay(png, { maxBytes, maxEdge });
+    return converted.ok ? { ok: true, image: { ...converted.image, sourceMimeType } } : converted;
   }
   if (width <= 0 || height <= 0) {
     return failure('image_decode_failed', `The ${sourceMimeType} image has no readable dimensions`);
