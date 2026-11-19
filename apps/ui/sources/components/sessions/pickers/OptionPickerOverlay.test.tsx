@@ -40,6 +40,8 @@ describe('OptionPickerOverlay model price', () => {
 
         const screen = await renderScreen(<OptionPickerOverlay
             title="Model"
+            emptyText="empty"
+            canEnterCustomValue={false}
             options={[
                 { value: 'paid', label: 'Paid', description: 'p', costInputPerMTok: 2, costOutputPerMTok: 6 },
                 { value: 'free', label: 'Free', description: 'f', costInputPerMTok: 0, costOutputPerMTok: 0 },
