@@ -3,6 +3,7 @@ import { Link } from 'expo-router';
 import * as React from 'react';
 import { Platform } from 'react-native';
 import { Text } from '../ui/text/Text';
+import { openMarkdownLinkUrl } from './enriched/enrichedMarkdownLinkHandling';
 import { StreamingTextReveal } from './streaming/StreamingTextReveal';
 import { isStreamingIncompleteLinkHref } from './streaming/streamingMarkdownRepairConfig';
 import type { StreamingTextRevealPreset } from './streaming/streamingTextRevealConfig';
@@ -36,6 +37,13 @@ export const MarkdownSpansView = React.memo((props: MarkdownSpansViewProps) => {
     const resolveSpanStyle = props.resolveSpanStyle ?? (() => undefined);
     const inlineTextSelectable = props.inlineTextSelectable ?? true;
     const spanSelection = resolveInlineSpanSelection(inlineTextSelectable);
+    // The transcript handler claims file links only and returns true for those. Anything else
+    // (http, https, mailto) has to open externally here, or a pressed link would stay inert —
+    // as it did in table cells, which render through the spans view instead of the enriched one.
+    const handleLinkPress = React.useCallback((url: string) => {
+        if (props.onLinkPress?.(url) === true) return;
+        void openMarkdownLinkUrl(url);
+    }, [props.onLinkPress]);
 
     return (
         <>
@@ -63,7 +71,7 @@ export const MarkdownSpansView = React.memo((props: MarkdownSpansViewProps) => {
                             <Text
                                 key={index}
                                 accessibilityRole="link"
-                                onPress={() => props.onLinkPress?.(span.url!)}
+                                onPress={() => handleLinkPress(span.url!)}
                                 {...spanSelection}
                                 style={linkStyle}
                             >

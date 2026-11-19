@@ -43,6 +43,13 @@ vi.mock('expo-clipboard', () => ({
     setStringAsync: (text: string) => setStringAsyncSpy(text),
 }));
 
+const openExternalUrlSpy = vi.fn<(url: string) => Promise<boolean>>(async (_url) => true);
+
+// The browser/system opener is a platform boundary: record what a pressed link opens.
+vi.mock('@/utils/url/openExternalUrl', () => ({
+    openExternalUrl: (url: string) => openExternalUrlSpy(url),
+}));
+
 function mockPlatform(os: 'android' | 'ios' | 'web') {
     vi.doMock('react-native', async () => {
         const { createReactNativeWebMock } = await import('@/dev/testkit/mocks/reactNative');
@@ -184,6 +191,83 @@ describe('MarkdownView (tables)', () => {
         expect(findTextNode('plain').props.selectable).toBe(false);
         // The formatted span inherits the copy-only root instead of forcing a value.
         expect(findTextNode('Stue').props.selectable).toBeUndefined();
+    }, 60_000);
+
+    it('routes a table-cell link through onLinkPress when the handler claims it', async () => {
+        mockPlatform('android');
+        const { MarkdownView } = await import('./MarkdownView');
+        const onLinkPress = vi.fn(() => true);
+        openExternalUrlSpy.mockClear();
+
+        const markdown = [
+            '| Model | Link |',
+            '|---|---|',
+            '| VW ID.4 | [Link](https://example.com/car) |',
+        ].join('\n');
+
+        const screen = await renderScreen(
+            <MarkdownView markdown={markdown} selectable profile="transcript" onLinkPress={onLinkPress} />,
+        );
+
+        const linkNode = screen.findAllByType('Text' as any).find((n) => n.props?.accessibilityRole === 'link')!;
+        await act(async () => {
+            linkNode.props.onPress?.();
+        });
+
+        expect(onLinkPress).toHaveBeenCalledWith('https://example.com/car');
+        expect(openExternalUrlSpy).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('opens a web link inside a table cell when the transcript handler does not claim it', async () => {
+        mockPlatform('android');
+        const { MarkdownView } = await import('./MarkdownView');
+        // The transcript handler claims file links only; it returns false for http(s).
+        const onLinkPress = vi.fn(() => false);
+        openExternalUrlSpy.mockClear();
+
+        const markdown = [
+            '| Model | Link |',
+            '|---|---|',
+            '| VW ID.4 | [Link](https://www.bilbasen.dk/brugt/bil/vw/id4/7053596) |',
+        ].join('\n');
+
+        const screen = await renderScreen(
+            <MarkdownView markdown={markdown} selectable profile="transcript" onLinkPress={onLinkPress} />,
+        );
+
+        const linkNode = screen.findAllByType('Text' as any).find((n) => n.props?.accessibilityRole === 'link')!;
+        await act(async () => {
+            linkNode.props.onPress?.();
+        });
+
+        expect(onLinkPress).toHaveBeenCalledWith('https://www.bilbasen.dk/brugt/bil/vw/id4/7053596');
+        expect(openExternalUrlSpy).toHaveBeenCalledWith('https://www.bilbasen.dk/brugt/bil/vw/id4/7053596');
+    }, 60_000);
+
+    it('leaves a workspace-relative table-cell link to the transcript handler instead of opening it externally', async () => {
+        mockPlatform('android');
+        const { MarkdownView } = await import('./MarkdownView');
+        // A file link the session cannot open still must not be handed to the system opener.
+        const onLinkPress = vi.fn(() => false);
+        openExternalUrlSpy.mockClear();
+
+        const markdown = [
+            '| File | Link |',
+            '|---|---|',
+            '| src | [index.ts](src/index.ts:8) |',
+        ].join('\n');
+
+        const screen = await renderScreen(
+            <MarkdownView markdown={markdown} selectable profile="transcript" onLinkPress={onLinkPress} />,
+        );
+
+        const linkNode = screen.findAllByType('Text' as any).find((n) => n.props?.accessibilityRole === 'link')!;
+        await act(async () => {
+            linkNode.props.onPress?.();
+        });
+
+        expect(onLinkPress).toHaveBeenCalledWith('src/index.ts:8');
+        expect(openExternalUrlSpy).not.toHaveBeenCalled();
     }, 60_000);
 
     it('copies the table as markdown from its copy button, preserving alignment, escaped pipes and the rendered column count', async () => {
