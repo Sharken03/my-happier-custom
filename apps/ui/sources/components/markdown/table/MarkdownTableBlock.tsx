@@ -124,7 +124,7 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 8,
         alignSelf: 'flex-start',
         maxWidth: '100%',
-        overflow: Platform.OS === 'web' ? 'visible' : 'hidden',
+        overflow: 'hidden',
         // Web: a host page can set a blocking `user-select` on an ancestor; the table is content
         // the reader must be able to copy, so opt the whole frame in.
         ...(Platform.OS === 'web' ? ({ userSelect: 'text' } as unknown as ViewStyle) : null),
