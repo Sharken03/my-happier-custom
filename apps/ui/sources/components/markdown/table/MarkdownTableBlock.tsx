@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, type LayoutChangeEvent, type ViewStyle } from 'react-native';
+import { View, type LayoutChangeEvent } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { IconAction } from '@/components/ui/buttons/IconAction';
@@ -127,7 +127,7 @@ const styles = StyleSheet.create((theme) => ({
         overflow: 'hidden',
         // Web: a host page can set a blocking `user-select` on an ancestor; the table is content
         // the reader must be able to copy, so opt the whole frame in.
-        ...(Platform.OS === 'web' ? ({ userSelect: 'text' } as unknown as ViewStyle) : null),
+        _web: { userSelect: 'text' },
     },
     first: {
         marginTop: 0,
