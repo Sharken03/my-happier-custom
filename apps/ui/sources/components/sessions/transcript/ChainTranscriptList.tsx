@@ -13,7 +13,7 @@ import {
     type ChatListItemsBuildCache,
 } from '@/components/sessions/chatListItems';
 import { MessageViewWithSessionCommon } from '@/components/sessions/transcript/MessageView';
-import { settingsDefaults } from '@/sync/domains/settings/settings';
+import { settingsDefaults, type Settings } from '@/sync/domains/settings/settings';
 import { useSetting } from '@/sync/domains/state/storage';
 import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 import { sync } from '@/sync/sync';
@@ -155,6 +155,13 @@ type ChainTranscriptListProps = Readonly<{
     jumpToMessageId?: string | null;
     header?: React.ReactNode;
     footer?: React.ReactNode;
+    /**
+     * How a tool-calls group opens in THIS list, when the host knows better than the account
+     * setting. A sidechain transcript passes 'inline': the Tool calls sheet resolves a group from
+     * the session's main transcript, so a child's group has no anchor there and the sheet closes
+     * itself instead of opening.
+     */
+    toolCallsGroupOpenMode?: Settings['transcriptToolCallsGroupOpenMode'];
     messageWrapperTestIdPrefix?: string;
     // When the list is empty, the footer shows an initial-load spinner. Callers that know whether an
     // initial/older load is genuinely in flight (e.g. sidechain hydration) should pass `false` once
@@ -295,6 +302,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
     const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
+    const toolCallsGroupOpenMode = props.toolCallsGroupOpenMode ?? transcriptToolCallsGroupOpenMode;
 
     // Tool-group expansion state is keyed by anchor message ids (declared before the
     // items memo: N2c per-unit decomposition derives the list rows from it).
@@ -313,7 +321,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                 isGroupExpanded: (toolMessageIds) => toolMessageIds.some((id) => expandedToolCallsAnchorMessageIds.has(id)),
                 collapsedPreviewCount: resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCountSetting),
                 bottomCollapseControl: transcriptToolCallsGroupBottomCollapse,
-                toolCallsGroupOpenMode: transcriptToolCallsGroupOpenMode,
+                toolCallsGroupOpenMode,
             });
         }
         return linearCache?.items ?? buildChatListItems({
@@ -324,7 +332,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
             actionDrafts: [],
             groupConsecutiveToolCalls: groupToolCalls,
         });
-    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, transcriptToolCallsCollapsedPreviewCountSetting, transcriptToolCallsGroupBottomCollapse, transcriptToolCallsGroupOpenMode, turnsCache]);
+    }, [expandedToolCallsAnchorMessageIds, groupToolCalls, groupingMode, linearCache, messageIdsOldestFirst, messagesById, toolCallsGroupOpenMode, transcriptToolCallsCollapsedPreviewCountSetting, transcriptToolCallsGroupBottomCollapse, turnsCache]);
     const renderedItems = React.useMemo<ChainTranscriptListItem[]>(() => {
         if (shellFrame.dataOrder === 'newest-first') {
             return [...items].reverse();
