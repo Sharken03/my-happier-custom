@@ -284,6 +284,9 @@ interface AgentInputProps {
     isMicActive?: boolean;
     /** Voice is actually capturing audio right now, as opposed to merely holding a call open. */
     isMicRecording?: boolean;
+    /** Dictation mode: the microphone is one action per message. While a turn runs the composer
+     * button stops it instead of recording. */
+    dictationMode?: boolean;
     permissionMode?: PermissionMode;
     onPermissionModeChange?: (mode: PermissionMode) => void;
     onPermissionClick?: () => void;
@@ -1316,7 +1319,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const canApprovePermissions = props.canApprovePermissions ?? true;
     const permissionPromptSurface = useSetting('permissionPromptSurface');
     const voiceSettingsForComposer = useSetting('voice');
-    const dictationModeEnabled = isDictationModeEnabled({ voice: voiceSettingsForComposer } as any);
+    const dictationModeEnabled = props.dictationMode ?? isDictationModeEnabled({ voice: voiceSettingsForComposer } as any);
     const resolvedPermissionPromptSurface = resolvePermissionPromptSurface(permissionPromptSurface);
     const showComposerPermissionCards = resolvedPermissionPromptSurface === 'composer';
     const composerPermissionRequests = React.useMemo(
