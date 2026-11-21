@@ -364,7 +364,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const availablePickerProps = optionPickerOverlayProps.at(-1);
         availablePickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
     it('selects favorite from merged model options when preflight omits it', async () => {
@@ -408,7 +408,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const latestPickerProps = optionPickerOverlayProps.at(-1);
         latestPickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
 
@@ -451,7 +451,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const latestPickerProps = optionPickerOverlayProps.at(-1);
         latestPickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
     it('renders selected favorite model controls and routes control changes through the selected favorite backend', async () => {
@@ -617,7 +617,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
 
         expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {
             service_tier: 'fast',
-        });
+        }, expect.stringContaining('GPT 5.5'));
     });
 
     it('renders stale favorite models with a remove affordance instead of dropping the pane', async () => {

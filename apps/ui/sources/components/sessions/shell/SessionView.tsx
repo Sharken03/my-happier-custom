@@ -185,6 +185,12 @@ import type { ModelMode, PermissionMode } from '@/sync/domains/permissions/permi
 import { getPermissionModeOverrideForSpawn } from '@/sync/domains/permissions/permissionModeOverride';
 import { getPermissionModeLabelForAgentType, getPermissionModeTitleForAgentType } from '@/sync/domains/permissions/permissionModeOptions';
 import { getModelOverrideForSpawn } from '@/sync/domains/models/modelOverride';
+import {
+    buildFavoriteModelBackendIdentityForEntry,
+    resolveFavoriteModelValuesForBackend,
+    toggleFavoriteModelSelection,
+    type FavoriteModelSelectionV1,
+} from '@/sync/domains/models/favoriteModelSelections';
 import { readDisplayMachineTargetForSession } from '@/sync/ops/sessionMachineTarget';
 import { useSessionMachineControlTarget, useSessionMachineTarget } from '@/components/sessions/model/useSessionMachineTarget';
 import { useSessionRecipientState } from '@/components/sessions/agentInput/routing/useSessionRecipientState';
@@ -1137,6 +1143,9 @@ function useStableAgentInputFileViewerPress(handler: AgentInputOnFileViewerPress
 }
 
 const EMPTY_AGENT_INPUT_REQUESTS: readonly PendingPermissionRequest[] = Object.freeze([]);
+
+const EMPTY_FAVORITE_MODEL_SELECTIONS: readonly FavoriteModelSelectionV1[] = Object.freeze([]);
+const EMPTY_FAVORITE_MODEL_VALUES: ReadonlySet<string> = new Set<string>();
 
 function stringifyAgentInputRequestArguments(value: unknown): string {
     if (typeof value === 'undefined') return '';
@@ -3859,6 +3868,38 @@ function SessionViewLoaded({
         sessionActionDefaultBackend?.backendTarget
         ?? { kind: 'builtInAgent', agentId: liveComposerState.agentId },
     ), [liveComposerState.agentId, sessionActionDefaultBackend?.backendTarget]);
+    // The Session's own Agent, as the favorites catalog knows it. A favorite is one
+    // Agent's model, so reading the picker's stars for any other identity would
+    // show — and toggle — models that belong to an Agent this Session does not run.
+    const [favoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const sessionFavoriteModelBackendEntry = React.useMemo(() => (
+        sessionAgentCatalogEntries.find((candidate) => candidate.targetKey === sessionAgentCurrentTargetKey) ?? null
+    ), [sessionAgentCatalogEntries, sessionAgentCurrentTargetKey]);
+    // The same favorites New Session stars, read for the Agent running here rather
+    // than a Session-local list: one model starred on either surface is starred on both.
+    const sessionFavoriteModelValues = React.useMemo<ReadonlySet<string>>(() => {
+        const entry = sessionFavoriteModelBackendEntry;
+        if (!entry) return EMPTY_FAVORITE_MODEL_VALUES;
+        return resolveFavoriteModelValuesForBackend({
+            favorites: favoriteModelSelections ?? EMPTY_FAVORITE_MODEL_SELECTIONS,
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
+        });
+    }, [favoriteModelSelections, sessionFavoriteModelBackendEntry]);
+    const handleToggleSessionFavoriteModel = React.useCallback((model: Readonly<{
+        modelId: string;
+        modelLabel: string;
+    }>) => {
+        const entry = sessionFavoriteModelBackendEntry;
+        if (!entry) return;
+        setFavoriteModelSelections(toggleFavoriteModelSelection({
+            favorites: favoriteModelSelections ?? [],
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
+            modelId: model.modelId,
+            modelLabel: model.modelLabel,
+            backendLabel: entry.title,
+            addedAtMs: Date.now(),
+        }));
+    }, [favoriteModelSelections, sessionFavoriteModelBackendEntry, setFavoriteModelSelections]);
     // Each successful connect stamps a new value, which is exactly the lifetime a
     // continuation inspection may be trusted for.
     const socketConnectionGeneration = useSocketStatus().lastConnectedAt;
@@ -3953,6 +3994,8 @@ function SessionViewLoaded({
         currentAgentSessionActive: session.active,
         entries: sessionAgentCatalogEntries,
         favoriteBackendTargetKeys: settings.favoriteBackendTargetKeysV1,
+        favoriteModelSelections,
+        setFavoriteModelSelections,
         featureDecision: agentSwitchingDecision,
         source: agentContinuationSource,
         machine: agentContinuationMachine,
@@ -6463,6 +6506,12 @@ function SessionViewLoaded({
                 acpConfigOptionOverridesOverride={optimisticSessionConfigOptionOverrides}
                 modelMode={modelMode}
                 onModelModeChange={updateModelMode}
+                favoriteModelValues={sessionFavoriteModelBackendEntry === null
+                    ? undefined
+                    : sessionFavoriteModelValues}
+                onToggleFavoriteModel={sessionFavoriteModelBackendEntry === null
+                    ? undefined
+                    : handleToggleSessionFavoriteModel}
                 modelDiscoveryContext={resolveSessionModelDiscoveryContext}
                 metadata={session.metadata}
                 profileId={liveComposerState.profileId ?? undefined}

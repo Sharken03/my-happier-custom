@@ -13,8 +13,11 @@ import { APPLIED_RUNTIME_MARKER_ICON } from '@/components/sessions/agentInput/ap
 
 import {
     useInSessionAgentPickerControls,
+    FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
     type SessionAgentContinuationFeatureDecision,
 } from './useInSessionAgentPickerControls';
+import { NewSessionFavoriteModelsDetail } from '@/components/sessions/new/components/NewSessionFavoriteModelsDetail';
+import type { FavoriteModelSelectionV1 } from '@/sync/domains/models/favoriteModelSelections';
 import type {
     SessionAgentContinuationMachineTarget,
     SessionAgentContinuationSourceState,
@@ -121,7 +124,10 @@ type HookProps = Readonly<{
     machine?: SessionAgentContinuationMachineTarget;
     featureDecision?: SessionAgentContinuationFeatureDecision;
     sessionActive?: boolean | null;
+    favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
 }>;
+
+const favoriteModelSelectionsWrites: FavoriteModelSelectionV1[][] = [];
 
 async function renderControls(props: HookProps = {}) {
     return renderHook((hookProps: HookProps) => useInSessionAgentPickerControls({
@@ -135,6 +141,10 @@ async function renderControls(props: HookProps = {}) {
         source: hookProps.source ?? supportedSource,
         machine: hookProps.machine ?? onlineMachine,
         detail: detailContext,
+        favoriteModelSelections: hookProps.favoriteModelSelections ?? [],
+        setFavoriteModelSelections: (favorites) => {
+            favoriteModelSelectionsWrites.push(favorites);
+        },
     }), { initialProps: props });
 }
 
@@ -1002,5 +1012,99 @@ describe('useInSessionAgentPickerControls', () => {
 
         expect(optionsOf(hook.getCurrent())).toEqual([CURRENT_AGENT_ROW]);
         expect(machineRpcWithServerScope).not.toHaveBeenCalled();
+    });
+
+    describe('model favorites', () => {
+        const codexFavorite: FavoriteModelSelectionV1 = {
+            backendTargetKey: 'builtInAgent:codex',
+            modelId: 'gpt-5',
+            builtInAgentId: 'codex',
+            modelLabel: 'GPT-5',
+        };
+
+        function favoritesOptionOf(controls: ReturnType<typeof useInSessionAgentPickerControls>) {
+            return optionsOf(controls).find((option) => option.id === FAVORITE_MODELS_AGENT_PICKER_OPTION_ID) ?? null;
+        }
+
+        function renderedFavoritesDetail(controls: ReturnType<typeof useInSessionAgentPickerControls>) {
+            const option = favoritesOptionOf(controls);
+            expect(option?.renderDetailContent).toBeTypeOf('function');
+            return option?.renderDetailContent?.() as React.ReactElement<React.ComponentProps<typeof NewSessionFavoriteModelsDetail>>;
+        }
+
+        it('leads the rail with the favorites New Session already holds, and stays absent when it holds none', async () => {
+            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
+            await openPicker(hook);
+
+            expect(optionsOf(hook.getCurrent()).map((option) => option.id)).toEqual([
+                'engine:claude',
+                FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
+                'builtInAgent:codex',
+            ]);
+            expect(favoritesOptionOf(hook.getCurrent())?.label).toBe(t('profiles.groups.favorites'));
+            expect(renderedFavoritesDetail(hook.getCurrent()).type).toBe(NewSessionFavoriteModelsDetail);
+
+            const withoutFavorites = await renderControls();
+            await openPicker(withoutFavorites);
+            expect(favoritesOptionOf(withoutFavorites.getCurrent())).toBeNull();
+        });
+
+        it('offers only favorites of Agents this Session could actually switch to', async () => {
+            const hook = await renderControls({
+                favoriteModelSelections: [
+                    codexFavorite,
+                    { backendTargetKey: 'builtInAgent:gemini', modelId: 'gemini-3-pro', builtInAgentId: 'gemini' },
+                ],
+            });
+            await openPicker(hook);
+
+            expect(renderedFavoritesDetail(hook.getCurrent()).props.favoriteModelSelections)
+                .toEqual([codexFavorite]);
+        });
+
+        it('arms the Agent with the model chosen from the favorites list', async () => {
+            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
+            await openPicker(hook);
+
+            const detail = renderedFavoritesDetail(hook.getCurrent());
+            await act(async () => {
+                detail.props.onSelectFavoriteModel(entry('codex'), 'gpt-5', undefined, 'GPT-5');
+                await Promise.resolve();
+            });
+            // The chosen model is inspected before it may be armed, so the picker
+            // waits for the machine's answer rather than promising a switch it has
+            // not been cleared for.
+            for (let flush = 0; flush < 4; flush += 1) {
+                await act(async () => { await Promise.resolve(); });
+            }
+
+            expect(hook.getCurrent().armedContinuation?.selection.agentId).toBe('codex');
+            expect(hook.getCurrent().armedContinuation?.selection.modelId).toBe('gpt-5');
+            // The composer's engine chip names the model in the words the reader
+            // just tapped, so the label travels with the choice instead of being
+            // re-derived from another model list.
+            expect(hook.getCurrent().armedContinuationModelLabel).toBe('GPT-5');
+        });
+
+        it('writes a star tapped in this Session into the same shared favorites', async () => {
+            favoriteModelSelectionsWrites.length = 0;
+            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
+            await openPicker(hook);
+
+            const detail = renderedFavoritesDetail(hook.getCurrent());
+            await act(async () => {
+                detail.props.onToggleFavoriteModel(entry('codex'), { modelId: 'gpt-5-mini', modelLabel: 'GPT-5 mini' });
+            });
+
+            expect(favoriteModelSelectionsWrites).toHaveLength(1);
+            expect(favoriteModelSelectionsWrites[0]).toEqual([
+                codexFavorite,
+                expect.objectContaining({
+                    backendTargetKey: 'builtInAgent:codex',
+                    modelId: 'gpt-5-mini',
+                    modelLabel: 'GPT-5 mini',
+                }),
+            ]);
+        });
     });
 });

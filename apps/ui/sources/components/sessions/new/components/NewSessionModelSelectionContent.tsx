@@ -9,11 +9,11 @@ import { ItemGroup } from '@/components/ui/lists/ItemGroup';
 import { normalizeNodeForView } from '@/components/ui/rendering/normalizeNodeForView';
 import type { ModelMode } from '@/sync/domains/permissions/permissionTypes';
 import {
+    buildFavoriteModelBackendIdentityForEntry,
     favoriteModelSelectionMatchesBackend,
     isFavoriteModelSelectableId,
     normalizeFavoriteModelId,
     toggleFavoriteModelSelection,
-    type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
 import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
@@ -54,15 +54,6 @@ type ModelSelectionRow = Readonly<{
     staleFavorite: FavoriteModelSelectionV1 | null;
 }>;
 
-function buildFavoriteBackendIdentity(entry: ResolvedBackendCatalogEntry): FavoriteModelBackendIdentity {
-    return {
-        backendTargetKey: entry.targetKey,
-        providerAgentId: entry.providerAgentId,
-        builtInAgentId: entry.builtInAgentId,
-        configuredBackendId: entry.target.kind === 'configuredAcpBackend' ? entry.target.backendId : null,
-    };
-}
-
 function buildRows(params: Readonly<{
     modelOptions: readonly NewSessionModelOption[];
     selectedBackendEntry?: ResolvedBackendCatalogEntry | null;
@@ -79,7 +70,7 @@ function buildRows(params: Readonly<{
     }
 
     const backendIdentity = params.selectedBackendEntry
-        ? buildFavoriteBackendIdentity(params.selectedBackendEntry)
+        ? buildFavoriteModelBackendIdentityForEntry(params.selectedBackendEntry)
         : null;
     const matchingFavorites = backendIdentity
         ? (params.favoriteModelSelections ?? []).filter((favorite) => favoriteModelSelectionMatchesBackend(favorite, backendIdentity))
@@ -258,7 +249,7 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
         }
         props.onFavoriteModelSelectionsChange(toggleFavoriteModelSelection({
             favorites: props.favoriteModelSelections ?? [],
-            backend: buildFavoriteBackendIdentity(props.selectedBackendEntry),
+            backend: buildFavoriteModelBackendIdentityForEntry(props.selectedBackendEntry),
             modelId: row.id,
             modelLabel: row.title,
             backendLabel: props.selectedBackendEntry.title,

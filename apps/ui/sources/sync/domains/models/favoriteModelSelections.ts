@@ -71,6 +71,47 @@ export function favoriteModelSelectionMatchesBackend(
     );
 }
 
+/**
+ * The favorite-identity of a resolved catalog entry, from the entry's own target.
+ *
+ * Every surface that stars or reads favorites for one Agent resolves the same
+ * identity here, so a favorite written on one surface is found by the others.
+ */
+export function buildFavoriteModelBackendIdentityForEntry(entry: Readonly<{
+    targetKey: string;
+    providerAgentId?: string | null;
+    builtInAgentId?: string | null;
+    target: Readonly<{ kind: string; backendId?: string; agentId?: string }>;
+}>): FavoriteModelBackendIdentity {
+    return {
+        backendTargetKey: entry.targetKey,
+        providerAgentId: entry.providerAgentId ?? null,
+        builtInAgentId: entry.builtInAgentId ?? null,
+        configuredBackendId: entry.target.kind === 'configuredAcpBackend'
+            ? entry.target.backendId ?? null
+            : null,
+    };
+}
+
+/**
+ * The favorite model values of one backend, as the model picker's selection values.
+ *
+ * Available-favorite resolution needs a model list to filter against; a picker that
+ * already shows one backend's models only needs to know which of them are favorites.
+ */
+export function resolveFavoriteModelValuesForBackend(params: Readonly<{
+    favorites: readonly FavoriteModelSelectionV1[];
+    backend: FavoriteModelBackendIdentity;
+}>): ReadonlySet<string> {
+    const values = new Set<string>();
+    for (const favorite of params.favorites) {
+        if (!favoriteModelSelectionMatchesBackend(favorite, params.backend)) continue;
+        const modelId = normalizeFavoriteModelId(favorite.modelId);
+        if (isFavoriteModelSelectableId(modelId)) values.add(modelId);
+    }
+    return values;
+}
+
 function addModelOptionAvailability(
     out: Map<string, AvailableFavoriteModel>,
     option: ModelOption,

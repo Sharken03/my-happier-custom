@@ -317,6 +317,17 @@ interface AgentInputProps {
      * Intended for preflight (no-session) flows that dynamically probe models.
      */
     modelOptionsOverrideProbe?: OptionPickerProbeState;
+    /**
+     * The favorite model values of this Session's Agent, from the account-level
+     * favorites the New Session model list shares. Absent means the host keeps
+     * no favorites, so the picker offers no star.
+     */
+    favoriteModelValues?: ReadonlySet<string>;
+    /**
+     * Stars or unstars a model in those shared favorites. Absent leaves the picker
+     * read-only, as when the host has not proven it can own the Session's Agent.
+     */
+    onToggleFavoriteModel?: (model: Readonly<{ modelId: string; modelLabel: string }>) => void;
     metadata?: Metadata | null;
     /** Whether the existing session runtime is active. Omit for pre-session composers. */
     sessionActive?: boolean;
@@ -2253,7 +2264,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     ...(option.modelOptions ? { modelOptions: option.modelOptions } : {}),
                 }))}
                 selectedModelId={effectiveModelPolicy.selectedModelId}
-                favoriteModelScope={agentId ?? undefined}
+                favoriteModelValues={props.favoriteModelValues}
+                onToggleFavoriteModel={props.onToggleFavoriteModel === undefined
+                    ? undefined
+                    : (option) => {
+                        props.onToggleFavoriteModel?.({
+                            modelId: option.value,
+                            modelLabel: option.label,
+                        });
+                    }}
                 modelSummary={appliedModelPresentation?.summary
                     ? `${appliedModelPresentation.summary} · ${modelApplyTiming}`
                     : modelApplyTiming}
@@ -2297,6 +2316,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         unifiedEnginePickerProbe,
         props.onSessionConfigOptionChange,
         props.onModelModeChange,
+        props.favoriteModelValues,
+        props.onToggleFavoriteModel,
         theme.colors.text.secondary,
     ]);
 
