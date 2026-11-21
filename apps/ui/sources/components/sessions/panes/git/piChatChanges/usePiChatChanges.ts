@@ -12,10 +12,12 @@ import { NO_PI_CHAT_CHANGES, samePiChatChangesFiles } from './piChatChanges';
  * It asks once when `enabled` becomes true, again each time `refreshKey` changes (the git
  * snapshot's fetch time), and keeps re-polling on its own interval so changed files show up
  * even when the repo has no commits or no git changes (then `fetchedAt` never updates and
- * `refreshKey` stays stale). Only Pi sessions have the RPC; other sessions get no files and
- * no call. A failed call keeps the last list.
+ * `refreshKey` stays stale). Polling runs whenever this is a Pi session, regardless of
+ * `enabled` — `enabled` only gates whether results are returned, not whether they are fetched.
+ * Only Pi sessions have the RPC; other sessions get no files and no call.
+ * A failed call keeps the last list.
  */
-const PI_CHAT_CHANGES_POLL_INTERVAL_MS = 10_000;
+const PI_CHAT_CHANGES_POLL_INTERVAL_MS = 5_000;
 
 export function usePiChatChanges(params: Readonly<{
     sessionId: string;
@@ -29,7 +31,7 @@ export function usePiChatChanges(params: Readonly<{
     );
 
     const fetch = React.useCallback(() => {
-        if (!isPi || !enabled) return;
+        if (!isPi) return;
         void sessionPiChatChangesList(sessionId).then((files) => {
             if (!files) return;
             setState((previous) => (
@@ -38,7 +40,7 @@ export function usePiChatChanges(params: Readonly<{
                     : { sessionId, files }
             ));
         });
-    }, [isPi, enabled, sessionId]);
+    }, [isPi, sessionId]);
 
     // Fetch on mount and whenever `refreshKey` changes (e.g. a new SCM snapshot).
     React.useEffect(() => {
@@ -48,13 +50,13 @@ export function usePiChatChanges(params: Readonly<{
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetch, refreshKey]);
 
-    // Independent polling: re-fetch on a fixed interval regardless of `refreshKey`.
-    // The initial fetch is handled by the effect above; this timer only schedules
-    // subsequent polls so we don't issue two concurrent RPCs on mount.
+    // Independent polling: re-fetch on a fixed interval regardless of `enabled` and
+    // regardless of `refreshKey`. `enabled` only gates the return value, not the fetch,
+    // so changes outside the repo show up even when the SCM snapshot is null or stale.
     const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const cancelledRef = React.useRef(false);
     React.useEffect(() => {
-        if (!isPi || !enabled) return;
+        if (!isPi) return;
         let running = false;
         const run = async () => {
             if (cancelledRef.current || running) return;
@@ -72,7 +74,7 @@ export function usePiChatChanges(params: Readonly<{
                 timerRef.current = null;
             }
         };
-    }, [isPi, enabled, fetch]);
+    }, [isPi, fetch]);
 
-    return isPi && state.sessionId === sessionId ? state.files : NO_PI_CHAT_CHANGES;
+    return isPi && enabled && state.sessionId === sessionId ? state.files : NO_PI_CHAT_CHANGES;
 }
