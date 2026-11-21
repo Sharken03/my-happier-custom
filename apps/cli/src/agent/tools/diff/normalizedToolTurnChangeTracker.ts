@@ -89,6 +89,18 @@ export class NormalizedToolTurnChangeTracker {
         if (params.isError) return;
 
         if (pending.kind === 'placeholder-diff') {
+            const toolDiff = params.result?.unifiedDiff;
+            if (typeof toolDiff === 'string' && toolDiff.trim().length > 0) {
+                this.collector.observeUnifiedDiff({
+                    filePath: pending.filePath,
+                    unifiedDiff: toolDiff,
+                    source: 'provider_tool',
+                    confidence: 'exact',
+                    description: pending.description,
+                    appendHunks: true,
+                });
+                return;
+            }
             const mutation = params.result?.fileMutation;
             if (mutation) {
                 const textMutation = resolveTextMutation({ pending, mutation });
@@ -114,6 +126,7 @@ export class NormalizedToolTurnChangeTracker {
                 source: 'provider_tool',
                 confidence: 'exact',
                 ...(pending.description ? { description: pending.description } : {}),
+                ...(params.result?.unifiedDiff ? { unifiedDiff: params.result.unifiedDiff } : {}),
             });
             return;
         }

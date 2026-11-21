@@ -148,6 +148,7 @@ const messageDisplayCommon = {
     transcriptStreamingSettleDelayMs: 200,
     transcriptStreamingSmoothingEnabled: true,
     transcriptMessageSelectionEnabled: true,
+    transcriptMessageActionsCopyOnly: false,
     transcriptMessageSendToSessionEnabled: false,
     debugInformationEnabled: false,
     workspacePath: null,
@@ -226,5 +227,36 @@ describe('MessageView native streaming Markdown render', () => {
         expect(screen.findByType('EnrichedMarkdownText').props.streamingAnimation).toBe(true);
         expect(screen.findAllByTestId('markdown-static-render-content')).toHaveLength(1);
         expect(screen.findByTestId('transcript-streaming-plain:m1')).toBe(null);
+    });
+
+    it('does not render the Markdown again when only the message revision changes', async () => {
+        const { MessageViewWithSessionCommon } = await import('./MessageView');
+        const renderAtRevision = (messageRevision: number) => (
+            <MessageViewWithSessionCommon
+                sessionId="s1"
+                metadata={null}
+                message={createAgentMessage('Hello **wor')}
+                messageRevision={messageRevision}
+                messageDisplayCommon={messageDisplayCommon}
+                forkCommon={forkCommon}
+                toolChromeCommon={toolChromeCommon}
+                toolRouteCommon={toolRouteCommon}
+                interaction={{ canSendMessages: true, canApprovePermissions: true }}
+            />
+        );
+
+        const screen = await renderScreen(renderAtRevision(1));
+        await flushHookEffects({ cycles: 2, turns: 2 });
+        const renderedContent = screen.findByTestId('markdown-static-render-content')?.props;
+        expect(renderedContent).toBeDefined();
+
+        // A stream delta bumps the revision; the paced text the row shows is unchanged.
+        await act(async () => {
+            await screen.update(renderAtRevision(2));
+        });
+        await flushHookEffects({ cycles: 2, turns: 2 });
+
+        // The Markdown renderer did not run again: its container element is the same one.
+        expect(screen.findByTestId('markdown-static-render-content')?.props).toBe(renderedContent);
     });
 });

@@ -58,6 +58,12 @@ function findNearestAncestorStyle(node: { parent?: unknown }): Record<string, un
     return {};
 }
 
+async function showInlineMessageActions(): Promise<void> {
+    // These tests cover the inline action row. The Copy only setting, on by default, hides it.
+    const { storage } = await import('@/sync/domains/state/storage');
+    storage.setState((state) => ({ settings: { ...state.settings, transcriptMessageActionsCopyOnly: false } }));
+}
+
 describe('MessageView (copy button hitSlop)', () => {
     afterEach(() => {
         standardCleanup();
@@ -68,6 +74,7 @@ describe('MessageView (copy button hitSlop)', () => {
         async (platformOS) => {
             platformState.os = platformOS;
             vi.resetModules();
+            await showInlineMessageActions();
             const { storage } = await import('@/sync/domains/state/storage');
             storage.setState((state) => ({ settings: { ...state.settings, transcriptMessageSelectionEnabled: true } }));
             const { MessageView } = await import('./MessageView');
@@ -126,6 +133,7 @@ describe('MessageView (copy button hitSlop)', () => {
         async (platformOS, expectedSelectable) => {
             platformState.os = platformOS;
             vi.resetModules();
+            await showInlineMessageActions();
             const { storage } = await import('@/sync/domains/state/storage');
             storage.setState((state) => ({ settings: { ...state.settings, transcriptMessageSelectionEnabled: true } }));
             const { MessageView } = await import('./MessageView');
@@ -153,6 +161,7 @@ describe('MessageView (copy button hitSlop)', () => {
     it('copies a markdown option through its rendered long-press action', async () => {
         platformState.os = 'ios';
         vi.resetModules();
+        await showInlineMessageActions();
         const Clipboard = await import('expo-clipboard');
         const { MessageView } = await import('./MessageView');
         const { TranscriptMessageSelectionProvider } = await import('./messageSelection/TranscriptMessageSelectionContext');
@@ -186,6 +195,7 @@ describe('MessageView (copy button hitSlop)', () => {
         async (branch) => {
             platformState.os = branch === 'web' ? 'web' : 'android';
             vi.resetModules();
+            await showInlineMessageActions();
             const { MessageView } = await import('./MessageView');
             const Clipboard = await import('expo-clipboard');
             const message = {
@@ -236,6 +246,7 @@ describe('MessageView (copy button hitSlop)', () => {
     it('clears the copied glyph and reports a refused retry after a successful message copy', async () => {
         platformState.os = 'android';
         vi.resetModules();
+        await showInlineMessageActions();
         const { MessageView } = await import('./MessageView');
         const Clipboard = await import('expo-clipboard');
         const { Modal } = await import('@/modal');

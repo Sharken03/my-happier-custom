@@ -5,8 +5,8 @@ import type { AgentId } from '@/agents/catalog/catalog';
 import { AgentIcon } from '@/agents/registry/AgentIcon';
 import { getAgentPickerIconScale } from '@/agents/registry/registryUi';
 import { normalizeNodeForView } from '@/components/ui/rendering/normalizeNodeForView';
-import { Text } from '@/components/ui/text/Text';
 import { ICON_LABEL_OPTICAL_NUDGE_STYLE } from '@/components/ui/icons/iconOpticalAlignment';
+import { AgentInputChipLabel } from '../components/AgentInputChipLabel';
 
 const AGENT_CHIP_LOGO_SLOT_SIZE = 16;
 const AGENT_CHIP_LOGO_SIZE = 16;
@@ -23,6 +23,8 @@ export function createAgentSelectionActionChip(params: Readonly<{
     tint: string;
     showLabel: boolean;
     label: string;
+    /** False for the "Model + effort" chip style, which names the model without the agent mark. */
+    showAgentMark?: boolean;
     chipStyle: (pressed: boolean) => any;
     textStyle: any;
     onPress: () => void;
@@ -42,7 +44,7 @@ export function createAgentSelectionActionChip(params: Readonly<{
             hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
             style={(state) => params.chipStyle(state.pressed)}
         >
-            <View style={AGENT_CHIP_LOGO_SLOT_STYLE}>
+            {params.showAgentMark === false ? null : <View style={AGENT_CHIP_LOGO_SLOT_STYLE}>
                 {normalizeNodeForView(
                     <AgentIcon
                         agentId={params.agentId}
@@ -54,9 +56,9 @@ export function createAgentSelectionActionChip(params: Readonly<{
                         testID="agent-input-agent-chip-logo"
                     />,
                 )}
-            </View>
+            </View>}
             {params.showLabel ? (
-                <Text style={params.textStyle}>{params.label}</Text>
+                <AgentInputChipLabel label={params.label} textStyle={params.textStyle} />
             ) : null}
         </Pressable>
     );

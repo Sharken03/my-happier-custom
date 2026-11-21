@@ -176,6 +176,59 @@ describe('NewSessionFavoriteModelsDetail', () => {
         ]));
     });
 
+    it('keeps the price level on favorite rows so the card can show it', async () => {
+        agentCoreById.claude = { dynamicProbe: 'static-only' };
+        preflightModelsByTargetKey['agent:claude'] = {
+            modelOptions: [
+                { value: 'claude-opus-4-6', label: 'Opus 4.6', description: 'Claude model.', costInputPerMTok: 4, costOutputPerMTok: 20 },
+                { value: 'claude-haiku-5-5', label: 'Haiku 5.5', description: 'Cheap.', costInputPerMTok: 0, costOutputPerMTok: 0 },
+            ],
+            preflightModels: null,
+        };
+        const { NewSessionFavoriteModelsDetail } = await import('./NewSessionFavoriteModelsDetail');
+
+        await renderScreen(<NewSessionFavoriteModelsDetail
+            favoriteModelSelections={[
+                {
+                    backendTargetKey: 'agent:claude',
+                    providerAgentId: 'claude',
+                    builtInAgentId: 'claude',
+                    backendLabel: 'Claude',
+                    modelId: 'claude-opus-4-6',
+                    modelLabel: 'Opus 4.6',
+                },
+                {
+                    backendTargetKey: 'agent:claude',
+                    providerAgentId: 'claude',
+                    builtInAgentId: 'claude',
+                    backendLabel: 'Claude',
+                    modelId: 'claude-haiku-5-5',
+                    modelLabel: 'Haiku 5.5',
+                },
+            ]}
+            resolvedBackendEntries={[createBuiltInEntry('claude', 'Claude')]}
+            selectedBackendTargetKey="agent:claude"
+            selectedModelId="claude-opus-4-6"
+            selectedMachineId="machine-1"
+            capabilityServerId="server-1"
+            cwd="/repo"
+            settings={settings}
+            onSelectFavoriteModel={vi.fn()}
+            onToggleFavoriteModel={vi.fn()}
+            onRemoveFavoriteModelSelection={vi.fn()}
+        />);
+
+        const options = optionPickerOverlayProps.at(-1)?.options ?? [];
+        expect(options.map((option) => ({
+            label: option.label,
+            costInputPerMTok: option.costInputPerMTok,
+            costOutputPerMTok: option.costOutputPerMTok,
+        }))).toEqual([
+            { label: 'Opus 4.6', costInputPerMTok: 4, costOutputPerMTok: 20 },
+            { label: 'Haiku 5.5', costInputPerMTok: 0, costOutputPerMTok: 0 },
+        ]);
+    });
+
     it('renders all available favorite models in one shared favorites group', async () => {
         agentCoreById.claude = { dynamicProbe: 'static-only' };
         preflightModelsByTargetKey['agent:claude'] = {
@@ -311,7 +364,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const availablePickerProps = optionPickerOverlayProps.at(-1);
         availablePickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
     it('selects favorite from merged model options when preflight omits it', async () => {
@@ -355,7 +408,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const latestPickerProps = optionPickerOverlayProps.at(-1);
         latestPickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
 
@@ -398,7 +451,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
         const latestPickerProps = optionPickerOverlayProps.at(-1);
         latestPickerProps?.onSelect?.('agent:codex\x1fgpt-5.5');
 
-        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {});
+        expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {}, expect.stringContaining('GPT 5.5'));
     });
 
     it('renders selected favorite model controls and routes control changes through the selected favorite backend', async () => {
@@ -564,7 +617,7 @@ describe('NewSessionFavoriteModelsDetail', () => {
 
         expect(onSelectFavoriteModel).toHaveBeenCalledWith(codexEntry, 'gpt-5.5', {
             service_tier: 'fast',
-        });
+        }, expect.stringContaining('GPT 5.5'));
     });
 
     it('renders stale favorite models with a remove affordance instead of dropping the pane', async () => {

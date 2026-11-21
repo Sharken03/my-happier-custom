@@ -45,6 +45,8 @@ type LegendMvcpState = {
 };
 
 let capturedState: LegendMvcpState | null = null;
+type LegendSignalContext = { listeners: Map<string, Set<(value: unknown) => void>>; values: Map<string, unknown> };
+let capturedContext: LegendSignalContext | null = null;
 
 /**
  * Reads the list's own internal state through the library's published `internal.useStateContext`.
@@ -57,9 +59,10 @@ let capturedState: LegendMvcpState | null = null;
  */
 function StateProbe(): null {
     const ctx = (
-        LegendNative as unknown as { internal: { useStateContext: () => { state: LegendMvcpState } } }
+        LegendNative as unknown as { internal: { useStateContext: () => LegendSignalContext & { state: LegendMvcpState } } }
     ).internal.useStateContext();
     capturedState = ctx.state;
+    capturedContext = ctx;
     return null;
 }
 
@@ -80,6 +83,7 @@ afterEach(() => {
         mounted = null;
     }
     capturedState = null;
+    capturedContext = null;
     vi.useRealTimers();
 });
 
@@ -87,12 +91,18 @@ function renderRow({ item, index }: { item: Row; index: number }) {
     return index === 0 ? <StateProbe /> : <React.Fragment>{item.id}</React.Fragment>;
 }
 
-function listElement(data: readonly Row[]) {
+/** The shape the transcript passes while it holds the reader at the tail. */
+const HELD_END_MAINTENANCE = { animated: false, isMaintainingScrollAtEnd: () => true } as const;
+
+type ListOptions = Readonly<{ heldAtEnd?: boolean }>;
+
+function listElement(data: readonly Row[], options?: ListOptions) {
     return (
         <LegendList
             data={[...data]}
             estimatedItemSize={ROW_HEIGHT}
             keyExtractor={(item: Row) => item.id}
+            maintainScrollAtEnd={options?.heldAtEnd ? (HELD_END_MAINTENANCE as never) : undefined}
             maintainVisibleContentPosition
             recycleItems={false}
             renderItem={renderRow}
@@ -100,11 +110,11 @@ function listElement(data: readonly Row[]) {
     );
 }
 
-async function mountList(data: readonly Row[]): Promise<MountedList> {
+async function mountList(data: readonly Row[], options?: ListOptions): Promise<MountedList> {
     const nodes = createShippedNativeNodeMock({ rowHeight: ROW_HEIGHT, viewportHeight: VIEWPORT_HEIGHT });
     let screen: ReactTestRenderer | null = null;
     await act(async () => {
-        screen = create(listElement(data), { createNodeMock: nodes.createNodeMock });
+        screen = create(listElement(data, options), { createNodeMock: nodes.createNodeMock });
     });
     const created = screen as unknown as ReactTestRenderer;
     await act(async () => {
@@ -132,9 +142,9 @@ async function observeScroll(list: MountedList, offset: number): Promise<void> {
     });
 }
 
-async function setData(list: MountedList, data: readonly Row[]): Promise<void> {
+async function setData(list: MountedList, data: readonly Row[], options?: ListOptions): Promise<void> {
     await act(async () => {
-        list.screen.update(listElement(data));
+        list.screen.update(listElement(data, options));
         await Promise.resolve();
     });
 }
@@ -224,6 +234,83 @@ describe('native MVCP contracts across a data change', () => {
             // rejected observation. If this ever reads 1600 the gate was weakened, not fixed.
             scroll: 1500,
         });
+    });
+
+    it('retires a pending native adjust that native has nothing left to clamp', async () => {
+        // A pending native adjust is retired only by a scroll observation, and
+        // `doMaintainScrollAtEnd` returns early while it is armed. The OS emits that observation
+        // only when it clamps the offset to the content end. When the content grows past the
+        // offset before the clamp, nothing is left to clamp, no observation comes, and tail
+        // maintenance stayed off for the rest of a stream (Android device capture 2026-11-11:
+        // pending amount -1.25 px, content 55 px past the offset 85 ms later, the reply then ran
+        // 1 894 px below the viewport).
+        const options = { heldAtEnd: true } as const;
+        const list = await mountList(buildRows(20), options);
+        await observeScroll(list, 1700);
+
+        // One row leaves above the tail: the content end moves up 100 px and the OS has to clamp.
+        await setData(list, buildRows(20).slice(1), options);
+        const armed = state().pendingNativeMVCPAdjust;
+
+        // Before the OS reports that clamp, the tail grows: the offset is inside the content again.
+        await setData(list, [...buildRows(20).slice(1), ...buildRows(2, 20)], options);
+
+        expect({
+            armedAmount: armed?.amount,
+            pendingArmedAfterGrowth: state().pendingNativeMVCPAdjust !== undefined,
+        }).toEqual({
+            armedAmount: -100,
+            pendingArmedAfterGrowth: false,
+        });
+    });
+
+    it('leaves a held-end append below the reader to end maintenance on Android', async () => {
+        // Device capture 2026-11-13 (8T, Fabric): at a data commit the end geometry was computed
+        // from Legend's own content size, which already held the new rows, while native had not
+        // laid them out yet. The adjust ran past native's end and native clamped it back: -508 dp
+        // for one frame when a sent message replaced its pending block, and 0.67-1.33 dp at each
+        // new row while a reply streamed. Native's own content-position anchor keeps the reader
+        // still across the append; `doMaintainScrollAtEnd` follows the tail one frame later.
+        if (Platform.OS !== 'android') return;
+        const options = { heldAtEnd: true } as const;
+        const list = await mountList(buildRows(20), options);
+        await observeScroll(list, 1700);
+
+        await setData(list, [...buildRows(20), ...buildRows(1, 20)], options);
+
+        expect({ band: state().ignoreScrollFromMVCP, scroll: state().scroll }).toEqual({
+            band: undefined,
+            scroll: 1700,
+        });
+    });
+
+    it('publishes only the settled content size of one task on Android', async () => {
+        // Device capture 2026-11-13 (8T, Fabric): when a sent message replaced its pending block,
+        // one row's size went 343 dp down and back up within 1 ms. Each step was published to
+        // `totalSize`, an Animated value that reaches native at once, so for one frame native held
+        // a content 343 dp shorter: the offset clamped up and the transcript flashed.
+        if (Platform.OS !== 'android') return;
+        const list = await mountList(buildRows(20), { heldAtEnd: true });
+        await observeScroll(list, 1700);
+        const context = capturedContext;
+        if (!context) throw new Error('state probe never rendered');
+        const settled = context.values.get('totalSize') as number;
+        const published: number[] = [];
+        const listeners = context.listeners.get('totalSize') ?? new Set();
+        listeners.add((value) => published.push(value as number));
+        context.listeners.set('totalSize', listeners);
+        const rowLayouts = list.screen.root.findAll(
+            (node) => typeof node.props.onLayout === 'function' && node.type !== ('ScrollView' as never),
+        );
+        const row = rowLayouts[rowLayouts.length - 2];
+
+        await act(async () => {
+            row.props.onLayout({ nativeEvent: { layout: { height: ROW_HEIGHT - 50, width: 800, x: 0, y: 0 } } });
+            row.props.onLayout({ nativeEvent: { layout: { height: ROW_HEIGHT, width: 800, x: 0, y: 0 } } });
+            await Promise.resolve();
+        });
+
+        expect(published.filter((value) => value < settled)).toEqual([]);
     });
 
     it('defines the ignore band by the most recent adjust direction alone', async () => {

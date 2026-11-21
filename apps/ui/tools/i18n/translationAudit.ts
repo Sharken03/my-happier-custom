@@ -74,6 +74,8 @@ const ALLOW_SAME_STRING_VALUES = new Set<string>([
     'Windows',
     'Windows Terminal',
     'Happier Voice',
+    // Font names.
+    'DM Sans',
     'happier',
     // Technical ids that should remain unchanged across locales.
     'Xenova/all-MiniLM-L6-v2',
@@ -100,6 +102,13 @@ const ALLOW_SAME_STRING_KEYS = new Set<string>([
     // Provider/model examples in replay resume settings are identifiers, not localized UI copy.
     'settingsSession.replayResume.summaryRunner.backendPlaceholder',
     'settingsSession.replayResume.summaryRunner.modelPlaceholder',
+    // The Tool calls sheet setting is English only for now; the other locales use the English text.
+    'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
+    'settingsSession.transcript.toolCallsGroupOpenInSheetWebTitle',
+    'settingsSession.transcript.toolCallsGroupOpenInSheetSubtitle',
+    // The Format toggle in a tool detail is English only for now, as the setting above.
+    'toolView.formatJson',
+    'toolView.showRaw',
     // Claude debug category ids should remain stable because they map to provider-native categories.
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.hooks.title',
     'settingsProviders.plugins.claude.fields.claudeRemoteDebugCategories.options.1p.title',
@@ -146,6 +155,11 @@ const ALLOW_SAME_STRING_KEYS_BY_LOCALE: Readonly<Record<string, ReadonlySet<stri
     // "Normal" and "Pause" are the same words in these locales.
     'settingsAppearance.loadingIndicatorSpeedOptions.normal': new Set(['de', 'es', 'pt', 'ca']),
     'settingsAppearance.loadingIndicatorPause': new Set(['de', 'fr']),
+    // Composer button and chat font labels that are the correct word in these locales.
+    'settingsSession.composerButtons.controls.server': new Set(['de', 'it']),
+    'settingsSession.composerButtons.controls.machine': new Set(['fr']),
+    'settingsSession.composerButtons.controls.path': new Set(['pl']),
+    'settingsSession.transcript.chatFontDefault': new Set(['de', 'fr', 'it']),
 };
 
 function isProviderPluginTitleKey(key: string): boolean {

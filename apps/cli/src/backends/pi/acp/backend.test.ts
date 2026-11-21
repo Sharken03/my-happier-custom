@@ -5,6 +5,7 @@ import { createEnvKeyScope } from '@/testkit/env/envScope';
 import { writeExecutableShimSync } from '@/testkit/fs/executableShim';
 import { createTempDirSync, removeTempDirSync } from '@/testkit/fs/tempDir';
 import { buildPiRpcArgs, buildPiToolsForPermissionMode, createPiBackend, resolveHappyBridgeExtensionArgs } from './backend';
+import { PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
 import { HAPPIER_CONNECTED_SERVICE_SELECTIONS_ENV_KEY } from '@/daemon/connectedServices/connectedServiceChildEnvironment';
 import {
   PI_BROKER_SELECTIONS_ENV,
@@ -267,6 +268,33 @@ describe('happy tools bridge extension args', () => {
       expect(backend.options?.args?.[toolsFlagIndex + 1]?.split(',')).toContain('change_title');
     },
   );
+
+  it('names the host tool-call pipe in the session config only when the host serves the calls', () => {
+    process.env.PATH = '';
+    process.env.HAPPIER_PI_PATH = createFakeBin('pi');
+    const readConfig = (backend: unknown) => JSON.parse(
+      (backend as { options: { toolsBridgeConfigText: string } }).options.toolsBridgeConfigText,
+    ) as Record<string, unknown>;
+
+    const served = createPiBackend({
+      cwd: '/tmp',
+      env: {},
+      permissionMode: 'default',
+      happierSessionId: 'happy-session-1',
+      happyToolsBridge: baseBridge,
+      serveHostToolCalls: () => {},
+    });
+    const spawnedServe = createPiBackend({
+      cwd: '/tmp',
+      env: {},
+      permissionMode: 'default',
+      happierSessionId: 'happy-session-1',
+      happyToolsBridge: baseBridge,
+    });
+
+    expect(readConfig(served)).toEqual({ ...baseBridge.sessionConfig, hostToolsFd: PI_BRIDGE_HOST_TOOLS_FD });
+    expect(readConfig(spawnedServe)).toEqual(baseBridge.sessionConfig);
+  });
 
   it('leaves Pi native and extension tools unfiltered in Auto mode', () => {
     process.env.PATH = '';

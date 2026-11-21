@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/installables/runtime/ensureRuntimeInstallablesForLaunch', () => ({
   ensureRuntimeInstallablesForLaunch: mocks.ensureRuntimeInstallablesForLaunch,
 }));
-vi.mock('@/capabilities/deps/agyAcp', () => ({
+vi.mock('@/capabilities/deps/agyAcp', async (importOriginal) => ({
+  // The override rule is real logic; only the managed install on disk is replaced.
+  resolveAgyAcpCommandOverride: (await importOriginal<typeof import('@/capabilities/deps/agyAcp')>()).resolveAgyAcpCommandOverride,
   resolveExistingAgyAcpManagedBinPath: mocks.resolveExistingAgyAcpManagedBinPath,
 }));
 vi.mock('@/runtime/managedTools/providers/agyAcpRelease', () => ({
@@ -63,5 +65,22 @@ describe('ensureAgyAcpServerForLaunch', () => {
       'Agy ACP server is unavailable: digest mismatch (install log: /logs/agy-install.log)',
     );
     expect(mocks.resolveExistingAgyAcpManagedBinPath).not.toHaveBeenCalled();
+  });
+
+  it('starts the command HAPPIER_AGY_ACP_COMMAND names, without the managed install', async () => {
+    const env = { HAPPIER_AGY_ACP_COMMAND: process.execPath, HAPPIER_AGY_ACP_ARGS: '["bridge.mjs","--x"]' };
+
+    await expect(ensureAgyAcpServerForLaunch({ env })).resolves.toEqual({
+      command: process.execPath,
+      args: ['bridge.mjs', '--x'],
+    });
+    expect(mocks.ensureRuntimeInstallablesForLaunch).not.toHaveBeenCalled();
+  });
+
+  it('refuses an override that is not an absolute path to a file', async () => {
+    await expect(ensureAgyAcpServerForLaunch({ env: { HAPPIER_AGY_ACP_COMMAND: 'agy-bridge' } }))
+      .rejects.toThrow(/HAPPIER_AGY_ACP_COMMAND/);
+    await expect(ensureAgyAcpServerForLaunch({ env: { HAPPIER_AGY_ACP_COMMAND: process.execPath, HAPPIER_AGY_ACP_ARGS: '"x"' } }))
+      .rejects.toThrow(/HAPPIER_AGY_ACP_ARGS/);
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActionsSettingsV1Schema } from '@happier-dev/protocol';
 import { Modal } from '@/modal';
+import { machineCleanupDeletedChatFolder } from '@/sync/ops';
 import { storage } from '@/sync/domains/state/storage';
 import { apiSocket } from '@/sync/api/session/apiSocket';
 import { getActiveServerSnapshot } from '@/sync/domains/server/serverRuntime';
@@ -15,8 +16,18 @@ vi.mock('@/modal', async () => {
     return createModalModuleMock({ confirmResult: true }).module;
 });
 
+// Only the chat-folder cleanup is stubbed: the delete flow's own ops stay real.
+vi.mock('@/sync/ops', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/sync/ops')>();
+    return {
+        ...actual,
+        machineCleanupDeletedChatFolder: vi.fn(async () => ({ success: true, removed: true })),
+    };
+});
+
 import { HappyError } from '@/utils/errors/errors';
 import { t } from '@/text';
+import type { Session } from '@/sync/domains/state/storageTypes';
 import type { SessionListRenderableSession } from '@/sync/domains/session/listing/sessionListRenderable';
 
 import { createSessionActionTarget } from './sessionActionContext';
@@ -73,6 +84,10 @@ function createTarget(overrides: Partial<SessionListRenderableSession> = {}) {
 }
 
 describe('delete eligibility at execution', () => {
+    beforeEach(() => {
+        vi.mocked(machineCleanupDeletedChatFolder).mockClear();
+    });
+
     afterEach(() => {
         vi.restoreAllMocks();
     });
@@ -124,6 +139,39 @@ describe('delete eligibility at execution', () => {
             target: createSessionActionTarget({ session, serverId, isConnected: true }) })).rejects.toMatchObject({ message: 'Stop rejected' });
         expect(request.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0);
         expect(storage.getState().sessions[session.id]).toBe(session);
+    });
+
+    it.each([
+        { status: 404, body: { error: 'Session not found' }, absent: true },
+        { status: 503, body: { error: 'Unavailable' }, absent: false },
+        { status: 404, body: { error: 'Unknown route' }, absent: false },
+    ])('recovers failed stop only with definitive session absence ($status, $absent)', async ({ status, body, absent }) => {
+        const serverId = upsertServerProfile({ serverUrl: 'https://missing-stop-delete.example' }).id;
+        setActiveServerId(serverId);
+        const session = createSessionFixture({ id: 'missing-session-delete', serverId, active: true, presence: 'online', metadata: null });
+        storage.setState({ sessions: { [session.id]: session }, sessionListRenderables: {} });
+        const { sync } = await import('@/sync/sync');
+        const { Encryption } = await import('@/sync/encryption/encryption');
+        Object.assign(sync, { credentials: { token: 'header.eyJzdWIiOiJtZSJ9.signature' } });
+        sync.encryption = await Encryption.createWithoutKeyMaterial();
+        vi.spyOn(TokenStorage, 'getCredentialsForServerUrl').mockResolvedValue({ token: 'header.eyJzdWIiOiJtZSJ9.signature' });
+        // HTTP and RPC are transport boundaries; crypto resolution, exact-read classification,
+        // stop strategy, action orchestration and local retirement all remain real.
+        vi.spyOn(apiSocket, 'sessionRPC').mockRejectedValue(new Error('Unable to resolve session encryption for scoped RPC'));
+        vi.spyOn(apiSocket, 'request').mockImplementation(async () => Response.json(body, { status }));
+        const request = vi.spyOn(runtimeFetch, 'runtimeFetch').mockImplementation(async () => Response.json(body, { status }));
+        const result = executeSessionAction({
+            actionId: SESSION_ACTION_DELETE_ID,
+            target: createSessionActionTarget({ session, serverId, isConnected: true }),
+        });
+        if (absent) {
+            await expect(result).resolves.toBeUndefined();
+            expect(storage.getState().sessions[session.id]).toBeUndefined();
+        } else {
+            await expect(result).rejects.toBeInstanceOf(HappyError);
+            expect(storage.getState().sessions[session.id]).toBe(session);
+        }
+        expect(request.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0);
     });
 
     it.each(['active', 'preserved-terminal'] as const)('rejects a stale target after the session becomes %s', async (state) => {
@@ -187,6 +235,32 @@ describe('delete eligibility at execution', () => {
         await executeSessionAction({ actionId: SESSION_ACTION_DELETE_ID, target: createSessionActionTarget({ session, serverId }) });
 
         expect(request.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(true);
+    });
+
+    it('asks the chat machine to clean up its own folder after a successful delete', async () => {
+        const serverId = getActiveServerSnapshot().serverId;
+        const session = createSessionFixture({
+            id: 'delete-cleans-chat-folder',
+            archivedAt: null,
+            presence: 0,
+            serverId,
+            metadata: {
+                path: '/home/chats/2026-11-15-724p',
+                host: 'local',
+                machineId: 'machine-9',
+            } as Session['metadata'],
+        });
+        storage.setState({ sessions: { [session.id]: session }, sessionListRenderables: {} });
+        vi.spyOn(TokenStorage, 'getCredentialsForServerUrl').mockResolvedValue({ token: 'header.eyJzdWIiOiJtZSJ9.signature' });
+        vi.spyOn(runtimeFetch, 'runtimeFetch').mockImplementation(async () => Response.json({ success: true }));
+
+        await executeSessionAction({ actionId: SESSION_ACTION_DELETE_ID, target: createSessionActionTarget({ session, serverId }) });
+
+        expect(machineCleanupDeletedChatFolder).toHaveBeenCalledWith(
+            'machine-9',
+            '/home/chats/2026-11-15-724p',
+            { serverId },
+        );
     });
 });
 

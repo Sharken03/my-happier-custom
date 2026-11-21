@@ -113,6 +113,20 @@ describe('resolveHappyToolsBridgeBackendOptions', () => {
     expect(initial?.sessionConfig.directTools.map((tool) => tool.name)).toContain('change_title');
     expect(initial?.sessionConfig.promptAddition).toContain('change_title');
     expect(readFileSync(initial!.extensionPath, 'utf8')).toBe(disabledExtensionContent);
+    expect(disabled?.sessionConfig.sessionTitleReminder).toBeUndefined();
+    expect(initial?.sessionConfig.sessionTitleReminder).toMatchObject({ toolName: 'change_title' });
+
+    const alreadyTitled = await resolveHappyToolsBridgeBackendOptions({
+      agentDir,
+      sessionId: 'happy-session-1',
+      settings: { codingPromptBehaviorV1: { sessionTitleUpdates: 'initial' } },
+      sessionMetadata: { summary: { text: 'A title', updatedAt: 1 } },
+      memoryRecallGuidanceEnabled: false,
+    });
+    expect(alreadyTitled?.sessionConfig.sessionTitleReminder).toBeUndefined();
+    expect(alreadyTitled?.sessionConfig.sessionName).toEqual({ toolName: 'change_title', title: 'A title' });
+    expect(initial?.sessionConfig.sessionName).toEqual({ toolName: 'change_title' });
+    expect(disabled?.sessionConfig.sessionName).toBeUndefined();
   });
 
   it('does not expose a user-promoted title action when the effective profile disables titles', async () => {

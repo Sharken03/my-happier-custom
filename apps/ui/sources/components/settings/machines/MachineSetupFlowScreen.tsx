@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 
@@ -26,6 +25,7 @@ import { setPendingSetupIntent } from '@/sync/domains/pending/pendingSetupIntent
 import { t } from '@/text';
 import { setClipboardStringSafe } from '@/utils/ui/clipboard';
 import { isTauriDesktop } from '@/utils/platform/tauri';
+import { isBrowserWebClient } from '@/utils/platform/browserWeb';
 
 import { DesktopOnlySetupNotice } from './DesktopOnlySetupNotice';
 import { LocalCliPathExposureSection } from './localControl/LocalCliPathExposureSection';
@@ -67,7 +67,7 @@ type LocalReadiness =
 
 export const MachineSetupFlowScreen = React.memo(function MachineSetupFlowScreen(props: MachineSetupFlowScreenProps) {
     const isRemoteOnly = props.mode === 'remoteOnly';
-    const isBrowserWeb = Platform.OS === 'web' && !isTauriDesktop();
+    const isBrowserWeb = isBrowserWebClient();
     const supportsDesktopControls = props.runner != null || isTauriDesktop();
 
     if (isBrowserWeb || !supportsDesktopControls) {
@@ -87,7 +87,7 @@ export const MachineSetupFlowScreen = React.memo(function MachineSetupFlowScreen
 
 const DesktopMachineSetupFlowScreen = React.memo(function DesktopMachineSetupFlowScreen(props: MachineSetupFlowScreenProps) {
     const { theme } = useUnistyles();
-    const isBrowserWeb = Platform.OS === 'web' && !isTauriDesktop() && props.runner == null;
+    const isBrowserWeb = isBrowserWebClient() && props.runner == null;
     const isRemoteOnly = props.mode === 'remoteOnly';
     const isLocalOnly = props.mode === 'localOnly';
     const [showRemoteSetupState, setShowRemoteSetupState] = React.useState(false);

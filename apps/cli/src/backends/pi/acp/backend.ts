@@ -5,7 +5,9 @@ import type { PiBridgeSessionConfig } from '@/backends/pi/bridgeExtension';
 import {
   resolvePiBrokerExtensionArgs,
 } from '@/backends/pi/brokerExtension';
-import { PiRpcBackend } from '@/backends/pi/rpc/PiRpcBackend';
+import { PiRpcBackend, type PiHostToolCallChannel } from '@/backends/pi/rpc/PiRpcBackend';
+import { PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
+import type { PiSubagentSessionObservation } from '@/backends/pi/rpc/piSubagentSidechainMirror';
 import { readConnectedServiceChildSelectionsFromEnv } from '@/daemon/connectedServices/connectedServiceChildEnvironment';
 import { requireProviderCliLaunchSpec } from '@/runtime/managedTools/requireProviderCliLaunchSpec';
 import { parsePermissionIntentAlias, providers } from '@happier-dev/agents';
@@ -34,6 +36,14 @@ export interface PiBackendOptions extends AgentFactoryOptions {
     extensionPath: string;
     sessionConfig: PiBridgeSessionConfig;
   }>;
+  /**
+   * Serves the bridge's Happier tool calls in the host process. With a tools bridge, the
+   * launcher then gives Pi the host pipe and names it in the session config, so no
+   * `happier tools serve` process starts for this session.
+   */
+  serveHostToolCalls?: ((channel: PiHostToolCallChannel) => void) | null;
+  /** Mirrors `pi-subagents` child sessions into the subagent tool call's sidechain. */
+  observeSubagentSessions?: ((observation: PiSubagentSessionObservation) => void) | null;
 }
 
 // `null` means Happier must not override Pi's native tool catalog. Passing
@@ -126,6 +136,7 @@ export function createPiBackend(options: PiBackendOptions): AgentBackend {
   const thinkingLevel = providers.pi.resolvePiThinkingLevelFromEnv(env);
   const launchSelection = resolvePiLaunchSelectionFromConnectedServiceSelection(env);
   const launch = requireProviderCliLaunchSpec('pi', { processEnv });
+  const serveHostToolCalls = options.happyToolsBridge ? options.serveHostToolCalls ?? null : null;
   return new PiRpcBackend({
     cwd: options.cwd,
     command: launch.command,
@@ -153,8 +164,13 @@ export function createPiBackend(options: PiBackendOptions): AgentBackend {
     ],
     happierSessionId: options.happierSessionId ?? null,
     toolsBridgeConfigText: options.happyToolsBridge
-      ? JSON.stringify(options.happyToolsBridge.sessionConfig)
+      ? JSON.stringify({
+        ...options.happyToolsBridge.sessionConfig,
+        ...(serveHostToolCalls ? { hostToolsFd: PI_BRIDGE_HOST_TOOLS_FD } : {}),
+      } satisfies PiBridgeSessionConfig)
       : null,
+    serveHostToolCalls,
+    observeSubagentSessions: options.observeSubagentSessions ?? null,
     // The append text is delivered as a protected temp file by the backend itself; the
     // args above must never carry the literal prompt content.
     appendSystemPromptText: options.appendSystemPromptText ?? null,

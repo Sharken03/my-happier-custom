@@ -7,6 +7,8 @@ export type NormalizedToolFileMutation = Readonly<{
 
 export type NormalizedToolChangeResult = Readonly<{
     fileMutation?: NormalizedToolFileMutation | null;
+    /** The tool's own unified diff of an edit (Pi's edit gives `details.patch`). */
+    unifiedDiff?: string | null;
 }>;
 
 export type PendingNormalizedToolChange =

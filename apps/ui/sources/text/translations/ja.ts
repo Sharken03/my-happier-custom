@@ -184,6 +184,9 @@ const settingsAppearanceTranslationExtension = {
       darkModern: 'Dark Modern',
       catppuccinLatte: 'Catppuccin Latte',
       githubLight: 'GitHub Light',
+      claudeCode: 'Claude Dark',
+      claudeCodeDarker: 'Claude Darker',
+      claudeCodeLight: 'Claude Light',
     },
     readOnlyPreset: 'Read-only preset',
     clonePreset: 'Clone preset',
@@ -766,6 +769,7 @@ export const ja: TranslationStructure = {
     details: "詳細",
     fieldStatus: "ステータス",
     fieldAction: "アクション",
+    fieldFailureReason: "失敗した理由",
     approve: "承認",
     reject: "拒否",
     loadError: "承認を読み込めませんでした。",
@@ -1681,6 +1685,7 @@ export const ja: TranslationStructure = {
 	    thisComputerRelayConnected: '接続済み',
 	    thisComputerRelayOffline: 'オフライン',
 	    thisComputerRelayNeedsAttention: '確認が必要です',
+	    recoveryBanner: { reconnecting: "再接続中…", reconnected: "再接続しました" },
 	    thisComputerSetUpFor: ({ relay }: { relay: string }) => `${relay} 用に設定済み`,
 	    labels: {
 	      server: "サーバー",
@@ -2874,7 +2879,7 @@ localTailscale: {
           renewal: "更新",
           renewalOn: "オン",
           renewalOff: "オフ",
-          renewalUnknown: "不明",
+          active: "有効",
           renews: ({ date }: { date: string }) => `${date}に更新`,
           ends: ({ date }: { date: string }) => `${date}に終了`,
           renewsInDays: ({ days }: { days: number }) => `${days}日後に更新`,
@@ -3134,6 +3139,12 @@ localTailscale: {
       refreshA11y: "使用状況と制限を更新",
       usageCaption: "使用状況",
       resetsCaption: "クォータのリセット",
+      credits: {
+        title: "クレジット",
+        balance: ({ balance }: { balance: string }) => `${balance} クレジット`,
+        spent: "残りなし",
+        includedUsed: "含まれる上限を使い切りました · クレジット利用可能",
+      },
       usedDetail: ({ used, limit }: { used: string; limit: string }) => `${used}/${limit} 使用`,
       capacity: ({ percent }: { percent: number }) => `容量 ${percent}%`,
       memberEnabledLabel: "プールで有効",
@@ -3899,7 +3910,7 @@ localTailscale: {
     trayOpenInHappier: 'Happier で開く',
     traySettings: '設定…',
     trayStartAtLogin: 'ログイン時に起動',
-    trayStopAndQuit: 'バックグラウンドサービスを停止して終了',
+    trayStopAndQuit: 'Happier を終了（バックグラウンドサービスを停止）',
     trayStart: '開始',
     trayRestart: '再起動',
     trayStop: '停止',
@@ -4903,6 +4914,10 @@ localTailscale: {
     feedback: "フィードバック",
     haptics: "触覚フィードバック",
     hapticsDescription: "このデバイスで操作や並べ替え時に触覚フィードバックを使用します。",
+    permissionHaptics: "許可リクエストで振動",
+    permissionHapticsDescription: "エージェントが許可を求めたときに振動します。",
+    connectionBanner: "接続バナー",
+    connectionBannerDescription: "サーバー接続の復旧中、画面上部に短い通知を表示します。",
     backdropBlur: "背景ぼかし",
     backdropBlurDescription:
       "モーダルやメニューの背後に背景ぼかしを適用します。ブラウザー性能を優先する場合は無効にしてください。",
@@ -5151,6 +5166,8 @@ localTailscale: {
     expChannelBridgesSubtitle: "Telegram などのチャットチャンネルを Happier セッションに接続（実験的）",
     expMemorySearch: "メモリ検索",
     expMemorySearchSubtitle: "ローカルメモリ検索の画面と設定を有効化",
+    expMcpServers: "MCPサーバー",
+    expMcpServersSubtitle: "MCPチップとMCPサーバー設定を表示",
     expSessionsDirect: "ダイレクトセッション",
     expSessionsDirectSubtitle: "サイドバーでプロバイダー直結のダイレクトセッションを一覧表示して開く",
     expSessionsFolders: "セッションフォルダー",
@@ -5177,6 +5194,8 @@ localTailscale: {
       commandPaletteDisabled: "クイックコマンドアクセスは無効",
       hideInactiveSessions: "非アクティブセッションを非表示",
       hideInactiveSessionsSubtitle: "アクティブなチャットのみをリストに表示",
+      showArchivedSessionsLink: "アーカイブのリンクを表示",
+      showArchivedSessionsLinkSubtitle: "リストの下部にアーカイブ済みおよび非アクティブなセッションへのリンクを表示",
       hiddenInactiveSessionsEmptyStateTitle: "現在アクティブなセッションはありません",
       hiddenInactiveSessionsEmptyStateSubtitle: "非アクティブなセッションはこのリストで非表示になっています",
       hiddenInactiveSessionsSectionTitle: "非アクティブなセッション",
@@ -5512,6 +5531,7 @@ localTailscale: {
       customPathTitle: "カスタムパス",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `最初の${count}件を表示`,
       recentTitle: "最近",
+      newChatOwnFolder: "新しいチャット（専用フォルダー）",
       favoritesTitle: "お気に入り",
       suggestedTitle: "おすすめ",
       allTitle: "すべて",
@@ -5855,6 +5875,25 @@ localTailscale: {
     },
     toolCalls: "ツール呼び出し",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 件…`,
+    toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+        if (kind === 'commands') return running ? 'Running' : 'Ran';
+        if (kind === 'reads') return running ? 'Reading' : 'Read';
+        if (kind === 'searches') return running ? 'Searching' : 'Searched';
+        if (kind === 'edits') return running ? 'Editing' : 'Edited';
+        if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+        if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+        return toolName;
+    },
+    toolCallsSummary: {
+        separator: '、',
+        commands: ({ count }: { count: number }) => `${count} 件のコマンドを実行`,
+        reads: ({ count }: { count: number }) => `${count} 件のファイルを読み込み`,
+        searches: ({ count }: { count: number }) => `${count} 回検索`,
+        edits: ({ count }: { count: number }) => `${count} 件のファイルを編集`,
+        web: ({ count }: { count: number }) => `${count} 件のウェブページを取得`,
+        agents: ({ count }: { count: number }) => `${count} 件のエージェントを実行`,
+        other: ({ count }: { count: number }) => `${count} 件のツールを使用`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。このセッションを実行中です。`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。このセッションで最後に使用されました。`,
@@ -7508,6 +7547,8 @@ localTailscale: {
     payloadTruncated: "パフォーマンスのため大きなペイロードを切り詰めました。",
     showFullPayload: "完全なペイロードを表示",
     showLessPayload: "少なく表示",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {
@@ -7651,7 +7692,7 @@ localTailscale: {
         dismiss: '質問を閉じる',
         dismissed: '質問を閉じました',
         submissionFailures: {
-            unconfirmed: "Claude に回答の送信操作を行いましたが、確認はまだ届いていません。再試行して確認するか、Claude ターミナルを開いてください。",
+            unconfirmed: "Happier は回答を確認できませんでした。再試行するか、Claude ターミナルを開いて回答を確認してください。",
             update: "Happier CLI を更新して、もう一度お試しください。",
             reconnect: "このセッションに再接続して、もう一度お試しください。",
             retry: "回答を受け付けられませんでした。内容を確認して、もう一度お試しください。",
@@ -7992,6 +8033,10 @@ localTailscale: {
     attributionLegendDirectOnly: "direct = このセッションの操作由来",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count}件の推定ファイルを「リポジトリのみの変更」に残しました。`,
+    otherRepositoriesTitle: "他のリポジトリ",
+    outsideGitTitle: "git の外",
+    externalChangeNotInWorkingTree: "作業ツリーでは現在変更されていません（コミット済みまたは取り消し済み）：エージェントによる変更を表示しています。",
+    externalChangeNoDiff: "差分なし：エージェントのツール呼び出しに変更されたテキストが含まれていません。",
     noSessionAttributedChanges:
       "現在、セッションに紐づく変更は検出されていません。",
     noLatestTurnChanges:
@@ -8125,11 +8170,20 @@ localTailscale: {
         binaryFile: "バイナリファイル",
         videoPreview: '動画プレビュー',
         imagePreviewTooLarge: "画像プレビューが大きすぎて表示できません",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+            share: '画像を共有',
+            save: '画像を保存',
+            edit: '画像に書き込む',
+            undo: '元に戻す',
+            penColor: 'ペンの色',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `生成画像 ${name} を開く`,
           attachmentImageA11y: ({ name }: { name: string }) => `添付画像 ${name} を開く`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `ツール成果物画像 ${name} を開く`,
           imageUnavailable: '画像は利用できません',
+          imageCountA11y: ({ count }: { count: number }) => `画像 ${count} 件`,
         },
         cannotDisplayBinary: "バイナリファイルの内容を表示できません",
         diff: "差分",
@@ -8608,6 +8662,8 @@ localTailscale: {
     },
 
 settingsSession: {
+    composerButtons: {"title": "入力欄のボタン", "footer": "使わないボタンをオフにします。折りたたみメニューからも消えます。", "controls": {"engine": "エージェントとモデル", "mode": "セッションモード", "goal": "目標", "permission": "権限", "profile": "プロファイル", "env": "環境変数", "server": "サーバー", "connectedServices": "アカウント (CLI Auth)", "mcp": "MCPサーバー", "checkout": "ブランチとワークツリー", "automation": "自動化", "attachments": "ファイルを添付", "linkedFiles": "ファイルをリンク (@)", "files": "ファイル", "reviewComments": "レビューコメント", "storage": "トランスクリプトの保存", "providerOption": "プロバイダーのオプション", "shortcuts": "ショートカット", "machine": "マシン", "path": "フォルダー", "resume": "再開"}},
+    modelChip: {"title": "モデルチップ", "footer": "次に実行するモデルを入力欄でどう表示するか。", "agentAndModelTitle": "エージェントアイコンとモデル", "agentAndModelSubtitle": "エージェントのアイコンとモデル名。", "modelAndEffortTitle": "モデルと推論レベル", "modelAndEffortSubtitle": "モデル名と推論レベルをアイコンなしで表示（Claudeアプリと同様）。", "compactTitle": "コンパクトなモデル一覧", "compactSubtitle": "状態行と各モデルのプロバイダー表示を省きます。星を付けたモデルが先頭に並びます。"},
     terminalHostTitle: '新しいセッションのターミナルホスト',
     terminalHostNone: 'ターミナルホストなし',
     newSessionAfterSend: { title: "送信後の動作", footer: "新規セッションのコンポーザーから送信したときの動作を選びます。送信を長押しすると、1 件だけもう一方の動作を選べます。", openTitle: "セッションを開く", openSubtitle: "開始したらすぐセッションに移動します。", startAnotherTitle: "このまま次を開始", startAnotherSubtitle: "バックグラウンドで開始を続け、新しい下書きを開きます。" },
@@ -8699,6 +8755,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: '注意が必要なセッションにのみアクティブ色を使います。',
 	        activeColorAllActiveTitle: 'すべてのアクティブセッション',
 	        activeColorAllActiveSubtitle: 'アクティブで接続中のすべてのセッションにアクティブ色を使います。',
+	        highlightAttentionTitle: "新着のあるセッションを強調",
+	        highlightAttentionSubtitle: "新しい返信・リクエスト・エラーがある行は、エージェントがオフラインでもタイトルを濃い太字で表示します。",
 	        folderSortModeTitle: 'フォルダーの順序',
 	        folderSortModeSubtitle: 'フォルダーとセッションをリスト内でどう並べるかを選びます。',
 	        folderSortModeFoldersFirstTitle: 'フォルダーを先に表示',
@@ -8786,6 +8844,8 @@ settingsSession: {
     inputBehavior: {
         keepFocusTitle: "送信後もコンポーザーにフォーカスを保つ",
         keepFocusSubtitle: "入力欄に留まり、すぐ次のメッセージを書けます。",
+        typeToFocusTitle: "どこからでも入力",
+        typeToFocusSubtitle: "テキスト欄の外で入力を始めると、メッセージ欄に移動します。",
         title: '入力の動作',
         footer: 'Enterで送信とメッセージ履歴の動作を設定します。',
         enterToSendEnabledNativeSubtitle: 'Enterで送信',
@@ -8895,6 +8955,8 @@ settingsSession: {
         customResumePromptPlaceholder: "中断したところから続けてください。",
       },
       providerUsageGauge: {
+          numberTitle: "リング中央の数値",
+          numberSubtitle: "リング内の数値に使う上限を選択します。利用できない場合は、残量が最も少ない上限を使います。",
         title: "プロバイダー使用量",
         footer:
           "すべてのアカウントの入力欄に表示するゲージを選択します。各プールで選択された使用制限が適用されます。お気に入りは現在のアカウントにゲージを追加します。",
@@ -9007,6 +9069,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'メッセージ操作',
           groupFooter: 'トランスクリプトでのメッセージ選択と転送操作を設定します。',
+          copyOnly: { title: "コピーのみ", subtitle: "自分のメッセージ：長押しで「メッセージをコピー」と「テキストを選択」。返信：コピーアイコンのみ。ピン留め、分岐、選択を非表示にします。" },
+          messageMenu: { copy: "メッセージをコピー", selectText: "テキストを選択" },
           selectionEnabled: {
             title: 'メッセージ選択を有効化',
             subtitle: 'メッセージ下に選択アイコンを表示し、一括コピーまたは転送できるようにする',
@@ -9028,6 +9092,13 @@ settingsSession: {
             plain: 'プレーンテキスト',
           },
         },
+        markdownImages: {
+            groupTitle: "返信内の画像",
+            groupFooter: "信頼するホストのMarkdown画像を表示します。他のホストの画像は非表示のままです。各画像はチャットを開いたときにそのホストから読み込まれます。",
+            enabled: { title: "許可したホストの画像を表示", subtitle: "画像だけの返信行を画像として表示します" },
+            sharedImages: { title: "エージェントが共有する画像を表示", subtitle: "エージェントが見せる画像をチャットの全幅で表示します" },
+            hosts: { title: "許可するホスト", subtitle: "1行に1ホスト(例: happy.example.org)。これらのホストの https リンクのみ表示されます。" },
+        },
         layout: {
           linearTitle: "線形",
           linearSubtitle: "メッセージをフラットなリストとして表示します。",
@@ -9040,9 +9111,16 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "ツール呼び出しグループの背景",
         toolCallsGroupBackgroundSubtitle:
           "ツールフィード表示で、ツール呼び出しグループの背景を表示します。",
+        toolCallsGroupBottomCollapseTitle: '下部に折りたたみ',
+        toolCallsGroupBottomCollapseSubtitle: '展開したツール呼び出しグループの下部に折りたたみボタンを表示します。',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
+        toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "ツールの見た目",
         toolAppearanceSubtitle:
           "トランスクリプト内のツール表示をカスタマイズします。",
+        workingQuill: { title: "作業中の羽ペン", subtitle: "エージェントの作業中、ステータス行で点滅する点の代わりに羽ペンがページに書きます。" },
+        userBubbleNarrow: { title: "幅の狭いメッセージ吹き出し", subtitle: "自分のメッセージは幅の最大80%で右側に表示されます（Claudeアプリと同じ）。" },
         motionTitle: "モーション",
         motionFooter: "トランスクリプトのアニメーションを制御します。",
         motionPickerTitle: "アニメーション",
@@ -9067,6 +9145,14 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count}件の新しいアクティビティ、最下部へ移動`,
             jumpToBottomSubtitle:
               "上にスクロールしている間に新しいアクティビティが来たら表示します。",
+            jumpToBottomShowCountTitle: '新しい項目の数を表示',
+            jumpToBottomShowCountSubtitle: '「一番下へ」ボタンの数字',
+            jumpToBottomPositionTitle: "最下部へ移動ボタンの位置",
+            jumpToBottomPositionBottomCenter: "下部中央",
+            jumpToBottomPositionBottomRight: "下部右",
+            chatFontTitle: "チャットのフォント",
+            chatFontDefault: "標準 (Inter)",
+            chatFontDmSans: "DM Sans",
             advancedScrollTitle: "詳細スクロール…",
           advancedScrollSubtitle: "しきい値とカウンターを調整します。",
           advancedTitle: "高度な設定…",
@@ -11228,6 +11314,9 @@ settingsSession: {
     switchedToMode: ({ mode }: { mode: string }) =>
       `${mode}モードに切り替えました`,
     discarded: "破棄済み",
+    readAloudA11y: "読み上げ",
+    stopReadAloudA11y: "読み上げを停止",
+    readAloudFailed: "このメッセージを読み上げられませんでした。音声設定を確認してください。",
     recoveredHistory: "復元された履歴",
     unknownEvent: "不明なイベント",
     contextCompactionStarted: "コンテキストを圧縮中...",
@@ -11354,6 +11443,13 @@ settingsSession: {
     codeCopied: "コードをコピーしました",
     copyFailed: "コピーに失敗しました",
     mermaidRenderFailed: "Mermaidダイアグラムのレンダリングに失敗しました",
+    table: {
+        open: "表を開く",
+        copyCsv: "CSVとしてコピー",
+        copyMarkdown: "Markdownとしてコピー",
+        csvLabel: "CSV",
+        viewerTitle: "表",
+    },
     diffLabel: "差分",
     codeLabel: "コード",
 

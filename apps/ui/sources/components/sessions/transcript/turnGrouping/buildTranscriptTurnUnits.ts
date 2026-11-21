@@ -1,5 +1,6 @@
 import type { ChatListItem } from '@/components/sessions/chatListItems';
 import type { Message } from '@/sync/domains/messages/messageTypes';
+import type { Settings } from '@/sync/domains/settings/settings';
 
 import type { TranscriptTurn } from './buildTranscriptTurns';
 
@@ -26,6 +27,8 @@ export type TranscriptToolGroupUnitItem =
         expanded: boolean;
         hiddenCount: number; // 0 when expanded
         createdAt: number; // first tool message createdAt (0 fallback)
+        /** Set only on the header of the group that ends the transcript: the group a working turn still adds to. */
+        isTranscriptTail?: true;
         originSessionId?: string;
         isReadOnlyContext?: boolean;
     }
@@ -46,6 +49,8 @@ export type TranscriptToolGroupUnitItem =
         toolMessageId: string;
         toolMessageIds: string[]; // full group membership (for expansion-state checks)
         expanded: boolean; // group expansion at build time
+        /** Set in list mode: the row paints as one labelled line that opens its details in place. */
+        listRow?: true;
         createdAt: number; // own message createdAt (0 fallback)
         seq: number | null; // own message seq (normalized like splitter)
         originSessionId?: string;
@@ -59,9 +64,13 @@ export type TranscriptToolGroupUnitItem =
         toolMessageIds: string[];
         expanded: boolean;
         createdAt: number;
+        /** Set when the expanded group shows a collapse control in its footer. */
+        collapseControl?: true;
         originSessionId?: string;
         isReadOnlyContext?: boolean;
     };
+
+type TranscriptToolCallsGroupOpenMode = Settings['transcriptToolCallsGroupOpenMode'];
 
 export type TranscriptTurnUnitSourceItem =
     | ChatListItem
@@ -125,12 +134,16 @@ function appendToolGroupUnits(params: Readonly<{
     groupItemMetadata: ForkMessageMetadata | null;
     isGroupExpanded: (toolMessageIds: readonly string[]) => boolean;
     collapsedPreviewCount: number;
+    bottomCollapseControl: boolean;
+    openMode: TranscriptToolCallsGroupOpenMode;
 }>): void {
     if (params.toolMessageIds.length === 0) return;
 
+    const sheetMode = params.openMode === 'sheet';
     const toolMessageIds = [...params.toolMessageIds];
     const firstToolMessageId = toolMessageIds[0]!;
-    const expanded = params.isGroupExpanded(toolMessageIds);
+    // Sheet mode: the group is one header line (plus the closing footer); the sheet shows the calls.
+    const expanded = !sheetMode && params.isGroupExpanded(toolMessageIds);
     const createdAt = normalizeCreatedAt(params.getMessageById(firstToolMessageId));
     const capMetadata = params.groupItemMetadata
         ?? readMessageMetadata(params.metadataByMessageId, firstToolMessageId);
@@ -138,10 +151,10 @@ function appendToolGroupUnits(params: Readonly<{
 
     const visibleToolMessageIds = expanded
         ? toolMessageIds
-        : params.collapsedPreviewCount > 0
+        : params.collapsedPreviewCount > 0 && !sheetMode
             ? toolMessageIds.slice(Math.max(0, toolMessageIds.length - params.collapsedPreviewCount))
             : [];
-    const hiddenCount = expanded ? 0 : toolMessageIds.length - visibleToolMessageIds.length;
+    const hiddenCount = expanded || sheetMode ? 0 : toolMessageIds.length - visibleToolMessageIds.length;
 
     params.output.push({
         kind: 'tool-group-header',
@@ -178,6 +191,7 @@ function appendToolGroupUnits(params: Readonly<{
             toolMessageId,
             toolMessageIds,
             expanded,
+            ...(params.openMode === 'list' ? { listRow: true as const } : {}),
             createdAt: normalizeCreatedAt(message),
             seq: normalizeSeq(message),
             ...metadataFields(toolMetadata),
@@ -192,6 +206,9 @@ function appendToolGroupUnits(params: Readonly<{
         toolMessageIds,
         expanded,
         createdAt,
+        ...(params.bottomCollapseControl && expanded && visibleToolMessageIds.length > 0
+            ? { collapseControl: true as const }
+            : {}),
         ...capMetadataFields,
     });
 }
@@ -202,7 +219,16 @@ export function buildTranscriptTurnUnits(params: Readonly<{
     metadataByMessageId?: Readonly<Record<string, { originSessionId: string; isReadOnlyContext: boolean }>>;
     isGroupExpanded: (toolMessageIds: readonly string[]) => boolean;
     collapsedPreviewCount: number; // already-resolved K; <= 0 means no preview tail
+    /** Account setting: expanded groups show a collapse control in their footer. */
+    bottomCollapseControl?: boolean;
+    /**
+     * Account setting: how a group opens. 'sheet' renders one header line that opens the Tool calls
+     * sheet; 'list' expands inline like 'inline', with one labelled line per call. Default 'inline'.
+     */
+    toolCallsGroupOpenMode?: TranscriptToolCallsGroupOpenMode;
 }>): TranscriptTurnUnitListItem[] {
+    const bottomCollapseControl = params.bottomCollapseControl === true;
+    const openMode = params.toolCallsGroupOpenMode ?? 'inline';
     const collapsedPreviewCount = normalizeCollapsedPreviewCount(params.collapsedPreviewCount);
     const output: TranscriptTurnUnitListItem[] = [];
 
@@ -233,6 +259,8 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                     groupItemMetadata: null,
                     isGroupExpanded: params.isGroupExpanded,
                     collapsedPreviewCount,
+                    bottomCollapseControl,
+                    openMode,
                 });
             }
             continue;
@@ -252,11 +280,29 @@ export function buildTranscriptTurnUnits(params: Readonly<{
                 groupItemMetadata,
                 isGroupExpanded: params.isGroupExpanded,
                 collapsedPreviewCount,
+                bottomCollapseControl,
+                openMode,
             });
             continue;
         }
 
+        if (item.kind === 'tool-group-header' && item.isTranscriptTail) {
+            // The tail is decided below, from this build's own last row.
+            const { isTranscriptTail: _stale, ...header } = item;
+            output.push(header);
+            continue;
+        }
         output.push(item);
+    }
+
+    const lastUnit = output[output.length - 1];
+    if (lastUnit?.kind === 'tool-group-footer') {
+        for (let index = output.length - 2; index >= 0; index -= 1) {
+            const unit = output[index]!;
+            if (unit.kind !== 'tool-group-header' || unit.groupId !== lastUnit.groupId) continue;
+            output[index] = { ...unit, isTranscriptTail: true };
+            break;
+        }
     }
 
     return output;

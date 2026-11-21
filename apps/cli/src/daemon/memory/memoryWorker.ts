@@ -30,6 +30,7 @@ import { runMemoryHintsExecutionRun } from './hints/runMemoryHintsExecutionRun';
 import { commitMemorySystemRecords } from '@/session/systemRecords/memory/commitMemorySystemRecords';
 import { fetchMemorySummaryShardSystemRecords } from '@/session/systemRecords/memory/fetchMemorySystemRecords';
 import { logServerEndpointFailure } from '@/api/client/serverEndpointFailureLog';
+import { readHttpStatus } from '@/api/client/httpStatusError';
 import { syncDeepIndexForSessionsOnce } from './deepIndex/syncDeepIndexForSessionsOnce';
 import { resolveEmbeddingsProvider } from './deepIndex/embeddings/resolveEmbeddingsProvider';
 import {
@@ -259,6 +260,22 @@ export async function startMemoryWorker(params: Readonly<{
     retryEmbeddingsAfterExternalStateChange('[memoryWorker] Embeddings initialization after runtime installation failed');
   });
 
+  // The server answers 404 for a session it no longer has (deleted). Drop it from the background
+  // candidates, so the work loop does not fetch it again on every round until the daemon restarts.
+  const forgetSessionIfServerHasNone = (sessionId: string, error: unknown): void => {
+    if (readHttpStatus(error) !== 404) return;
+    const index = candidateSessionIds.indexOf(sessionId);
+    if (index >= 0) {
+      candidateSessionIds.splice(index, 1);
+      if (candidateCursor > index) candidateCursor -= 1;
+      if (candidateCursor >= candidateSessionIds.length) candidateCursor = 0;
+    }
+    candidateObservedSeqBySessionId.delete(sessionId);
+    candidateAllowInitialBackfillSessionIds.delete(sessionId);
+    sessionCtxCache.delete(sessionId);
+    sessionModeCache.delete(sessionId);
+  };
+
   const hasCustomDeps = Boolean(params.deps);
   const deps =
     params.deps ??
@@ -301,6 +318,7 @@ export async function startMemoryWorker(params: Readonly<{
           });
           return decrypted;
         } catch (error) {
+          forgetSessionIfServerHasNone(args.sessionId, error);
           logMemoryWorkerServerEndpointFailure('transcript page', error);
           return [];
         }
@@ -357,6 +375,7 @@ export async function startMemoryWorker(params: Readonly<{
         nowMs: Date.now(),
       });
     } catch (error) {
+      forgetSessionIfServerHasNone(sessionId, error);
       logMemoryWorkerServerEndpointFailure('selected transcript rows', error);
       return [];
     }

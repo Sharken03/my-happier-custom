@@ -34,6 +34,7 @@ const LOCAL_POLICY_BY_FEATURE: Readonly<Partial<Record<FeatureId, FeatureLocalPo
     'files.markdownRichEditor': (settings) => resolveUiFeatureToggleEnabled(settings, 'files.markdownRichEditor'),
     'files.syntaxHighlighting.advanced': (settings) => resolveUiFeatureToggleEnabled(settings, 'files.syntaxHighlighting.advanced'),
     'memory.search': (settings) => resolveUiFeatureToggleEnabled(settings, 'memory.search'),
+    'mcp.servers': (settings) => resolveUiFeatureToggleEnabled(settings, 'mcp.servers'),
     'terminal.embeddedPty': (settings) => resolveUiFeatureToggleEnabled(settings, 'terminal.embeddedPty'),
     'sessions.folders': (settings) => resolveUiFeatureToggleEnabled(settings, 'sessions.folders'),
     'sessions.direct': (settings) => resolveUiFeatureToggleEnabled(settings, 'sessions.direct'),

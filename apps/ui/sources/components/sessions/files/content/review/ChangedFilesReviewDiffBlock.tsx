@@ -198,7 +198,8 @@ export const ChangedFilesReviewDiffBlock = React.memo((props: ChangedFilesReview
                                 const { AttachmentImagePreviewModal } = await import('@/components/sessions/attachments/preview/AttachmentImagePreviewModal');
                                 Modal.show({
                                     component: AttachmentImagePreviewModal,
-                                    props: { images: [{ kind: 'session-image', sessionId, filePath, title: filePath, cacheKey: snapshotSignature }] },
+                                    props: { images: [{ kind: 'session-image', sessionId, filePath, title: filePath, cacheKey: snapshotSignature }], sessionId },
+                                    chrome: { kind: 'fullscreen' },
                                 });
                             }}
                             style={{

@@ -118,7 +118,7 @@ export function useNewSessionWizardProps(params: Readonly<{
     agentPickerSelectedOptionId?: NewSessionWizardAgentProps['agentPickerSelectedOptionId'];
     onAgentPickerSelect?: NewSessionWizardAgentProps['onAgentPickerSelect'];
     selectedBackendEntry?: ResolvedBackendCatalogEntry | null;
-    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string }>;
+    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string; costInputPerMTok?: number; costOutputPerMTok?: number }>;
     modelOptionsProbe?: NewSessionWizardAgentProps['modelOptionsProbe'];
     favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
     setFavoriteModelSelections?: (favorites: FavoriteModelSelectionV1[]) => void;

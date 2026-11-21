@@ -20,7 +20,6 @@ vi.mock('./rendering/splitMarkdownRenderSegments', () => ({
             key: 'segment:0',
             sourceStart: 0,
             sourceLength: params.markdown.length,
-            sourceHash: 'hash',
             sourceRange: { startLine: 1, endLine: 1 },
             markdown: params.markdown,
             first: true,

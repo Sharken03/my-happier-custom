@@ -286,6 +286,20 @@ describe('agy-acp-server installable (EU-3)', () => {
     expect(downloadCalls).toBe(1);
   });
 
+  it('reports the server HAPPIER_AGY_ACP_COMMAND names as installed, without a managed install', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'happier-agy-override-'));
+    tempDirs.add(home);
+    testConfig.home = home;
+    vi.stubEnv('HAPPIER_AGY_ACP_COMMAND', process.execPath);
+    try {
+      const status = await getAgyAcpDepStatus();
+      expect(status.installed).toBe(true);
+      expect(status.binPath).toBe(process.execPath);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('fails clearly on unsupported platforms', async () => {
     const home = await mkdtemp(join(tmpdir(), 'happier-agy-unsupported-'));
     tempDirs.add(home);

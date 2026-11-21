@@ -49,6 +49,35 @@ describe('registerCapabilitiesHandlers prewarm', () => {
     expect(loaderSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('builds the service only on the first request when prewarm is off', async () => {
+    vi.resetModules();
+
+    const loaderSpy = vi.fn(async () => ({
+      descriptor: { id: 'cli.codex', kind: 'cli', title: 'Codex CLI', methods: {} },
+      detect: async () => ({ available: true }),
+    }));
+    vi.doMock('@/backends/catalog', () => ({
+      AGENTS: { codex: { id: 'codex', getCliCapabilityOverride: loaderSpy } },
+    }));
+
+    const { registerCapabilitiesHandlers } = await import('./capabilities');
+    const { createEncryptedRpcTestClient } = await import('./encryptedRpc.testkit');
+
+    const { call } = createEncryptedRpcTestClient({
+      scopePrefix: 'session-test',
+      encryptionKey: new Uint8Array(32).fill(7),
+      logger: () => undefined,
+      registerHandlers: (manager) => registerCapabilitiesHandlers(manager, { prewarm: false }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(loaderSpy).toHaveBeenCalledTimes(0);
+
+    const result = await call<CapabilitiesDescribeResponse, Record<string, never>>(RPC_METHODS.CAPABILITIES_DESCRIBE, {});
+    expect(result.capabilities.some((entry: { id: string }) => entry.id === 'cli.codex')).toBe(true);
+    expect(loaderSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('does not cache a partial catalog before registration import cycles settle', async () => {
     vi.resetModules();
 

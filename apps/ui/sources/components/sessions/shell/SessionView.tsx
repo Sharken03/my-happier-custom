@@ -28,6 +28,8 @@ import { AttachmentFilePicker } from '@/components/sessions/attachments/Attachme
 import type { AttachmentDraft } from '@/components/sessions/attachments/attachmentDraftModel';
 import type { AttachmentFilePickerHandle, PickedAttachment } from '@/components/sessions/attachments/AttachmentFilePicker.types';
 import { openAttachmentFilePickerFiles, openAttachmentFilePickerImages } from '@/components/sessions/attachments/attachmentFilePickerActions';
+import { ChatImageGallerySessionProvider } from '@/components/sessions/attachments/preview/openChatImageViewer';
+import { registerSessionComposerAttachmentSink } from '@/components/sessions/attachments/sessionComposerAttachmentSink';
 import { resolveReviewCommentDraftAnchorsForPrompt } from '@/components/sessions/reviews/comments/resolveReviewCommentDraftAnchorsForPrompt';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
 import { useSessionFileUploadAvailability } from '@/components/sessions/files/useSessionFileUploadAvailability';
@@ -110,6 +112,7 @@ import { buildNewSessionSourceContextNavigation } from '@/components/sessions/ne
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
 import { buildNewSessionLaunchRouteParams } from '@/components/sessions/new/navigation/newSessionRouteParams';
 import { sessionAbort, resumeSession } from '@/sync/ops';
+import { useInactiveSessionRunnerPrewarm } from './useInactiveSessionRunnerPrewarm';
 import { storage, useActiveServerAccountScope, useEndpointConnectivity, useIsDataReady, useLaunchSelectionMachines, useLocalSetting, useMachine, useOpenApprovalArtifactsForSession, useProfile, useRealtimeStatus, useSessionAutomationsEnabledCount, useSessionConnectedServiceAccountSwitchEvents, useSessionMessages, useSessionOrganizationProjection, useSessionPendingMessages, useSessionTranscriptIds, useSessionUsage, useSessionVisibleReadSeq, useSetting, useSettingMutable, useSettings, useSocketStatus, useSyncError, useWorkspaceReviewCommentsDrafts } from '@/sync/domains/state/storage';
 import { canContinueSessionWithFreshSpawn, canResumeSessionWithOptions } from '@/agents/runtime/resumeCapabilities';
 import { DEFAULT_AGENT_ID, getAgentCore, resolveAgentIdFromFlavor, buildResumeSessionExtrasFromUiState } from '@/agents/catalog/catalog';
@@ -182,6 +185,12 @@ import type { ModelMode, PermissionMode } from '@/sync/domains/permissions/permi
 import { getPermissionModeOverrideForSpawn } from '@/sync/domains/permissions/permissionModeOverride';
 import { getPermissionModeLabelForAgentType, getPermissionModeTitleForAgentType } from '@/sync/domains/permissions/permissionModeOptions';
 import { getModelOverrideForSpawn } from '@/sync/domains/models/modelOverride';
+import {
+    buildFavoriteModelBackendIdentityForEntry,
+    resolveFavoriteModelValuesForBackend,
+    toggleFavoriteModelSelection,
+    type FavoriteModelSelectionV1,
+} from '@/sync/domains/models/favoriteModelSelections';
 import { readDisplayMachineTargetForSession } from '@/sync/ops/sessionMachineTarget';
 import { useSessionMachineControlTarget, useSessionMachineTarget } from '@/components/sessions/model/useSessionMachineTarget';
 import { useSessionRecipientState } from '@/components/sessions/agentInput/routing/useSessionRecipientState';
@@ -194,7 +203,10 @@ import { useReconciledStableRows } from '@/hooks/session/reconcileStableRows';
 import { deriveSessionSubagentRecipients } from '@/sync/domains/session/subagents/deriveSessionSubagentRecipients';
 import type { AgentActivityCounts } from '@/sync/domains/session/agentActivity/deriveAgentActivityCounts';
 import { hasSessionSubagentLaunchCards } from '@/agents/registry/sessionSubagentUiBehavior';
-import { useSurfaceAnchorPathname } from '@/components/sessions/shell/surface/sessionSurfaceAnchorPathname';
+import {
+    isOwnedSessionRootPathname,
+    useSessionRouteEntryPresentation,
+} from '@/components/sessions/shell/surface/sessionRouteEntryPresentation';
 import { isExecutionRunNotRunningSendError, sessionExecutionRunSend } from '@/sync/ops/sessionExecutionRuns';
 import { nowServerMs } from '@/sync/runtime/time';
 import { readSessionUiTelemetryNowMs } from '@/sync/runtime/performance/sessionUiTelemetry';
@@ -295,6 +307,7 @@ import {
 } from '@/components/sessions/workState/sessionActivityPresentation';
 import { isSessionGoalEditingAvailable } from '@/components/sessions/workState/sessionGoalEditingAvailability';
 import { SessionWorkStatePopover } from '@/components/sessions/workState/SessionWorkStatePopover';
+import { buildPiExtensionUiStatusBadges, readPiExtensionUiSnapshot } from '@/components/sessions/piExtensionUi/piExtensionUiStatusBadges';
 import { layout } from '@/components/ui/layout/layout';
 import { resolveSessionActionDefaultBackend } from '@/sync/domains/session/resolveSessionActionDefaultBackend';
 import { useAttachmentsUploadConfig } from '@/components/sessions/attachments/useAttachmentsUploadConfig';
@@ -312,7 +325,6 @@ import { AppPaneScopeHost } from '@/components/appShell/panes/AppPaneScopeHost';
 import { useRegisterSessionPaneDriver } from '@/components/sessions/panes/useRegisterSessionPaneDriver';
 import { useAppPaneScope } from '@/components/appShell/panes/hooks/useAppPaneScope';
 import { SessionScreenTestIdsProvider } from './sessionScreenTestIds';
-import { useSessionScreenIsFocused } from './useSessionScreenIsFocused';
 import { resolveMobileWorkspaceExperienceToggleActionId } from '@/components/workspaceCockpit/mobileWorkspaceExperience';
 import { useMobileWorkspaceExperienceState } from '@/components/workspaceCockpit/useMobileWorkspaceExperienceState';
 import { useOpenSessionTarget } from '@/components/sessions/panes/open/useOpenSessionTarget';
@@ -375,6 +387,8 @@ import type { SessionParticipantTarget } from '@/sync/domains/session/participan
 import type { PendingMessage } from '@/sync/domains/state/storageTypes';
 import { resolvePendingActivationBanner } from '@/components/sessions/pending/resolvePendingActivationBanner';
 import type { StorageState } from '@/sync/store/types';
+import { formatSessionCostUsd, useSessionCostUsd } from './sessionCost';
+import { resolveSessionRoutePathForSurface } from '@/components/workspaceCockpit/session/sessionCockpitState';
 
 /**
  * Where one submitted localId has got to, canonically — the single reader for
@@ -612,42 +626,6 @@ const connectedServiceQuotaGaugeFormatter: ConnectedServiceQuotaGaugeLabelFormat
     subscriptionRenews: ({ date }) => t('connectedServices.subscription.renews', { date }),
     subscriptionRenewsInDays: ({ days }) => t('connectedServices.subscription.renewsInDays', { days }),
 };
-
-function isOwnedSessionRootPathname(pathname: string | null | undefined, sessionId: string): boolean {
-    const normalizedPathname = typeof pathname === 'string' ? pathname.trim() : '';
-    if (!normalizedPathname) {
-        return false;
-    }
-
-    const match = /^\/session\/([^/]+)\/?$/.exec(normalizedPathname);
-    if (!match) {
-        return false;
-    }
-
-    try {
-        return decodeURIComponent(match[1] ?? '') === sessionId;
-    } catch {
-        return false;
-    }
-}
-
-function isOwnedSessionRoutePathname(pathname: string | null | undefined, sessionId: string): boolean {
-    const normalizedPathname = typeof pathname === 'string' ? pathname.trim().split('?')[0] ?? '' : '';
-    if (!normalizedPathname) {
-        return false;
-    }
-
-    const match = /^\/session\/([^/]+)(?:\/.*)?$/.exec(normalizedPathname);
-    if (!match) {
-        return false;
-    }
-
-    try {
-        return decodeURIComponent(match[1] ?? '') === sessionId;
-    } catch {
-        return false;
-    }
-}
 
 function readSessionUsageLimitRecovery(metadata: unknown): SessionUsageLimitRecoveryV1 | null {
     if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
@@ -1166,6 +1144,9 @@ function useStableAgentInputFileViewerPress(handler: AgentInputOnFileViewerPress
 
 const EMPTY_AGENT_INPUT_REQUESTS: readonly PendingPermissionRequest[] = Object.freeze([]);
 
+const EMPTY_FAVORITE_MODEL_SELECTIONS: readonly FavoriteModelSelectionV1[] = Object.freeze([]);
+const EMPTY_FAVORITE_MODEL_VALUES: ReadonlySet<string> = new Set<string>();
+
 function stringifyAgentInputRequestArguments(value: unknown): string {
     if (typeof value === 'undefined') return '';
     try {
@@ -1315,6 +1296,7 @@ const SessionAgentInputWithUsage = React.memo(function SessionAgentInputWithUsag
             inputComposerPersistence.setExpanded((current) => !current);
         },
     }), [collapsedInputMaxHeight, inputComposerPersistence, isInputExpanded]);
+    const statusCostLabel = formatSessionCostUsd(useSessionCostUsd(sessionId));
     const agentInputUsageData = React.useMemo(() => {
         const usage = sessionUsage ?? sessionLatestUsage ?? null;
         return usage ? {
@@ -1343,6 +1325,7 @@ const SessionAgentInputWithUsage = React.memo(function SessionAgentInputWithUsag
             onStructuredInputMentionsChange={inputComposerPersistence.structuredInputPersistence.onMentionsChange}
             maxPanelHeight={maxPanelHeight}
             usageData={agentInputUsageData}
+            statusCostLabel={statusCostLabel}
         />
     );
 });
@@ -1409,6 +1392,7 @@ const SessionAgentInputRuntimeStatusBoundary = React.memo(function SessionAgentI
         isPulsing: connectedServicesRestartState?.status === 'restarting'
             || connectedServicesRestartState?.status === 'pending_confirmation'
             || sessionStatus.isPulsing,
+        working: sessionStatus.state === 'thinking',
     }), [
         connectedServicesRestartState?.status,
         inactiveStatusText,
@@ -1588,6 +1572,16 @@ export const SessionView = React.memo((props: SessionViewProps) => {
             fallbackHref: '/',
         });
     }, [router]);
+    // The title opens the chat's changed files (the git surface, as the bottom bar's branch tab),
+    // where the Session and Turn views list what this chat changed.
+    const cockpitRegistration = useSessionCockpitChromeRegistration();
+    const handleTitlePress = React.useCallback(() => {
+        if (cockpitRegistration?.sessionId === sessionId) {
+            cockpitRegistration.switchSurface('git');
+            return;
+        }
+        router.push(resolveSessionRoutePathForSurface(sessionId, 'git', { serverId: currentSessionRouteServerId }) as never);
+    }, [cockpitRegistration, currentSessionRouteServerId, router, sessionId]);
     const safeArea = useSafeAreaInsets();
     const headerSafeAreaTopMode = props.headerSafeAreaTopMode ?? props.safeAreaTopMode ?? 'internal';
     const isLandscape = useIsLandscape();
@@ -1597,20 +1591,12 @@ export const SessionView = React.memo((props: SessionViewProps) => {
     const isTablet = useIsTablet();
     const voiceSnap = useVoiceSessionSnapshot();
     const hasAuthCredentials = Boolean(credentials);
-    const routeFocused = useSessionScreenIsFocused();
-    const surfaceFocused = typeof props.surfaceFocusedOverride === 'boolean'
-        ? props.surfaceFocusedOverride
-        : routeFocused;
-    const anchorPathname = useSurfaceAnchorPathname(pathname);
-    // Web retains every visit for Back/Forward, so a stack can hold several entries of one session.
-    // The pathname anchors a surface under an overlay or under its own sub-route, but on the session
-    // root another entry is focused and owns it: an unfocused entry there is only history, and
-    // rendering it mounted one more hidden surface per earlier visit (issue #864).
-    const isRouteAnchor = typeof props.routeAnchorOverride === 'boolean'
-        ? props.routeAnchorOverride
-        : isOwnedSessionRoutePathname(anchorPathname, sessionId)
-            && (surfaceFocused || !isOwnedSessionRootPathname(pathname, sessionId));
-    const shouldRenderSessionSurface = surfaceFocused || isRouteAnchor;
+    // Web retains every visit for Back/Forward; the route mounts only the presented entry, and the
+    // overrides let embedding hosts (native, cockpit, previews) decide presentation themselves.
+    const { surfaceFocused, presented: shouldRenderSessionSurface } = useSessionRouteEntryPresentation(sessionId, {
+        surfaceFocused: props.surfaceFocusedOverride,
+        routeAnchor: props.routeAnchorOverride,
+    });
     const shouldRetainSessionSurface = Platform.OS === 'web' ? shouldRenderSessionSurface : true;
     const directSessionRuntime = useDirectSessionRuntime({
         sessionId,
@@ -1918,6 +1904,7 @@ export const SessionView = React.memo((props: SessionViewProps) => {
                     <ChatHeaderView
                         {...headerProps}
                         onBackPress={handleBackPress}
+                        onTitlePress={session ? handleTitlePress : undefined}
                         showBackButton={!isTablet}
                         constrainWidth={constrainHeaderWidth}
                         contentTrailingInsetPx={actionRailVisible ? PANE_ACTION_RAIL_WIDTH : 0}
@@ -2251,21 +2238,23 @@ const SessionTranscriptContent = React.memo(function SessionTranscriptContent({
     return (
         <Deferred enabled={transcriptCanMountWithoutDeferredWindow} fallback={transcriptDeferredFallback}>
             {shouldRenderChatTimeline ? (
-                <ChatList
-                    session={session}
-                    bottomNotice={bottomNotice}
-                    controlledByUserOverride={controlledByUserOverride}
-                    controlSwitchTo={controlSwitchTo}
-                    onRequestSwitchToRemote={onRequestSwitchToRemote}
-                    directControlFooter={directControlFooter}
-                    approvalRequests={approvalRequests}
-                    jumpToSeq={jumpToSeq}
-                    followBottomIntentKey={followBottomIntentKey}
-                    onJumpLanded={handleTranscriptJumpLanded}
-                    onViewportChange={onViewportChange}
-                    onEditPendingMessage={onEditPendingMessage}
-                    routeHydrationPending={routeHydrationPending}
-                />
+                <ChatImageGallerySessionProvider value={sessionId}>
+                    <ChatList
+                        session={session}
+                        bottomNotice={bottomNotice}
+                        controlledByUserOverride={controlledByUserOverride}
+                        controlSwitchTo={controlSwitchTo}
+                        onRequestSwitchToRemote={onRequestSwitchToRemote}
+                        directControlFooter={directControlFooter}
+                        approvalRequests={approvalRequests}
+                        jumpToSeq={jumpToSeq}
+                        followBottomIntentKey={followBottomIntentKey}
+                        onJumpLanded={handleTranscriptJumpLanded}
+                        onViewportChange={onViewportChange}
+                        onEditPendingMessage={onEditPendingMessage}
+                        routeHydrationPending={routeHydrationPending}
+                    />
+                </ChatImageGallerySessionProvider>
             ) : null}
         </Deferred>
     );
@@ -3827,6 +3816,7 @@ function SessionViewLoaded({
     const attachmentsUploadsTransferAvailable = useSessionFileUploadAvailability(sessionId);
     const attachmentsUploadsEnabled = attachmentsUploadsFeatureEnabled && attachmentsUploadsTransferAvailable;
     const sessionProviderUsageGaugeWindowModesSetting = useSetting('sessionProviderUsageGaugeWindowModes');
+    const sessionProviderUsageGaugeNumberWindowMode = useSetting('sessionProviderUsageGaugeNumberWindowMode');
     const pinnedQuotaMeterIdsByKey = useSetting('connectedServicesQuotaPinnedMeterIdsByKey');
     const sessionProviderUsageGaugeMode = useSetting('sessionProviderUsageGaugeMode');
     const sessionProviderUsageGaugeWindowModeSetting = useSetting('sessionProviderUsageGaugeWindowMode');
@@ -3878,6 +3868,38 @@ function SessionViewLoaded({
         sessionActionDefaultBackend?.backendTarget
         ?? { kind: 'builtInAgent', agentId: liveComposerState.agentId },
     ), [liveComposerState.agentId, sessionActionDefaultBackend?.backendTarget]);
+    // The Session's own Agent, as the favorites catalog knows it. A favorite is one
+    // Agent's model, so reading the picker's stars for any other identity would
+    // show — and toggle — models that belong to an Agent this Session does not run.
+    const [favoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const sessionFavoriteModelBackendEntry = React.useMemo(() => (
+        sessionAgentCatalogEntries.find((candidate) => candidate.targetKey === sessionAgentCurrentTargetKey) ?? null
+    ), [sessionAgentCatalogEntries, sessionAgentCurrentTargetKey]);
+    // The same favorites New Session stars, read for the Agent running here rather
+    // than a Session-local list: one model starred on either surface is starred on both.
+    const sessionFavoriteModelValues = React.useMemo<ReadonlySet<string>>(() => {
+        const entry = sessionFavoriteModelBackendEntry;
+        if (!entry) return EMPTY_FAVORITE_MODEL_VALUES;
+        return resolveFavoriteModelValuesForBackend({
+            favorites: favoriteModelSelections ?? EMPTY_FAVORITE_MODEL_SELECTIONS,
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
+        });
+    }, [favoriteModelSelections, sessionFavoriteModelBackendEntry]);
+    const handleToggleSessionFavoriteModel = React.useCallback((model: Readonly<{
+        modelId: string;
+        modelLabel: string;
+    }>) => {
+        const entry = sessionFavoriteModelBackendEntry;
+        if (!entry) return;
+        setFavoriteModelSelections(toggleFavoriteModelSelection({
+            favorites: favoriteModelSelections ?? [],
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
+            modelId: model.modelId,
+            modelLabel: model.modelLabel,
+            backendLabel: entry.title,
+            addedAtMs: Date.now(),
+        }));
+    }, [favoriteModelSelections, sessionFavoriteModelBackendEntry, setFavoriteModelSelections]);
     // Each successful connect stamps a new value, which is exactly the lifetime a
     // continuation inspection may be trusted for.
     const socketConnectionGeneration = useSocketStatus().lastConnectedAt;
@@ -3972,6 +3994,8 @@ function SessionViewLoaded({
         currentAgentSessionActive: session.active,
         entries: sessionAgentCatalogEntries,
         favoriteBackendTargetKeys: settings.favoriteBackendTargetKeysV1,
+        favoriteModelSelections,
+        setFavoriteModelSelections,
         featureDecision: agentSwitchingDecision,
         source: agentContinuationSource,
         machine: agentContinuationMachine,
@@ -4138,6 +4162,7 @@ function SessionViewLoaded({
             activeModelId: modelMode,
             windowMode: sessionProviderUsageGaugeWindowMode,
             windowModes: sessionProviderUsageGaugeWindowModesSetting,
+            numberWindowMode: sessionProviderUsageGaugeNumberWindowMode,
             additionalMeterIds: connectedServiceQuotaProfileRef
                 && gaugeSource.snapshot.serviceId === connectedServiceQuotaProfileRef.serviceId
                 ? pinnedQuotaMeterIdsByKey[connectedServiceProfileKey(gaugeSource.snapshot)] ?? []
@@ -4161,6 +4186,7 @@ function SessionViewLoaded({
         pinnedQuotaMeterIdsByKey,
         connectedServiceQuotaLimitSelection,
         sessionProviderUsageGaugeWindowModesSetting,
+        sessionProviderUsageGaugeNumberWindowMode,
         sessionProviderUsageGaugeWindowMode,
     ]);
     const providerUsageGaugeConnectedServiceProfileRef =
@@ -4270,6 +4296,11 @@ function SessionViewLoaded({
     }, [patchAttachmentDraft, sessionId]);
     const addAttachments = attachmentDraftManager.addWebFiles;
     const addPickedAttachments = attachmentDraftManager.addPickedAttachments;
+    // Lets the fullscreen image viewer add a marked-up image to this composer's draft.
+    React.useEffect(() => {
+        if (!attachmentsUploadsEnabled) return undefined;
+        return registerSessionComposerAttachmentSink(sessionId, addPickedAttachments);
+    }, [addPickedAttachments, attachmentsUploadsEnabled, sessionId]);
     const pasteAttachmentImage = React.useCallback(() => {
         fireAndForget((async () => {
             const picked = await nativeReadClipboardImageAttachment();
@@ -4368,6 +4399,18 @@ function SessionViewLoaded({
         draftStatus,
         draftScope,
     } = useDraft(sessionId, composerTextStore, { active: surfaceFocused });
+    const requestResumeRunnerPrewarm = useInactiveSessionRunnerPrewarm({
+        sessionId,
+        isSessionActive,
+        isResumable,
+        isMachineReachable,
+        machineId: typeof machineId === 'string' ? machineId : null,
+        serverId: capabilityServerId,
+    });
+    const handleComposerChangeText = React.useCallback((text: string) => {
+        setDraftValue(text);
+        requestResumeRunnerPrewarm();
+    }, [requestResumeRunnerPrewarm, setDraftValue]);
     const draftConflictBanner = useSessionDraftConflictComposerBanner(draftConflict);
     const draftSyncStatusBadge = React.useMemo(
         () => buildSessionDraftSyncStatusBadge(draftStatus ?? 'clean'),
@@ -5285,8 +5328,14 @@ function SessionViewLoaded({
             sessionActive: session.active === true,
             intentionalRestartSignals,
         });
+        const piExtensionUiSnapshot = readPiExtensionUiSnapshot(session.metadata);
+        const piExtensionUiStatusBadges = React.useMemo(
+            () => buildPiExtensionUiStatusBadges(piExtensionUiSnapshot),
+            [piExtensionUiSnapshot],
+        );
         const agentInputStatusBadges = React.useMemo<ReadonlyArray<AgentInputStatusBadge>>(() => [
             ...sessionStatusBadges,
+            ...piExtensionUiStatusBadges,
             ...sessionConnectedServicesAuthSwitch.statusBadges,
             ...(draftSyncStatusBadge ? [draftSyncStatusBadge] : []),
             ...(draftConflictBanner.statusBadge ? [draftConflictBanner.statusBadge] : []),
@@ -5307,6 +5356,7 @@ function SessionViewLoaded({
             pendingMessageEdit,
             draftConflictBanner.statusBadge,
             draftSyncStatusBadge,
+            piExtensionUiStatusBadges,
             sessionConnectedServicesAuthSwitch.statusBadges,
             sessionStatusBadges,
         ]);
@@ -6432,7 +6482,7 @@ function SessionViewLoaded({
                 sessionLatestUsage={session.latestUsage}
                 placeholder={isReadOnly ? t('session.sharing.viewOnlyMode') : t('session.inputPlaceholder')}
                 composerTextStore={composerTextStore}
-                onChangeText={setDraftValue}
+                onChangeText={handleComposerChangeText}
                 sessionId={sessionId}
                 inputComposerClearTransientStateRef={inputComposerClearTransientStateRef}
                 inputComposerCaptureTransientStateRef={inputComposerCaptureTransientStateRef}
@@ -6456,6 +6506,12 @@ function SessionViewLoaded({
                 acpConfigOptionOverridesOverride={optimisticSessionConfigOptionOverrides}
                 modelMode={modelMode}
                 onModelModeChange={updateModelMode}
+                favoriteModelValues={sessionFavoriteModelBackendEntry === null
+                    ? undefined
+                    : sessionFavoriteModelValues}
+                onToggleFavoriteModel={sessionFavoriteModelBackendEntry === null
+                    ? undefined
+                    : handleToggleSessionFavoriteModel}
                 modelDiscoveryContext={resolveSessionModelDiscoveryContext}
                 metadata={session.metadata}
                 profileId={liveComposerState.profileId ?? undefined}

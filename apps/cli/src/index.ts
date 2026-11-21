@@ -23,8 +23,25 @@ import { installConsoleWriteErrorGuards, shouldInstallConsoleWriteErrorGuards } 
 import { logger } from '@/ui/logger';
 import { applyStackSessionPriority } from '@/utils/process/applyStackSessionPriority';
 import { fail } from '@happier-dev/cli-common/output';
+import { HAPPIER_RUNNER_PREWARM_ENV_KEY, awaitPrewarmedRunnerAssignment } from '@/daemon/spawn/prewarmedRunnerAssignment';
 
 async function main() {
+  // A prewarmed runner has loaded the CLI above; it becomes a runner when the daemon sends its
+  // launch, and ends when the daemon lets it go.
+  if (process.env[HAPPIER_RUNNER_PREWARM_ENV_KEY] === '1') {
+    // A Pi chat also starts a Pi process; a prewarmed one loads while this runner waits. A chat
+    // that is not a Pi chat lets it go.
+    const warmPi = await import('@/backends/pi/rpc/warmPiProcess');
+    warmPi.prewarmPiProcess();
+    // The first parse of the server features builds zod's schema: about 140 ms on a phone, then
+    // 2-3 ms per parse. Each session start parses them; one read here moves that cost out.
+    void import('@/features/serverFeaturesClient')
+      .then(({ fetchServerFeaturesSnapshot }) => fetchServerFeaturesSnapshot({ serverUrl: configuration.apiServerUrl }))
+      .catch((error) => logger.debug('[runner] Server features prewarm failed (non-fatal)', error));
+    const maxWaitMs = configuration.runnerPrewarmMaxWaitMs;
+    if (!(await awaitPrewarmedRunnerAssignment(process, { maxWaitMs }))) process.exit(0);
+    setTimeout(warmPi.releaseWarmPiProcess, 30_000).unref();
+  }
   applyStackSessionPriority();
   // Best-effort Windows console hardening for Unicode output (workaround for upstream reports of mojibake when
   // launching via npm-generated wrappers). Opt-out via HAPPIER_WINDOWS_UTF8_CODEPAGE=0.

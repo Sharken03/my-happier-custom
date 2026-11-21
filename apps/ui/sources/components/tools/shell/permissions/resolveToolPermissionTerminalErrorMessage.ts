@@ -1,9 +1,18 @@
+import { isAskUserQuestionToolName } from '@happier-dev/protocol';
+
 import type { ToolCall } from '@/sync/domains/messages/messageTypes';
 import type { Metadata } from '@/sync/domains/state/storageTypes';
 
 import type { AgentId } from '@/agents/registry/registryCore';
 import { getAgentCore, resolveAgentIdFromFlavor } from '@/agents/catalog/catalog';
 import { t } from '@/text';
+
+function hasStructuredAnswers(result: unknown): boolean {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
+    const answers = (result as { answers?: unknown }).answers;
+    if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return false;
+    return Object.keys(answers).length > 0;
+}
 
 export function resolveToolPermissionTerminalErrorMessage(params: Readonly<{
     tool: ToolCall;
@@ -37,6 +46,11 @@ export function resolveToolPermissionTerminalErrorMessage(params: Readonly<{
     }
 
     // canceled
+    // Cached rows from before the answered-question guard in the AgentState reducer can still be
+    // marked canceled while carrying the user's answers. Those are answered, not interrupted.
+    const isUserAction = params.tool.permission?.kind === 'user_action'
+        || isAskUserQuestionToolName(params.tool.name);
+    if (isUserAction && hasStructuredAnswers(params.tool.result)) return null;
     if (params.permissionDisabledReason === 'inactive') {
         return t('errors.permissionCanceledSessionInactive');
     }

@@ -16,6 +16,11 @@ export const changeTitleToolInputSchema = lazySchema(() => z.object({
   title: z.string().min(1),
 }).passthrough());
 
+export const showImageToolInputSchema = lazySchema(() => z.object({
+  path: z.string().min(1).describe('Path of the image file. A relative path is relative to the session working directory.'),
+  caption: z.string().max(2000).optional().describe('Optional short text shown with the image.'),
+}));
+
 export const actionExecuteToolInputSchema = lazySchema(() => z.object({
   actionId: z.string().min(1),
   input: z.unknown().optional(),

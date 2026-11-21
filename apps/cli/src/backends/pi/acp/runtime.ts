@@ -1,3 +1,6 @@
+import { callBuiltInHappierTool } from '@/agent/tools/happierTools/callBuiltInHappierTool';
+import type { PiHostToolCallChannel } from '@/backends/pi/rpc/PiRpcBackend';
+import { serveToolCalls } from '@/cli/commands/toolsServe';
 import type { McpServerConfig } from '@/agent';
 import type { AcpPermissionHandler } from '@/agent/acp/AcpBackend';
 import { createCatalogProviderAcpRuntime } from '@/agent/acp/runtime/createCatalogProviderAcpRuntime';
@@ -17,6 +20,8 @@ import type { PiBackendOptions } from '@/backends/pi/acp/backend';
 import { resolveHappyToolsBridgeBackendOptions } from '@/backends/pi/bridgeExtension';
 import { publishPiSessionIdMetadata } from '@/backends/pi/utils/piSessionIdMetadata';
 import { resolvePiSessionIdFromResumeReference } from '@/backends/pi/utils/piSessionFiles';
+import { createPiSubagentSidechainMirror } from '@/backends/pi/rpc/piSubagentSidechainMirror';
+import { registerPiChatChangesHandlers } from '@/backends/pi/chatChanges/piChatChangesRpc';
 
 export function createPiAcpRuntime(params: {
   directory: string;
@@ -43,6 +48,11 @@ export function createPiAcpRuntime(params: {
 }) {
   const lastPublishedPiSessionId: { value: string | null; sessionFile?: string | null } = { value: null };
   let lastPiIdentityGeneration: number | null = null;
+
+  // The app lists the chat's changes outside git; the published Pi session file finds the store.
+  registerPiChatChangesHandlers(params.session.rpcHandlerManager, {
+    getSessionFile: () => params.session.getMetadataSnapshot()?.piSessionFile ?? null,
+  });
 
   return createCatalogProviderAcpRuntime<PiBackendOptions>({
     provider: 'pi',
@@ -139,7 +149,34 @@ export function createPiAcpRuntime(params: {
 
       const promptFragments = [happyToolsBridge.sessionConfig.promptAddition, resolvedPromptText]
         .filter((fragment): fragment is string => typeof fragment === 'string' && fragment.trim().length > 0);
+      const subagentSidechainMirror = createPiSubagentSidechainMirror({
+        send: (body, opts) => session.sendAgentMessageCommitted('pi', body, opts),
+        onError: (error) => {
+          logger.warnFile('[pi] Subagent sidechain mirror failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      });
       return {
+        observeSubagentSessions: (observation) => {
+          void subagentSidechainMirror.observe(observation);
+        },
+        // The runner already holds the CLI and the account credentials; it answers the
+        // bridge's tool calls itself instead of a separate `tools serve` process.
+        serveHostToolCalls: (channel: PiHostToolCallChannel) => {
+          void serveToolCalls({ sessionId: session.sessionId }, {
+            readCredentials: async () => params.credentials,
+            callBuiltInHappierTool,
+            input: channel.input,
+            writeLine: channel.writeLine,
+            idleExitMs: null,
+          }).catch((error: unknown) => {
+            // The pipe failed under the server; the extension falls back to tools serve.
+            logger.warnFile('[pi] Host tool-call server ended with an error', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+        },
         happyToolsBridge: {
           ...happyToolsBridge,
           sessionConfig: {

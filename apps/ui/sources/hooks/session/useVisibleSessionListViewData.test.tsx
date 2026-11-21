@@ -97,6 +97,13 @@ const sourceData = vi.hoisted(() => ({
     getCredentialsForServerUrl: vi.fn(async () => ({ token: 'token-a', secret: 'secret-a' })),
 }));
 
+// The visibility scope owns the inactive filter of the list. These tests drive that filter
+// directly through sourceData.hideInactiveSessions.
+vi.mock('@/sync/domains/session/listing/sessionListOrderingRules', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/sync/domains/session/listing/sessionListOrderingRules')>()),
+    resolveSessionListHideInactiveSessions: () => sourceData.hideInactiveSessions,
+}));
+
 vi.mock('@/sync/domains/state/storage', async (importOriginal) => {
     const { createStorageModuleMock } = await import('@/dev/testkit/mocks/storage');
     return createStorageModuleMock({
@@ -1245,7 +1252,7 @@ describe('useVisibleSessionListViewData', () => {
         const hook = await renderHook(() => useVisibleSessionListViewData());
 
         expect(hook.getCurrent()?.filter((item) => item.type === 'session').map((item) => item.session.id))
-            .toEqual(['inactive-new', 'active-old']);
+            .toEqual(['active-old', 'inactive-new']);
         await hook.unmount();
     });
 

@@ -55,3 +55,21 @@ export function isChangeTitleToolLikeName(name: string): boolean {
   if (!normalized) return false;
   return CHANGE_TITLE_TOOL_LIKE_ALIASES.has(normalized);
 }
+
+/**
+ * Names of the Happier `show_image` tool across transports. The UI draws a call to it as an image
+ * in the transcript, so the CLI and the UI must agree on every spelling.
+ */
+export const SHOW_IMAGE_TOOL_NAME_ALIASES = [
+  'show_image',
+  'mcp__happier__show_image',
+  'happier__show_image',
+  // OpenCode MCP client naming (single underscore between server + tool)
+  'happier_show_image',
+] as const;
+
+export function isShowImageToolNameAlias(name: string): boolean {
+  const normalized = typeof name === 'string' ? name.trim().toLowerCase().replace(/-/g, '_') : '';
+  if (!normalized) return false;
+  return (SHOW_IMAGE_TOOL_NAME_ALIASES as readonly string[]).includes(normalized);
+}

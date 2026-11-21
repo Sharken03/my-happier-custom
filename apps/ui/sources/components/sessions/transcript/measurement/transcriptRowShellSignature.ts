@@ -159,6 +159,7 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
                 }),
             ].join('|'),
             rowState,
+            ...buildMessagePersistedKey(message, base, params.resolveThinkingExpanded(item.messageId)),
         };
     }
 
@@ -198,14 +199,10 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
         // (Legend `validateItemSizeVersion` drops `sizesKnown` + `sizes`) on every tap.
         return {
             ...base,
-            structuralKey: buildStableJsonSignature({
-                groupId: item.groupId,
-                count: item.toolMessageIds.length,
-                status: buildToolStatusSummary({
-                    getMessageById: params.getMessageById,
-                    toolMessageIds: item.toolMessageIds,
-                }),
-            }),
+            // The number of calls and the group status are not inputs either: the header is one line
+            // with a fixed-width status slot. Keying on them dropped the measured height on every new
+            // call and re-placed the row from its estimate, which moved the transcript and back.
+            structuralKey: buildStableJsonSignature({ groupId: item.groupId }),
             expansionKey: 'tools:none|thinking:none',
             rowState: 'stable',
         };
@@ -238,6 +235,9 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
             structuralKey: buildStableJsonSignature({
                 groupId: item.groupId,
                 groupExpanded: expansionAffectsPaint ? item.expanded : null,
+                // A list row paints a one-line label in place of the tool title, so it must not
+                // reuse a height stored for the same call in another open mode.
+                listRow: item.listRow === true,
                 messageRevision: buildMessageShellStructuralKey(item.toolMessageId, message, params.getMessageRevisionById(item.toolMessageId)),
             }),
             expansionKey: [
@@ -258,7 +258,11 @@ export function buildTranscriptRowShellSignature(params: Readonly<{
     if (item.kind === 'tool-group-footer') {
         return {
             ...base,
-            structuralKey: buildStableJsonSignature({ groupId: item.groupId, hasVisibleTools: item.hasVisibleTools }),
+            structuralKey: buildStableJsonSignature({
+                groupId: item.groupId,
+                hasVisibleTools: item.hasVisibleTools,
+                collapseControl: item.collapseControl === true,
+            }),
             expansionKey: 'tools:none|thinking:none',
             rowState: 'stable',
         };
@@ -639,6 +643,34 @@ function resolveMessageRowType(message: Message | null, activeThinkingMessageId:
         return 'message:user';
     }
     return 'message:agent';
+}
+
+/**
+ * The on-disk height key of a message row. The reducer gives a message a new random `id` at every
+ * app start, and its revision counts writes in this process, so neither names the row after a
+ * restart. The server id and block index do. The text length stands in for the revision: it
+ * changes when the painted text does.
+ */
+function buildMessagePersistedKey(
+    message: Message | null,
+    base: Readonly<{ kind: string; widthBucket: string; fontScaleKey: string; groupingMode: string; forkContextKey: string }>,
+    thinkingExpanded: boolean,
+): { persistedKey?: string } {
+    if (!message || !('realID' in message) || typeof message.realID !== 'string' || message.realID.length === 0) return {};
+    if (!('text' in message) || typeof message.text !== 'string') return {};
+    return {
+        persistedKey: [
+            message.realID,
+            message.transcriptBlockIndex ?? 0,
+            message.text.length,
+            base.kind,
+            base.widthBucket,
+            base.fontScaleKey,
+            base.groupingMode,
+            base.forkContextKey,
+            thinkingExpanded ? 'expanded' : 'collapsed',
+        ].join('|'),
+    };
 }
 
 function buildMessageShellStructuralKey(

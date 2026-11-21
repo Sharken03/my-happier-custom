@@ -76,6 +76,25 @@ function extractAssistantText(message: unknown): string | null {
 }
 
 /**
+ * The text of a custom message that an extension sent with `display: true` (`pi.sendMessage`).
+ * Only extensions create custom messages, so the host never sees one as its own prompt. Pi
+ * shows it in its terminal, and the history import shows it as a user row; null when hidden.
+ */
+function extractDisplayedCustomText(message: unknown): string | null {
+  const record = asRecord(message);
+  if (!record || record.role !== 'custom' || record.display !== true) return null;
+  if (typeof record.content === 'string') return record.content;
+  if (!Array.isArray(record.content)) return null;
+  const parts: string[] = [];
+  for (const item of record.content) {
+    const entry = asRecord(item);
+    const text = entry?.type === 'text' ? asString(entry.text) : null;
+    if (text) parts.push(text);
+  }
+  return parts.join('\n');
+}
+
+/**
  * Extract the authoritative thinking text of a finished assistant message. Pi streams
  * thinking deltas live, but `message_end.message` is the authoritative snapshot; joining
  * the thinking blocks here lets the consumer reconcile what the deltas already delivered.
@@ -217,6 +236,8 @@ export function mapPiRpcEventToAgentMessages(event: unknown): AgentMessage[] {
   }
 
   if (type === 'message_end') {
+    const customText = extractDisplayedCustomText(record.message);
+    if (customText) return [{ type: 'user-message', text: customText }];
     const thinking = extractAssistantThinking(record.message);
     const fullText = extractAssistantText(record.message);
     const messages: AgentMessage[] = [];
@@ -249,7 +270,8 @@ export function mapPiRpcEventToAgentMessages(event: unknown): AgentMessage[] {
       source: 'pi-tool-result',
       originSource: 'tool-output',
       toolCallId: callId,
-      dedupePrefix: 'pi:tool-result',
+      // Same key as the runtime's tool-result extraction, so the image is stored once, on the tool call.
+      dedupePrefix: 'acp:tool-result',
     }).media;
     if (media.length > 0) {
       messages.push({ type: 'session-media', source: 'pi-tool-result', media });

@@ -80,6 +80,21 @@ describe('sessionListRenderableStoreUpdate', () => {
         expect(plan.needsSessionListViewDataRebuild).toBe(true);
     });
 
+    it('keeps archived rows that a replacement omits, because the list endpoint never returns them', () => {
+        const archived = makeRenderable('s_archived', { archivedAt: 50, createdAt: 50 });
+        const gone = makeRenderable('s_gone', { createdAt: 40 });
+        const kept = makeRenderable('s_kept', { createdAt: 30 });
+        const plan = planSessionListRenderableReplacement({
+            previousRenderables: { s_archived: archived, s_gone: gone, s_kept: kept },
+            incomingRenderables: [kept],
+            isSessionListViewDataUninitialized: false,
+        });
+
+        expect(plan.nextRenderables.s_archived).toBe(archived);
+        expect(plan.nextRenderables.s_gone).toBeUndefined();
+        expect(plan.removedSessionIds).toEqual(['s_gone']);
+    });
+
     it('keeps merge no-op when an append page only repeats existing equivalent renderables', () => {
         const previous = makeRenderable('s_existing', { createdAt: 10 });
         const plan = planSessionListRenderableMerge({

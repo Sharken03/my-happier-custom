@@ -4,27 +4,30 @@ import {
     Platform,
     Pressable,
     View,
-    type ImageLoadEvent,
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
-import { Modal } from '@/modal';
 import { t } from '@/text';
 import { useSessionImagePreview } from '@/components/sessions/files/content/imagePreview/useSessionImagePreview';
-import {
-    AttachmentImagePreviewModal,
-    type AttachmentImagePreviewModalImage,
-} from '@/components/sessions/attachments/preview/AttachmentImagePreviewModal';
+import type { AttachmentImagePreviewModalImage } from '@/components/sessions/attachments/preview/AttachmentImagePreviewModal';
+import { buildSessionMediaViewerImage } from '@/components/sessions/attachments/preview/chatImageGallery';
+import { openChatImageViewer } from '@/components/sessions/attachments/preview/openChatImageViewer';
 import * as FlashListCompat from '@/components/ui/lists/flashListCompat/FlashListCompat';
 import { SafeNativeSvgXml } from '@/components/ui/media/SafeNativeSvgXml';
 import type { SessionMediaInlineImageSummary } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
 
 import { resolveSessionMediaImageMimeType } from './sessionMediaPresentation';
+import {
+    SESSION_MEDIA_INLINE_IMAGES_GAP_PX,
+    SESSION_MEDIA_INLINE_IMAGES_MARGIN_BOTTOM_PX,
+    SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
+    resolveImageDimensions,
+    resolveThumbnailSize,
+    type ImageDimensions,
+} from './sessionMediaThumbnailLayout';
+import { SHARED_IMAGE_GAP_PX, resolveSharedImageBoxSize } from './sessionMediaSharedImageLayout';
 import { Icon } from '@/components/ui/icons/Icon';
 
-const FALLBACK_THUMBNAIL_SIZE = 84;
-const MAX_THUMBNAIL_WIDTH = 220;
-const MAX_THUMBNAIL_HEIGHT = 160;
 const fallbackSessionMediaMappingHelper: FlashListCompat.FlashListMappingHelper = {
     getMappingKey: (itemKey: FlashListCompat.FlashListMappingKey) => itemKey,
 };
@@ -37,11 +40,16 @@ function useSessionMediaMappingHelper(): FlashListCompat.FlashListMappingHelper 
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
-        marginTop: 2,
-        marginBottom: 7,
+        marginTop: SESSION_MEDIA_INLINE_IMAGES_MARGIN_TOP_PX,
+        marginBottom: SESSION_MEDIA_INLINE_IMAGES_MARGIN_BOTTOM_PX,
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: SESSION_MEDIA_INLINE_IMAGES_GAP_PX,
+    },
+    fullWidthContainer: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: SHARED_IMAGE_GAP_PX,
     },
     tile: {
         borderRadius: 12,
@@ -62,41 +70,6 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
 }));
 
-type ImageDimensions = Readonly<{
-    width: number;
-    height: number;
-}>;
-
-function readPositiveDimension(value: number | undefined): number | null {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-    const normalized = Math.trunc(value);
-    return normalized > 0 ? normalized : null;
-}
-
-function resolveImageDimensions(value: Readonly<{ width?: number; height?: number }> | null): ImageDimensions | null {
-    const width = readPositiveDimension(value?.width);
-    const height = readPositiveDimension(value?.height);
-    return width && height ? { width, height } : null;
-}
-
-function resolveThumbnailSize(dimensions: ImageDimensions | null): ImageDimensions {
-    if (!dimensions) {
-        return {
-            width: FALLBACK_THUMBNAIL_SIZE,
-            height: FALLBACK_THUMBNAIL_SIZE,
-        };
-    }
-
-    const scale = Math.min(
-        MAX_THUMBNAIL_WIDTH / dimensions.width,
-        MAX_THUMBNAIL_HEIGHT / dimensions.height,
-    );
-    return {
-        width: Math.max(1, Math.round(dimensions.width * scale)),
-        height: Math.max(1, Math.round(dimensions.height * scale)),
-    };
-}
-
 function resolveSessionMediaAccessibilityLabel(media: SessionMediaInlineImageSummary): string {
     const accessibleName = (media.description ?? media.name).slice(0, 512);
     if (media.category === 'attachment') {
@@ -113,6 +86,7 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
     media: SessionMediaInlineImageSummary;
     mimeType: string;
     imageIndex: number;
+    size: ImageDimensions;
     onOpenPath: (path: string) => void;
     fileOpenEnabled: boolean;
     onOpenPreview: (index: number) => void;
@@ -121,23 +95,6 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
 }>): React.ReactElement {
     const { theme } = useUnistyles();
     const styles = stylesheet;
-    const metadataDimensions = resolveImageDimensions(props.media);
-    const [loadedDimensions, setLoadedDimensions] = React.useState<ImageDimensions | null>(null);
-    const thumbnailSize = resolveThumbnailSize(metadataDimensions ?? loadedDimensions);
-
-    React.useEffect(() => {
-        setLoadedDimensions(null);
-    }, [props.media.path, props.media.sha256]);
-
-    const handleImageLoad = React.useCallback((event: ImageLoadEvent) => {
-        const dimensions = resolveImageDimensions(event.nativeEvent.source);
-        if (!dimensions) return;
-        setLoadedDimensions((current) => (
-            current?.width === dimensions.width && current.height === dimensions.height
-                ? current
-                : dimensions
-        ));
-    }, []);
 
     const preview = useSessionImagePreview({
         sessionId: props.sessionId,
@@ -163,7 +120,7 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
                 }
                 props.onOpenPreview(props.imageIndex);
             }}
-            style={[styles.tile, thumbnailSize]}
+            style={[styles.tile, props.size]}
         >
             {preview.status === 'loaded' ? (
                 Platform.OS !== 'web' && preview.svgXml ? (
@@ -175,7 +132,6 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
                         testID={`${props.previewTestIDPrefix}:${props.media.path}`}
                         source={{ uri: preview.uri }}
                         resizeMode="contain"
-                        onLoad={handleImageLoad}
                         style={styles.image}
                     />
                 )
@@ -194,18 +150,18 @@ function SessionMediaInlineImagePreviewTile(props: Readonly<{
 
 function SessionMediaInlineImageInertTile(props: Readonly<{
     media: SessionMediaInlineImageSummary;
+    size: ImageDimensions;
     imageTestIDPrefix: string;
 }>): React.ReactElement {
     const { theme } = useUnistyles();
     const styles = stylesheet;
-    const thumbnailSize = resolveThumbnailSize(resolveImageDimensions(props.media));
 
     return (
         <View
             testID={`${props.imageTestIDPrefix}:${props.media.path}`}
             accessibilityRole="image"
             accessibilityLabel={resolveSessionMediaAccessibilityLabel(props.media)}
-            style={[styles.tile, thumbnailSize]}
+            style={[styles.tile, props.size]}
         >
             <View style={styles.placeholder}>
                 <Icon
@@ -227,6 +183,11 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
     containerTestID?: string;
     imageTestIDPrefix?: string;
     previewTestIDPrefix?: string;
+    /**
+     * Stack the images in boxes as wide as this width allows (`resolveSharedImageBoxSize`),
+     * as for an image the agent shares, instead of a row of thumbnails.
+     */
+    fullWidthPx?: number;
 }>) {
     const styles = stylesheet;
     const containerTestID = props.containerTestID ?? 'message-session-media-inline-images';
@@ -246,15 +207,7 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
             result.push({
                 media,
                 mimeType,
-                modalImage: {
-                    kind: 'session-image',
-                    title: media.name,
-                    sessionId: props.sessionId,
-                    filePath: media.path,
-                    mimeType,
-                    sizeBytes: media.sizeBytes,
-                    cacheKey: media.sha256 ?? null,
-                },
+                modalImage: buildSessionMediaViewerImage(props.sessionId, media, mimeType),
             });
         }
         return result;
@@ -262,15 +215,21 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
 
     if (images.length === 0) return null;
 
+    const fullWidthPx = props.fullWidthPx;
     return (
-        <View testID={containerTestID} style={styles.container}>
+        <View testID={containerTestID} style={fullWidthPx === undefined ? styles.container : styles.fullWidthContainer}>
             {images.map((entry, index) => {
                 const key = getMappingKey(`${entry.media.path}:${entry.media.name}`, index);
+                // Sized from the metadata only, as the transcript estimate is: the size never changes on load.
+                const size = fullWidthPx === undefined
+                    ? resolveThumbnailSize(resolveImageDimensions(entry.media))
+                    : resolveSharedImageBoxSize(entry.media, fullWidthPx);
                 if (!props.mediaPreviewEnabled) {
                     return (
                         <SessionMediaInlineImageInertTile
                             key={key}
                             media={entry.media}
+                            size={size}
                             imageTestIDPrefix={imageTestIDPrefix}
                         />
                     );
@@ -283,17 +242,18 @@ export const SessionMediaInlineImages = React.memo(function SessionMediaInlineIm
                         media={entry.media}
                         mimeType={entry.mimeType}
                         imageIndex={index}
+                        size={size}
                         onOpenPath={props.onOpenPath}
                         fileOpenEnabled={props.fileOpenEnabled}
                         imageTestIDPrefix={imageTestIDPrefix}
                         previewTestIDPrefix={previewTestIDPrefix}
                         onOpenPreview={(imageIndex) => {
-                            Modal.show({
-                                component: AttachmentImagePreviewModal,
-                                props: {
-                                    images: images.map((imageEntry) => imageEntry.modalImage),
-                                    initialIndex: imageIndex,
-                                },
+                            const image = images[imageIndex]?.modalImage;
+                            if (!image) return;
+                            openChatImageViewer({
+                                sessionId: props.sessionId,
+                                image,
+                                siblings: images.map((imageEntry) => imageEntry.modalImage),
                             });
                         }}
                     />

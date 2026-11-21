@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
 import { ToolStatusIndicator } from '@/components/tools/shell/presentation/ToolStatusIndicator';
 
 import type { Message, ToolCall } from '@/sync/domains/messages/messageTypes';
@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/text/Text';
 import { collectSubAgentSummaryTools } from './collectSubAgentSummaryTools';
 import { buildToolCallMessageRouteId } from '@/sync/domains/messages/messageRouteIds';
 import { navigateWithBlurOnWeb } from '@/utils/platform/navigateWithBlurOnWeb';
+import { readSubagentCallPrompt } from '@/sync/domains/session/subagents/subagentCallInput';
 
 type TaskOperation = 'run' | 'create' | 'list' | 'update' | 'unknown';
 
@@ -21,7 +22,7 @@ function inferOperation(input: any): TaskOperation {
     if (op === 'run' || op === 'create' || op === 'list' || op === 'update') return op;
     if (typeof input?.subject === 'string') return 'create';
     if (typeof input?.taskId === 'string' || typeof input?.taskId === 'number') return 'update';
-    if (typeof input?.prompt === 'string' || typeof input?.description === 'string') return 'run';
+    if (typeof input?.description === 'string' || readSubagentCallPrompt({ input }) !== null) return 'run';
     return 'unknown';
 }
 
@@ -44,8 +45,7 @@ function formatTaskLikeSummary(tool: ToolCall): string | null {
     }
     if (op === 'run') {
         const desc = typeof input?.description === 'string' ? input.description : null;
-        const prompt = typeof input?.prompt === 'string' ? input.prompt : null;
-        return desc ?? prompt ?? null;
+        return desc ?? readSubagentCallPrompt({ input });
     }
     return null;
 }
@@ -159,7 +159,8 @@ export const SubAgentSummarySection = React.memo<{
         inferredOperation === 'run' &&
         ((tool.input as any)?.run_in_background === true || typeof (tool.input as any)?.subagent_type === 'string');
     // A background run's first result is only its launch acknowledgement; its delivered report is the outcome.
-    const isAwaitingBackgroundResult = isBackgroundRun && (tool.result == null || isClaudeAsyncAgentLaunchToolResult(tool.result));
+    // pi-subagents marks an async call only in that answer, not in the input.
+    const isAwaitingBackgroundResult = isAsyncSubagentLaunchToolResult(tool.result) || (isBackgroundRun && tool.result == null);
     const shouldShowResultInline = isFullView || !(opts?.hideResultInlineWhenBackgroundRun ?? true) || !isAwaitingBackgroundResult;
     const taskResultContent = shouldShowResultInline ? coerceTaskResultText(tool.result) : null;
 

@@ -123,7 +123,7 @@ export type NewSessionSimplePanelProps = Readonly<{
     handlePermissionModeChange: React.ComponentProps<typeof AgentInput>['onPermissionModeChange'];
     modelMode: React.ComponentProps<typeof AgentInput>['modelMode'];
     setModelMode: React.ComponentProps<typeof AgentInput>['onModelModeChange'];
-    modelOptions: ReadonlyArray<{ value: string; label: string; description: string }>;
+    modelOptions: ReadonlyArray<{ value: string; label: string; description: string; costInputPerMTok?: number; costOutputPerMTok?: number }>;
     modelOptionsProbe?: React.ComponentProps<typeof AgentInput>['modelOptionsOverrideProbe'];
     acpSessionModeOptions?: ReadonlyArray<Readonly<{ id: string; name: string; description?: string }>>;
     acpSessionModeProbe?: React.ComponentProps<typeof AgentInput>['acpSessionModeOptionsOverrideProbe'];
@@ -561,6 +561,7 @@ function NewSessionSimplePanelComposer({
                         machinePopover={props.machinePopover}
                         onMachineClick={undefined}
                         currentPath={props.selectedPath}
+                        currentPathHomeDir={props.selectedMachineHomeDir ?? null}
                         onPathClick={undefined}
                         pathPopover={props.pathPopover}
                         resumeSessionId={props.showResumePicker ? props.resumeSessionId : undefined}

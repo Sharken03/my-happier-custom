@@ -6,6 +6,12 @@ inputs:
     description: Arguments forwarded to yarn install before standard CI resilience flags
     required: false
     default: --frozen-lockfile --ignore-engines
+  save-cache:
+    description: >
+      'false' restores node_modules from cache but never saves it. The 8T builds pass 'false'
+      outside sharken/8t, so side-branch builds do not evict that branch's caches (10 GB limit).
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -34,7 +40,7 @@ runs:
         echo "scope=${scope//,/+}" >> "$GITHUB_OUTPUT"
     - name: Restore installed dependencies
       id: dependencies
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: |
           node_modules
@@ -75,3 +81,12 @@ runs:
       run: |
         set -euo pipefail
         bash scripts/ci/yarn-install-with-retry.sh ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive
+    - name: Save installed dependencies
+      if: steps.dependencies.outputs.cache-hit != 'true' && inputs.save-cache != 'false'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}

@@ -1076,9 +1076,23 @@ describe('settings', () => {
             expect((parsed as any).transcriptGroupingMode).toBe('turns');
             expect((parsed as any).transcriptGroupToolCalls).toBe(true);
             expect((parsed as any).transcriptTurnToolCallsGroupStrategy).toBe('consecutive_tools');
-            expect((parsed as any).transcriptToolCallsCollapsedPreviewCount).toBe(3);
+            expect((parsed as any).transcriptToolCallsCollapsedPreviewCount).toBe(0);
             expect((parsed as any).transcriptToolCallsGroupShowBackground).toBe(false);
             expect((settingsParse({ transcriptToolCallsGroupShowBackground: true }) as any).transcriptToolCallsGroupShowBackground).toBe(true);
+            expect((parsed as any).transcriptToolCallsGroupOpenMode).toBe('inline');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet' }) as any).transcriptToolCallsGroupOpenMode).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('list');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'bogus' }) as any).transcriptToolCallsGroupOpenMode).toBe('inline');
+            expect((parsed as any).transcriptToolCallsGroupOpenModeWeb).toBe('inline');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'sheet' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('list');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'bogus' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('inline');
+            // Accounts that chose a mode before the app/web split keep it on the web client too.
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('sheet');
+            // An explicit web mode is never overwritten by the app's mode.
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet', transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('sheet');
+            expect((settingsParse({ transcriptToolCallsGroupOpenMode: 'sheet', transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenModeWeb).toBe('list');
+            expect((settingsParse({ transcriptToolCallsGroupOpenModeWeb: 'list' }) as any).transcriptToolCallsGroupOpenMode).toBe('inline');
             expect((parsed as any).transcriptMessageTimestampDisplayMode).toBe('hover_web_hidden_mobile');
             expect((parsed as any).transcriptMessageTimestampsEnabled).toBeUndefined();
             expect((parsed as any).transcriptTurnGroupToolCalls).toBeUndefined();
@@ -1139,9 +1153,9 @@ describe('settings', () => {
             expect((parsed as any).toolViewTimelineFeedDefaultExpanded).toBe(false);
             expect((parsed as any).toolViewTimelineFeedTapAction).toBeUndefined();
             expect((parsed as any).toolViewTimelineDensity).toBeUndefined();
-            expect((parsed as any).toolViewDetailLevelDefault).toBe('default');
+            expect((parsed as any).toolViewDetailLevelDefault).toBe('title');
             expect((parsed as any).toolViewTapAction).toBe('expand');
-            expect((parsed as any).toolViewExpandedDetailLevelDefault).toBe('default');
+            expect((parsed as any).toolViewExpandedDetailLevelDefault).toBe('full');
         });
 
         it('preserves legacy toolViewTimelineDensity as an unknown key (ignored by rendering)', () => {
@@ -1282,11 +1296,11 @@ describe('settings', () => {
                 [buildBackendTargetKey({ kind: 'builtInAgent', agentId: 'codex' })]: 'default',
                 [buildBackendTargetKey({ kind: 'builtInAgent', agentId: 'gemini' })]: 'default',
             });
-            expect(settingsDefaults.toolViewDetailLevelDefault).toBe('default');
+            expect(settingsDefaults.toolViewDetailLevelDefault).toBe('title');
             expect(settingsDefaults.toolViewDetailLevelDefaultLocalControl).toBe('title');
             expect(settingsDefaults.toolViewDetailLevelByToolName).toEqual({});
             expect((settingsDefaults as any).toolViewTapAction).toBe('expand');
-            expect((settingsDefaults as any).toolViewExpandedDetailLevelDefault).toBe('default');
+            expect((settingsDefaults as any).toolViewExpandedDetailLevelDefault).toBe('full');
             expect((settingsDefaults as any).toolViewExpandedDetailLevelByToolName).toEqual({});
             expect(settingsDefaults.toolViewShowDebugByDefault).toBe(false);
             expect(settingsDefaults.terminalConnectLegacySecretExportEnabled).toBe(false);

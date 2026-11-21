@@ -21,6 +21,19 @@ describe('isDaemonProcessArgv', () => {
     expect(isDaemonProcessArgv(args)).toBe(true);
   });
 
+  it('treats daemon start-sync behind server selection prefix flags as a daemon process', () => {
+    expect(isDaemonProcessArgv(['--server', 'relay.example', 'daemon', 'start-sync'])).toBe(true);
+    expect(isDaemonProcessArgv(['--server=relay.example', 'daemon', 'start'])).toBe(true);
+    expect(isDaemonProcessArgv([
+      '--server-url', 'https://relay.example', '--webapp-url=https://app.example', 'daemon', 'start-sync',
+    ])).toBe(true);
+  });
+
+  it('does not treat other commands behind server selection prefix flags as a daemon process', () => {
+    expect(isDaemonProcessArgv(['--server', 'relay.example', 'daemon', 'status'])).toBe(false);
+    expect(isDaemonProcessArgv(['--server', 'daemon', 'start'])).toBe(false);
+  });
+
   it('does not treat other commands as daemon process', () => {
     expect(isDaemonProcessArgv(['daemon', 'logs'])).toBe(false);
     expect(isDaemonProcessArgv(['session', 'list'])).toBe(false);

@@ -152,6 +152,23 @@ describe('ActivitySpinner (native)', () => {
         expect(opacity.config.inputRange.at(-1)).toBe(1);
     });
 
+    it('advances the native clock in whole sampled frames, as the web strip steps', async () => {
+        const { getDotSpinnerFrames } = await import('./activitySpinner/dotSpinnerFrames');
+        const { animatedLoops } = await import('@/dev/reactNativeStub');
+        await renderDotSpinner({});
+        const frames = getDotSpinnerFrames('wave', { speed: 'normal', pause: 'short' });
+        const [loop] = [...animatedLoops];
+        const easing = (loop!.animation as { config: { easing: (t: number) => number } }).config.easing;
+        const n = frames.frameCount;
+
+        // Inside a frame the clock holds that frame's input, so the dots change only once per
+        // sampled frame (30 per second), not on every display refresh.
+        expect(easing(0.4 / n)).toBe(0);
+        expect(easing(2.6 / n)).toBe(2 / n);
+        expect(easing((n - 0.5) / n)).toBe((n - 1) / n);
+        expect(easing(1)).toBe(1);
+    });
+
     it('runs each speed and pause on the shared clock for its own played cycle', async () => {
         localSettingValues.loadingIndicatorSpeed = 'fast';
         localSettingValues.loadingIndicatorPause = 'long';

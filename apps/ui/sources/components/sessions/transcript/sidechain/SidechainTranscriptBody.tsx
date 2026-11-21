@@ -135,6 +135,10 @@ export function SidechainTranscriptBody(props: SidechainTranscriptBodyProps): Re
             interaction={interaction}
             forcePermissionPromptsInTranscript={forcePermissionPromptsInTranscript}
             isInitialLoadInFlight={isInitialLoadInFlight}
+            // A group in a child's transcript expands here rather than opening the Tool calls
+            // sheet: the sheet resolves its group from the session's main transcript, and a
+            // sidechain call has no anchor there, so the tap looked like it did nothing.
+            toolCallsGroupOpenMode="inline"
             {...(normalizedSidechainId ? { loadOlder } : null)}
             jumpToMessageId={jumpToMessageId ?? null}
             header={composedHeader}

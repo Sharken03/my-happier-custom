@@ -1,0 +1,4 @@
+# Vitest files (relative to packages/protocol) for the fork's own protocol changes.
+# Upstream's "CI — Tests" is off on this fork, so nothing else runs them.
+src/sessionChanges/mergeTurnChangeSets.test.ts
+src/sessionChanges/reconcileWithScmSnapshot.test.ts

@@ -21,6 +21,8 @@ import {
 import {
     SESSION_LIST_ORDERING_MODE_DEFAULT_V1,
     SESSION_LIST_ORDERING_MODES_V1,
+    SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
+    SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import {
     DEFAULT_SESSION_INACTIVE_RESUME_POLICY,
@@ -185,6 +187,20 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    agentInputCompactModelPicker: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Model picker without the status lines and the provider line under each model',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    agentInputModelChipStyle: {
+        schema: z.enum(['agentAndModel', 'modelAndEffort']),
+        default: 'agentAndModel',
+        description: 'Composer model chip: the agent mark and model, or the model name and its reasoning effort',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListDensity: {
         schema: SessionListDensitySchema,
         default: 'narrow',
@@ -285,6 +301,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    showArchivedSessionsLink: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show a link to archived and inactive sessions at the bottom of the session list',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     groupInactiveSessionsByProject: {
         schema: z.boolean(),
         default: false,
@@ -300,14 +323,14 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     sessionListActiveGroupingV1: {
-        schema: z.enum(['project', 'date']),
+        schema: z.enum(['project', 'date', 'none']),
         default: 'project',
         description: 'How to group active sessions in the session list',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
     sessionListInactiveGroupingV1: {
-        schema: z.enum(['project', 'date']),
+        schema: z.enum(['project', 'date', 'none']),
         default: 'date',
         description: 'How to group inactive sessions in the session list',
         storageScope: 'account',
@@ -320,12 +343,47 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    newSessionOpenBeforeUploadV1: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Whether a new chat with attachments opens at once and uploads them in the background, instead of after the upload',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionListArchivedSectionV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether archived sessions get their own Archived section in the session list or join the inactive sessions',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionListKeepStoppedInActiveDaysV1: {
+        schema: z.number().int().min(0).max(365),
+        default: 0,
+        description: 'Days a stopped session stays in the Active session list after it was last active; 0 hides it when it stops',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionListVisibilityScope: {
+        schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
+        default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
+        description: 'Which sessions the main list shows: active (running) or archived (inactive and archived)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListActiveColorModeV1: {
         schema: z.enum(['activityAndAttention', 'attentionOnly', 'allActive']),
         default: 'activityAndAttention',
         description: 'Which session rows use the active title color in the session list',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionListHighlightAttention: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Session rows that wait for the user keep the primary title color, also when the agent is offline',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
     sessionListAttentionPromotionModeV1: {
         schema: z.enum(SESSION_LIST_ATTENTION_PROMOTION_MODE_VALUES),
@@ -422,6 +480,12 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Which provider usage quota window the session composer gauge should prefer',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionProviderUsageGaugeNumberWindowMode: {
+        schema: z.enum(QUOTA_GAUGE_WINDOW_MODES),
+        default: 'most_constrained',
+        description: 'Quota window for the number inside provider usage rings; missing windows use the most constrained available quota',
+        storageScope: 'account',
     },
     sessionProviderUsageGaugeWindowModes: {
         schema: z.array(z.enum(QUOTA_GAUGE_WINDOW_MODES)).min(1).nullable(),

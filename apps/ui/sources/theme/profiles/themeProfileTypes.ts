@@ -71,7 +71,10 @@ export type BuiltInThemeProfilePresetId =
     | 'premiumLight'
     | 'paperLight'
     | 'catppuccinLatte'
-    | 'githubLight';
+    | 'githubLight'
+    | 'claudeCode'
+    | 'claudeCodeDarker'
+    | 'claudeCodeLight';
 
 export type BuiltInThemeProfileDefinition = Readonly<{
     profile: ThemeProfileV1;

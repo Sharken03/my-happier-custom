@@ -1244,12 +1244,22 @@ export class SessionDraftRepository {
         if (this.storage.flush) await this.flushStorage(params.scope);
     }
 
-    async materializeExact(scope: SessionDraftRepositoryScope, address: SessionDraftAddressV1): Promise<void> {
+    /**
+     * Reads one draft from the server and reconciles it with the local replica. `known` is the
+     * revision a change hint announced: when the clean local replica already holds it (usually
+     * this device's own write coming back), the read is skipped.
+     */
+    async materializeExact(
+        scope: SessionDraftRepositoryScope,
+        address: SessionDraftAddressV1,
+        known?: Readonly<{ revision: number; status: 'present' | 'deleted' }>,
+    ): Promise<void> {
         if (this.storage.prepare) await this.storage.prepare();
         const activeFlush = this.flushInFlight.get(this.replicaListenerKey(scope, address));
         if (activeFlush) await activeFlush;
         const runtime = this.syncRuntime(scope);
         if (!runtime) return;
+        if (known && this.holdsKnownRevision(scope, address, known)) return;
         let response: SessionDraftReadResponseV1;
         try {
             response = await runtime.transport.read(address);
@@ -1274,6 +1284,22 @@ export class SessionDraftRepository {
         const shouldFlush = this.reconcileStagedRead(scope, address, response, remoteDocument);
         if (shouldFlush) await this.flushSessionDraft({ scope, address });
         if (this.storage.flush) await this.flushStorage(scope);
+    }
+
+    private holdsKnownRevision(
+        scope: SessionDraftRepositoryScope,
+        address: SessionDraftAddressV1,
+        known: Readonly<{ revision: number; status: 'present' | 'deleted' }>,
+    ): boolean {
+        const local = this.readReplica(scope, address);
+        // A deletion of a draft this device does not hold changes nothing here.
+        if (!local) return known.status === 'deleted';
+        // Revisions only grow, so a clean replica at or above the hint has seen that write.
+        // Pending edits and conflicts still take the read, which rebases them.
+        return typeof local.baseRevision === 'number'
+            && local.baseRevision >= known.revision
+            && local.pendingFieldMutations.length === 0
+            && local.conflict === null;
     }
 
     private async openRequiredDocument(

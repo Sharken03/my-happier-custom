@@ -10,6 +10,9 @@ export const TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES = [
 ] as const;
 export type TranscriptMessageTimestampDisplayMode = typeof TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES[number];
 
+export const TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES = ['inline', 'sheet', 'list'] as const;
+export type TranscriptToolCallsGroupOpenMode = typeof TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES[number];
+
 function bucketCount(value: number, smallMax: number, mediumMax: number): 'small' | 'medium' | 'large' {
     if (value <= smallMax) return 'small';
     if (value <= mediumMax) return 'medium';
@@ -30,7 +33,8 @@ function buildOverrideCountSummaryProperties(value: unknown): Record<string, num
 export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefinitions({
     toolViewDetailLevelDefault: {
         schema: z.enum(['default', 'title', 'compact', 'summary', 'full']),
-        default: 'default',
+        // 8T fork: each tool call collapsed to one line (tool and main argument), as in Happy and Claude Code.
+        default: 'title',
         description: 'Default tool detail level in the session timeline',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
@@ -58,7 +62,7 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
     },
     toolViewExpandedDetailLevelDefault: {
         schema: z.enum(['default', 'summary', 'full']),
-        default: 'default',
+        default: 'full',
         description: 'Default expanded tool detail level in the session timeline',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
@@ -133,6 +137,30 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptToolCallsGroupBottomCollapse: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show a Collapse control at the bottom of an expanded Tool calls group',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptToolCallsGroupOpenMode: {
+        schema: z.enum(TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES),
+        default: 'inline',
+        description: 'Open a Tool calls group inline in the transcript, in a sheet from a one-line group header, or inline as a list of one-line rows (as Claude Code on the web)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    // 8T fork: the web client keeps its own Tool calls group mode, next to the app's
+    // transcriptToolCallsGroupOpenMode. Both are account settings, so each client reads the value
+    // that belongs to it on every device and browser.
+    transcriptToolCallsGroupOpenModeWeb: {
+        schema: z.enum(TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES),
+        default: 'inline',
+        description: 'The web client: open a Tool calls group inline in the transcript, in a sheet from a one-line group header, or inline as a list of one-line rows (as Claude Code on the web)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptMessageTimestampDisplayMode: {
         schema: z.enum(TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES),
         default: 'hover_web_hidden_mobile' satisfies TranscriptMessageTimestampDisplayMode,
@@ -144,6 +172,58 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         schema: z.boolean(),
         default: true,
         description: 'Show transcript message selection actions',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptMessageActionsCopyOnly: {
+        schema: z.boolean(),
+        // 8T fork: as in the Claude app.
+        default: true,
+        description: 'Own messages: a long-press menu with Copy message and Select text. Replies: one Copy icon on the left. No pin, fork or select icons',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptUserBubbleNarrow: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Cap the user message bubble at 80% of the transcript width, as the Claude app does',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    composerWorkingQuillMarkEnabled: {
+        schema: z.boolean(),
+        default: true,
+        description: 'While the agent works, the composer status shows a quill writing on a page instead of the pulsing dot',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    // 8T fork: markdown images from allowed hosts; see components/markdown/rendering/markdownRemoteImages.ts.
+    transcriptMarkdownRemoteImagesEnabled: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show a markdown image that stands alone on its line when its https host is in transcriptMarkdownRemoteImageHosts',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptMarkdownRemoteImageHosts: {
+        schema: z.array(z.string()),
+        default: ['happy.sharken.duckdns.org'],
+        description: 'Hosts whose markdown images the transcript shows while transcriptMarkdownRemoteImagesEnabled is on (exact host names)',
+        storageScope: 'account',
+        analytics: {
+            trackCurrentState: true,
+            trackChanges: true,
+            valueKind: 'count',
+            privacy: 'count_only',
+            identityScope: 'person',
+            serializeCurrent: (value: unknown) => (Array.isArray(value) ? value.length : 0),
+        },
+    },
+    // 8T fork: the Happier show_image tool; see components/sessions/sessionMedia/sharedImageToolCall.ts.
+    transcriptSharedImagesEnabled: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show an image the agent shares with the show_image tool full width in the transcript, instead of as a tool call',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
@@ -419,6 +499,27 @@ export const ACCOUNT_TRANSCRIPT_TOOL_SETTING_DEFINITIONS = defineSettingDefiniti
         description: 'Show jump-to-bottom button when unpinned and new items arrive',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptScrollJumpToBottomShowCount: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Show the number of new items on the jump-to-bottom button',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptJumpToBottomPosition: {
+        schema: z.enum(['bottom-right', 'bottom-center']),
+        default: 'bottom-center',
+        description: 'Position of the jump-to-bottom button in the transcript',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
+    transcriptChatFont: {
+        schema: z.enum(['default', 'dm-sans']),
+        default: 'default',
+        description: 'Font of message text in the transcript',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
     transcriptScrollJumpToBottomMinNewCount: {
         schema: z.number(),

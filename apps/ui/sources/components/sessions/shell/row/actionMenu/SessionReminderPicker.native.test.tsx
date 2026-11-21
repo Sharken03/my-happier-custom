@@ -6,6 +6,10 @@ import { renderScreen } from '@/dev/testkit';
 import type { CustomModalChromeConfig } from '@/modal/types';
 import { SessionReminderDateTimeModal } from './SessionReminderDateTimeModal';
 
+function cardFooter(chrome: CustomModalChromeConfig | null | undefined): React.ReactNode {
+    return chrome?.kind === 'card' ? chrome.footer : null;
+}
+
 const native = vi.hoisted(() => ({
     platform: 'ios' as 'ios' | 'android',
     components: new Set<string>(),
@@ -69,7 +73,7 @@ describe('SessionReminderPicker on installed native binaries', () => {
             screen.changeTextByTestId('session-reminder-date-input', '2026-10-01');
             screen.changeTextByTestId('session-reminder-time-input', '14:25');
         });
-        const footer = await renderScreen(<>{setChrome.mock.lastCall?.[0]?.footer}</>);
+        const footer = await renderScreen(<>{cardFooter(setChrome.mock.lastCall?.[0])}</>);
         const buttons = footer.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button');
         expect(buttons).toHaveLength(2);
         await act(async () => buttons[1].props.onPress());

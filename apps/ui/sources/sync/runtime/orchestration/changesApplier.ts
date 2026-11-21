@@ -68,7 +68,10 @@ export async function applyPlannedChangeActions(params: {
     applyTodoSocketUpdates: (changes: TodoSocketUpdate[]) => Promise<void>;
     kvBulkGet: (credentials: AuthCredentials, keys: string[]) => Promise<{ values: TodoSocketUpdate[] }>;
     convergePendingForSession?: (sessionId: string) => Promise<void>;
-    materializeSessionDraft?: (address: SessionDraftAddressV1) => Promise<void>;
+    materializeSessionDraft?: (
+        address: SessionDraftAddressV1,
+        known: Readonly<{ revision: number; status: 'present' | 'deleted' }>,
+    ) => Promise<void>;
 }): Promise<PlannedChangesApplyResult> {
     const { planned } = params;
 
@@ -245,7 +248,7 @@ export async function applyPlannedChangeActions(params: {
         });
     }
 
-    for (const address of planned.sessionDraftAddresses) {
+    for (const { address, revision, status } of planned.sessionDrafts) {
         tasks.push(async () => {
             const key = canonicalSessionDraftAddressV1(address);
             try {
@@ -253,7 +256,7 @@ export async function applyPlannedChangeActions(params: {
                     failedSessionDraftAddresses.add(key);
                     return;
                 }
-                await params.materializeSessionDraft(address);
+                await params.materializeSessionDraft(address, { revision, status });
                 completedSessionDraftAddresses.add(key);
             } catch {
                 failedSessionDraftAddresses.add(key);

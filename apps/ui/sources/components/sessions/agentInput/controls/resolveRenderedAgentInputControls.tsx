@@ -10,6 +10,7 @@ export function resolveRenderedAgentInputControls(params: Readonly<{
     coreControlNodesById: ControlNodesById;
     extraControlNodesById: ControlNodesById;
     extraChips: readonly React.ReactNode[];
+    hiddenControlIds?: readonly string[];
 }>): Readonly<{
     chips: readonly React.ReactNode[];
     secondaryLeadingControls: readonly React.ReactNode[];
@@ -26,6 +27,7 @@ export function resolveRenderedAgentInputControls(params: Readonly<{
     const controlLines = resolveAgentInputControlLines({
         layout: params.layout,
         controlIds,
+        hiddenControlIds: params.hiddenControlIds,
     });
 
     const resolveControlNodes = (ids: readonly AgentInputControlId[]) =>

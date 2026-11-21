@@ -1,8 +1,10 @@
 import { t } from '@/text';
 import { Modal } from '@/modal';
 import { storage } from '@/sync/domains/state/storage';
+import { sync } from '@/sync/sync';
 import { HappyError } from '@/utils/errors/errors';
 import {
+    machineCleanupDeletedChatFolder,
     sessionArchiveWithServerScope,
     sessionDeleteWithServerScope,
     sessionRename,
@@ -14,6 +16,7 @@ import { sessionSetAttentionStandingWithServerScope, setSessionPin } from '@/syn
 import { resolveSessionOrganizationMutationScope } from '@/sync/domains/session/organization/mutationScope';
 import {
     archiveSessionWithPendingState,
+    isStopAcceptedAndPending,
     isSessionActiveArchiveResult,
     isSessionArchivePending,
     stopSessionAndMaybeArchive,
@@ -79,6 +82,33 @@ function canDeleteCurrentSession(target: SessionActionTarget): boolean {
     return target.canDelete && readCurrentSessionActionTarget(target)?.canDelete === true;
 }
 
+/**
+ * The chat folder a successful deletion may leave behind, read from the session before its row is
+ * gone. Only a chat's own folder is cleaned; the daemon decides whether the folder holds anything
+ * of the chat's own work.
+ */
+function readDeletedChatFolderCleanupTarget(target: SessionActionTarget): Readonly<{
+    machineId: string;
+    sessionPath: string;
+    serverId: string | null;
+}> | null {
+    const metadata = target.session.metadata as { machineId?: unknown; path?: unknown } | null | undefined;
+    const machineId = typeof metadata?.machineId === 'string' ? metadata.machineId.trim() : '';
+    const sessionPath = typeof metadata?.path === 'string' ? metadata.path.trim() : '';
+    if (!machineId || !sessionPath) return null;
+    return { machineId, sessionPath, serverId: target.serverId };
+}
+
+/** Cleanup is best effort: a machine that is offline or an old daemon must not fail the deletion. */
+function cleanupDeletedChatFolder(
+    cleanupTarget: ReturnType<typeof readDeletedChatFolderCleanupTarget>,
+): void {
+    if (!cleanupTarget) return;
+    void machineCleanupDeletedChatFolder(cleanupTarget.machineId, cleanupTarget.sessionPath, {
+        serverId: cleanupTarget.serverId,
+    });
+}
+
 async function executeDeleteAction(target: SessionActionTarget, context?: SessionActionExecutionContext): Promise<void | false> {
     if (!target.canDelete && !target.canStopAndDelete) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
     const confirmed = await Modal.confirm(
@@ -87,8 +117,18 @@ async function executeDeleteAction(target: SessionActionTarget, context?: Sessio
         { cancelText: t('common.cancel'), confirmText: t(target.canStopAndDelete ? 'sessionInfo.stopAndDeleteSession' : 'sessionInfo.deleteSession'), destructive: true },
     );
     if (!confirmed) return false;
+    const cleanupTarget = readDeletedChatFolderCleanupTarget(target);
     const deleteSession = resolveDeleteSession(context);
     if (target.canStopAndDelete) {
+        let sessionMissing = false;
+        const recoverMissingSession = async () => {
+            const result = await sync.ensureSessionVisibleForMessageRoute(target.sessionId, {
+                serverId: resolveSessionArchiveServerId(target.serverId),
+                forceRefresh: true,
+            });
+            sessionMissing = result.kind === 'missing' && result.cause === 'not_found';
+            return sessionMissing;
+        };
         // Use the same stop strategy and completion retry as Archive. In 0.2 the DELETE
         // endpoint does not guard activity, so current scoped lifecycle evidence must do so.
         await stopSessionAndRunAction({
@@ -96,12 +136,25 @@ async function executeDeleteAction(target: SessionActionTarget, context?: Sessio
                 const current = readCurrentSessionActionTarget(target);
                 if (!current?.isOwnedByCurrentUser) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
                 if (current.canDelete) return { success: true };
-                return await resolveStopSession(context)(target.sessionId, { serverId: target.serverId });
+                let result: SessionActionOperationResult;
+                try {
+                    result = await resolveStopSession(context)(target.sessionId, { serverId: target.serverId });
+                } catch (error) {
+                    if (await recoverMissingSession()) return { success: true };
+                    throw error;
+                }
+                // Runner absence or missing encryption is not proof of Session absence.
+                // Only the canonical exact read can retire the stale row and finish Delete.
+                if (!result.success && !isStopAcceptedAndPending(result) && await recoverMissingSession()) {
+                    return { success: true };
+                }
+                return result;
             },
             stopErrorMessage: t('sessionInfo.failedToStopSession'),
             endAction: {
                 errorMessage: t('sessionInfo.failedToDeleteSession'),
                 run: async (options) => {
+                    if (sessionMissing) return { success: true };
                     const current = readCurrentSessionActionTarget(target);
                     if (!current?.isOwnedByCurrentUser) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
                     if (!current.canDelete) return { success: false, code: 'session_active' };
@@ -109,10 +162,12 @@ async function executeDeleteAction(target: SessionActionTarget, context?: Sessio
                 },
             },
         });
+        cleanupDeletedChatFolder(cleanupTarget);
         return;
     }
     if (!canDeleteCurrentSession(target)) throw new HappyError(t('sessionInfo.failedToDeleteSession'), false);
     throwIfFailed(await deleteSession(target.sessionId, { serverId: target.serverId }), t('sessionInfo.failedToDeleteSession'));
+    cleanupDeletedChatFolder(cleanupTarget);
 }
 
 function resolveStopArchiveFlow(context: SessionActionExecutionContext | undefined) {

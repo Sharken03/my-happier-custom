@@ -1,5 +1,8 @@
-import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import { takeWarmPiProcess } from '@/backends/pi/rpc/warmPiProcess';
+import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process';
+import { Duplex } from 'node:stream';
 import { randomUUID } from 'node:crypto';
+import { homedir } from 'node:os';
 import { open, readdir, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
 
@@ -21,8 +24,9 @@ import {
 import { abortPendingAcpPermissionRequests } from '@/agent/acp/backend/permissions/acpPermissionFinalization';
 import { killProcessTree } from '@/agent/runtime/process/killProcessTree';
 import { materializeProtectedTempTextArtifact, type ProtectedTempTextArtifact } from '@/utils/fs/protectedTempTextArtifact';
-import { PI_BRIDGE_CONFIG_PATH_FLAG } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
+import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
 import { logger } from '@/ui/logger';
+import { configuration } from '@/configuration';
 import { materializePiModelDiscoveryExtension, parsePiModelDiscoveryLine } from '../models/piModelDiscoveryExtension';
 import {
   HAPPIER_CONNECTED_SERVICE_TARGET_MATERIALIZED_ROOT_ENV_KEY,
@@ -33,6 +37,7 @@ import { projectConnectedServiceRuntimeAuthRecoveryReport } from '@/daemon/conne
 import type { ConnectedServiceRuntimeFailureClassification } from '@/daemon/connectedServices/runtimeAuth/types';
 import { sanitizeConnectedServiceRuntimeFailureClassification } from '@/daemon/connectedServices/runtimeAuth/sanitizeConnectedServiceRuntimeFailureClassification';
 import { redactBugReportSensitiveText } from '@happier-dev/protocol';
+import type { TurnChangeSet } from '@happier-dev/protocol';
 
 import {
   PI_BROKER_LOAD_NONCE_ENV,
@@ -62,6 +67,16 @@ import {
   type PiContextTelemetry,
 } from './piContextTelemetryMarker';
 import { mapPiRpcEventToAgentMessages } from './eventMapping';
+import { readPiSubagentSessionObservation, type PiSubagentSessionObservation } from './piSubagentSidechainMirror';
+import { withPiSubagentDiffStats } from './piSubagentDiffStats';
+import { PiTurnChangeTracker, readPiEditPatch } from './piTurnChangeTracker';
+import {
+  PI_EXTENSION_UI_METADATA_KEY,
+  PiExtensionDisplayState,
+  parsePiExtensionDisplayUpdate,
+} from './piExtensionDisplayState';
+import { emitCanonicalTurnDiffTool } from '@/agent/runtime/emitCanonicalTurnDiffTool';
+import { ShellCommandScmChangeTracker } from '@/agent/tools/diff/shellCommandScmChanges';
 import {
   createPiProviderFailureError,
   normalizePiProviderFailure,
@@ -664,7 +679,24 @@ export type PiRpcSpawnOptions = {
   appendSystemPromptText?: string | null;
   toolsBridgeConfigText?: string | null;
   permissionHandler?: AcpPermissionHandler;
+  /**
+   * Serves the bridge extension's Happier tool calls in this process. When set, Pi gets one more
+   * pipe (PI_BRIDGE_HOST_TOOLS_FD) that carries the `tools serve` line protocol, and the
+   * extension uses it instead of starting its own `happier tools serve` process.
+   */
+  serveHostToolCalls?: ((channel: PiHostToolCallChannel) => void) | null;
+  /**
+   * Receives the child session files of each `pi-subagents` `subagent` tool update and end, so
+   * the host can mirror the child transcript into the tool call's sidechain.
+   */
+  observeSubagentSessions?: ((observation: PiSubagentSessionObservation) => void) | null;
 };
+
+/** The host end of the bridge extension's tool-call pipe. */
+export type PiHostToolCallChannel = Readonly<{
+  input: NodeJS.ReadableStream;
+  writeLine: (line: string) => void;
+}>;
 
 export class PiRpcBackend implements AgentBackend {
   readonly options: Readonly<{
@@ -676,6 +708,8 @@ export class PiRpcBackend implements AgentBackend {
     appendSystemPromptText: string | null;
     toolsBridgeConfigText: string | null;
   }>;
+  private readonly serveHostToolCalls: ((channel: PiHostToolCallChannel) => void) | null;
+  private readonly observeSubagentSessions: ((observation: PiSubagentSessionObservation) => void) | null;
 
   private process: ChildProcessWithoutNullStreams | null = null;
   private appendSystemPromptArtifact: ProtectedTempTextArtifact | null = null;
@@ -693,6 +727,12 @@ export class PiRpcBackend implements AgentBackend {
   private readonly activeExtensionUiRequestIds = new Set<string>();
   private readonly permissionHandler: AcpPermissionHandler | null;
   private pendingTurn: PendingTurn | null = null;
+  private readonly turnChangeTracker = new PiTurnChangeTracker();
+  private readonly extensionDisplayState = new PiExtensionDisplayState();
+  private metadataPatchPublisher: ((patch: Readonly<Record<string, unknown>>) => Promise<void>) | null = null;
+  private readonly shellChangeTracker = new ShellCommandScmChangeTracker({ homeDir: process.env.HOME || homedir() });
+  private readonly shellTurnIdPrefix = `pi-shell-${randomUUID().slice(0, 8)}`;
+  private shellTurnOrdinal = 0;
   private pendingTurnBarrier: Deferred<void> | null = null;
   private sessionId: string | null = null;
   private sessionFile: string | null = null;
@@ -735,6 +775,8 @@ export class PiRpcBackend implements AgentBackend {
 
   constructor(options: PiRpcSpawnOptions) {
     this.permissionHandler = options.permissionHandler ?? null;
+    this.serveHostToolCalls = options.serveHostToolCalls ?? null;
+    this.observeSubagentSessions = options.observeSubagentSessions ?? null;
     this.options = {
       cwd: options.cwd,
       command: options.command,
@@ -1331,6 +1373,34 @@ export class PiRpcBackend implements AgentBackend {
     }
   }
 
+  /**
+   * Pi queues a steer without starting a run once its run has ended, so steering closes at
+   * the final `agent_end` and input goes through the pending queue as the next prompt.
+   */
+  /**
+   * Receives the session metadata writer. It publishes the current extension status at once,
+   * so a value left from an earlier process is replaced. HAPPIER_PI_EXTENSION_UI=0 turns it off.
+   */
+  setMetadataPatchPublisher(publisher: (patch: Readonly<Record<string, unknown>>) => Promise<void>): void {
+    if (!configuration.piExtensionUi) return;
+    this.metadataPatchPublisher = publisher;
+    this.publishExtensionDisplayState(true);
+  }
+
+  private publishExtensionDisplayState(force = false): void {
+    const publisher = this.metadataPatchPublisher;
+    if (!publisher) return;
+    const snapshot = this.extensionDisplayState.takeSnapshotToPublish(force);
+    if (!snapshot) return;
+    void publisher({ [PI_EXTENSION_UI_METADATA_KEY]: snapshot }).catch((error: unknown) => {
+      logger.warn('[pi] Could not save the Pi extension status in session metadata', error);
+    });
+  }
+
+  isInFlightSteerOpen(): boolean {
+    return this.pendingTurn?.agentEndObserved !== true;
+  }
+
   async sendSteerPrompt(sessionId: SessionId, prompt: string): Promise<void> {
     this.assertSession(sessionId);
     const maybeRestart = this.maybeRestartForUpdatedAuthJson();
@@ -1580,17 +1650,44 @@ export class PiRpcBackend implements AgentBackend {
     }
   }
 
+  /** Serves the extension's tool calls on the extra pipe, when the host provides a handler. */
+  private attachHostToolCallChannel(child: ChildProcess): void {
+    const channel = this.serveHostToolCalls ? child.stdio[PI_BRIDGE_HOST_TOOLS_FD] : null;
+    if (!this.serveHostToolCalls || !(channel instanceof Duplex)) return;
+    // The pipe closes with Pi; a write after that is not an error of the turn.
+    channel.on('error', () => {});
+    try {
+      this.serveHostToolCalls({
+        input: channel,
+        writeLine: (line) => {
+          if (!channel.writableEnded && !channel.destroyed) channel.write(`${line}\n`);
+        },
+      });
+    } catch (error) {
+      // Tool calls are not the session: close the pipe so the extension falls back to its own
+      // `tools serve` process at once, and keep Pi running.
+      logger.warnFile('[pi] Host tool-call channel failed; the bridge falls back to tools serve', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      channel.destroy();
+    }
+  }
+
   private spawnRpcProcess(params: Readonly<{ args: string[] }>): void {
     this.refreshPiBrokerLoadNonceForNextSpawn();
-    const child = spawn(this.options.command, params.args, {
+    const childEnv = { ...process.env, ...this.options.env };
+    const child = takeWarmPiProcess({
+      command: this.options.command,
+      args: params.args,
       cwd: this.options.cwd,
-      env: {
-        ...process.env,
-        ...this.options.env,
-      },
-      stdio: 'pipe',
+      env: childEnv,
+    }) ?? spawn(this.options.command, params.args, {
+      cwd: this.options.cwd,
+      env: childEnv,
+      stdio: ['pipe', 'pipe', 'pipe', ...(this.serveHostToolCalls ? ['pipe' as const] : [])],
       windowsHide: true,
     });
+    this.attachHostToolCallChannel(child);
 
     if (!child.stdin || !child.stdout || !child.stderr) {
       throw new Error('Failed to start Pi RPC process with piped stdio');
@@ -2179,13 +2276,21 @@ export class PiRpcBackend implements AgentBackend {
   }
 
   private handleEvent(event: Record<string, unknown>): void {
+    const displayUpdate = parsePiExtensionDisplayUpdate(event);
+    if (displayUpdate) {
+      this.notePendingTurnActivity(event);
+      if (this.extensionDisplayState.apply(displayUpdate)) this.publishExtensionDisplayState();
+      return;
+    }
     const extensionRequest = parsePiBlockingExtensionUiRequest(event);
     if (extensionRequest) {
       this.notePendingTurnActivity(event);
       void this.handleBlockingExtensionUiRequest(extensionRequest, this.process);
       return;
     }
-    const normalizedEvent = this.normalizeCompactionLifecycleEvent(event);
+    // A finished `subagent` call carries the lines its child sessions changed, so the app can
+    // show them on the call without loading the subagent's messages.
+    const normalizedEvent = withPiSubagentDiffStats(this.normalizeCompactionLifecycleEvent(event));
     if (normalizedEvent.type === 'compaction_start' || normalizedEvent.type === 'compaction_end') {
       this.latestContextTelemetry = null;
       this.assistantBoundaryContextTelemetry = null;
@@ -2199,7 +2304,13 @@ export class PiRpcBackend implements AgentBackend {
     });
 
     for (const msg of mappedMessages) {
+      this.observeTurnChange(msg);
       this.emitMessage(msg);
+    }
+
+    if (this.observeSubagentSessions) {
+      const subagentSessions = readPiSubagentSessionObservation(normalizedEvent, { parentSessionFile: this.sessionFile });
+      if (subagentSessions) this.observeSubagentSessions(subagentSessions);
     }
 
     this.handlePiAssistantFailureEvent(normalizedEvent);
@@ -2390,7 +2501,10 @@ export class PiRpcBackend implements AgentBackend {
 
       this.emitMessage({
         type: 'token-count',
-        key: `pi:${rawKey}`,
+        // Pi's stats are the session's running totals, and the relay keeps one usage report per
+        // key: a key per Pi session makes each report replace the last. A key per publish
+        // (rawKey) added every running total to the chat's cost again.
+        key: `pi:${sessionId}`,
         tokens,
         ...(costTotal !== null ? { cost: { total: costTotal } } : {}),
       });
@@ -2590,12 +2704,91 @@ export class PiRpcBackend implements AgentBackend {
     return this.pendingTurn === pending;
   }
 
+  private observeTurnChange(message: AgentMessage): void {
+    if (message.type === 'tool-call') {
+      if (message.toolName === 'bash' && typeof message.args.command === 'string') {
+        this.shellChangeTracker.observeShellCommand({ command: message.args.command, cwd: this.options.cwd });
+      }
+      this.turnChangeTracker.observePiToolCall({
+        callId: message.callId,
+        toolName: message.toolName,
+        args: message.args,
+        cwd: this.options.cwd,
+      });
+    } else if (message.type === 'tool-result') {
+      this.turnChangeTracker.observeToolResult({
+        callId: message.callId,
+        isError: message.isError === true,
+        result: { unifiedDiff: readPiEditPatch(message.result) },
+      });
+    }
+  }
+
+  /**
+   * Sends the files the finished turn changed as the canonical Diff tool call the app reads.
+   * After shell commands, git finds the files they changed; that Diff arrives after the turn ends.
+   */
+  private emitTurnChanges(): void {
+    const sessionId = this.sessionId ?? 'pi';
+    const turnChangeSet = this.turnChangeTracker.completeTurn({ sessionId, status: 'completed' });
+    if (!this.shellChangeTracker.hasShellCommands()) {
+      if (turnChangeSet) this.emitTurnChangeSet(turnChangeSet);
+      return;
+    }
+    void this.shellChangeTracker.completeTurn().then((shellFiles) => {
+      if (this.disposed) return;
+      const reported = new Set(turnChangeSet?.files.map((file) => file.filePath) ?? []);
+      const extraFiles = shellFiles
+        .filter((file) => !reported.has(file.filePath))
+        .map((file) => ({ ...file, provider: 'pi' }));
+      if (extraFiles.length === 0) {
+        if (turnChangeSet) this.emitTurnChangeSet(turnChangeSet);
+        return;
+      }
+      this.shellTurnOrdinal += 1;
+      this.emitTurnChangeSet(turnChangeSet
+        ? { ...turnChangeSet, files: [...turnChangeSet.files, ...extraFiles] }
+        : {
+          sessionId,
+          turnId: `${this.shellTurnIdPrefix}-${this.shellTurnOrdinal}`,
+          seqRange: { startSeqInclusive: this.shellTurnOrdinal, endSeqInclusive: this.shellTurnOrdinal },
+          status: 'completed',
+          files: extraFiles,
+          provider: 'pi',
+          derivedAt: Date.now(),
+        });
+    }, (error: unknown) => {
+      logger.debug('[pi] Shell change lookup failed', { error: error instanceof Error ? error.message : String(error) });
+      if (turnChangeSet && !this.disposed) this.emitTurnChangeSet(turnChangeSet);
+    });
+  }
+
+  private emitTurnChangeSet(turnChangeSet: TurnChangeSet): void {
+    emitCanonicalTurnDiffTool({
+      turnChangeSet,
+      protocol: 'acp',
+      rawToolName: 'PiTurnDiff',
+      sendToolCall: ({ toolName, input, callId }) => {
+        const resolvedCallId = callId ?? randomUUID();
+        const args = input && typeof input === 'object' && !Array.isArray(input)
+          ? (input as Record<string, unknown>)
+          : {};
+        this.emitMessage({ type: 'tool-call', toolName, callId: resolvedCallId, args });
+        return resolvedCallId;
+      },
+      sendToolResult: ({ callId, output }) => {
+        this.emitMessage({ type: 'tool-result', toolName: 'Diff', callId, result: output });
+      },
+    });
+  }
+
   private resolvePendingTurn(): boolean {
     if (!this.pendingTurn) return false;
     const pending = this.pendingTurn;
     this.pendingTurn = null;
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
+    this.emitTurnChanges();
     this.emitMessage({ type: 'status', status: 'idle', turnFinished: true });
     pending.resolve();
     return true;
@@ -2607,6 +2800,8 @@ export class PiRpcBackend implements AgentBackend {
     this.pendingTurn = null;
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
+    this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     pending.reject(error);
   }
 
@@ -2658,6 +2853,8 @@ export class PiRpcBackend implements AgentBackend {
     if (this.pendingTurn !== pending) return;
     const error = new Error('Timed out waiting for Pi turn completion');
     this.pendingTurn = null;
+    this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     this.emitMessage({ type: 'status', status: 'error', detail: error.message });
@@ -2672,6 +2869,8 @@ export class PiRpcBackend implements AgentBackend {
       message: detail,
     });
     this.pendingTurn = null;
+    this.turnChangeTracker.resetTurn();
+    this.shellChangeTracker.resetTurn();
     this.clearPendingTurnTimers(pending);
     this.openPromptRequestIds.clear();
     const error = this.createPiAssistantFailureError(detail, classification);
@@ -3303,6 +3502,8 @@ export class PiRpcBackend implements AgentBackend {
         provider, modelId: id, ...(name ? { name } : {}),
         supportsThinking: model?.reasoning === true,
         thinkingEffort: this.currentThinkingLevel,
+        thinkingLevelMap: model?.thinkingLevelMap,
+        cost: model?.cost,
       });
       return projected ? [projected] : [];
     });

@@ -104,7 +104,7 @@ describe('sessionDraftSyncRuntime', () => {
             readActiveScope: () => activeScope,
             materializeExact,
         })).resolves.toBe(true);
-        expect(materializeExact).toHaveBeenCalledWith(SCOPE, payload.address);
+        expect(materializeExact).toHaveBeenCalledWith(SCOPE, payload.address, { revision: 2, status: 'deleted' });
 
         materializeExact.mockClear();
         activeScope = { serverId: 'server-b', accountId: 'account-a' };
@@ -115,6 +115,63 @@ describe('sessionDraftSyncRuntime', () => {
             materializeExact,
         })).resolves.toBe(false);
         expect(materializeExact).not.toHaveBeenCalled();
+    });
+
+    it('does not read back this device\'s own write, but reads a newer revision from another device', async () => {
+        const address = { kind: 'session' as const, sessionId: 'session-a' };
+        const cipher = createSessionDraftCipher({
+            accountMode: 'plain',
+            accountCryptoMaterial: null,
+            getSessionContext: () => ({ mode: 'plain' as const }),
+            randomBytes: (length) => new Uint8Array(length),
+        });
+        let record: { address: typeof address; revision: number; content: Awaited<ReturnType<typeof cipher.seal>> | null; createdAt: number; updatedAt: number } | null = null;
+        const transport: SessionDraftRepositoryTransport = {
+            read: vi.fn(async () => record?.content
+                ? { status: 'present' as const, record: { ...record, content: record.content } }
+                : { status: 'absent' as const }),
+            list: vi.fn(async () => ({ items: [], nextAfter: undefined })),
+            mutate: vi.fn(async ({ content }) => {
+                const revision = record ? record.revision + 1 : 0;
+                record = { address, revision, content, createdAt: 1, updatedAt: 10 + revision };
+                return { status: 'updated' as const, record };
+            }),
+        };
+        const values = new Map<string, string>();
+        const repository = createSessionDraftRepository({
+            storage: {
+                getString: (key) => values.get(key),
+                set: (key, value) => values.set(key, value),
+                delete: (key) => values.delete(key),
+            },
+            transport,
+            syncEnabled: true,
+            cipher,
+        });
+        await repository.materializeExact(SCOPE, address);
+        repository.writeExistingSessionDraft({ scope: SCOPE, sessionId: address.sessionId, patch: { text: 'mine' } });
+        await repository.flushSessionDraft({ scope: SCOPE, address });
+        vi.mocked(transport.read).mockClear();
+        const wake = (revision: number) => materializeSessionDraftSocketWake({
+            payload: { type: 'session-draft-updated', v: 1, sessionDraft: true, address, revision, status: 'present' },
+            capturedScope: SCOPE,
+            readActiveScope: () => SCOPE,
+            materializeExact: repository.materializeExact.bind(repository),
+        });
+
+        await expect(wake(record!.revision)).resolves.toBe(true);
+        expect(transport.read).not.toHaveBeenCalled();
+
+        record = {
+            ...record!,
+            revision: record!.revision + 1,
+            content: await cipher.seal(address, sessionDocument('other device', 3)),
+        };
+        await expect(wake(record.revision)).resolves.toBe(true);
+        expect(transport.read).toHaveBeenCalledTimes(1);
+        expect(repository.getSessionDraftSnapshot(SCOPE, address)).toMatchObject({
+            document: { composer: { text: { value: 'other device' } } },
+        });
     });
 
     it('rejects a scope switch that happens during exact materialization', async () => {

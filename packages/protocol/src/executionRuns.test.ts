@@ -16,7 +16,6 @@ import { ReviewFollowUpInputSchema } from './reviews/reviewFollowUp.js';
 import { ReviewFindingsV1Schema } from './structuredMessages/reviewFindingsV1.js';
 import { ReviewFindingsV2Schema } from './structuredMessages/reviewFindingsV2.js';
 import { ReviewFollowUpV1Schema } from './structuredMessages/reviewFollowUpV1.js';
-import { ReviewPublishRequestV1Schema } from './structuredMessages/reviewPublishRequestV1.js';
 import { PlanOutputV1Schema } from './structuredMessages/planOutputV1.js';
 import { DelegateOutputV1Schema } from './structuredMessages/delegateOutputV1.js';
 import { ParticipantMessageV1Schema } from './structuredMessages/participantMessageV1.js';
@@ -393,27 +392,6 @@ describe('executionRuns protocol', () => {
     });
     expect(parsed.threadId).toBe('thread_1');
     expect(parsed.updatedFindings?.[0]?.confidence).toBe(0.9);
-  });
-
-  it('validates review_publish_request.v1 structured payload', () => {
-    const parsed = ReviewPublishRequestV1Schema.parse({
-      sourceRunRef: { runId: 'run_1', callId: 'subagent_run_1', backendId: 'claude' },
-      findingIds: ['f1'],
-      publishedFindings: [
-        {
-          id: 'f1',
-          title: 'Example',
-          severity: 'medium',
-          category: 'correctness',
-          summary: 'Ship this fix.',
-          whyItMatters: 'It crashes production input.',
-          evidence: 'Reproduced locally.',
-          confidence: 0.95,
-        },
-      ],
-      threadRefs: ['thread_1'],
-    });
-    expect(parsed.publishedFindings[0]?.id).toBe('f1');
   });
 
   it('validates review follow-up action input', () => {

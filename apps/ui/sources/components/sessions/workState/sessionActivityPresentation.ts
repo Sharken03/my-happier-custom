@@ -85,6 +85,9 @@ export type SessionActivityStatusBadgePresentation = Readonly<{
  * terminal those two disagree, and the effect closed the popover out from under the reader while
  * the chip it belongs to stayed on screen. Handing this seam the raw tally leaves no room for a
  * second derivation to reappear at a call site.
+ *
+ * Only the work-state popover is decided here. Another open badge popover (for example a Pi
+ * extension status) is retained; its own badge owns it.
  */
 export function shouldRetainSessionActivityStatusBadge(input: Readonly<{
     activeStatusBadgeKey: string | null;
@@ -93,7 +96,7 @@ export function shouldRetainSessionActivityStatusBadge(input: Readonly<{
     /** The ONE agent-activity tally — the same object the chip's label is composed from. */
     agentActivityCounts: AgentActivityCounts;
 }>): boolean {
-    if (input.activeStatusBadgeKey !== SESSION_WORK_STATE_STATUS_BADGE_KEY) return false;
+    if (input.activeStatusBadgeKey !== SESSION_WORK_STATE_STATUS_BADGE_KEY) return true;
     return input.hasPrimaryWorkStateItem
         || input.canShowEmptyGoalControls
         || hasLiveAgentActivity(input.agentActivityCounts);

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import type { ResolvedBackendCatalogEntry } from '@/agents/backendCatalog/getResolvedBackendCatalogEntries';
@@ -9,19 +9,24 @@ import { ItemGroup } from '@/components/ui/lists/ItemGroup';
 import { normalizeNodeForView } from '@/components/ui/rendering/normalizeNodeForView';
 import type { ModelMode } from '@/sync/domains/permissions/permissionTypes';
 import {
+    buildFavoriteModelBackendIdentityForEntry,
     favoriteModelSelectionMatchesBackend,
     isFavoriteModelSelectableId,
     normalizeFavoriteModelId,
     toggleFavoriteModelSelection,
-    type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
+import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 
 export type NewSessionModelOption = Readonly<{
     value: ModelMode;
     label: string;
+    /** USD per million input tokens; the row's price level is derived from it. */
+    costInputPerMTok?: number;
+    /** USD per million output tokens; the row's price level is derived from it. */
+    costOutputPerMTok?: number;
     description: string;
 }>;
 
@@ -41,20 +46,13 @@ type ModelSelectionRow = Readonly<{
     id: string;
     title: string;
     subtitle: string;
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
     available: boolean;
     favoritable: boolean;
     favorite: boolean;
     staleFavorite: FavoriteModelSelectionV1 | null;
 }>;
-
-function buildFavoriteBackendIdentity(entry: ResolvedBackendCatalogEntry): FavoriteModelBackendIdentity {
-    return {
-        backendTargetKey: entry.targetKey,
-        providerAgentId: entry.providerAgentId,
-        builtInAgentId: entry.builtInAgentId,
-        configuredBackendId: entry.target.kind === 'configuredAcpBackend' ? entry.target.backendId : null,
-    };
-}
 
 function buildRows(params: Readonly<{
     modelOptions: readonly NewSessionModelOption[];
@@ -72,7 +70,7 @@ function buildRows(params: Readonly<{
     }
 
     const backendIdentity = params.selectedBackendEntry
-        ? buildFavoriteBackendIdentity(params.selectedBackendEntry)
+        ? buildFavoriteModelBackendIdentityForEntry(params.selectedBackendEntry)
         : null;
     const matchingFavorites = backendIdentity
         ? (params.favoriteModelSelections ?? []).filter((favorite) => favoriteModelSelectionMatchesBackend(favorite, backendIdentity))
@@ -89,6 +87,8 @@ function buildRows(params: Readonly<{
             id: modelId,
             title: option?.label || favorite.modelLabel || modelId,
             subtitle: option?.description || favorite.backendLabel || t('agentInput.model.configureInCli'),
+            ...(typeof option?.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+            ...(typeof option?.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
             available: Boolean(option),
             favoritable: true,
             favorite: true,
@@ -103,6 +103,8 @@ function buildRows(params: Readonly<{
             id: modelId,
             title: option.label,
             subtitle: option.description,
+            ...(typeof option.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+            ...(typeof option.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
             available: true,
             favoritable: isFavoriteModelSelectableId(modelId),
             favorite: false,
@@ -130,7 +132,7 @@ function FavoriteToggle(props: Readonly<{
                 event.stopPropagation?.();
                 props.onPress();
             }}
-            style={styles.favoriteButton}
+            style={[styles.favoriteButton, props.disabled ? styles.favoriteButtonDisabled : null]}
         >
             <Icon
                 name="star"
@@ -139,6 +141,32 @@ function FavoriteToggle(props: Readonly<{
                 weight={props.model.favorite ? 'fill' : 'regular'}
             />
         </Pressable>
+    );
+}
+
+function ModelPriceColumn(props: Readonly<{
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
+}>) {
+    const { theme } = useUnistyles();
+    const price = readModelPriceDisplay({
+        costInputPerMTok: props.costInputPerMTok,
+        costOutputPerMTok: props.costOutputPerMTok,
+    });
+    const label = price.accessibilityLabel ?? undefined;
+    return (
+        <View
+            style={styles.priceColumn}
+            accessible={label !== undefined}
+            accessibilityRole={label !== undefined ? 'text' : undefined}
+            accessibilityLabel={label}
+            accessibilityElementsHidden={label === undefined}
+            importantForAccessibility={label === undefined ? 'no-hide-descendants' : 'auto'}
+        >
+            {price.symbol === null ? null : (
+                <Text style={[styles.priceText, { color: theme.colors.text.secondary }]}>{price.symbol}</Text>
+            )}
+        </View>
     );
 }
 
@@ -152,6 +180,12 @@ function ModelRightElement(props: Readonly<{
 }>) {
     return (
         <View style={styles.rightElement}>
+            {/* Fixed-width column, right-aligned: the star and the check mark must not move
+                between rows. Free and unknown prices render nothing at all. */}
+            <ModelPriceColumn
+                costInputPerMTok={props.model.costInputPerMTok}
+                costOutputPerMTok={props.model.costOutputPerMTok}
+            />
             {props.showFavoriteAction ? (
                 <FavoriteToggle
                     model={props.model}
@@ -166,6 +200,21 @@ function ModelRightElement(props: Readonly<{
                 color={props.selectedIndicatorColor}
                 style={{ opacity: props.selected ? 1 : 0 }}
             />
+        </View>
+    );
+}
+
+function CompactRowRightElement(props: Readonly<{
+    model: ModelSelectionRow;
+    favoriteAction?: React.ReactNode;
+}>) {
+    return (
+        <View style={styles.rightElement}>
+            <ModelPriceColumn
+                costInputPerMTok={props.model.costInputPerMTok}
+                costOutputPerMTok={props.model.costOutputPerMTok}
+            />
+            {props.favoriteAction ?? null}
         </View>
     );
 }
@@ -200,7 +249,7 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
         }
         props.onFavoriteModelSelectionsChange(toggleFavoriteModelSelection({
             favorites: props.favoriteModelSelections ?? [],
-            backend: buildFavoriteBackendIdentity(props.selectedBackendEntry),
+            backend: buildFavoriteModelBackendIdentityForEntry(props.selectedBackendEntry),
             modelId: row.id,
             modelLabel: row.title,
             backendLabel: props.selectedBackendEntry.title,
@@ -254,6 +303,9 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
     ]);
 
     if (props.presentation === 'compact') {
+        // Both compact builds must agree: a star that cannot record a favorite is disabled,
+        // so the row never offers an action that silently does nothing.
+        const favoritesDisabled = !props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange;
         const dropdownItems: DropdownMenuItem[] = [
             ...rows.favoriteRows.map((row) => ({
                 id: row.id,
@@ -262,14 +314,19 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                 category: t('profiles.groups.favorites'),
                 disabled: !row.available,
                 icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: row.favoritable ? (
-                    <FavoriteToggle
+                rightElement: (
+                    <CompactRowRightElement
                         model={row}
-                        disabled={false}
-                        selectedIndicatorColor={props.selectedIndicatorColor}
-                        onPress={() => toggleFavorite(row)}
+                        favoriteAction={row.favoritable ? (
+                            <FavoriteToggle
+                                model={row}
+                                disabled={favoritesDisabled}
+                                selectedIndicatorColor={props.selectedIndicatorColor}
+                                onPress={() => toggleFavorite(row)}
+                            />
+                        ) : undefined}
                     />
-                ) : undefined,
+                ),
             })),
             ...rows.allRows.map((row) => ({
                 id: row.id,
@@ -278,14 +335,19 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
                 category: t('common.all'),
                 disabled: !row.available,
                 icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: row.favoritable ? (
-                    <FavoriteToggle
+                rightElement: (
+                    <CompactRowRightElement
                         model={row}
-                        disabled={!props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange}
-                        selectedIndicatorColor={props.selectedIndicatorColor}
-                        onPress={() => toggleFavorite(row)}
+                        favoriteAction={row.favoritable ? (
+                            <FavoriteToggle
+                                model={row}
+                                disabled={favoritesDisabled}
+                                selectedIndicatorColor={props.selectedIndicatorColor}
+                                onPress={() => toggleFavorite(row)}
+                            />
+                        ) : undefined}
                     />
-                ) : undefined,
+                ),
             })),
         ];
         return (
@@ -334,12 +396,25 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
 }
 
 const styles = StyleSheet.create(() => ({
+    priceColumn: {
+        width: 44,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+    },
+    priceText: {
+        fontFamily: 'monospace',
+        fontSize: 13,
+        letterSpacing: 0.5,
+    },
     rightElement: {
         minWidth: 60,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: 8,
+    },
+    favoriteButtonDisabled: {
+        opacity: 0.4,
     },
     favoriteButton: {
         width: 28,

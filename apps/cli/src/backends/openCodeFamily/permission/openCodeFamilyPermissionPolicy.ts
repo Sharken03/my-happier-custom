@@ -13,6 +13,7 @@ export const OPENCODE_HAPPIER_MCP_ALWAYS_ALLOWED_TOOL_SUFFIXES = [
   'action_spec_search',
   'action_spec_get',
   'action_options_resolve',
+  'show_image',
 ] as const;
 
 const OPENCODE_HAPPIER_ACTION_TOOL_NAME_ALIASES = [

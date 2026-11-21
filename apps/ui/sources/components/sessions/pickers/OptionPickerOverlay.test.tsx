@@ -34,6 +34,49 @@ vi.mock('react-native-unistyles', async () => {
     return createUnistylesMock();
 });
 
+describe('OptionPickerOverlay model price', () => {
+    it('shows the price level on the model card and hides it for free models', async () => {
+        const { OptionPickerOverlay } = await import('./OptionPickerOverlay');
+
+        const screen = await renderScreen(<OptionPickerOverlay
+            title="Model"
+            emptyText="empty"
+            canEnterCustomValue={false}
+            options={[
+                { value: 'paid', label: 'Paid', description: 'p', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'applied', label: 'Applied', accessibilityLabel: 'Last used: Applied', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'nodesc', label: 'NoDesc', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'free', label: 'Free', description: 'f', costInputPerMTok: 0, costOutputPerMTok: 0 },
+            ]}
+            selectedValue="paid"
+            onSelect={vi.fn()}
+        />);
+
+        const symbols = screen.findAllByType(Text as any)
+            .map((node: any) => node.props.children)
+            .filter((child: unknown) => typeof child === 'string' && /^\$+$/.test(child));
+        expect(symbols).toEqual(['$$$', '$$$', '$$$']);
+
+        // The card is the accessible element, so the level must sit on the card's own label.
+        // The card is the accessible element, so the level joins its label. A priced card keeps
+        // announcing its model name, an explicit label stays in front, empty parts are dropped,
+        // and the free card announces nothing at all.
+        const cardLabels = screen.root.findAllByProps({ accessibilityRole: 'button' })
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        // Cards render column-major, so compare the set rather than the paint order.
+        expect([...cardLabels].sort()).toEqual([
+            'Last used: Applied, usage.cost: 3/4',
+            'NoDesc, usage.cost: 3/4',
+            'Paid, p, usage.cost: 3/4',
+        ].sort());
+        const viewLabels = screen.findAllByType(View as any)
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        expect(viewLabels).not.toContain('usage.cost: 3/4');
+    });
+});
+
 describe('OptionPickerOverlay', () => {
     function flattenStyleFromCallback(
         styleProp: unknown,

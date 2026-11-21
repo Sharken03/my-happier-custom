@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useSocketStatus } from '@/sync/domains/state/storage';
+import { useSetting, useSocketStatus } from '@/sync/domains/state/storage';
+import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import { ActivitySpinner, HERO_SPINNER_SIZE } from '@/components/ui/feedback/ActivitySpinner';
 import {
     useVisibleSessionListPaneState,
@@ -9,7 +10,6 @@ import {
 import { useIsTablet } from '@/utils/platform/responsive';
 import { usePathname, useRouter } from 'expo-router';
 import { SessionGettingStartedGuidance } from '@/components/sessions/guidance/SessionGettingStartedGuidance';
-import { HiddenInactiveSessionsEmptyState } from '@/components/sessions/guidance/HiddenInactiveSessionsEmptyState';
 import { SessionsListContent } from '@/components/sessions/shell/SessionsList';
 import { readSessionIdFromPathname } from '@/components/sessions/shell/readSessionIdFromPathname';
 import { useSessionListStorageKind } from '@/components/sessions/model/useSessionListStorageKind';
@@ -316,6 +316,9 @@ const SidebarMainViewContent = React.memo(function SidebarMainViewContent({
         router.push({ pathname: '/new', params: { draftId, draftOrigin } });
     }, [resolveNewSessionOrdinaryEntryRoute, router]);
 
+    // The getting-started page shows only when the account has no sessions in the Active scope.
+    // Otherwise an empty list still renders, so its header keeps the visibility menu.
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const storageChrome = (
         <SessionsListStorageChrome
             directSessionsEnabled={directSessionsEnabled}
@@ -336,16 +339,14 @@ const SidebarMainViewContent = React.memo(function SidebarMainViewContent({
                 </View>
             </View>
         );
-    } else if (visibleSessionCount === 0) {
+    } else if (visibleSessionCount === 0 && sessionListVisibilityScope === 'active' && !hasHiddenInactiveSessions) {
         const suppressSidebarGuidance = isTablet && pathname === '/';
         content = (
             <View style={styles.sidebarContainer}>
                 {storageChrome}
                 <View style={styles.sidebarContentContainer}>
                     <View style={styles.emptyStateContainer}>
-                        {hasHiddenInactiveSessions ? (
-                            <HiddenInactiveSessionsEmptyState />
-                        ) : suppressSidebarGuidance ? (
+                        {suppressSidebarGuidance ? (
                             <View style={styles.sidebarEmptyHintContainer}>
                                 <Text style={styles.sidebarEmptyHintTitle}>{t('components.emptySessionsTablet.noActiveSessions')}</Text>
                                 <Text style={styles.sidebarEmptyHintSubtitle}>{t('components.emptySessionsTablet.startNewSessionDescription')}</Text>

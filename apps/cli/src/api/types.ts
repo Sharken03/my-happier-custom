@@ -335,6 +335,8 @@ export const MachineMetadataSchema = lazySchema(() => z.object({
   happyLibDir: z.string(),
   daemonTerminalSessionAttachSupported: z.boolean().optional(),
   daemonSessionGoalControlsSupported: z.boolean().optional(),
+  /** Where new chats on this machine get their own folder (HAPPIER_CHATS_DIR); absent when unset. */
+  chatsDir: z.string().optional(),
   /** K5 — this machine's first-party CLI update facts (plan R13); absent from older daemons. */
   cliUpdate: CliUpdateFactsSchema.optional(),
 }))
@@ -670,6 +672,8 @@ export type Metadata = {
       description?: string,
       contextWindowTokens?: number,
       extendedContextModelId?: string,
+      costInputPerMTok?: number,
+      costOutputPerMTok?: number,
       modelOptions?: Array<{
         id: string,
         name: string,
@@ -696,6 +700,8 @@ export type Metadata = {
       description?: string,
       contextWindowTokens?: number,
       extendedContextModelId?: string,
+      costInputPerMTok?: number,
+      costOutputPerMTok?: number,
       modelOptions?: Array<{
         id: string,
         name: string,

@@ -3,10 +3,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { HappyMcpSessionClient } from '@/mcp/startHappyServer';
 import type { Metadata } from '@/api/types';
 import { logger } from '@/ui/logger';
+import { configuration } from '@/configuration';
+import { linkChatFolderTitle } from '@/daemon/chatFolders/chatFolderTitleLink';
 
 import { registerHappierMcpResources } from '@/mcp/resources/registerHappierMcpResources';
 import { createActionToolExecutorBridge } from '@/agent/tools/happierTools/createActionToolExecutorBridge';
 import { createChangeTitleToolHandler } from '@/agent/tools/happierTools/createChangeTitleToolHandler';
+import { createShowImageToolHandler } from '@/agent/tools/happierTools/createShowImageToolHandler';
 import { createStartExecutionRunToolHandler } from '@/agent/tools/happierTools/createStartExecutionRunToolHandler';
 import { normalizeExecutionRunRpcPayload } from '@/session/services/executionRuns';
 import { registerHappierMcpBuiltInTools } from '@/mcp/server/registerHappierMcpBuiltInTools';
@@ -282,7 +285,19 @@ export function createHappierMcpServer(
               updatedAt: Date.now(),
             },
           })));
+          // A chat in its own folder gets a link with its title (daemon/chatFolders).
+          const sessionPath = resolveLiveClientLocation(client)?.path;
+          if (configuration.chatsDir && typeof sessionPath === 'string') {
+            await linkChatFolderTitle({ sessionPath, chatsDir: configuration.chatsDir, title }).catch((error: unknown) => {
+              logger.warnFile('[happierMcp] chat folder title link failed', { error: String(error) });
+            });
+          }
         },
+      }),
+      showImage: createShowImageToolHandler({
+        resolveWorkingDirectory: () => resolveLiveClientLocation(client)?.path
+          ?? client.getMetadataSnapshot?.()?.path
+          ?? null,
       }),
       startExecutionRun: createStartExecutionRunToolHandler({ executor, surface: toolSurface }),
       executeActionByToolName: actionToolBridge.executeActionByToolName,

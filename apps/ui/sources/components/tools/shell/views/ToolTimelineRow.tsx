@@ -21,6 +21,7 @@ import {
     shouldShowGenericPermissionPromptForRequest,
 } from '@/utils/sessions/permissions/permissionPromptPolicy';
 import { t } from '@/text';
+import { Text } from '@/components/ui/text/Text';
 import {
     resolveToolViewDetailLevelDefaultForChromeMode,
     resolveToolViewExpandedDetailLevelDefaultForChromeMode,
@@ -47,6 +48,12 @@ import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInt
 import { isAskUserQuestionToolName } from '@happier-dev/protocol';
 import { Icon } from '@/components/ui/icons/Icon';
 import {
+    collectToolCallsGroupDiffTools,
+    computeToolCallsGroupDiffStats,
+    readSubagentResultDiffStats,
+} from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
+import {
     TranscriptRowSeqProvider,
     useHistoricalTranscriptAgentId,
 } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
@@ -67,6 +74,14 @@ export const ToolTimelineRow = React.memo((props: {
     approvalRequests?: readonly OpenApprovalArtifactForSession[];
     forcePermissionPromptsInTranscript?: boolean;
     interaction?: TranscriptInteraction;
+    /** Forces the one-line title level, whatever the detail-level settings say. */
+    titleOnly?: boolean;
+    /** Replaces the tap action (expand or open route) and hides the open and disclosure controls. */
+    onPressOverride?: () => void;
+    /** Replaces the header title and subtitle, such as "Ran" + "List files" in the Tool calls sheet. */
+    label?: { title: string; subtitle: string | null };
+    /** Images in the call's result. The header counts them while `children` does not show them. */
+    imageCount?: number;
 }) => {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -146,10 +161,10 @@ export const ToolTimelineRow = React.memo((props: {
         setIsExpanded(next);
     }, [forceExpandedForPendingUserAction, isExpanded]);
 
-    const onPress = primaryTapAction === 'open' ? handleOpen : handleToggleExpand;
+    const onPress = props.onPressOverride ?? (primaryTapAction === 'open' ? handleOpen : handleToggleExpand);
 
     const normalizedToolName = headerModel.normalizedToolName;
-    const title = headerModel.title;
+    const title = props.label?.title ?? headerModel.title;
     const subtitle = headerModel.subtitle;
     const statusText = headerModel.statusText;
     const shouldHideBodyPermanently = headerModel.shouldHideBodyPermanently;
@@ -181,7 +196,7 @@ export const ToolTimelineRow = React.memo((props: {
     });
 
     const collapsedDetailLevel =
-        toolForRendering.name.startsWith('mcp__') || shouldCollapseUnknownToolByDefault
+        props.titleOnly === true || toolForRendering.name.startsWith('mcp__') || shouldCollapseUnknownToolByDefault
             ? 'title'
             : resolveToolViewDetailLevel({
                   toolName: normalizedToolName,
@@ -240,7 +255,38 @@ export const ToolTimelineRow = React.memo((props: {
                 ? <ActivitySpinner testID="tool-timeline-row-running" size={iconMatchedSpinnerSize(18)} color={theme.colors.text.secondary} />
                 : null;
     const headerPrimaryActions = headerActions ?? null;
-    const headerRightElements = [headerStatusIndicator, headerPrimaryActions].filter(Boolean);
+    const isBodyVisible = inlineDetailLevel !== 'title' && inlineDetailLevel !== 'compact';
+    const imageCount = props.imageCount ?? 0;
+    const imagesShown = props.children != null
+        && effectiveIsExpanded
+        && isBodyVisible
+        && !shouldHideBodyPermanently;
+    // Smaller than the header's minimum height, so the count never changes the row height.
+    const headerImageCount = imageCount > 0 && !imagesShown ? (
+        <View
+            testID="tool-timeline-row-images"
+            style={styles.imageCount}
+            accessible
+            accessibilityLabel={t('files.sessionMedia.imageCountA11y', { count: imageCount })}
+        >
+            <Icon name="image" size={14} color={theme.colors.text.secondary} />
+            <Text style={styles.imageCountText} numberOfLines={1}>{String(imageCount)}</Text>
+        </View>
+    ) : null;
+    // A subagent row shows the lines its subagent changed: the CLI's count in the result, or the
+    // edits among its loaded calls. The text is one small line, so the row height stays the same.
+    const isSubagentRow = isSubAgentTranscriptToolName(normalizedToolName);
+    const subagentDiffStats = React.useMemo(
+        () => (isSubagentRow
+            ? readSubagentResultDiffStats(toolForRendering)
+                ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(props.messages ?? []))
+            : null),
+        [isSubagentRow, props.messages, toolForRendering],
+    );
+    const headerDiffStats = subagentDiffStats && subagentDiffStats.added + subagentDiffStats.removed > 0
+        ? <ToolCallsGroupDiffStatsText stats={subagentDiffStats} />
+        : null;
+    const headerRightElements = [headerDiffStats, headerImageCount, headerStatusIndicator, headerPrimaryActions].filter(Boolean);
     const headerRightElement =
         headerRightElements.length > 1 ? (
             <View style={styles.headerRightContent}>
@@ -250,7 +296,6 @@ export const ToolTimelineRow = React.memo((props: {
             </View>
         ) : (headerRightElements[0] ?? null);
 
-    const isBodyVisible = inlineDetailLevel !== 'title' && inlineDetailLevel !== 'compact';
     const bodyDetailLevel: 'summary' | 'full' = inlineDetailLevel === 'full' ? 'full' : 'summary';
     const sidechainHydrationStatus = transcriptSidechainId
         ? sidechainHydration.bySidechainId[transcriptSidechainId]?.status ?? sidechainHydration.status
@@ -273,9 +318,9 @@ export const ToolTimelineRow = React.memo((props: {
         toolForRendering.id ??
         `${props.sessionId ?? 'no-session'}:${normalizedToolName}:${toolForRendering.createdAt}`;
 
-    const headerSubtitle = effectiveDetailLevel === 'title' ? null : subtitle;
+    const headerSubtitle = props.label ? props.label.subtitle : effectiveDetailLevel === 'title' ? null : subtitle;
     const disclosure =
-        primaryTapAction === 'expand' && !forceExpandedForPendingUserAction
+        primaryTapAction === 'expand' && !forceExpandedForPendingUserAction && !props.onPressOverride
             ? isExpanded
                 ? ({ behavior: 'persistent', state: 'expanded' } as const)
                 : ({ behavior: 'hover', state: 'collapsed' } as const)
@@ -344,7 +389,7 @@ export const ToolTimelineRow = React.memo((props: {
                 subtitle={headerSubtitle}
                 statusText={headerStatusText}
                 onPress={onPress}
-                canOpen={canOpen}
+                canOpen={canOpen && !props.onPressOverride}
                 onOpen={handleOpen}
                 rightElement={headerRightElement}
                 revealAction={props.headerAction?.node ?? null}
@@ -405,6 +450,17 @@ const styles = StyleSheet.create((theme) => ({
         paddingRight: 10,
         paddingBottom: 12,
         paddingTop: 2,
+    },
+    imageCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        height: 16,
+    },
+    imageCountText: {
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.text.secondary,
     },
     headerRightContent: {
         flexDirection: 'row',

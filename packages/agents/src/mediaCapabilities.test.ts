@@ -37,7 +37,7 @@ describe('agent media capabilities', () => {
   it('populates conservative provider media output support', () => {
     expect(agents.getAgentMediaCapability('gemini', 'nativeImageGeneration')).toBe('unsupported');
     expect(agents.getAgentMediaCapability('pi', 'nativeImageGeneration')).toBe('unsupported');
-    expect(agents.getAgentMediaCapability('pi', 'emitsSessionMedia')).toBe('experimental');
+    expect(agents.getAgentMediaCapability('pi', 'emitsSessionMedia')).toBe('supported');
     expect(agents.getAgentMediaCapability('opencode', 'nativeImageGeneration')).toBe('unsupported');
     expect(agents.getAgentMediaCapability('customAcp', 'emitsSessionMedia')).toBe('supported');
     expect(agents.isAgentMediaCapabilitySupported('customAcp', 'nativeImageGeneration')).toBe(false);

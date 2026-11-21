@@ -37,6 +37,26 @@ async function renderFooterRow(props: Record<string, unknown>) {
 const GROUP_CAP_RADIUS_PX = 12; // theme.borderRadius.xl
 
 describe('ToolCallsGroupUnitFooterRow', () => {
+    it('collapses the group from the bottom control when the footer carries it', async () => {
+        const calls: boolean[] = [];
+        const screen = await renderFooterRow({
+            hasVisibleTools: true,
+            collapseControl: true,
+            setExpanded: (expanded: boolean) => calls.push(expanded),
+        });
+
+        const control = screen.findByTestId('transcript-tool-calls-collapse-bottom') as any;
+        expect(control).toBeTruthy();
+        control.props.onPress();
+        expect(calls).toEqual([false]);
+    });
+
+    it('renders no bottom collapse control without the footer flag', async () => {
+        const screen = await renderFooterRow({ hasVisibleTools: true, setExpanded: () => {} });
+
+        expect(screen.findByTestId('transcript-tool-calls-collapse-bottom')).toBeFalsy();
+    });
+
     it('renders the cards bottom cap with bottom radii, background, and the group bottom margin', async () => {
         const screen = await renderFooterRow({
             ...createTranscriptSessionCommonPropsFixture({

@@ -35,6 +35,11 @@ vi.mock('@/components/sessions/transcript/motion/TranscriptEnterWrapper', () => 
     TranscriptEnterWrapper: (props: any) => React.createElement('TranscriptEnterWrapper', props, props.children),
 }));
 
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock('expo-router', () => ({
+    useRouter: () => ({ push: routerPush, back: vi.fn(), replace: vi.fn(), setParams: vi.fn() }),
+}));
+
 const interaction = { canSendMessages: true, canApprovePermissions: true } as const;
 
 async function renderHeaderRow(props: Record<string, unknown>) {
@@ -57,11 +62,12 @@ async function renderHeaderRow(props: Record<string, unknown>) {
 const GROUP_CAP_RADIUS_PX = 12; // theme.borderRadius.xl
 
 describe('ToolCallsGroupUnitHeaderRow', () => {
-    it('shows the tool-calls title with count and a completed status icon when all tools completed', async () => {
+    it('shows the tool-calls title with count and a completed status icon when no call has a summary kind', async () => {
+        // A group of turn Diff calls has nothing to summarize, so the header keeps "Tool calls · N".
         const screen = await renderHeaderRow({
             toolMessages: [
-                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { state: 'completed' } as any }),
-                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { name: 'Diff', state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { name: 'Diff', state: 'completed' } as any }),
             ],
         });
 
@@ -77,6 +83,20 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
             toolMessages: [
                 createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { state: 'completed' } as any }),
                 createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { state: 'running' } as any }),
+            ],
+        });
+
+        expect(screen.findAllByType(ActivitySpinner).length).toBeGreaterThan(0);
+        expect(screen.findByTestId('icon:check-circle')).toBeNull();
+    });
+
+    it('keeps the running spinner between calls while the turn still works on this group', async () => {
+        // Between two calls every tool is completed. A check mark there swaps with the spinner on each call.
+        const screen = await renderHeaderRow({
+            turnWorking: true,
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { state: 'completed' } as any }),
             ],
         });
 
@@ -246,6 +266,84 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
         });
 
         expect(screen.findByTestId('transcript-anchor-tool-group-m2')).not.toBeNull();
+    });
+
+    it('in sheet mode shows a right caret, opens the sheet route and never expands inline', async () => {
+        routerPush.mockClear();
+        const setExpanded = vi.fn();
+        const screen = await renderHeaderRow({
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { name: 'Diff', state: 'completed' } as any }),
+                createToolCallMessageFixture({ id: 'm2', createdAt: 2, tool: { name: 'Diff', state: 'completed' } as any }),
+            ],
+            expanded: true,
+            setExpanded,
+            ...createTranscriptSessionCommonPropsFixture({
+                toolChromeCommon: { transcriptToolCallsGroupOpenMode: 'sheet' },
+            }),
+        });
+
+        expect(screen.findByTestId('icon:caret-right')).not.toBeNull();
+        expect(screen.findByTestId('icon:caret-up')).toBeNull();
+        expect(screen.findByTestId('icon:caret-down')).toBeNull();
+        expect(screen.findByTestId('icon:check-circle')).not.toBeNull();
+        const header = screen.findByTestId('transcript-tool-calls-header') as any;
+        expect(header?.props.accessibilityState).toBeUndefined();
+        expect(header?.props['aria-expanded']).toBeUndefined();
+
+        await screen.pressByTestIdAsync('transcript-tool-calls-header');
+        expect(routerPush).toHaveBeenCalledWith('/session/s1/toolCalls/m1');
+        expect(setExpanded).not.toHaveBeenCalled();
+    });
+
+    it('in inline mode keeps the caret pair and does not open the sheet', async () => {
+        routerPush.mockClear();
+        const screen = await renderHeaderRow({
+            toolMessages: [createToolCallMessageFixture({ id: 'm1', createdAt: 1 })],
+            expanded: false,
+        });
+
+        expect(screen.findByTestId('icon:caret-down')).not.toBeNull();
+        expect(screen.findByTestId('icon:caret-right')).toBeNull();
+        await screen.pressByTestIdAsync('transcript-tool-calls-header');
+        expect(routerPush).not.toHaveBeenCalled();
+    });
+
+    it('counts result images in the header only while the inline group is collapsed', async () => {
+        const imageMeta = (id: string) => ({
+            happier: {
+                kind: 'session_media.v1',
+                payload: {
+                    media: [{
+                        id,
+                        role: 'output',
+                        category: 'tool-artifact',
+                        mediaKind: 'image',
+                        name: `${id}.png`,
+                        path: `.happier/uploads/generated/${id}.png`,
+                        mimeType: 'image/png',
+                        sizeBytes: 10,
+                        sha256: 'a'.repeat(64),
+                        origin: { source: 'tool-output', toolCallId: id },
+                    }],
+                },
+            },
+        });
+        const toolMessages = [
+            createToolCallMessageFixture({ id: 'm1', createdAt: 1, meta: imageMeta('a') } as any),
+            createToolCallMessageFixture({ id: 'm2', createdAt: 2, meta: imageMeta('b') } as any),
+            createToolCallMessageFixture({ id: 'm3', createdAt: 3 }),
+        ];
+
+        const collapsed = await renderHeaderRow({ toolMessages, expanded: false });
+        expect(collapsed.findByTestId('transcript-tool-calls-header-images')).not.toBeNull();
+        expect(collapsed.getTextContent()).toContain('2');
+
+        const expanded = await renderHeaderRow({ toolMessages, expanded: true });
+        expect(expanded.findByTestId('transcript-tool-calls-header-images')).toBeNull();
+
+        const withoutImages = await renderHeaderRow({ toolMessages: [toolMessages[2]], expanded: false });
+        expect(withoutImages.findByTestId('transcript-tool-calls-header-images')).toBeNull();
     });
 
     it('renders nothing for an empty group', async () => {

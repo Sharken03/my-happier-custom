@@ -4,6 +4,7 @@ import type { HappierBuiltInToolDefinition } from './types';
 import {
   actionExecuteToolInputSchema,
   changeTitleToolInputSchema,
+  showImageToolInputSchema,
 } from './manualToolContracts';
 
 function buildActionBackedTools(): readonly HappierBuiltInToolDefinition[] {
@@ -34,6 +35,14 @@ const MANUAL_TOOLS: readonly HappierBuiltInToolDefinition[] = Object.freeze([
     title: 'Change Chat Title',
     description: 'Change the title of the current chat session',
     inputSchema: changeTitleToolInputSchema,
+  },
+  {
+    name: 'show_image',
+    title: 'Show Image',
+    description: 'Show the user an image file (for example a chart or a screenshot) at full width in the chat. '
+      + 'Use it instead of describing the file path. Common image types are supported; others are converted to PNG.',
+    inputSchema: showImageToolInputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false },
   },
   {
     name: 'action_execute',

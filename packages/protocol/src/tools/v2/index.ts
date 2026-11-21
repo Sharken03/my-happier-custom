@@ -21,6 +21,8 @@ export {
   CHANGE_TITLE_TOOL_NAME_ALIASES,
   isChangeTitleToolLikeName,
   isChangeTitleToolNameAlias,
+  isShowImageToolNameAlias,
+  SHOW_IMAGE_TOOL_NAME_ALIASES,
   type ChangeTitleToolNameAlias,
 } from './aliases.js';
 
@@ -29,6 +31,17 @@ export {
   normalizePatchInputRecord,
   type CanonicalPatchFileDiff,
 } from './patch.js';
+
+export {
+  HAPPIER_DIFF_STATS_DETAILS_KEY,
+  countReplacementLines,
+  countToolCallDiffLines,
+  createDiffLineCounter,
+  readHappierDiffStats,
+  sumDiffLineStats,
+  type DiffLineCounter,
+  type DiffLineStats,
+} from './diffLineStats.js';
 
 export {
   LEGACY_SUBAGENT_TOOL_NAME_ALIASES,

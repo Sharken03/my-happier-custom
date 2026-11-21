@@ -53,6 +53,7 @@ type StablePresentationSettingsRefs = Readonly<{
     compactMinimal: SessionListRowPresentationSettings['compactMinimal'];
     identityDisplay: SessionListRowPresentationSettings['identityDisplay'];
     activeColorMode: SessionListRowPresentationSettings['activeColorMode'];
+    highlightAttention: SessionListRowPresentationSettings['highlightAttention'];
     workingIndicatorMode: SessionListRowPresentationSettings['workingIndicatorMode'];
     workingTextMode: SessionListRowPresentationSettings['workingTextMode'];
     backgroundWorkAttentionMode: SessionListRowPresentationSettings['backgroundWorkAttentionMode'];
@@ -120,6 +121,7 @@ function buildStablePresentationSettingsRefs(
         compactMinimal: settings.compactMinimal,
         identityDisplay: settings.identityDisplay,
         activeColorMode: settings.activeColorMode,
+        highlightAttention: settings.highlightAttention,
         workingIndicatorMode: settings.workingIndicatorMode,
         workingTextMode: settings.workingTextMode,
         backgroundWorkAttentionMode: settings.backgroundWorkAttentionMode,
@@ -150,6 +152,7 @@ function areStablePresentationSettingsRefsEqual(
         && previous.compactMinimal === next.compactMinimal
         && previous.identityDisplay === next.identityDisplay
         && previous.activeColorMode === next.activeColorMode
+        && previous.highlightAttention === next.highlightAttention
         && previous.workingIndicatorMode === next.workingIndicatorMode
         && previous.workingTextMode === next.workingTextMode
         && previous.backgroundWorkAttentionMode === next.backgroundWorkAttentionMode

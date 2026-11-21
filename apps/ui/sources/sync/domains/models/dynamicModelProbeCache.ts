@@ -25,7 +25,7 @@ export const DYNAMIC_MODEL_PROBE_STATIC_FALLBACK_RETRY_MS = 2_000;
 export const DYNAMIC_MODEL_PROBE_TRANSIENT_SUCCESS_MAX_AGE_MS = 10 * 60_000;
 
 const PERSIST_KEY = 'dynamic-model-probe-cache-v1';
-const PERSIST_VERSION = 7;
+const PERSIST_VERSION = 8;
 const PERSIST_MAX_ENTRIES = 200;
 const PERSIST_MAX_AGE_MS = 30 * 24 * 60 * 60_000;
 
@@ -55,6 +55,12 @@ function normalizePersistedModelList(input: unknown): PreflightModelList | null 
                 : {}),
             ...(typeof modelRecord.contextWindowTokens === 'number' && Number.isFinite(modelRecord.contextWindowTokens) && modelRecord.contextWindowTokens > 0
                 ? { contextWindowTokens: Math.trunc(modelRecord.contextWindowTokens) }
+                : {}),
+            ...(typeof modelRecord.costInputPerMTok === 'number' && Number.isFinite(modelRecord.costInputPerMTok) && modelRecord.costInputPerMTok >= 0
+                ? { costInputPerMTok: modelRecord.costInputPerMTok }
+                : {}),
+            ...(typeof modelRecord.costOutputPerMTok === 'number' && Number.isFinite(modelRecord.costOutputPerMTok) && modelRecord.costOutputPerMTok >= 0
+                ? { costOutputPerMTok: modelRecord.costOutputPerMTok }
                 : {}),
             ...(modelOptions ? { modelOptions } : {}),
         }];

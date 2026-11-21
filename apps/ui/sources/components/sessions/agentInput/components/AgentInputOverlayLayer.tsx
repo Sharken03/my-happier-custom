@@ -17,6 +17,7 @@ import type { PermissionModePickerStyles } from './permissionModePickerStyles';
 import type { AgentInputExtraActionChip, AgentInputPopoverAnchor } from '../agentInputContracts';
 import type { AgentId } from '@/agents/catalog/catalog';
 import type { AgentInputChipPickerOption } from './AgentInputChipPickerTypes';
+import { useOpenStableAgentPickerOptions } from './agentPickerOpenOrder';
 import type { SelectionListStep } from '@/components/ui/selectionList';
 
 type SimpleOption = Readonly<{
@@ -113,49 +114,6 @@ function resolveSharedContentPopoverOptions(
     };
 }
 
-function orderOptionsByFrozenIds(
-    options: ReadonlyArray<AgentInputChipPickerOption>,
-    frozenIds: readonly string[],
-): ReadonlyArray<AgentInputChipPickerOption> {
-    if (options.length <= 1 || frozenIds.length === 0) return options;
-
-    const optionById = new Map(options.map((option) => [option.id, option]));
-    const seenIds = new Set<string>();
-    const orderedOptions: AgentInputChipPickerOption[] = [];
-
-    for (const id of frozenIds) {
-        const option = optionById.get(id);
-        if (!option) continue;
-        seenIds.add(id);
-        orderedOptions.push(option);
-    }
-
-    for (const option of options) {
-        if (seenIds.has(option.id)) continue;
-        orderedOptions.push(option);
-    }
-
-    return orderedOptions;
-}
-
-function useOpenStableAgentPickerOptions(
-    options: ReadonlyArray<AgentInputChipPickerOption>,
-    open: boolean,
-): ReadonlyArray<AgentInputChipPickerOption> {
-    const openOrderRef = React.useRef<readonly string[] | null>(null);
-
-    if (!open) {
-        openOrderRef.current = null;
-        return options;
-    }
-
-    if (!openOrderRef.current) {
-        openOrderRef.current = options.map((option) => option.id);
-        return options;
-    }
-
-    return orderOptionsByFrozenIds(options, openOrderRef.current);
-}
 
 export function AgentInputOverlayLayer(props: Readonly<{
     screenWidth: number;

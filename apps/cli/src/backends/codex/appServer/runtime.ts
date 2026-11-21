@@ -2246,6 +2246,44 @@ export function createCodexAppServerRuntime(params: Readonly<{
         return next;
     };
 
+    /** Persist new media sources and return the session media message meta, or null if nothing remains. */
+    const persistSessionMediaAsMeta = async (
+        sources: readonly RuntimeSessionMediaSource[],
+    ): Promise<Record<string, unknown> | null> => {
+        if (!params.sessionMedia) return null;
+        const media = filterNewSessionMedia(sources);
+        if (media.length === 0) return null;
+        const persistedMedia: SessionMediaItemV1[] = [];
+        const unavailableMedia: SessionMediaUnavailableV1[] = [];
+        for (const item of media) {
+            const persisted = await Promise.resolve(params.sessionMedia.persist({
+                type: 'session-media',
+                source: 'codex-app-server',
+                media: [item],
+            }));
+            if (persisted.media.length > 0) {
+                persistedMediaDedupeKeys.add(resolveSessionMediaDedupeKey(item));
+                persistedMedia.push(...persisted.media);
+            }
+            if (persisted.unavailable.length > 0) {
+                unavailableMedia.push(...persisted.unavailable);
+            }
+        }
+        const boundedMedia = boundSessionMediaEnvelopeEntries({
+            media: persistedMedia,
+            unavailable: unavailableMedia,
+            maxEntries: SESSION_MEDIA_MESSAGE_MAX_ENTRIES_V1,
+        });
+        if (boundedMedia.droppedCount > 0) {
+            logger.debug('[codex-app-server] Bounded excess session media entries', {
+                droppedCount: boundedMedia.droppedCount,
+                maxEntries: SESSION_MEDIA_MESSAGE_MAX_ENTRIES_V1,
+            });
+        }
+        if (boundedMedia.media.length === 0 && boundedMedia.unavailable.length === 0) return null;
+        return buildSessionMediaMeta(boundedMedia.media, boundedMedia.unavailable);
+    };
+
     const ensureSyntheticSubagentThread = async (threadId: string, providerTurnId: string): Promise<string> => {
         const occurrenceId = resolveCodexSubagentOccurrenceId({ threadId, providerTurnId });
         if (syntheticSubagentTracker.hasStarted(threadId, providerTurnId)) return occurrenceId;
@@ -2327,7 +2365,7 @@ export function createCodexAppServerRuntime(params: Readonly<{
             await flushItemTranscriptBoundary(null);
             await params.session.sendUserTextMessageCommitted(update.text, {
                 localId: `codex-app-server-user:${context.streamScopeId}:${update.itemId}`,
-                meta: { importedFrom: 'codex-app-server' },
+                meta: { importedFrom: 'codex-app-server', ...(update.nativeContent ? { codexNativeContent: update.nativeContent } : {}) },
             });
             return;
         }
@@ -2470,38 +2508,8 @@ export function createCodexAppServerRuntime(params: Readonly<{
         }
 
         if (update.type === 'session-media') {
-            if (!params.sessionMedia) return;
-            const media = filterNewSessionMedia(update.media);
-            if (media.length === 0) return;
-            const persistedMedia: SessionMediaItemV1[] = [];
-            const unavailableMedia: SessionMediaUnavailableV1[] = [];
-            for (const item of media) {
-                const persisted = await Promise.resolve(params.sessionMedia.persist({
-                    type: 'session-media',
-                    source: 'codex-app-server',
-                    media: [item],
-                }));
-                if (persisted.media.length > 0) {
-                    persistedMediaDedupeKeys.add(resolveSessionMediaDedupeKey(item));
-                    persistedMedia.push(...persisted.media);
-                }
-                if (persisted.unavailable.length > 0) {
-                    unavailableMedia.push(...persisted.unavailable);
-                }
-            }
-            const boundedMedia = boundSessionMediaEnvelopeEntries({
-                media: persistedMedia,
-                unavailable: unavailableMedia,
-                maxEntries: SESSION_MEDIA_MESSAGE_MAX_ENTRIES_V1,
-            });
-            if (boundedMedia.droppedCount > 0) {
-                logger.debug('[codex-app-server] Bounded excess session media entries', {
-                    droppedCount: boundedMedia.droppedCount,
-                    maxEntries: SESSION_MEDIA_MESSAGE_MAX_ENTRIES_V1,
-                });
-            }
-            if (boundedMedia.media.length === 0 && boundedMedia.unavailable.length === 0) return;
-            const mediaMeta = buildSessionMediaMeta(boundedMedia.media, boundedMedia.unavailable);
+            const mediaMeta = await persistSessionMediaAsMeta(update.media);
+            if (!mediaMeta) return;
             const assistantItemId = latestAssistantItemIdByStreamScope.get(context.streamScopeId) ?? update.itemId;
             const didAttach = itemTranscriptBridge.mergeAssistantMeta({
                 streamKey: buildAssistantItemStreamKey(context.streamScopeId, assistantItemId),
@@ -2622,6 +2630,9 @@ export function createCodexAppServerRuntime(params: Readonly<{
         if (update.type === 'tool-result') {
             const completedTitleName = pendingHappierTitleToolNamesByCallId.get(update.callId) ?? null;
             pendingHappierTitleToolNamesByCallId.delete(update.callId);
+            // Media from the result (show_image) goes on the result message, so the UI shows it on the call.
+            const mediaMeta = update.media ? await persistSessionMediaAsMeta(update.media) : null;
+            const mediaOpts = mediaMeta ? [{ meta: mediaMeta }] as const : [] as const;
             if (context.sidechainId) {
                 params.session.sendAgentMessage('codex', {
                     type: 'tool-call-result',
@@ -2629,14 +2640,14 @@ export function createCodexAppServerRuntime(params: Readonly<{
                     output: update.output,
                     id: randomUUID(),
                     sidechainId: context.sidechainId,
-                });
+                }, ...mediaOpts);
             } else {
                 params.session.sendCodexMessage({
                     type: 'tool-call-result',
                     callId: update.callId,
                     output: update.output,
                     id: randomUUID(),
-                });
+                }, ...mediaOpts);
             }
             if (completedTitleName && didHappierTitleToolSucceed(update.output) && threadId && !context.sidechainId) {
                 try {

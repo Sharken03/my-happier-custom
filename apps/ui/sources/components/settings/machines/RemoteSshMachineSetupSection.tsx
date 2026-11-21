@@ -14,6 +14,7 @@ import { Modal } from '@/modal';
 import { getActiveServerSnapshot } from '@/sync/domains/server/serverProfiles';
 import { t } from '@/text';
 import { invokeTauri, isTauriDesktop } from '@/utils/platform/tauri';
+import { isBrowserWebClient } from '@/utils/platform/browserWeb';
 
 import { DesktopOnlySetupNotice } from './DesktopOnlySetupNotice';
 import { MachineSetupTextField } from './shared/MachineSetupTextField';
@@ -128,7 +129,7 @@ export const RemoteSshMachineSetupSection = React.memo(function RemoteSshMachine
     onCompletedChange?: (payload: Readonly<{ machineId: string | null; serverId: string | null; relayRuntimeUrl: string | null }>) => void;
 }>) {
     const styles = stylesheet;
-    const isBrowserWeb = Platform.OS === 'web' && !isTauriDesktop();
+    const isBrowserWeb = isBrowserWebClient();
     const supportsDesktopControls = !isBrowserWeb && (props.runner != null || isTauriDesktop());
     const isDesktop = isTauriDesktop();
     if (!supportsDesktopControls) {

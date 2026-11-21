@@ -10,7 +10,54 @@ export const SESSION_LIST_ORDERING_MODE_DEFAULT_V1: SessionListOrderingModeV1 = 
 
 export const SESSION_LIST_UPDATED_ORDERING_BUCKET_MS = 5 * 60_000;
 
-export type SessionListOrderingSection = 'active' | 'inactive' | 'sessions';
+export const SESSION_LIST_VISIBILITY_SCOPES = ['active', 'archived'] as const;
+// Stored values of the setting. 'all' is a former scope and now reads as Active.
+export const SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES = ['all', 'active', 'archived'] as const;
+export type SessionListVisibilityScope = typeof SESSION_LIST_VISIBILITY_SCOPES[number];
+export const SESSION_LIST_VISIBILITY_SCOPE_DEFAULT: SessionListVisibilityScope = 'active';
+
+export function normalizeSessionListVisibilityScope(value: unknown): SessionListVisibilityScope {
+    return value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
+}
+
+/**
+ * The visibility scope owns the inactive filter of the main session list. Active shows only
+ * running sessions. Archived shows all other sessions: inactive and archived.
+ */
+export function resolveSessionListHideInactiveSessions(scope: SessionListVisibilityScope): boolean {
+    return scope === 'active';
+}
+
+// Setting sessionListKeepStoppedInActiveDaysV1: how many days a stopped session stays in the Active
+// scope after it was last active. 0 hides it as soon as it stops.
+export const SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1 = [0, 1, 2, 5, 14] as const;
+const HOUR_MS = 60 * 60_000;
+const DAY_MS = 24 * HOUR_MS;
+
+export function normalizeSessionListKeepStoppedInActiveDays(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.min(Math.trunc(value), 365) : 0;
+}
+
+/**
+ * The oldest last-active time that keeps a stopped session in the Active scope, or null when the
+ * setting is off. Rounded down to the hour, so the threshold changes once per hour and not on
+ * every render.
+ */
+export function resolveSessionListKeepInactiveSinceMs(days: number, nowMs: number): number | null {
+    if (days <= 0) return null;
+    return Math.floor(nowMs / HOUR_MS) * HOUR_MS - days * DAY_MS;
+}
+
+export function isInactiveSessionKeptInActiveScope(
+    activeAt: number | null | undefined,
+    keepInactiveSinceMs: number | null | undefined,
+): boolean {
+    return typeof keepInactiveSinceMs === 'number'
+        && typeof activeAt === 'number'
+        && activeAt >= keepInactiveSinceMs;
+}
+
+export type SessionListOrderingSection = 'active' | 'inactive' | 'archived' | 'sessions';
 export type SessionListOrderingSectionMode = 'activity' | 'single';
 export type SessionListOrderingGroupKind = NonNullable<Extract<SessionListIndexItem, { type: 'session' }>['groupKind']>;
 
@@ -25,6 +72,7 @@ export type SessionListOrderingTimestampSource = Readonly<{
 }>;
 
 export type SessionListSessionOrderingKey = Readonly<{
+    active: boolean;
     updated: SessionListUpdatedOrderingKey;
     createdAt: number;
     stableId: string;
@@ -69,6 +117,7 @@ export function buildSessionListSessionOrderingKey(params: Readonly<{
     row: SessionListRenderableSession | null | undefined;
 }>): SessionListSessionOrderingKey {
     return {
+        active: params.row?.active === true,
         updated: readSessionListUpdatedOrderingKey(params.row),
         createdAt: normalizePositiveTimestamp(params.row?.createdAt),
         stableId: normalizeSessionListKeyParts(params.item.serverId, params.item.sessionId).sessionKey
@@ -81,6 +130,12 @@ export function compareSessionListSessionOrderingKeys(
     b: SessionListSessionOrderingKey,
     orderingMode: SessionListOrderingModeV1,
 ): number {
+    // A running (active) chat is always shown before a finished (inactive) one,
+    // regardless of how recent the finished chat's last activity was.
+    if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+    }
+
     if (orderingMode === 'updated') {
         if (b.updated.bucket !== a.updated.bucket) return b.updated.bucket - a.updated.bucket;
         if (b.updated.createdAtSecondary !== a.updated.createdAtSecondary) {

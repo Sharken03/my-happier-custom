@@ -30,6 +30,8 @@ import {
  * lands inside the clip.
  */
 const SUBMIT_HIT_SLOP = { top: 5, bottom: 10, left: 0, right: 0 } as const;
+/** The send column at rest: the 32 dp PrimaryCircleIconButton and the 8 dp margins of shapeClip. */
+export const AGENT_INPUT_SUBMIT_COLUMN_WIDTH = 32 + 8 + 8;
 
 const stylesheet = StyleSheet.create(() => ({
     shapeClip: {

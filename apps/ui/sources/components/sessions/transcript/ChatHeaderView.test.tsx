@@ -131,6 +131,16 @@ describe('ChatHeaderView', () => {
         expect(base?.elevation).toBe(10);
     });
 
+    it('calls onTitlePress when the title is pressed', async () => {
+        const { ChatHeaderView } = await import('./ChatHeaderView');
+        const onTitlePress = vi.fn();
+
+        const screen = await renderScreen(<ChatHeaderView title="Title" onTitlePress={onTitlePress} />);
+        screen.pressByTestId('session-header-title');
+
+        expect(onTitlePress).toHaveBeenCalledTimes(1);
+    });
+
     it('renders an optional rightElement', async () => {
         const { ChatHeaderView } = await import('./ChatHeaderView');
 

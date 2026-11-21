@@ -17,7 +17,7 @@ import { SessionActionDraftCard } from '@/components/sessions/actions/SessionAct
 import { UserActionPromptCard } from '@/components/tools/shell/userActions/UserActionPromptCard';
 import { TurnViewWithSessionCommon } from '@/components/sessions/transcript/turns/TurnView';
 import { ToolCallsGroupRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/ToolCallsGroupRow';
-import { ToolCallsGroupUnitHeaderRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow';
+import { ToolCallsGroupUnitLiveHeaderRow } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitHeaderRow';
 import { ToolCallsGroupUnitExpandRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitExpandRow';
 import { ToolCallsGroupUnitToolRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitToolRow';
 import { ToolCallsGroupUnitFooterRowWithSessionCommon } from '@/components/sessions/transcript/toolCalls/units/ToolCallsGroupUnitFooterRow';
@@ -264,9 +264,10 @@ export function useTranscriptItemRenderer(deps: TranscriptItemRendererDeps) {
                     onRowMeasured={handleRowShellMeasured}
                 >
                     {(messages) => (
-                        <ToolCallsGroupUnitHeaderRowWithSessionCommon
+                        <ToolCallsGroupUnitLiveHeaderRow
                             sessionId={sessionId}
                             groupId={item.groupId}
+                            isTranscriptTail={item.isTranscriptTail === true}
                             metadata={metadata}
                             interaction={interaction}
                             toolMessages={messages.filter((message): message is ToolCallMessage => message.kind === 'tool-call')}
@@ -350,9 +351,17 @@ export function useTranscriptItemRenderer(deps: TranscriptItemRendererDeps) {
         }
         if (item.kind === 'tool-group-footer') {
             const interaction = deriveReadOnlyTranscriptInteraction(transcriptInteraction, item.isReadOnlyContext === true);
+            const footerGroupId = item.groupId;
+            const footerToolMessageIds = item.toolMessageIds;
             return wrapTranscriptItemForAnchor(item, (
                 <ToolCallsGroupUnitFooterRowWithSessionCommon
                     hasVisibleTools={item.hasVisibleTools}
+                    collapseControl={item.collapseControl === true}
+                    setExpanded={(expanded: boolean) => setToolCallsGroupExpanded({
+                        toolCallsGroupId: footerGroupId,
+                        toolMessageIds: footerToolMessageIds,
+                        expanded,
+                    })}
                     sessionId={sessionId}
                     groupId={item.groupId}
                     metadata={metadata}

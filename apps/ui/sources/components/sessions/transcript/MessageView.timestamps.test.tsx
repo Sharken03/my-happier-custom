@@ -240,6 +240,7 @@ describe('MessageView timestamps', () => {
             transcriptStreamingPartialOutputEnabled: true,
             transcriptStreamingMarkdownRenderingEnabled: false,
             transcriptMessageSelectionEnabled: true,
+            transcriptMessageActionsCopyOnly: false,
             transcriptMessageSendToSessionEnabled: false,
             debugInformationEnabled: false,
             workspacePath: null,

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { getFileLanguageFromPath } from '@/utils/code/fileLanguage';
-import { getVideoMimeTypeFromPath, isBinaryContent, isKnownBinaryPath } from './filePresentation';
+import {
+    getImageExtensionForMimeType,
+    getImageMimeTypeFromPath,
+    getVideoMimeTypeFromPath,
+    isBinaryContent,
+    isKnownBinaryPath,
+} from './filePresentation';
 
 describe('getFileLanguageFromPath', () => {
     it('maps known file extensions to syntax highlighter languages', () => {
@@ -49,6 +55,23 @@ describe('isKnownBinaryPath', () => {
         expect(isKnownBinaryPath('build/app.exe')).toBe(true);
         expect(isKnownBinaryPath('src/app.ts')).toBe(false);
         expect(isKnownBinaryPath('assets/icon.svg')).toBe(false);
+    });
+});
+
+describe('image MIME types', () => {
+    it('recognizes the image formats the viewer can display directly', () => {
+        expect(getImageMimeTypeFromPath('shots/a.AVIF')).toBe('image/avif');
+        expect(getImageMimeTypeFromPath('shots/a.bmp')).toBe('image/bmp');
+        expect(getImageMimeTypeFromPath('favicon.ico')).toBe('image/x-icon');
+        expect(isKnownBinaryPath('shots/a.avif')).toBe(true);
+    });
+
+    it('maps an image MIME type back to its usual file extension', () => {
+        expect(getImageExtensionForMimeType('image/jpeg')).toBe('jpg');
+        expect(getImageExtensionForMimeType('IMAGE/PNG')).toBe('png');
+        expect(getImageExtensionForMimeType('image/avif')).toBe('avif');
+        expect(getImageExtensionForMimeType('image/vnd.microsoft.icon')).toBe('ico');
+        expect(getImageExtensionForMimeType('text/plain')).toBeNull();
     });
 });
 

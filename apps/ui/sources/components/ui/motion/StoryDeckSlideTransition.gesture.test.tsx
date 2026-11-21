@@ -121,6 +121,23 @@ describe('StoryDeckSlideTransition (carousel adapter)', () => {
         expect(screen.findByTestId('card-2')).not.toBeNull();
     });
 
+    it('turns the swipe gesture off when gestureEnabled is false', async () => {
+        const { StoryDeckSlideTransition } = await import('./StoryDeckSlideTransition');
+        const props = {
+            activeIndex: 1,
+            itemCount: 3,
+            renderItem,
+            onCommitNext: () => {},
+            onCommitPrevious: () => {},
+            testID: 'deck',
+        };
+        const screen = await renderScreen(<StoryDeckSlideTransition {...props} />);
+        expect(findGestureChain(screen as never).__config.enabled).toBe(true);
+
+        await screen.update(<StoryDeckSlideTransition {...props} gestureEnabled={false} />);
+        expect(findGestureChain(screen as never).__config.enabled).toBe(false);
+    });
+
     it('omits the previous slot at activeIndex=0 (no fade toward an undefined layer)', async () => {
         const { StoryDeckSlideTransition } = await import('./StoryDeckSlideTransition');
         const screen = await renderScreen(

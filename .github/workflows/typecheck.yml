@@ -1,0 +1,92 @@
+name: Typecheck
+
+# Typecheck of apps/ui on a GitHub runner, for work done on the OnePlus 8T. The full typecheck
+# needs about 2.2 GB; on the phone, Android then kills all of Termux (12/11-2026), so it runs here.
+# It checks the pushed commit of the ref, not uncommitted changes in the phone's checkout.
+#
+# Start it with a push to a typecheck/** branch:  git push origin HEAD:typecheck/<name>
+# A dispatch (gh workflow run typecheck.yml -R Sharken03/my-happier-custom --ref <branch>)
+# works only after GitHub knows the workflow: from the default branch or an earlier push run.
+# Own concurrency group, so it never waits for, blocks or cancels the web, APK or CLI builds.
+# cancel-in-progress is off: a second dispatch for the same ref waits instead of cancelling a run
+# that another session is watching.
+
+on:
+  push:
+    branches:
+      - "typecheck/**"
+  workflow_dispatch:
+
+concurrency:
+  group: typecheck-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  YARN_PRODUCTION: "false"
+  npm_config_production: "false"
+  CI: "1"
+
+jobs:
+  # Two parallel jobs from one step list: the typecheck and the fork UI tests. Each installs on its
+  # own runner, so the run takes as long as the slower job instead of the sum of both.
+  # No "Free disk" step: this scoped install fits in the runner's default free space; the step
+  # cost about 2 min per run. The df line in "Report disk" shows the margin.
+  check:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - task: typecheck
+            name: Typecheck apps/ui
+          - task: ui-tests
+            name: Fork UI tests
+    env:
+      # Same scope as Build web, so the two share the node_modules cache.
+      HAPPIER_INSTALL_SCOPE: ui,protocol,agents,cli-common,release-runtime,transfers,connection-supervisor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+
+      - name: Enable Corepack (Yarn)
+        uses: ./.github/actions/enable-corepack-yarn
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-yarn-dependencies
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/sharken/8t' }}
+          args: --frozen-lockfile --ignore-engines
+
+      - name: Report disk
+        run: df -h /
+
+      - name: Typecheck apps/ui
+        if: ${{ matrix.task == 'typecheck' }}
+        working-directory: apps/ui
+        run: yarn -s typecheck
+
+      # The same fork tests as Build web, so a fix branch is checked without a web build.
+      - name: Run the fork UI tests
+        if: ${{ matrix.task == 'ui-tests' }}
+        working-directory: apps/ui
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(grep -v '^#' ../../.github/build-8t/ui-tests.txt | sed '/^$/d')
+          yarn -s vitest run --config vitest.config.ts "${tests[@]}"

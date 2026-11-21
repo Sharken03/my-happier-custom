@@ -26,6 +26,7 @@ import {
     type ScmDefaultBranchPushPolicy,
     type ScmHostingProvider,
     type ScmPullRequestSummary,
+    type ScmWorkingSnapshot as ProtocolScmWorkingSnapshot,
 } from "@happier-dev/protocol";
 
 //
@@ -127,6 +128,8 @@ const MetadataObjectSchema = z.object({
             description: z.string().optional(),
             contextWindowTokens: z.number().int().positive().optional(),
             extendedContextModelId: z.string().optional(),
+            costInputPerMTok: z.number().finite().nonnegative().optional(),
+            costOutputPerMTok: z.number().finite().nonnegative().optional(),
             modelOptions: z.array(z.object({
                 id: z.string(),
                 name: z.string(),
@@ -153,6 +156,8 @@ const MetadataObjectSchema = z.object({
             description: z.string().optional(),
             contextWindowTokens: z.number().int().positive().optional(),
             extendedContextModelId: z.string().optional(),
+            costInputPerMTok: z.number().finite().nonnegative().optional(),
+            costOutputPerMTok: z.number().finite().nonnegative().optional(),
             modelOptions: z.array(z.object({
                 id: z.string(),
                 name: z.string(),
@@ -599,6 +604,8 @@ export const MachineMetadataSchema = z.object({
     windowsRemoteSessionConsole: z.enum(['hidden', 'visible']).optional(),
     daemonTerminalSessionAttachSupported: z.boolean().optional(),
     daemonSessionGoalControlsSupported: z.boolean().optional(),
+    // Where new chats on this machine get their own folder (the daemon's HAPPIER_CHATS_DIR).
+    chatsDir: z.string().optional(),
     // Daemon status fields
     daemonLastKnownStatus: z.enum(['running', 'shutting-down']).optional(),
     daemonLastKnownPid: z.number().optional(),
@@ -793,6 +800,8 @@ export interface ScmWorkingSnapshot {
     pullRequest?: ScmPullRequestSummary | null;
     hasConflicts: boolean;
     entries: ScmWorkingEntry[];
+    /** Absent = complete. Read through `scmSnapshotEntriesAreComplete`. */
+    entriesPresentation?: ProtocolScmWorkingSnapshot['entriesPresentation'];
     totals: {
         isComplete?: boolean;
         includedFiles: number;
@@ -802,5 +811,7 @@ export interface ScmWorkingSnapshot {
         includedRemoved: number;
         pendingAdded: number;
         pendingRemoved: number;
+        /** Full-set changed-file count; read through `readScmSnapshotChangedFileCount`. */
+        changedFiles?: number;
     };
 }

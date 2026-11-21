@@ -67,7 +67,9 @@ describe('PiRpcBackend context telemetry markers', () => {
     expect(emitSpy).toHaveBeenCalledTimes(1);
     const message = emitSpy.mock.calls[0][0] as Record<string, unknown>;
     expect(message.type).toBe('token-count');
-    expect(message.key).toBe('pi:pi-session-1:7:ctx38421/200000');
+    // The relay keeps one report per key and Pi's stats are the session's running totals, so the
+    // key names the Pi session only: each report replaces the last one instead of adding to it.
+    expect(message.key).toBe('pi:pi-session-1');
     expect(message.tokens).toEqual({
       input: 100,
       output: 40,
@@ -99,6 +101,27 @@ describe('PiRpcBackend context telemetry markers', () => {
     expect((emitSpy.mock.calls[1][0] as Record<string, unknown>).tokens).toMatchObject({
       context_used_tokens: 1200,
     });
+  });
+
+  it('reports the running totals of later replies under the same key', async () => {
+    const backend = createBackendForContextTelemetry();
+    const priv = backend as unknown as PrivateContextTelemetryBackend;
+    const emitSpy = vi.spyOn(priv, 'emitMessage');
+    let replies = 1;
+    priv.getSessionStats = async () => ({
+      sessionId: 'pi-session-1',
+      assistantMessages: replies,
+      tokens: { input: 100 * replies },
+      cost: 0.01 * replies,
+    });
+
+    await priv.publishUsageStatsBestEffort();
+    replies = 2;
+    await priv.publishUsageStatsBestEffort();
+
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(emitSpy.mock.calls.map((call) => (call[0] as Record<string, unknown>).key)).toEqual(['pi:pi-session-1', 'pi:pi-session-1']);
+    expect((emitSpy.mock.calls[1][0] as Record<string, unknown>).cost).toEqual({ total: 0.02 });
   });
 
   it('dedupes identical stats+telemetry across publishes', async () => {

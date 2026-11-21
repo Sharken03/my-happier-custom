@@ -174,6 +174,47 @@ describe('PiRpcBackend extension UI requests', () => {
     });
   });
 
+  it('saves extension status and widget lines in session metadata, without host payload lines', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-pi-extension-status-'));
+    tempDirs.push(dir);
+    const scriptPath = writeFakePiExtensionUiScript(dir);
+    const source = readFileSync(scriptPath, 'utf8').replace(
+      "out({\n        type: 'extension_ui_request',\n        id: 'pi-dialog-1',\n        method: 'select',\n        title: 'Choose scope',\n        options: ['Repository', 'Workspace']\n      });",
+      [
+        "out({ type: 'extension_ui_request', id: 's1', method: 'setStatus', statusKey: 'plan-mode', statusText: 'plan active' });",
+        "out({ type: 'extension_ui_request', id: 'w1', method: 'setWidget', widgetKey: 'plan-mode', widgetLines: ['Plan mode: planning'] });",
+        "out({ type: 'extension_ui_request', id: 'w2', method: 'setWidget', widgetKey: 'subagent-async', widgetLines: ['PI_SUBAGENT_ASYNC_JSON:{}'] });",
+        "streaming = false;",
+        "out({ type: 'agent_end' });",
+      ].join('\n'),
+    );
+    expect(source).toContain("statusKey: 'plan-mode'");
+    writeFileSync(scriptPath, source, 'utf8');
+    const backend = new PiRpcBackend({
+      cwd: dir,
+      command: process.execPath,
+      args: [scriptPath],
+      permissionHandler: { handleToolCall: vi.fn() },
+      env: { HAPPIER_PI_RPC_AGENT_END_SETTLE_MS: '1' },
+    });
+    backends.push(backend);
+    const patches: Array<Readonly<Record<string, unknown>>> = [];
+    backend.setMetadataPatchPublisher(async (patch) => { patches.push(patch); });
+    expect(patches).toEqual([{ piExtensionUiV1: { v: 1, statuses: [], widgets: [] } }]);
+
+    const session = await backend.startSession();
+    await backend.sendPrompt(session.sessionId, 'plan this');
+
+    expect(patches.at(-1)).toEqual({
+      piExtensionUiV1: {
+        v: 1,
+        statuses: [{ key: 'plan-mode', text: 'plan active' }],
+        widgets: [{ key: 'plan-mode', lines: ['Plan mode: planning'] }],
+      },
+    });
+    expect(patches).toHaveLength(3);
+  });
+
   it('preserves editor prefill as the editable initial answer rather than placeholder text', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'happier-pi-extension-ui-editor-'));
     tempDirs.push(dir);

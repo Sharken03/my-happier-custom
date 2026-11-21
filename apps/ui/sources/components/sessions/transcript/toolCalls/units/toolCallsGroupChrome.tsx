@@ -17,11 +17,21 @@ import { resolveToolStatusIndicatorKind } from '@/components/tools/shell/present
 
 import type { GroupedToolCallChromeMode } from './groupedToolCallRowRenderDecision';
 import { Icon } from '@/components/ui/icons/Icon';
+import { summarizeToolCallsGroup } from './toolCallsGroupSummary';
+import { collectToolCallsGroupDiffTools, computeToolCallsGroupDiffStats } from './toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from './toolCallsGroupDiffStatsText';
+import { TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT } from './toolCallsGroupCollapseControlLayout';
 import { ICON_SIZE } from '@/components/ui/icons/Icon';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
 
 export type ToolCallsGroupChromeVariant = 'cards' | 'feed' | 'feed_background';
 export type ToolCallsGroupUnitPosition = 'header' | 'middle' | 'footer';
 export type ToolCallsGroupStatus = 'running' | 'completed' | 'error';
+
+export function isToolCallsGroupSheetMode(toolChromeCommon: TranscriptToolChromeCommon): boolean {
+    return toolChromeCommon.transcriptToolCallsGroupOpenMode === 'sheet';
+}
 
 export function resolveToolCallsGroupChromeVariant(
     toolChromeCommon: TranscriptToolChromeCommon,
@@ -51,7 +61,13 @@ export function resolveToolCallMessageForSession(
 export function resolveToolCallsGroupStatus(params: Readonly<{
     toolMessages: readonly ToolCallMessage[];
     permissionDisabledReason?: TranscriptInteraction['permissionDisabledReason'];
+    /**
+     * The turn still works and this group is its latest activity. Between two calls every tool is
+     * completed, so the tools alone would show a check mark that swaps with the spinner on each call.
+     */
+    turnWorking?: boolean;
 }>): ToolCallsGroupStatus {
+    if (params.turnWorking === true) return 'running';
     let sawError = false;
     for (const message of params.toolMessages) {
         const tool = resolveInactiveSessionToolCallFailure({
@@ -136,27 +152,51 @@ export function ToolCallsGroupUnitRowScaffold(props: Readonly<{ children: React.
 }
 
 /**
- * The grouped tool-calls header row: icon, title + count, status indicator, and the
+ * The grouped tool-calls header row: icon, a summary of what the calls did ("Ran 2 commands, read
+ * 3 files"; "Tool calls · N" when no call counts), status indicator, and the
  * expansion toggle. Shared between the whole-card
  * ToolCallsGroupView and the per-unit header row.
  */
 export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHeaderChrome(props: Readonly<{
     chromeMode: GroupedToolCallChromeMode;
     status: ToolCallsGroupStatus;
-    count: number;
+    toolMessages: readonly ToolCallMessage[];
     expanded: boolean;
+    /** Sheet mode: the header opens the Tool calls sheet, shows a right caret and never reports an expansion state. */
+    sheetMode?: boolean;
     onToggle: () => void;
 }>) {
     const { theme } = useUnistyles();
+    const sheetMode = props.sheetMode === true;
+    const count = props.toolMessages.length;
+    const summary = React.useMemo(
+        () => summarizeToolCallsGroup(props.toolMessages.map((message) => message.tool?.name ?? '')),
+        [props.toolMessages],
+    );
+    // Only sheet mode shows the diff stats, so the default inline header does no extra work.
+    const diffStats = React.useMemo(
+        () => (sheetMode
+            ? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(props.toolMessages))
+            : null),
+        [props.toolMessages, sheetMode],
+    );
+    const imageCount = React.useMemo(
+        () => props.toolMessages.reduce(
+            (total, message) => total + countSessionMediaImages(parseSessionMediaMessageMeta(message.meta).inlineImages),
+            0,
+        ),
+        [props.toolMessages],
+    );
+    // An expanded inline group shows each call's own count, so the header shows it only when collapsed.
+    const showImageCount = imageCount > 0 && (sheetMode || !props.expanded);
 
     return (
         <Pressable
             testID="transcript-tool-calls-header"
             onPress={props.onToggle}
             accessibilityRole="button"
-            accessibilityLabel={`${t('session.toolCalls')}: ${props.count}`}
-            accessibilityState={{ expanded: props.expanded }}
-            aria-expanded={props.expanded}
+            accessibilityLabel={summary ?? `${t('session.toolCalls')}: ${count}`}
+            {...(sheetMode ? {} : { accessibilityState: { expanded: props.expanded }, 'aria-expanded': props.expanded })}
             style={({ pressed }) => [
                 chromeStyles.header,
                 Platform.OS === 'web' && !readCoarsePrimaryPointer() ? chromeStyles.headerDesktop : null,
@@ -166,11 +206,28 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
             <View style={chromeStyles.headerGutter}>
                 <Icon name="stack-simple" size={16} color={theme.colors.text.secondary} />
             </View>
-            <Text style={chromeStyles.title}>
-                {t('session.toolCalls')}
-                <Text style={chromeStyles.subtitle}> · {props.count}</Text>
-            </Text>
+            {summary ? (
+                <Text style={chromeStyles.title} numberOfLines={1}>{summary}</Text>
+            ) : (
+                <Text style={chromeStyles.title}>
+                    {t('session.toolCalls')}
+                    <Text style={chromeStyles.subtitle}> · {count}</Text>
+                </Text>
+            )}
+            {diffStats ? <ToolCallsGroupDiffStatsText stats={diffStats} /> : null}
             <View style={chromeStyles.headerRight}>
+                {showImageCount ? (
+                    // Smaller than the header's minimum height, so the count never changes the row height.
+                    <View
+                        testID="transcript-tool-calls-header-images"
+                        style={chromeStyles.imageCount}
+                        accessible
+                        accessibilityLabel={t('files.sessionMedia.imageCountA11y', { count: imageCount })}
+                    >
+                        <Icon name="image" size={14} color={theme.colors.text.secondary} />
+                        <Text style={chromeStyles.imageCountText} numberOfLines={1}>{String(imageCount)}</Text>
+                    </View>
+                ) : null}
                 <View style={chromeStyles.statusIconRight}>
                     {props.status === 'running' ? (
                         <ActivitySpinner size={iconMatchedSpinnerSize(GROUP_STATUS_ICON_SIZE_PX)} color={theme.colors.text.secondary} />
@@ -181,7 +238,7 @@ export const ToolCallsGroupHeaderChrome = React.memo(function ToolCallsGroupHead
                     )}
                 </View>
                 <Icon
-                    name={props.expanded ? 'caret-up' : 'caret-down'}
+                    name={sheetMode ? 'caret-right' : props.expanded ? 'caret-up' : 'caret-down'}
                     size={16}
                     color={theme.colors.text.secondary}
                 />
@@ -211,6 +268,36 @@ export const ToolCallsGroupExpandMoreChrome = React.memo(function ToolCallsGroup
             <Text style={chromeStyles.previewMoreText}>
                 {t('session.toolCallsCollapsedPreviewMore', { count: props.hiddenCount })}
             </Text>
+        </Pressable>
+    );
+});
+
+/**
+ * The collapse control at the bottom of an expanded group. It toggles the same expansion state as
+ * the header chevron, so a long group can be closed without scrolling back to its header.
+ */
+export const ToolCallsGroupCollapseChrome = React.memo(function ToolCallsGroupCollapseChrome(props: Readonly<{
+    onCollapse: () => void;
+}>) {
+    const { theme } = useUnistyles();
+    return (
+        <Pressable
+            testID="transcript-tool-calls-collapse-bottom"
+            accessibilityRole="button"
+            accessibilityLabel={t('common.collapse')}
+            onPress={props.onCollapse}
+            hitSlop={8}
+            style={({ pressed }) => [
+                chromeStyles.collapseControl,
+                pressed && chromeStyles.previewMorePressed,
+            ]}
+        >
+            <Icon
+                name="caret-up"
+                size={TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.iconSizePx}
+                color={theme.colors.text.secondary}
+            />
+            <Text style={[chromeStyles.previewMoreText, chromeStyles.collapseControlText]}>{t('common.collapse')}</Text>
         </Pressable>
     );
 });
@@ -255,6 +342,17 @@ const chromeStyles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         gap: 8,
     },
+    imageCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        height: 16,
+    },
+    imageCountText: {
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.text.secondary,
+    },
     statusIconRight: {
         width: GROUP_STATUS_ICON_SIZE_PX,
         alignItems: 'center',
@@ -268,6 +366,16 @@ const chromeStyles = StyleSheet.create((theme) => ({
     },
     previewMoreDesktop: {
         paddingTop: 2,
+    },
+    collapseControl: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 6,
+        paddingVertical: TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.paddingVerticalPx,
+    },
+    collapseControlText: {
+        lineHeight: TOOL_CALLS_GROUP_COLLAPSE_CONTROL_LAYOUT.textLineHeightPx,
     },
     previewMorePressed: {
         opacity: 0.9,

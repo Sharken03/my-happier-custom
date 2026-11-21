@@ -1,3 +1,5 @@
+import { PassThrough } from 'node:stream';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { handleToolsCommand } from './tools';
@@ -305,5 +307,70 @@ describe('happier tools --json', () => {
       output.restore();
       process.exitCode = prevExitCode;
     }
+  });
+  it('ends the serve process after the idle time without calls, but not while a call runs', async () => {
+    const input = new PassThrough();
+    const lines: string[] = [];
+    let release: () => void = () => {};
+    const callBuiltInHappierTool = vi.fn(() => new Promise<{ ok: true; result: unknown }>((resolve) => {
+      release = () => resolve({ ok: true, result: {} });
+    }));
+
+    let ended = false;
+    const serving = handleToolsCommand(['serve', '--session-id', 'sess-1'], {
+      ...createBaseDeps(),
+      callBuiltInHappierTool,
+      toolsServeIo: { input, writeLine: (line: string) => lines.push(line), idleExitMs: 20 },
+    } as any).then(() => { ended = true; });
+
+    input.write(JSON.stringify({ type: 'happier-tools-serve-call', id: 1, tool: 'change_title', args: {} }) + '\n');
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(ended).toBe(false);
+    release();
+    await serving;
+    expect(lines.map((line) => JSON.parse(line).type)).toEqual(['happier-tools-serve-ready', 'happier-tools-serve-result']);
+  });
+
+  it('serves session-Agent bridge calls over stdin lines in one process until stdin closes', async () => {
+    const input = new PassThrough();
+    const lines: string[] = [];
+    const callBuiltInHappierTool = vi.fn(async (params: { toolName: string }) => (
+      params.toolName === 'change_title'
+        ? { ok: true as const, result: { renamed: true } }
+        : { ok: false as const, errorCode: 'session_id_ambiguous', error: 'Session id is ambiguous', candidates: ['a', 'b'] }
+    ));
+
+    const serving = handleToolsCommand(['serve', '--session-id', 'sess-1'], {
+      ...createBaseDeps(),
+      callBuiltInHappierTool,
+      toolsServeIo: { input, writeLine: (line: string) => lines.push(line) },
+    } as any);
+
+    input.write('not json\n');
+    input.write(JSON.stringify({ type: 'happier-tools-serve-call', id: 1, tool: 'change_title', args: { title: 'T' }, toolCallId: 'pi-1' }) + '\n');
+    input.write(JSON.stringify({ type: 'happier-tools-serve-call', id: 2, tool: 'action_execute', args: {} }) + '\n');
+    input.end();
+    await serving;
+
+    const messages = lines.map((line) => JSON.parse(line));
+    expect(messages[0]).toEqual({ type: 'happier-tools-serve-ready' });
+    const results = new Map(messages.slice(1).map((message) => [message.id, message]));
+    expect(results.get(1)).toEqual({
+      type: 'happier-tools-serve-result',
+      id: 1,
+      envelope: { ok: true, kind: 'tools_call', data: { source: 'happier', tool: 'change_title', isError: false, output: { renamed: true } } },
+    });
+    expect(results.get(2)?.envelope).toEqual({
+      ok: false,
+      kind: 'tools_call',
+      error: { code: 'session_id_ambiguous', message: 'Session id is ambiguous', candidates: ['a', 'b'] },
+    });
+    expect(callBuiltInHappierTool).toHaveBeenCalledTimes(2);
+    expect(callBuiltInHappierTool).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'sess-1',
+      toolName: 'change_title',
+      invocation: 'session_agent_bridge',
+      toolCallId: 'pi-1',
+    }));
   });
 });

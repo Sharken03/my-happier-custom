@@ -1,3 +1,5 @@
+import { loadSyncTuning } from '@/sync/runtime/syncTuning';
+import { LruMap } from '@/utils/cache/lruMap';
 import {
     createDefaultTranscriptItemHeightCache,
     isTranscriptItemHeightSignatureStable,
@@ -89,6 +91,14 @@ export type TranscriptMeasurementReconciler = Readonly<{
      */
     resolveLastMeasuredHeight(signature: TranscriptItemHeightValiditySignature): number | undefined;
 
+    /**
+     * The height the list last measured for a thinking row in its collapsed shape, at this row's
+     * width and font key. That shape has one height whatever the thinking text is, so it sizes the
+     * thinking rows nothing has measured yet from this device's own layout. `undefined` until one
+     * such row is measured.
+     */
+    resolveCollapsedThinkingRowHeight(signature: TranscriptItemHeightValiditySignature): number | undefined;
+
     /** Record a committed measurement (from onLayout). Updates exact (stable) or the monotonic per-item floor. */
     recordMeasuredHeight(input: Readonly<{
         signature: TranscriptItemHeightValiditySignature;
@@ -156,6 +166,14 @@ export type TranscriptMeasurementReconciler = Readonly<{
 export type TranscriptMeasurementReconcilerOptions = Readonly<{
     cache?: TranscriptItemHeightCache;
     cacheOptions?: TranscriptItemHeightCacheOptions;
+    /**
+     * Bound for the per-item floor table. Defaults to the same tuning value as the exact-height
+     * cache (`transcriptItemHeightCacheMaxEntries`); the two remain independent LRU maps. Reads
+     * refresh recency, so a mounted row keeps its floor while a long session that lays out more
+     * distinct rows than the bound evicts the stalest ones, which then fall back to the exact
+     * cache or a natural onLayout measurement.
+     */
+    floorMaxEntries?: number;
 }>;
 
 type FloorState = Readonly<{
@@ -325,15 +343,28 @@ export function isStructuralSignatureDelta(
     return false;
 }
 
+function buildRowGeometryKey(signature: TranscriptItemHeightValiditySignature): string {
+    return `${signature.widthBucket}|${signature.fontScaleKey}`;
+}
+
+/** A settled thinking row that does not paint its text: hidden, a tool card, or a collapsed inline row. */
+function isCollapsedThinkingSignature(signature: TranscriptItemHeightValiditySignature): boolean {
+    return signature.kind === 'message:thinking'
+        && signature.rowState === 'stable'
+        && !signature.expansionKey.includes(':expanded');
+}
+
 export function createTranscriptMeasurementReconciler(
     options: TranscriptMeasurementReconcilerOptions = {},
 ): TranscriptMeasurementReconciler {
     const cache = options.cache ?? createDefaultTranscriptItemHeightCache(options.cacheOptions);
 
-    // Per-item monotonic floor, keyed by itemId+width+font. `minHeight: null` marks reset-pending:
-    // the row was measured then structurally reset, so its next real onLayout re-seeds the floor
+    // Per-item monotonic floor, keyed by itemId+width+font, bounded LRU (see `floorMaxEntries`).
+    // `minHeight: null` marks reset-pending: the row was measured then structurally reset, so its next real onLayout re-seeds the floor
     // (taking the new, possibly smaller, height) rather than reserving the stale pre-collapse height.
-    const floorsByKey = new Map<string, FloorState>();
+    const floorsByKey = new LruMap<string, FloorState>({
+        maxEntries: options.floorMaxEntries ?? loadSyncTuning().transcriptItemHeightCacheMaxEntries,
+    });
 
     /**
      * Painted bubble heights carried across the pending→committed crossover, keyed by
@@ -342,6 +373,9 @@ export function createTranscriptMeasurementReconciler(
      * never consults this again), so the cap is a leak guard, not a policy.
      */
     const paintedUtteranceBubbleHeights = new Map<string, number>();
+
+    /** One height per geometry (`widthBucket|fontScaleKey`), so the map stays a handful of entries. */
+    const collapsedThinkingRowHeights = new Map<string, number>();
 
     let lastClearedCommitToken: number | null = null;
 
@@ -392,10 +426,18 @@ export function createTranscriptMeasurementReconciler(
             return floor.lastMeasuredHeight;
         },
 
+        resolveCollapsedThinkingRowHeight(signature) {
+            return collapsedThinkingRowHeights.get(buildRowGeometryKey(signature));
+        },
+
         recordMeasuredHeight(input) {
             const { signature, heightPx } = input;
             if (!isValidHeight(heightPx)) return;
             const measured = Math.trunc(heightPx);
+
+            if (isCollapsedThinkingSignature(signature)) {
+                collapsedThinkingRowHeights.set(buildRowGeometryKey(signature), measured);
+            }
 
             // Exact path: stable rows write the LRU height cache (its existing stable-only contract).
             if (isTranscriptItemHeightSignatureStable(signature)) {

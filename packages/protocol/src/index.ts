@@ -750,8 +750,12 @@ export {
 } from './connect/connectedServiceAuthGroupMemberRuntimeStatePolicy.js';
 
 export {
+  hasConnectedServiceQuotaCreditHeadroom,
+  isConnectedServiceQuotaCreditMeter,
   resolveConnectedServiceQuotaMeterLimitIdentity,
   selectConnectedServiceQuotaMetersForLimitSelection,
+  summarizeConnectedServiceQuotaCredits,
+  type ConnectedServiceQuotaCreditSummary,
 } from './connect/connectedServiceQuotaLimitSelection.js';
 
 export {
@@ -907,7 +911,9 @@ export {
   normalizeClaudeTaskToolUseToWorkStateItem,
   normalizeClaudeSdkInitSkills,
   normalizeClaudeOauthProfileEntitlement,
+  formatClaudeOauthPlanLabel,
   readClaudeOauthCredentialMetadata,
+  readClaudeOauthProfileSubscriptionStatus,
   readClaudeOauthCredentialOrganizationId,
   type ClaudeOauthCredentialMetadata,
   type ClaudeOauthEntitlementMetadata,
@@ -925,6 +931,8 @@ export {
   type ClaudeTaskToolRecord,
   type ClaudeTodoWriteTodo,
 } from './providers/claude/index.js';
+
+export { isAsyncSubagentLaunchToolResult } from './providers/asyncSubagentLaunch.js';
 
 export {
   ActivityWebhookPayloadV1Schema,
@@ -2088,7 +2096,10 @@ export {
   SessionWorkingTreeMatchedFileSchema,
   SessionWorkingTreeProjectionSchema,
   TurnChangeSetSchema,
+  TEXT_CHANGE_SNIPPET_SEPARATOR,
+  combineTextChanges,
   excludeRolledBackTurns,
+  hasUnifiedDiffLineChanges,
   mergeTurnChangeSets,
   reconcileWithScmSnapshot,
   type ChangeConfidence,
@@ -2100,6 +2111,7 @@ export {
   type SessionChangeSetFile,
   type SessionWorkingTreeMatchedFile,
   type SessionWorkingTreeProjection,
+  type TextChange,
   type TurnChangeSet,
 } from './sessionChanges/index.js';
 export {
@@ -2951,12 +2963,6 @@ export {
 } from './structuredMessages/reviewFollowUpV1.js';
 
 export {
-  ReviewPublishRequestV1Schema,
-  parseReviewPublishRequestV1,
-  type ReviewPublishRequestV1,
-} from './structuredMessages/reviewPublishRequestV1.js';
-
-export {
   PlanOutputV1Schema,
   parsePlanOutputV1,
   type PlanOutputV1,
@@ -3755,3 +3761,16 @@ export {
   type ClaudeSessionRetentionPolicyV1,
   type ClaudeSessionRetentionReportV1,
 } from './providers/claude/sessionRetention.js';
+export {
+  PI_CHAT_CHANGES_TEXT_MAX_BYTES,
+  PiChatChangesDiffRequestSchema,
+  PiChatChangesDiffResponseSchema,
+  PiChatChangesFileSchema,
+  PiChatChangesListRequestSchema,
+  PiChatChangesListResponseSchema,
+  type PiChatChangesDiffRequest,
+  type PiChatChangesDiffResponse,
+  type PiChatChangesFile,
+  type PiChatChangesListRequest,
+  type PiChatChangesListResponse,
+} from './piChatChanges.js';

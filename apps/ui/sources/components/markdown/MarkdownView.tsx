@@ -58,6 +58,8 @@ export const MarkdownView = React.memo((props: {
     highlightSourceRange?: MarkdownSourceRange | null;
     selectionActions?: readonly MarkdownSelectionAction[];
     agentTexMath?: boolean;
+    /** Allowed hosts for markdown images (8T fork setting); empty or absent keeps them dropped. */
+    remoteImageHosts?: readonly string[];
 }) => {
     const profile = normalizeMarkdownRenderingProfile({
         profile: props.profile,
@@ -87,6 +89,7 @@ export const MarkdownView = React.memo((props: {
             highlightSourceRange={props.highlightSourceRange}
             selectionActions={props.selectionActions}
             agentTexMath={props.agentTexMath === true}
+            remoteImageHosts={props.remoteImageHosts}
         />
     );
 });

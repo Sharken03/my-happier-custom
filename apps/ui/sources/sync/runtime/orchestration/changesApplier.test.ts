@@ -14,7 +14,7 @@ function buildPlanned(partial: {
     unsupportedChanges?: PlannedChangeActions['unsupportedChanges'];
     invalidate?: Partial<PlannedChangeActions['invalidate']>;
     kv?: PlannedChangeActions['kv'];
-    sessionDraftAddresses?: PlannedChangeActions['sessionDraftAddresses'];
+    sessionDrafts?: PlannedChangeActions['sessionDrafts'];
 }): PlannedChangeActions {
     return {
         changes: partial.changes ?? [],
@@ -35,7 +35,7 @@ function buildPlanned(partial: {
             ...(partial.invalidate ?? {}),
         },
         kv: partial.kv ?? { type: 'none' },
-        sessionDraftAddresses: partial.sessionDraftAddresses ?? [],
+        sessionDrafts: partial.sessionDrafts ?? [],
         sessionFolderAssignments: { mode: 'none' },
         sessionOrganization: { mode: 'none' },
     };
@@ -1048,15 +1048,16 @@ describe('changesApplier', () => {
 
     it('materializes an exact draft before advancing its Account change cursor', async () => {
         const address = { kind: 'session', sessionId: 'session-a' } as const;
+        const hint = { v: 1, sessionDraft: true, address, revision: 4, status: 'present' } as const;
         const change = buildChange({
             cursor: 2,
             kind: 'account',
             entityId: 'session-draft:session/session-a',
-            hint: { v: 1, sessionDraft: true, address, revision: 4, status: 'present' },
+            hint,
         });
         const materializeSessionDraft = vi.fn(async () => {});
         const result = await applyPlannedChangeActions({
-            planned: buildPlanned({ changes: [change], sessionDraftAddresses: [address] }),
+            planned: buildPlanned({ changes: [change], sessionDrafts: [hint] }),
             credentials,
             isSessionMessagesLoaded: () => false,
             invalidate: {},
@@ -1067,7 +1068,7 @@ describe('changesApplier', () => {
             materializeSessionDraft,
         });
 
-        expect(materializeSessionDraft).toHaveBeenCalledWith(address);
+        expect(materializeSessionDraft).toHaveBeenCalledWith(address, { revision: 4, status: 'present' });
         expect(result).toMatchObject({ status: 'complete', safeAdvanceCursor: '2' });
     });
 });

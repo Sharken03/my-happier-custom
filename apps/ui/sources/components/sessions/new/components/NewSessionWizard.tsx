@@ -118,7 +118,7 @@ export interface NewSessionWizardAgentProps {
     onAgentPickerSelect?: React.ComponentProps<typeof AgentInput>['onAgentPickerSelect'];
     agentPickerProbe?: React.ComponentProps<typeof AgentInput>['agentPickerProbe'];
     selectedBackendEntry?: ResolvedBackendCatalogEntry | null;
-    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string }>;
+    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string; costInputPerMTok?: number; costOutputPerMTok?: number }>;
     modelOptionsProbe?: React.ComponentProps<typeof AgentInput>['modelOptionsOverrideProbe'];
     favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
     setFavoriteModelSelections?: (favorites: FavoriteModelSelectionV1[]) => void;
@@ -623,6 +623,7 @@ export const NewSessionWizard = React.memo(function NewSessionWizard(props: NewS
                                         machinePopover={props.footer.machinePopover}
                                         onMachineClick={props.footer.machinePopover ? undefined : handleAgentInputMachineClick}
                                         currentPath={selectedPath}
+                                        currentPathHomeDir={selectedMachine?.metadata?.homeDir ?? null}
                                         pathPopover={props.footer.pathPopover}
                                         onPathClick={props.footer.pathPopover ? undefined : handleAgentInputPathClick}
                                         resumeSessionId={resumeSessionId}

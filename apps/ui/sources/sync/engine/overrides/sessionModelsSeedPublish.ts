@@ -49,6 +49,12 @@ export function computeNextSessionModelsSeedMetadata(params: Readonly<{
                 ? { contextWindowTokens: model.contextWindowTokens }
                 : {}),
             ...(extendedContextModelId ? { extendedContextModelId } : {}),
+            ...(typeof model.costInputPerMTok === 'number' && Number.isFinite(model.costInputPerMTok) && model.costInputPerMTok >= 0
+                ? { costInputPerMTok: model.costInputPerMTok }
+                : {}),
+            ...(typeof model.costOutputPerMTok === 'number' && Number.isFinite(model.costOutputPerMTok) && model.costOutputPerMTok >= 0
+                ? { costOutputPerMTok: model.costOutputPerMTok }
+                : {}),
             ...(Array.isArray(model.modelOptions) && model.modelOptions.length > 0
                 ? { modelOptions: model.modelOptions }
                 : {}),

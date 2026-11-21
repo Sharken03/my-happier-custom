@@ -108,7 +108,8 @@ export type PlannedChangeActions = {
     kv: PlannedKvAction;
     sessionFolderAssignments: PlannedSessionFolderAssignmentsAction;
     sessionOrganization: PlannedSessionOrganizationAction;
-    sessionDraftAddresses: SessionDraftAddressV1[];
+    /** The newest hint per draft address; its revision lets the read be skipped when held locally. */
+    sessionDrafts: SessionDraftChangeHintV1[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -322,7 +323,7 @@ export function planSyncActionsFromChanges(changes: ApiChangeEntry[]): PlannedCh
 
     let kvFull = false;
     const kvKeys = new Set<string>();
-    const sessionDraftAddresses = new Map<string, SessionDraftAddressV1>();
+    const sessionDrafts = new Map<string, SessionDraftChangeHintV1>();
 
     for (const change of changes) {
         const kind = change.kind;
@@ -337,7 +338,9 @@ export function planSyncActionsFromChanges(changes: ApiChangeEntry[]): PlannedCh
 
         const sessionDraftHint = getChangeSessionDraftHint(change);
         if (sessionDraftHint) {
-            sessionDraftAddresses.set(canonicalSessionDraftAddressV1(sessionDraftHint.address), sessionDraftHint.address);
+            const key = canonicalSessionDraftAddressV1(sessionDraftHint.address);
+            const previous = sessionDrafts.get(key);
+            if (!previous || sessionDraftHint.revision >= previous.revision) sessionDrafts.set(key, sessionDraftHint);
             continue;
         }
 
@@ -532,8 +535,8 @@ export function planSyncActionsFromChanges(changes: ApiChangeEntry[]): PlannedCh
         kv,
         sessionFolderAssignments,
         sessionOrganization,
-        sessionDraftAddresses: [...sessionDraftAddresses.values()].sort((left, right) => (
-            canonicalSessionDraftAddressV1(left).localeCompare(canonicalSessionDraftAddressV1(right))
+        sessionDrafts: [...sessionDrafts.values()].sort((left, right) => (
+            canonicalSessionDraftAddressV1(left.address).localeCompare(canonicalSessionDraftAddressV1(right.address))
         )),
     };
 }

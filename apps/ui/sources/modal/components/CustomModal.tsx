@@ -45,6 +45,8 @@ function areChromeConfigsEqual(
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
 
+    if (a.kind === 'fullscreen' && b.kind === 'fullscreen') return true;
+
     if (a.kind === 'card' && b.kind === 'card') {
         return a.title === b.title
             && a.subtitle === b.subtitle
@@ -109,15 +111,7 @@ export function CustomModal({ config, onClose, showBackdrop = true, visible, zIn
     const [chromeOverride, setChromeOverride] = React.useState<CustomModalChromeConfig | null | undefined>(undefined);
     const effectiveChrome = chromeOverride === undefined ? config.chrome : chromeOverride;
     const chrome = effectiveChrome?.kind === 'card' ? effectiveChrome : null;
-
-    const handleClose = React.useCallback(() => {
-        try {
-            config.onRequestClose?.();
-        } catch {
-            // ignore
-        }
-        onClose();
-    }, [config.onRequestClose, onClose]);
+    const fullscreen = effectiveChrome?.kind === 'fullscreen';
 
     const setChrome = React.useCallback((nextChrome: CustomModalChromeConfig | null) => {
         setChromeOverride((prevOverride) => {
@@ -136,13 +130,14 @@ export function CustomModal({ config, onClose, showBackdrop = true, visible, zIn
     // dependencies are not referentially stable republishes on every applied chrome and the
     // publish cycle never closes.
     const content = React.useMemo(() => (
-        <Component {...config.props} onClose={handleClose} setChrome={setChrome} />
-    ), [Component, config.props, handleClose, setChrome]);
+        <Component {...config.props} onClose={onClose} setChrome={setChrome} />
+    ), [Component, config.props, onClose, setChrome]);
 
     return (
         <BaseModal
             visible={visible}
-            onClose={handleClose}
+            onClose={onClose}
+            fullscreen={fullscreen}
             accessibilityLabel={typeof chrome?.title === 'string' ? chrome.title : undefined}
             closeOnBackdrop={config.closeOnBackdrop ?? true}
             showBackdrop={showBackdrop}
@@ -163,7 +158,7 @@ export function CustomModal({ config, onClose, showBackdrop = true, visible, zIn
                     layout={chrome.layout ?? 'fit'}
                     bodyScroll={chrome.bodyScroll ?? 'none'}
                     dimensions={chrome.dimensions}
-                    onClose={handleClose}
+                    onClose={onClose}
                 >
                     {content}
                 </ModalCardFrame>

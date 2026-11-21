@@ -1,0 +1,79 @@
+name: Publish prerelease
+description: >
+  Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
+  newest 5 prereleases of that kind, and keep only the newest Metro and ccache cache of that kind. The web
+  export and the APK publish separately, so a failed or cancelled APK build does not hold back
+  the web export. Needs GH_TOKEN with contents: write and actions: write.
+
+inputs:
+  kind:
+    description: "'web' or 'app'; part of the tag and of the Metro cache key prefix"
+    required: true
+  path:
+    description: Folder with the files to publish
+    required: true
+  title:
+    description: Release title prefix, for example "Happier web"
+    required: true
+  notes:
+    description: Extra Markdown lines for the release notes
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Publish
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+        DIR: ${{ inputs.path }}
+        TITLE: ${{ inputs.title }}
+        NOTES: ${{ inputs.notes }}
+      run: |
+        set -euo pipefail
+        build="${HAPPIER_BUILD_NUMBER:-$GITHUB_RUN_NUMBER}"
+        tag="8t-${KIND}-${GITHUB_SHA::7}-${build}"
+        cd "$DIR"
+        for f in *; do sha256sum "$f" > "$f.sha256"; done
+        ls -l
+        {
+          echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
+          echo
+          echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
+          if [ -n "$NOTES" ]; then printf "%s\n" "${NOTES%$'\n'}"; fi
+          echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        } > "$RUNNER_TEMP/notes.md"
+        # Up to 3 tries. On 12/11-2026 two APK runs got "HTTP 403: Resource not accessible by
+        # integration" here, after a push changed the workflow files while they ran. A try that
+        # failed halfway can leave the release behind, so it is deleted before the next try.
+        for try in 1 2 3; do
+          if gh release create "$tag" ./* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "${TITLE} ${GITHUB_SHA::7} (#${build})" \
+            --notes-file "$RUNNER_TEMP/notes.md"; then
+            break
+          fi
+          gh release delete "$tag" --cleanup-tag --yes >/dev/null 2>&1 || true
+          if [ "$try" = 3 ]; then
+            echo "::error::Publish failed 3 times. The job keeps the files as an artifact."
+            exit 1
+          fi
+          echo "Publish try $try failed; next try in $((try * 30)) s"
+          sleep $((try * 30))
+        done
+        echo "Published ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
+
+        gh release list --limit 200 --json tagName,createdAt \
+          --jq "[.[] | select(.tagName | startswith(\"8t-${KIND}-\"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName" |
+          while read -r old; do
+            echo "Deleting release $old"
+            gh release delete "$old" --cleanup-tag --yes
+          done
+
+        # One entry per run builds up; the repository's cache limit is 10 GB.
+        for prefix in "metro-${KIND}-v1-" "ccache-${KIND}-v1-"; do
+          gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
+            while read -r id; do gh cache delete "$id"; done
+        done

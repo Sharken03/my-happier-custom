@@ -15,6 +15,8 @@ import {
     useSetting,
 } from '@/sync/domains/state/storage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
+import { resolveMarkdownRemoteImageHosts } from '@/components/markdown/rendering/markdownRemoteImages';
+import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 
 export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'sessionReplayEnabled'
@@ -27,6 +29,7 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'toolViewTimelineChromeMode'
     | 'transcriptMessageTimestampDisplayMode'
     | 'transcriptMessageSelectionEnabled'
+    | 'transcriptMessageActionsCopyOnly'
     | 'transcriptMessageSendToSessionEnabled'
     | 'transcriptStreamingMarkdownRenderingEnabled'
     | 'transcriptStreamingPartialOutputEnabled'
@@ -34,6 +37,7 @@ export type TranscriptSessionCommonSettings = Pick<Settings,
     | 'transcriptStreamingSmoothingEnabled'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
+    | 'transcriptToolCallsGroupOpenMode'
 >;
 
 export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSettings,
@@ -42,6 +46,7 @@ export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSetting
     | 'sessionThinkingInlinePresentation'
     | 'transcriptMessageTimestampDisplayMode'
     | 'transcriptMessageSelectionEnabled'
+    | 'transcriptMessageActionsCopyOnly'
     | 'transcriptMessageSendToSessionEnabled'
     | 'transcriptStreamingMarkdownRenderingEnabled'
     | 'transcriptStreamingPartialOutputEnabled'
@@ -55,6 +60,8 @@ export type TranscriptMessageDisplayCommon = Pick<TranscriptSessionCommonSetting
      * themselves, as they already do for every other setting here.
      */
     debugInformationEnabled: boolean;
+    /** Hosts whose markdown images agent text shows; empty while the setting is off. */
+    markdownRemoteImageHosts?: readonly string[];
 }>;
 
 export type TranscriptForkCommon = Pick<TranscriptSessionCommonSettings,
@@ -89,7 +96,9 @@ export type TranscriptToolChromeCommon = Pick<TranscriptSessionCommonSettings,
     | 'toolViewTimelineChromeMode'
     | 'transcriptToolCallsCollapsedPreviewCount'
     | 'transcriptToolCallsGroupShowBackground'
->;
+>
+    // Optional: a chrome without the setting renders groups inline.
+    & Partial<Pick<TranscriptSessionCommonSettings, 'transcriptToolCallsGroupOpenMode'>>;
 
 export type TranscriptToolRouteCommon = Readonly<{
     messagesById: Readonly<Record<string, Message>>;
@@ -145,6 +154,7 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const toolViewTimelineChromeMode = useSetting('toolViewTimelineChromeMode');
     const transcriptMessageTimestampDisplayMode = useSetting('transcriptMessageTimestampDisplayMode');
     const transcriptMessageSelectionEnabled = useSetting('transcriptMessageSelectionEnabled');
+    const transcriptMessageActionsCopyOnly = useSetting('transcriptMessageActionsCopyOnly');
     const transcriptMessageSendToSessionEnabled = useSetting('transcriptMessageSendToSessionEnabled');
     const transcriptStreamingMarkdownRenderingEnabled = useSetting('transcriptStreamingMarkdownRenderingEnabled');
     const transcriptStreamingPartialOutputEnabled = useSetting('transcriptStreamingPartialOutputEnabled');
@@ -152,6 +162,8 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
     const transcriptStreamingSmoothingEnabled = useSetting('transcriptStreamingSmoothingEnabled');
     const transcriptToolCallsCollapsedPreviewCount = useSetting('transcriptToolCallsCollapsedPreviewCount');
     const transcriptToolCallsGroupShowBackground = useSetting('transcriptToolCallsGroupShowBackground');
+    const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
+    const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
 
     const fork = React.useMemo<TranscriptForkCommon>(() => ({
             agentSwitchingEnabled,
@@ -173,11 +185,13 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
 
     const messageDisplay = React.useMemo<TranscriptMessageDisplayCommon>(() => ({
             debugInformationEnabled,
+            markdownRemoteImageHosts,
             sessionThinkingDisplayMode,
             sessionThinkingInlineChrome,
             sessionThinkingInlinePresentation,
             transcriptMessageTimestampDisplayMode,
             transcriptMessageSelectionEnabled,
+            transcriptMessageActionsCopyOnly,
             transcriptMessageSendToSessionEnabled,
             transcriptStreamingMarkdownRenderingEnabled,
             transcriptStreamingPartialOutputEnabled,
@@ -186,11 +200,13 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             workspacePath,
         }), [
             debugInformationEnabled,
+            markdownRemoteImageHosts,
             sessionThinkingDisplayMode,
             sessionThinkingInlineChrome,
             sessionThinkingInlinePresentation,
             transcriptMessageTimestampDisplayMode,
             transcriptMessageSelectionEnabled,
+            transcriptMessageActionsCopyOnly,
             transcriptMessageSendToSessionEnabled,
             transcriptStreamingMarkdownRenderingEnabled,
             transcriptStreamingPartialOutputEnabled,
@@ -203,10 +219,12 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
             toolViewTimelineChromeMode,
             transcriptToolCallsCollapsedPreviewCount,
             transcriptToolCallsGroupShowBackground,
+            transcriptToolCallsGroupOpenMode,
         }), [
             toolViewTimelineChromeMode,
             transcriptToolCallsCollapsedPreviewCount,
             transcriptToolCallsGroupShowBackground,
+            transcriptToolCallsGroupOpenMode,
         ]);
 
     const toolRoute = React.useMemo<TranscriptToolRouteCommon>(() => ({
@@ -220,4 +238,14 @@ export function useTranscriptSessionCommon(sessionId: string): TranscriptSession
         toolChrome,
         toolRoute,
     }), [fork, messageDisplay, toolChrome, toolRoute]);
+}
+
+const NO_MARKDOWN_REMOTE_IMAGE_HOSTS: readonly string[] = [];
+
+/** The allowed markdown image hosts, as one stable array per distinct list. */
+export function useMarkdownRemoteImageHosts(): readonly string[] {
+    const enabled = useSetting('transcriptMarkdownRemoteImagesEnabled');
+    const hosts = useSetting('transcriptMarkdownRemoteImageHosts');
+    const key = resolveMarkdownRemoteImageHosts({ enabled, hosts }).join(',');
+    return React.useMemo(() => (key ? key.split(',') : NO_MARKDOWN_REMOTE_IMAGE_HOSTS), [key]);
 }

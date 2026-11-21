@@ -1,5 +1,9 @@
 import * as React from 'react';
 import { SessionRightPanelGitCommitTab } from '@/components/sessions/panes/git/SessionRightPanelGitCommitTab';
+import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
+import { PiChatChangesSection } from './piChatChanges/PiChatChangesSection';
+import { addPiChatChangeCounts, NO_PI_CHAT_CHANGES } from './piChatChanges/piChatChanges';
+import type { PiChatChangesFile } from '@happier-dev/protocol';
 import { ScmCommitSelectionToggleButton } from '@/components/sessions/sourceControl/commitSelection/ScmCommitSelectionToggleButton';
 import { ScmChangeOverflowMenu } from '@/components/sessions/sourceControl/changes/ScmChangeOverflowMenu';
 import { CopiedPill } from '@/components/ui/copy/CopiedPill';
@@ -60,9 +64,12 @@ export type SessionRightPanelGitCommitTabContentProps = Readonly<{
     onOpenStashDetails: () => void;
     openFileInDetails: (fullPath: string) => void;
     openFileInDetailsPinned: (fullPath: string) => void;
+    /** Pi chats: files changed outside git, from the git view. */
+    piChatChanges?: readonly PiChatChangesFile[];
 }>;
 
 export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRightPanelGitCommitTabContentProps) => {
+    const piChatChanges = props.piChatChanges ?? NO_PI_CHAT_CHANGES;
     const copyFeedback = useTemporaryCopyFeedback();
     const commitSelectionUiEnabled = props.commitSelectionUiEnabled === true;
     const { latestTurnScopedChangeSet, sessionChangeSet } = useDerivedSessionChangeSet(props.sessionId);
@@ -226,6 +233,22 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
         );
     }, [copyFeedback, props.scmCommitStrategy, props.scmSnapshot, props.scmWriteEnabled, props.sessionId, props.sessionPath, revealInTree]);
 
+    const externalChangesFooter = React.useMemo(() => (
+        <>
+            <SessionExternalRepositoryChanges
+                sessionId={props.sessionId}
+                sessionChangeSet={sessionChangeSet}
+                scmSnapshot={props.scmSnapshot}
+            />
+            <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
+        </>
+    ), [piChatChanges, props.scmSnapshot, props.sessionId, sessionChangeSet]);
+
+    const scmStatusFiles = React.useMemo(
+        () => addPiChatChangeCounts(changed.scmStatusFiles, piChatChanges),
+        [changed.scmStatusFiles, piChatChanges],
+    );
+
     const onFilePress = React.useCallback((file: ScmFileStatus) => {
         props.openFileInDetails(file.fullPath);
     }, [props.openFileInDetails]);
@@ -236,6 +259,8 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
 
     return (
         <SessionRightPanelGitCommitTab
+            listFooter={externalChangesFooter}
+            outsideRepositoryCount={piChatChanges.length}
             theme={props.theme}
             sessionId={props.sessionId}
             sessionPath={props.sessionPath}
@@ -284,7 +309,7 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
             selectionModeActive={selectionModeActive}
             onEnterSelectionMode={enterSelectionMode}
             onExitSelectionMode={exitSelectionMode}
-            scmStatusFiles={changed.scmStatusFiles}
+            scmStatusFiles={scmStatusFiles}
             showBranchSummary={props.showBranchSummary}
             showCommitComposer={props.commitWriteEnabled}
             onOpenReviewAllChanges={props.onOpenReviewAllChanges}

@@ -470,7 +470,8 @@ export const AGENTS_CORE = {
         tools: { delivery: 'shell_bridge', support: 'experimental' },
         media: {
             acceptsImageInput: 'experimental',
-            emitsSessionMedia: EXPERIMENTAL_SESSION_MEDIA_OUTPUT,
+            // Pi tool results carry image blocks; the runtime stores them so the app can show them.
+            emitsSessionMedia: GENERIC_SESSION_MEDIA_OUTPUT,
             nativeImageGeneration: NO_NATIVE_IMAGE_GENERATION,
         },
     },

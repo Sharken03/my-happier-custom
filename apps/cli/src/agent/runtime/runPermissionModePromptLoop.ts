@@ -1,6 +1,7 @@
 import type { ApiSessionClient, SessionProviderInputOutcomeObserver } from '@/api/session/sessionClient';
 import type { PermissionMode } from '@/api/types';
 import { parseSpecialCommand } from '@/cli/parsers/specialCommands';
+import { logStartupStep } from '@/utils/startupTiming';
 import type { ProviderEnforcedPermissionHandler } from '@/agent/permissions/ProviderEnforcedPermissionHandler';
 import type { MessageQueue2 } from '@/agent/runtime/modeMessageQueue';
 import { resolveAppendSystemPromptBaseOverride } from '@/agent/runtime/permission/appendSystemPromptField';
@@ -163,6 +164,7 @@ export async function runPermissionModePromptLoop(opts: {
     storedSessionIdForResume = { value: normalizedResumeId, origin: 'initial' };
   }
 
+  logStartupStep('prompt loop begins');
   const overrideSync = opts.createOverrideSynchronizer(() => wasStarted);
   const shouldDeferPostStartPendingDrain = () => typeof opts.runtime.drainPendingAfterStartOrLoad === 'function';
   const buildStartOrLoadOptions = (
@@ -172,6 +174,7 @@ export async function runPermissionModePromptLoop(opts: {
     ...(shouldDeferPostStartPendingDrain() ? { deferPendingDrain: true } : {}),
   });
 
+  logStartupStep('permission mode sync begins');
   const permissionModeStateSync = await initializePermissionModeStateSync({
     explicitPermissionMode: opts.explicitPermissionMode,
     session: opts.session,
@@ -183,6 +186,7 @@ export async function runPermissionModePromptLoop(opts: {
       opts.permissionHandler.setPermissionMode(mode);
     },
   });
+  logStartupStep('permission mode sync done');
   opts.setCurrentPermissionModeUpdatedAt(permissionModeStateSync.permissionModeUpdatedAt);
 
   const syncPermissionModeFromMetadata = () => {
@@ -265,6 +269,7 @@ export async function runPermissionModePromptLoop(opts: {
 
   const ensureRuntimeStarted = async (): Promise<{ startedFreshSessionForTurn: boolean }> => {
     if (wasStarted) return { startedFreshSessionForTurn: false };
+    logStartupStep('runtime start requested');
 
     const resume = storedSessionIdForResume;
     const resumeId = readNonBlankOpaqueIdentifier(resume?.value) ?? '';
@@ -389,7 +394,9 @@ export async function runPermissionModePromptLoop(opts: {
       };
     }
     if (!message) continue;
+    if (!wasStarted) logStartupStep('first message taken from the queue');
 
+    if (!wasStarted) logStartupStep('permission mode set');
     opts.permissionHandler.setPermissionMode(message.mode.permissionMode);
 
     if (wasStarted && currentModeHash && message.hash !== currentModeHash) {
@@ -421,10 +428,14 @@ export async function runPermissionModePromptLoop(opts: {
     }
 
     currentModeHash = message.hash;
+    if (!wasStarted) logStartupStep('snapshot refresh begins');
     await ensureFreshSessionSnapshotBeforeTurnBestEffort();
+    if (!wasStarted) logStartupStep('snapshot refresh done');
     syncPermissionModeFromMetadata();
     overrideSync.syncFromMetadata();
+    if (!wasStarted) logStartupStep('metadata sync done');
     await overrideSync.flushPendingAfterStart();
+    if (!wasStarted) logStartupStep('override flush done');
     opts.messageBuffer.addMessage(message.message.text, 'user');
 
     const special = parseSpecialCommand(message.message.text);
@@ -497,6 +508,7 @@ export async function runPermissionModePromptLoop(opts: {
       opts.runtime.beginTurn();
       didBeginRuntimeTurn = true;
       if (!wasStarted) {
+        logStartupStep('before ensureRuntimeStarted');
         const runtimeStart = await ensureRuntimeStarted();
         if (opts.shouldExit()) {
           shouldSendReady = false;

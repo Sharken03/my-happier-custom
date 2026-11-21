@@ -120,6 +120,8 @@ export const ChatListMessageRow = React.memo(function ChatListMessageRow(props: 
     );
 });
 
+const EMPTY_ROW_MIN_HEIGHT_PX = 1;
+
 export const TranscriptRowShell = React.memo(function TranscriptRowShell(props: Readonly<{
     reconciler: TranscriptMeasurementReconciler;
     children: React.ReactNode;
@@ -161,9 +163,13 @@ export const TranscriptRowShell = React.memo(function TranscriptRowShell(props: 
     const latestSignatureRef = React.useRef(props.signature);
     latestSignatureRef.current = props.signature;
     const reservedMinHeight = hasRowLocalLayoutMutation ? undefined : reservation?.minHeight;
-    const shellStyle = React.useMemo(() => (
-        reservedMinHeight === undefined ? undefined : { minHeight: reservedMinHeight }
-    ), [reservedMinHeight]);
+    // An empty row (a hidden thinking row paints nothing) still lays out at 1 px: the size its
+    // estimate and its measurement (`Math.max(1, ...)` below) already use. At 0 px Legend never
+    // keeps the size as known, re-places the row at its 1 px estimate on every pass and measures
+    // 0 again, which moved the whole tail 1 dp up and down while a reply streamed.
+    const shellStyle = React.useMemo(() => ({
+        minHeight: Math.max(EMPTY_ROW_MIN_HEIGHT_PX, reservedMinHeight ?? 0),
+    }), [reservedMinHeight]);
 
     const handleLayout = React.useCallback((event: LayoutChangeEvent) => {
         const height = event?.nativeEvent?.layout?.height;

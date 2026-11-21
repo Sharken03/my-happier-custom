@@ -88,6 +88,7 @@ function canonicalizeToolNameNonV2(toolName: string, input: unknown, description
         return hasTodos ? 'TodoWrite' : 'Write';
     }
 
+    if (lower === 'command') return 'Bash';
     if (lower === 'glob') return 'Glob';
     if (lower === 'grep') return 'Grep';
     if (lower === 'ls') return 'LS';
@@ -133,7 +134,7 @@ function resolveSpecificAcpWrappedToolName(toolName: string, input: unknown): st
     return null;
 }
 
-export function canonicalizeToolNameForRendering(toolName: string, input: unknown, description?: string | null): string {
+export function canonicalizeToolNameForRendering(toolName: string, input?: unknown, description?: string | null): string {
     const inputObj = asRecord(input);
     const happier = asRecord(asRecord(inputObj)?._happier);
     const canonicalFromHappier = firstNonEmptyString(happier?.canonicalToolName);

@@ -184,6 +184,9 @@ const settingsAppearanceTranslationExtension = {
       darkModern: 'Dark Modern',
       catppuccinLatte: 'Catppuccin Latte',
       githubLight: 'GitHub Light',
+      claudeCode: 'Claude Dark',
+      claudeCodeDarker: 'Claude Darker',
+      claudeCodeLight: 'Claude Light',
     },
     readOnlyPreset: 'Read-only preset',
     clonePreset: 'Clone preset',
@@ -781,6 +784,7 @@ export const zhHans: TranslationStructure = {
     details: "详情",
     fieldStatus: "状态",
     fieldAction: "动作",
+    fieldFailureReason: "失败原因",
     approve: "批准",
     reject: "拒绝",
     loadError: "加载审批失败。",
@@ -1336,6 +1340,7 @@ export const zhHans: TranslationStructure = {
     thisComputerRelayConnected: '已连接',
     thisComputerRelayOffline: '离线',
     thisComputerRelayNeedsAttention: '需要处理',
+    recoveryBanner: { reconnecting: "正在重新连接…", reconnected: "已重新连接" },
     thisComputerSetUpFor: ({ relay }: { relay: string }) => `已为 ${relay} 设置`,
     labels: {
       server: "服务器",
@@ -2496,7 +2501,7 @@ export const zhHans: TranslationStructure = {
           renewal: "续订",
           renewalOn: "开启",
           renewalOff: "关闭",
-          renewalUnknown: "未知",
+          active: "有效",
           renews: ({ date }: { date: string }) => `${date}续订`,
           ends: ({ date }: { date: string }) => `${date}结束`,
           renewsInDays: ({ days }: { days: number }) => `${days}天后续订`,
@@ -2653,6 +2658,12 @@ export const zhHans: TranslationStructure = {
       refreshA11y: "刷新用量和限额",
       usageCaption: "用量",
       resetsCaption: "配额重置",
+      credits: {
+        title: "额度",
+        balance: ({ balance }: { balance: string }) => `${balance} 额度`,
+        spent: "已用完",
+        includedUsed: "套餐内额度已用完 · 可使用额度",
+      },
       usedDetail: ({ used, limit }: { used: string; limit: string }) => `已用 ${used}/${limit}`,
       capacity: ({ percent }: { percent: number }) => `容量 ${percent}%`,
       memberEnabledLabel: "已在池中启用",
@@ -3500,7 +3511,7 @@ export const zhHans: TranslationStructure = {
     trayOpenInHappier: '在 Happier 中打开',
     traySettings: '设置…',
     trayStartAtLogin: '登录时启动',
-    trayStopAndQuit: '停止后台服务并退出',
+    trayStopAndQuit: '退出 Happier（停止后台服务）',
     trayStart: '启动',
     trayRestart: '重新启动',
     trayStop: '停止',
@@ -4494,6 +4505,10 @@ export const zhHans: TranslationStructure = {
     feedback: "反馈",
     haptics: "触感反馈",
     hapticsDescription: "在此设备上为操作和重新排序提供触感反馈。",
+    permissionHaptics: "权限请求时振动",
+    permissionHapticsDescription: "当代理请求你的许可时振动。",
+    connectionBanner: "连接横幅",
+    connectionBannerDescription: "服务器连接恢复时，在顶部显示简短提示。",
     backdropBlur: "背景模糊",
     backdropBlurDescription: "在弹窗和菜单后使用背景模糊。关闭后可提升浏览器性能。",
     multiPanePanels: "右侧面板",
@@ -4728,6 +4743,8 @@ export const zhHans: TranslationStructure = {
     expChannelBridgesSubtitle: "将 Telegram 等聊天渠道连接到 Happier 会话（实验性）",
     expMemorySearch: "记忆搜索",
     expMemorySearchSubtitle: "启用本地记忆搜索页面与设置",
+    expMcpServers: "MCP 服务器",
+    expMcpServersSubtitle: "显示 MCP 标签和 MCP 服务器设置",
     expSessionsDirect: "直连会话",
     expSessionsDirectSubtitle: "在侧边栏中列出并打开由提供方支撑的直连会话",
     expSessionsFolders: "会话文件夹",
@@ -4754,6 +4771,8 @@ export const zhHans: TranslationStructure = {
       commandPaletteDisabled: "快速命令访问已禁用",
       hideInactiveSessions: "隐藏非活跃会话",
       hideInactiveSessionsSubtitle: "仅在列表中显示活跃的聊天",
+      showArchivedSessionsLink: "显示已归档链接",
+      showArchivedSessionsLinkSubtitle: "在列表底部显示指向已归档和非活跃会话的链接",
       hiddenInactiveSessionsEmptyStateTitle: "当前没有活跃会话",
       hiddenInactiveSessionsEmptyStateSubtitle: "非活跃会话在此列表中已隐藏",
       hiddenInactiveSessionsSectionTitle: "非活跃会话",
@@ -5062,6 +5081,7 @@ export const zhHans: TranslationStructure = {
       customPathTitle: "自定义路径",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `显示前 ${count} 项`,
       recentTitle: "最近",
+      newChatOwnFolder: "新聊天（独立文件夹）",
       favoritesTitle: "收藏",
       suggestedTitle: "推荐",
       allTitle: "全部",
@@ -5395,6 +5415,25 @@ export const zhHans: TranslationStructure = {
     },
     toolCalls: "工具调用",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} 更多…`,
+    toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+        if (kind === 'commands') return running ? 'Running' : 'Ran';
+        if (kind === 'reads') return running ? 'Reading' : 'Read';
+        if (kind === 'searches') return running ? 'Searching' : 'Searched';
+        if (kind === 'edits') return running ? 'Editing' : 'Edited';
+        if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+        if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+        return toolName;
+    },
+    toolCallsSummary: {
+        separator: '，',
+        commands: ({ count }: { count: number }) => `运行了 ${count} 条命令`,
+        reads: ({ count }: { count: number }) => `读取了 ${count} 个文件`,
+        searches: ({ count }: { count: number }) => `搜索了 ${count} 次`,
+        edits: ({ count }: { count: number }) => `编辑了 ${count} 个文件`,
+        web: ({ count }: { count: number }) => `获取了 ${count} 个网页`,
+        agents: ({ count }: { count: number }) => `运行了 ${count} 个代理`,
+        other: ({ count }: { count: number }) => `使用了 ${count} 个工具`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。正在运行此会话。`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}。此会话上次使用。`,
@@ -7023,6 +7062,8 @@ export const zhHans: TranslationStructure = {
     payloadTruncated: "为保证性能，已截断大型负载。",
     showFullPayload: "显示完整负载",
     showLessPayload: "显示较少",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {
@@ -7235,7 +7276,7 @@ export const zhHans: TranslationStructure = {
         dismiss: '关闭问题',
         dismissed: '问题已关闭',
         submissionFailures: {
-            unconfirmed: "已向 Claude 发送提交操作，但仍在等待确认。请重试以检查确认状态，或打开 Claude 终端。",
+            unconfirmed: "Happier 无法确认你的回答。请重试，或打开 Claude 终端查看。",
             update: "请更新 Happier CLI，然后重试。",
             reconnect: "请重新连接此会话，然后重试。",
             retry: "无法接受该答案。请检查后重试。",
@@ -7496,6 +7537,10 @@ export const zhHans: TranslationStructure = {
     attributionLegendDirectOnly: "direct = 来自本会话操作",
     inferredSuppressed: ({ count }: { count: number }) =>
       `已有 ${count} 个推断文件保留在仅仓库变更中。`,
+    otherRepositoriesTitle: "其他仓库",
+    outsideGitTitle: "不在 git 中",
+    externalChangeNotInWorkingTree: "工作树中当前未更改（已提交或已撤销）：这是代理所做的修改。",
+    externalChangeNoDiff: "没有差异：代理的工具调用未包含更改的文本。",
     noSessionAttributedChanges:
       "当前未检测到会话归因的变更。",
     noLatestTurnChanges:
@@ -7627,11 +7672,20 @@ export const zhHans: TranslationStructure = {
         binaryFile: "二进制文件",
         videoPreview: '视频预览',
         imagePreviewTooLarge: "图片预览过大，无法显示",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+            share: '分享图片',
+            save: '保存图片',
+            edit: '标注图片',
+            undo: '撤销',
+            penColor: '画笔颜色',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `打开生成的图片 ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `打开附件图片 ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `打开工具产物图片 ${name}`,
           imageUnavailable: '图像不可用',
+          imageCountA11y: ({ count }: { count: number }) => `${count} 张图像`,
         },
         cannotDisplayBinary: "无法显示二进制文件内容",
         diff: "差异",
@@ -8103,6 +8157,8 @@ export const zhHans: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "输入框按钮", "footer": "关闭你不用的按钮。它们也会从折叠菜单中消失。", "controls": {"engine": "代理与模型", "mode": "会话模式", "goal": "目标", "permission": "权限", "profile": "配置文件", "env": "环境变量", "server": "服务器", "connectedServices": "账户 (CLI Auth)", "mcp": "MCP 服务器", "checkout": "分支与工作树", "automation": "自动化", "attachments": "附加文件", "linkedFiles": "链接文件 (@)", "files": "文件", "reviewComments": "评审评论", "storage": "转录存储", "providerOption": "提供方选项", "shortcuts": "快捷方式", "machine": "机器", "path": "文件夹", "resume": "恢复"}},
+    modelChip: {"title": "模型标签", "footer": "输入框如何显示接下来运行的模型。", "agentAndModelTitle": "代理图标和模型", "agentAndModelSubtitle": "代理图标加模型名称。", "modelAndEffortTitle": "模型和推理强度", "modelAndEffortSubtitle": "模型名称和推理强度，不显示图标（类似 Claude 应用）。", "compactTitle": "紧凑模型列表", "compactSubtitle": "不显示状态行和每个模型下的提供方。给模型加星标可将其排在最前。"},
     terminalHostTitle: '新会话的终端宿主',
     terminalHostNone: '不使用终端宿主',
     newSessionAfterSend: { title: "发送后", footer: "选择从新会话编辑器发送时的行为。长按发送可为单条消息选择另一种方式。", openTitle: "打开会话", openSubtitle: "会话启动后立即前往。", startAnotherTitle: "留下并开始另一个", startAnotherSubtitle: "在后台继续启动，并打开新的草稿。" },
@@ -8194,6 +8250,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: '仅为需要你注意的会话使用活跃颜色。',
 	        activeColorAllActiveTitle: '所有活跃会话',
 	        activeColorAllActiveSubtitle: '为每个活跃且已连接的会话使用活跃颜色。',
+	        highlightAttentionTitle: "突出显示有新内容的会话",
+	        highlightAttentionSubtitle: "有新回复、请求或错误的行即使代理离线，也保持深色粗体标题。",
 	        folderSortModeTitle: '文件夹顺序',
 	        folderSortModeSubtitle: '选择文件夹和会话如何共用列表。',
 	        folderSortModeFoldersFirstTitle: '文件夹优先',
@@ -8299,6 +8357,8 @@ settingsSession: {
     inputBehavior: {
         keepFocusTitle: "发送后保持编辑器焦点",
         keepFocusSubtitle: "留在消息框中，以便立即编写下一条消息。",
+        typeToFocusTitle: "随处输入",
+        typeToFocusSubtitle: "在文本框外直接输入即可跳到消息框。",
         title: '输入行为',
         footer: '设置按 Enter 发送以及消息历史行为。',
         enterToSendEnabledNativeSubtitle: '按 Enter 发送',
@@ -8408,6 +8468,8 @@ settingsSession: {
       customResumePromptPlaceholder: "从你上次停下的地方继续。",
     },
     providerUsageGauge: {
+        numberTitle: "圆环中心数值",
+        numberSubtitle: "选择圆环中数值对应的限额。若不可用，则使用剩余额度最少的限额。",
       title: "提供方使用量",
       footer:
         "为所有账户选择输入框上方的用量仪表。仪表遵循每个池所选的用量限制。收藏的限额会为当前账户添加额外仪表。",
@@ -8513,6 +8575,8 @@ settingsSession: {
       messageActions: {
         groupTitle: '消息操作',
         groupFooter: '配置转录中的消息选择和转发操作。',
+        copyOnly: { title: "仅复制", subtitle: "你的消息：长按可“复制消息”和“选择文本”。回复：仅一个复制图标。隐藏置顶、分支和选择。" },
+        messageMenu: { copy: "复制消息", selectText: "选择文本" },
         selectionEnabled: {
           title: '启用消息选择',
           subtitle: '在消息下方显示选择图标，以便批量复制或转发',
@@ -8534,6 +8598,13 @@ settingsSession: {
           plain: '纯文本',
         },
       },
+      markdownImages: {
+          groupTitle: "回复中的图片",
+          groupFooter: "显示来自可信主机的 Markdown 图片。其他主机的图片保持隐藏。打开聊天时，每张图片从其主机加载。",
+          enabled: { title: "显示允许主机的图片", subtitle: "只包含一张图片的回复行将显示为图片" },
+          sharedImages: { title: "显示代理分享的图片", subtitle: "代理展示的图片以聊天全宽显示" },
+          hosts: { title: "允许的主机", subtitle: "每行一个主机，例如 happy.example.org。仅显示这些主机上的 https 链接。" },
+      },
       layout: {
         linearTitle: "线性",
         linearSubtitle: "以平铺列表显示消息。",
@@ -8544,8 +8615,15 @@ settingsSession: {
       toolCallsGroupSubtitle: "在每个回合内将工具调用压缩为「工具调用」部分。",
       toolCallsGroupBackgroundTitle: "工具调用分组背景",
       toolCallsGroupBackgroundSubtitle: "在工具信息流模式下为工具调用分组显示背景。",
+      toolCallsGroupBottomCollapseTitle: '底部折叠',
+      toolCallsGroupBottomCollapseSubtitle: '在展开的工具调用组底部显示折叠按钮。',
+      toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+      toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
+      toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
       toolAppearanceTitle: "工具外观",
       toolAppearanceSubtitle: "自定义会话记录中的工具显示样式。",
+      workingQuill: { title: "工作时显示羽毛笔", subtitle: "代理工作时，状态栏中的羽毛笔在纸上书写，代替闪烁的圆点。" },
+      userBubbleNarrow: { title: "窄消息气泡", subtitle: "你的消息最多占宽度的 80%，靠右显示，与 Claude 应用一致。" },
       motionTitle: "动效",
       motionFooter: "控制会话记录中的动画。",
       motionPickerTitle: "动画",
@@ -8567,6 +8645,14 @@ settingsSession: {
         jumpToBottomButtonLabel: "跳到底部",
         jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} 条新活动，跳到底部`,
         jumpToBottomSubtitle: "当你向上滚动且有新活动到达时显示按钮。",
+        jumpToBottomShowCountTitle: '显示新项目数量',
+        jumpToBottomShowCountSubtitle: '“跳到底部”按钮上的数字',
+        jumpToBottomPositionTitle: "跳到底部按钮位置",
+        jumpToBottomPositionBottomCenter: "底部居中",
+        jumpToBottomPositionBottomRight: "底部右侧",
+        chatFontTitle: "聊天字体",
+        chatFontDefault: "标准 (Inter)",
+        chatFontDmSans: "DM Sans",
         advancedScrollTitle: "高级滚动…",
       advancedScrollSubtitle: "微调固定阈值与计数。",
       advancedTitle: "高级…",
@@ -10617,6 +10703,9 @@ settingsSession: {
     sessionReferenceOpen: ({ name }: { name: string }) => `打开会话 ${name}`,
     switchedToMode: ({ mode }: { mode: string }) => `已切换到 ${mode} 模式`,
     discarded: "已丢弃",
+    readAloudA11y: "朗读",
+    stopReadAloudA11y: "停止朗读",
+    readAloudFailed: "无法朗读此消息。请检查语音设置。",
     recoveredHistory: "已恢复的历史记录",
     unknownEvent: "未知事件",
     contextCompactionStarted: "正在压缩上下文...",
@@ -10742,6 +10831,13 @@ settingsSession: {
     codeCopied: "代码已复制",
     copyFailed: "复制失败",
     mermaidRenderFailed: "渲染 mermaid 图表失败",
+    table: {
+        open: "打开表格",
+        copyCsv: "复制为 CSV",
+        copyMarkdown: "复制为 Markdown",
+        csvLabel: "CSV",
+        viewerTitle: "表格",
+    },
     diffLabel: "差异",
     codeLabel: "代码",
 

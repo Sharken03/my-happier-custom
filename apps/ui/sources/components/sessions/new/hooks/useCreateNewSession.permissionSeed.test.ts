@@ -628,6 +628,92 @@ describe('useCreateNewSession permission seeding', () => {
         expect(projectedFirstTurn).not.toHaveProperty('pendingOutboxOperation');
     });
 
+    it('opens the session route when local hydration is still pending after the daemon took the first turn', async () => {
+        const {
+            useCreateNewSession,
+            captured,
+            followUpSpawnedSessionWithServerScopeSpy,
+            machineSpawnNewSessionSpy,
+            ensureSessionVisibleForMessageRouteSpy,
+            modalAlertSpy,
+        } = await setupUseCreateNewSessionHarness();
+        ensureSessionVisibleForMessageRouteSpy.mockImplementation(async () => {});
+        const routerReplace = vi.fn();
+
+        machineSpawnNewSessionSpy.mockImplementationOnce(async (options: unknown) => {
+            captured.value = options as SpawnPayloadCapture;
+            return { type: 'success', sessionId: 'sess_target', pendingFirstInputTransferred: true };
+        });
+
+        let handleCreateSession: null | (() => Promise<void>) = null;
+        const settings = { experiments: false } as unknown as Settings;
+        const machineEnvPresence: UseMachineEnvPresenceResult = {
+            isPreviewEnvSupported: false,
+            isLoading: false,
+            meta: {},
+            refreshedAt: null,
+            refresh: () => {},
+        };
+
+        function Test() {
+            const hook = useCreateNewSession({
+        draftId: '8e0a5dd1-b1df-43dd-b51e-b7787b30362e',
+        launchIntentSignature: 'test-launch-intent',
+                router: { push: vi.fn(), replace: routerReplace },
+                selectedMachineId: 'm1',
+                selectedPath: '/tmp',
+                selectedMachine: {
+                    metadata: {},
+                    daemonState: { startedWithCliVersion: '0.2.10' },
+                },
+                setIsCreating: vi.fn(),
+                setIsResumeSupportChecking: vi.fn(),
+                settings,
+                useProfiles: false,
+                selectedProfileId: null,
+                profileMap: new Map(),
+                recentMachinePaths: [],
+                agentType: 'opencode' as any,
+                permissionMode: 'default' as PermissionMode,
+                modelMode: 'gpt' as any,
+                promptStore: createNewSessionPromptStore('hello'),
+                resumeSessionId: '',
+                agentNewSessionOptions: null,
+                machineEnvPresence,
+                secrets: [],
+                secretBindingsByProfileId: {},
+                selectedSecretIdByProfileIdByEnvVarName: {},
+                sessionOnlySecretValueByProfileIdByEnvVarName: {},
+                selectedMachineCapabilities: null,
+                targetServerId: 'server-a',
+                allowedTargetServerIds: ['server-a'],
+            });
+
+            handleCreateSession = hook.handleCreateSession as () => Promise<void>;
+            return React.createElement('View');
+        }
+
+        await renderScreen(React.createElement(Test));
+
+        vi.useFakeTimers();
+        try {
+            await act(async () => {
+                const pending = handleCreateSession?.();
+                await vi.advanceTimersByTimeAsync(11_000);
+                await pending;
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+
+        expect(followUpSpawnedSessionWithServerScopeSpy).not.toHaveBeenCalled();
+        expect(modalAlertSpy).not.toHaveBeenCalled();
+        expect(routerReplace).toHaveBeenCalledWith(
+            expect.stringContaining('/session/sess_target'),
+            expect.anything(),
+        );
+    });
+
     it('sends the first turn from the UI when the transport did not transfer it', async () => {
         const {
             useCreateNewSession,

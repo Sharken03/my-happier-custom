@@ -139,6 +139,8 @@ interface BaseModalProps {
     showBackdrop?: boolean;
     zIndexBase?: number;
     webPortalTarget?: ModalPortalTarget;
+    /** Fill the whole screen: no safe-area padding and no centering. The content handles insets. */
+    fullscreen?: boolean;
 }
 
 function createWebModalPortalTarget(): HTMLElement | null {
@@ -168,6 +170,7 @@ export function BaseModal({
     showBackdrop = true,
     zIndexBase,
     webPortalTarget = null,
+    fullscreen = false,
 }: BaseModalProps) {
     const { theme } = useUnistyles();
     const uiBackdropBlurEnabled = useLocalSetting('uiBackdropBlurEnabled') !== false;
@@ -178,6 +181,7 @@ export function BaseModal({
         paddingBottom: insets.bottom,
         paddingLeft: insets.left,
     }), [insets.bottom, insets.left, insets.right, insets.top]);
+    const containerLayoutStyle = fullscreen ? styles.fullscreenContainer : modalSafeAreaPaddingStyle;
     const baseZ = zIndexBase ?? 100000;
     const modalMotionPreset = React.useMemo(
         () => resolveOverlayMotionPreset({ kind: 'modal' }),
@@ -351,12 +355,13 @@ export function BaseModal({
                                 <ModalBoundaryProvider>
                                     <KeyboardAwareModalFrame
                                         pointerEvents="auto"
-                                        style={[styles.container, modalSafeAreaPaddingStyle]}
+                                        style={[styles.container, containerLayoutStyle]}
                                     >
                                         <Animated.View
                                             pointerEvents="auto"
                                             style={[
                                                 styles.content,
+                                                fullscreen ? styles.fullscreenContent : null,
                                                 modalMotion.style,
                                             ]}
                                         >
@@ -387,7 +392,7 @@ export function BaseModal({
           <View style={[styles.portalRoot, { zIndex: baseZ, elevation: baseZ }]} pointerEvents={visible ? 'auto' : 'none'}>
               <OverlayPortalProvider>
                   <KeyboardAwareModalFrame
-                      style={[styles.container, modalSafeAreaPaddingStyle]}
+                      style={[styles.container, containerLayoutStyle]}
                       {...webEventHandlers}
                   >
                       {showBackdrop ? (
@@ -412,10 +417,11 @@ export function BaseModal({
                           pointerEvents="box-none"
                           style={[
                               styles.content,
+                              fullscreen ? styles.fullscreenContent : null,
                           ]}
                       >
                           <ModalBoundaryProvider>
-                              <View pointerEvents="auto" style={{ width: '100%', alignItems: 'center' }}>
+                              <View pointerEvents="auto" style={fullscreen ? styles.fullscreenContent : styles.contentInner}>
                                   {children}
                               </View>
                           </ModalBoundaryProvider>
@@ -449,5 +455,20 @@ const styles = StyleSheet.create(() => ({
         // On web, some modal children use percentage widths; ensure they center reliably.
         width: '100%',
         alignItems: 'center',
-    }
+    },
+    contentInner: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    fullscreenContainer: {
+        alignSelf: 'stretch',
+        width: '100%',
+        height: '100%',
+    },
+    fullscreenContent: {
+        flex: 1,
+        alignSelf: 'stretch',
+        width: '100%',
+        alignItems: 'stretch',
+    },
 }));

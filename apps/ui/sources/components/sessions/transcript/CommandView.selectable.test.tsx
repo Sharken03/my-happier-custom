@@ -30,6 +30,16 @@ installTranscriptCommonModuleMocks({
     },
 });
 
+vi.mock('@/components/ui/code/highlighting/useCodeSyntaxHighlighting', () => ({
+    useCodeSyntaxHighlighting: () => ({
+        mode: 'off',
+        language: 'bash',
+        maxBytes: 0,
+        maxLines: 0,
+        maxLineLength: 0,
+    }),
+}));
+
 vi.mock('@/components/ui/text/Text', () => createPassThroughModule(['Text']));
 
 describe('CommandView (selection)', () => {

@@ -4,6 +4,7 @@ const KNOWN_BINARY_EXTENSIONS = new Set([
     'jpeg',
     'gif',
     'webp',
+    'avif',
     'bmp',
     'ico',
     'mp4',
@@ -50,6 +51,7 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
     jpeg: 'image/jpeg',
     gif: 'image/gif',
     webp: 'image/webp',
+    avif: 'image/avif',
     bmp: 'image/bmp',
     ico: 'image/x-icon',
     svg: 'image/svg+xml',
@@ -78,6 +80,16 @@ export function getImageMimeTypeFromPath(path: string): string | null {
     const extension = getPathExtension(path);
     if (!extension) return null;
     return IMAGE_MIME_BY_EXTENSION[extension] ?? null;
+}
+
+// The first extension of each MIME type is its usual one (`jpg`, not `jpeg`).
+const IMAGE_EXTENSION_BY_MIME: Record<string, string> = {
+    ...Object.fromEntries(Object.entries(IMAGE_MIME_BY_EXTENSION).reverse().map(([extension, mime]) => [mime, extension])),
+    'image/vnd.microsoft.icon': 'ico',
+};
+
+export function getImageExtensionForMimeType(mimeType: string): string | null {
+    return IMAGE_EXTENSION_BY_MIME[mimeType.trim().toLowerCase()] ?? null;
 }
 
 export function isKnownImagePath(path: string): boolean {

@@ -91,6 +91,8 @@ describe('committed row inherits the pending bubble measurement across the send 
             committedUtteranceIdentity: 'utterance:utt-1',
         }) as number;
         const heuristic = estimateTranscriptRowHeightFromContent({
+            transcriptContentWidthPx: 0,
+            uiFontScale: 1,
             getMessageById: () => userMessage(),
             item: messageItem(),
             toolCallsGroupChromeVariant: 'feed_background',

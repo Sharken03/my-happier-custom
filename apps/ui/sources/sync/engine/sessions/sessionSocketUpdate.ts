@@ -534,6 +534,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
                 : normalizeMessage();
             if (lastMessage) {
                 applyTranscriptObservationMetadata(lastMessage, rawMessage);
+                if (typeof rawMessage.updatedAt === 'number') lastMessage.serverUpdatedAt = rawMessage.updatedAt;
             }
 
             const shouldInferLifecycle = inferLifecycle && !isRecoveredHistory;

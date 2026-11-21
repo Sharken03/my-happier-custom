@@ -189,6 +189,24 @@ describe('buildTranscriptTurnUnits', () => {
         ]);
     });
 
+    it('marks only the header of a group that ends the transcript as the transcript tail', () => {
+        const messagesById = indexMessages([
+            userMessage('u1', 1), toolMessage('t1', 2), agentMessage('a1', 3), toolMessage('t2', 4),
+        ]);
+        const build = (content: Parameters<typeof turnItem>[0]['content']) => buildTranscriptTurnUnits({
+            items: [turnItem({ id: 'turn:u1', userMessageId: 'u1', content })],
+            getMessageById: lookupIn(messagesById),
+            isGroupExpanded: collapsedAlways,
+            collapsedPreviewCount: 0,
+        }).filter((item) => item.kind === 'tool-group-header');
+        const first = { kind: 'tool_calls' as const, id: 'toolCalls:turn:u1:t1', toolMessageIds: ['t1'] };
+        const text = { kind: 'message' as const, messageId: 'a1' };
+        const second = { kind: 'tool_calls' as const, id: 'toolCalls:turn:u1:t2', toolMessageIds: ['t2'] };
+
+        expect(build([first, text, second]).map((header) => header.isTranscriptTail === true)).toEqual([false, true]);
+        expect(build([first, text]).map((header) => header.isTranscriptTail === true)).toEqual([false]);
+    });
+
     it('produces the same final units after suffix-window backfill as a full synchronous turn build', () => {
         const messages: Message[] = [
             userMessage('u1', 1, 1),
@@ -314,6 +332,7 @@ describe('buildTranscriptTurnUnits', () => {
             {
                 kind: 'tool-group-header',
                 id: `${groupId}#header`,
+                isTranscriptTail: true,
                 groupId,
                 toolMessageIds: ['t1', 't2', 't3'],
                 expanded: true,
@@ -360,6 +379,26 @@ describe('buildTranscriptTurnUnits', () => {
                 createdAt: 3,
             },
         ]);
+    });
+
+    it('marks the footer of an expanded group for the bottom collapse control only when it is on', () => {
+        const messagesById = indexMessages([toolMessage('t1', 3), toolMessage('t2', 4)]);
+        const build = (params: { expanded: boolean; bottomCollapseControl?: boolean }) => buildTranscriptTurnUnits({
+            items: [turnItem({
+                id: 'turn:x',
+                userMessageId: null,
+                content: [{ kind: 'tool_calls', id: 'toolCalls:turn:x:t1', toolMessageIds: ['t1', 't2'] }],
+            })],
+            getMessageById: lookupIn(messagesById),
+            isGroupExpanded: () => params.expanded,
+            collapsedPreviewCount: 1,
+            ...(params.bottomCollapseControl !== undefined ? { bottomCollapseControl: params.bottomCollapseControl } : {}),
+        }).find((item) => item.kind === 'tool-group-footer');
+
+        expect(build({ expanded: true, bottomCollapseControl: true })).toMatchObject({ collapseControl: true });
+        expect(build({ expanded: true, bottomCollapseControl: false })).not.toHaveProperty('collapseControl');
+        expect(build({ expanded: true })).not.toHaveProperty('collapseControl');
+        expect(build({ expanded: false, bottomCollapseControl: true })).not.toHaveProperty('collapseControl');
     });
 
     it('emits header, expand unit, last-K preview tail, and footer for a collapsed group', () => {
@@ -780,5 +819,51 @@ describe('buildTranscriptTurnUnits', () => {
         expect(t1Index).toBeGreaterThanOrEqual(0);
         expect(beforeIds).not.toContain('msg:t1');
         expect(t1Index).toBeLessThan(t2Index);
+    });
+
+    it('in list mode expands a group inline and marks its tool rows as list rows', () => {
+        const messages: Message[] = [toolMessage('t1', 1), toolMessage('t2', 2), toolMessage('t3', 3)];
+        const items = [turnItem({
+            id: 'turn-1',
+            userMessageId: null,
+            content: [{ kind: 'tool_calls', id: 'g1', toolMessageIds: ['t1', 't2', 't3'] }],
+        })];
+        const build = (toolCallsGroupOpenMode: 'inline' | 'list') => buildTranscriptTurnUnits({
+            items,
+            getMessageById: lookupIn(indexMessages(messages)),
+            isGroupExpanded: expandedAlways,
+            collapsedPreviewCount: 2,
+            toolCallsGroupOpenMode,
+        });
+
+        const listTools = build('list').filter((unit) => unit.kind === 'tool-group-tool');
+        expect(listTools).toHaveLength(3);
+        expect(listTools.every((unit) => unit.kind === 'tool-group-tool' && unit.listRow === true)).toBe(true);
+        expect(build('inline').some((unit) => unit.kind === 'tool-group-tool' && unit.listRow === true)).toBe(false);
+    });
+
+    it('in sheet mode emits only the header and footer of a group, even when it is expanded', () => {
+        const messages: Message[] = [toolMessage('t1', 1), toolMessage('t2', 2), toolMessage('t3', 3), toolMessage('t4', 4)];
+        const items = [turnItem({
+            id: 'turn-1',
+            userMessageId: null,
+            content: [{ kind: 'tool_calls', id: 'g1', toolMessageIds: ['t1', 't2', 't3', 't4'] }],
+        })];
+        const build = (sheetMode: boolean, isGroupExpanded: () => boolean) => buildTranscriptTurnUnits({
+            items,
+            getMessageById: lookupIn(indexMessages(messages)),
+            isGroupExpanded,
+            collapsedPreviewCount: 2,
+            toolCallsGroupOpenMode: sheetMode ? 'sheet' : 'inline',
+        });
+
+        expect(build(false, collapsedAlways).map((unit) => unit.kind))
+            .toEqual(['tool-group-header', 'tool-group-expand', 'tool-group-tool', 'tool-group-tool', 'tool-group-footer']);
+        for (const isExpanded of [collapsedAlways, expandedAlways]) {
+            const units = build(true, isExpanded);
+            expect(units.map((unit) => unit.kind)).toEqual(['tool-group-header', 'tool-group-footer']);
+            expect(units[0]).toMatchObject({ expanded: false, hiddenCount: 0, toolMessageIds: ['t1', 't2', 't3', 't4'] });
+            expect(units[1]).toMatchObject({ hasVisibleTools: false });
+        }
     });
 });

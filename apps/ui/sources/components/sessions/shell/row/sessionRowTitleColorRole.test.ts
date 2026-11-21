@@ -95,4 +95,17 @@ describe('resolveSessionRowTitleColorRole', () => {
             })).toBe('primary');
         }
     });
+    it('keeps an offline row that waits for the user readable when attention highlight is on', () => {
+        const offlineReady = {
+            mode: 'attentionOnly' as const,
+            selected: false,
+            isConnected: false,
+            isSessionActive: false,
+            attentionState: 'ready' as const,
+            titleTone: 'emphasized' as const,
+        };
+        expect(resolveSessionRowTitleColorRole(offlineReady)).toBe('tertiary');
+        expect(resolveSessionRowTitleColorRole({ ...offlineReady, highlightAttention: true })).toBe('primary');
+        expect(resolveSessionRowTitleColorRole({ ...offlineReady, attentionState: 'quiet', titleTone: 'quiet', highlightAttention: true })).toBe('tertiary');
+    });
 });

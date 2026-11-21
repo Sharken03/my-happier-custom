@@ -3,9 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- resizes-content: Chrome and Edge on Android shrink the layout viewport with the keyboard, so
+         the composer's visual-viewport keyboard inset stays 0 there. Without it, Edge's bottom toolbar,
+         which hides with the keyboard, was counted as keyboard height (blank space under the composer,
+         and a tap on Send missed when the space collapsed on blur). -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <!-- Match standalone browser chrome to the canonical sidebar canvas without owning the app background. -->
     <meta name="theme-color" content="#F5F5F5" media="(prefers-color-scheme: light)" />

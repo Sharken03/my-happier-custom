@@ -104,7 +104,7 @@ export function registerHappierMcpBuiltInTools(
         surface: params.surface,
         isActionEnabled,
         actionsSettings: readActionsSettings(),
-    });
+    }).filter((tool) => tool.name !== 'show_image' || params.deps.showImage !== undefined);
 
     for (const tool of enabledTools) {
         const actionId = getEquivalentActionIdForBuiltInTool(tool.name);
@@ -147,7 +147,10 @@ export function registerHappierMcpBuiltInTools(
 
                     if (result.ok) {
                         return {
-                            content: [{ type: 'text' as const, text: JSON.stringify(result.result) }],
+                            content: [
+                                ...(result.content ?? []),
+                                { type: 'text' as const, text: JSON.stringify(result.result) },
+                            ],
                             isError: false as const,
                         };
                     }

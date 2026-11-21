@@ -168,4 +168,29 @@ describe('buildSessionListViewData (project grouping)', () => {
         const sessionRows = list.filter((item) => item.type === 'session');
         expect(sessionRows).toHaveLength(2);
     });
+
+    it('lists chats in their own folders under one chats group, and a project apart', () => {
+        const meta = (path: string) => ({ machineId: 'm1', host: '8T', path, homeDir: '/home/u' });
+        const sessions: Record<string, SessionListRenderableSession> = {
+            a: makeRenderableSession({ id: 'a', createdAt: 30, metadata: meta('/home/u/projekter/chats/2026-11-09-oj7s') }),
+            b: makeRenderableSession({ id: 'b', createdAt: 20, metadata: meta('/home/u/projekter/chats/2026-11-09-kboa') }),
+            c: makeRenderableSession({ id: 'c', createdAt: 10, metadata: meta('/home/u/projekter/happier') }),
+        };
+        const machines: Record<string, MachineDisplayRenderable> = {
+            m1: makeMachineDisplay({ id: 'm1', active: true, metadata: { host: '8T', homeDir: '/home/u', displayName: '8T' } }),
+        };
+
+        const list = buildSessionListViewData(sessions, machines, {
+            groupInactiveSessionsByProject: true,
+            activeGroupingV1: 'project',
+            inactiveGroupingV1: 'project',
+        });
+
+        const headers = list.filter((item) => item.type === 'header' && item.headerKind === 'project');
+        expect(headers).toHaveLength(2);
+        const groupOf = (id: string) => list.find((item) => item.type === 'session' && item.session.id === id)?.groupKey;
+        expect(groupOf('a')).toBe(groupOf('b'));
+        expect(groupOf('a')).not.toBe(groupOf('c'));
+    });
 });
+

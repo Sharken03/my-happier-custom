@@ -5,6 +5,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/ui/text/Text';
 import { buildToolHeaderModel } from '@/components/tools/shell/presentation/buildToolHeaderModel';
 import { Typography } from '@/constants/Typography';
+import { readSubagentResultDiffStats } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStats';
+import { ToolCallsGroupDiffStatsText } from '@/components/sessions/transcript/toolCalls/units/toolCallsGroupDiffStatsText';
 
 
 interface ToolHeaderProps {
@@ -22,6 +24,8 @@ export function ToolHeader({ tool }: ToolHeaderProps) {
             iconColorSecondary: theme.colors.chrome.header.foreground,
         });
     }, [theme.colors.chrome.header.foreground, tool]);
+    // A subagent call shows the lines its subagent changed, as the CLI counted them.
+    const diffStats = React.useMemo(() => readSubagentResultDiffStats(tool), [tool]);
 
     return (
         <View style={styles.container}>
@@ -29,6 +33,7 @@ export function ToolHeader({ tool }: ToolHeaderProps) {
                 <View style={styles.titleRow}>
                     {model.icon}
                     <Text style={styles.title} numberOfLines={1}>{model.title}</Text>
+                    {diffStats ? <ToolCallsGroupDiffStatsText stats={diffStats} /> : null}
                 </View>
                 {model.subtitle && (
                     <Text style={styles.subtitle} numberOfLines={1}>{model.subtitle}</Text>

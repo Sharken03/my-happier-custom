@@ -4,6 +4,43 @@ import { resolveJumpToBottomAffordanceState } from './jumpToBottomAffordanceStat
 import { reduceTranscriptScrollPinState, type TranscriptScrollPinState } from './transcriptBottomFollowMode';
 
 describe('resolveJumpToBottomAffordanceState', () => {
+    // The number counts every committed message (each tool call, thinking block and text part),
+    // so a reader can turn it off. The pill itself keeps its reveal rules.
+    describe('with the count turned off', () => {
+        const base = {
+            enabled: true,
+            isPinned: false,
+            minNewActivityCount: 1,
+            newActivityCount: 4,
+            revealThresholdPx: 500,
+            showCount: false,
+        } as const;
+
+        it('shows the pill without a number when the reader is far from the bottom', () => {
+            expect(resolveJumpToBottomAffordanceState({ ...base, distanceFromBottom: 900 })).toEqual({
+                count: 0,
+                isVisible: true,
+                presentation: 'standard',
+            });
+        });
+
+        it('still shows the pill for new activity just above the bottom', () => {
+            expect(resolveJumpToBottomAffordanceState({ ...base, distanceFromBottom: 100 })).toEqual({
+                count: 0,
+                isVisible: true,
+                presentation: 'activity',
+            });
+        });
+
+        it('shows no number in a target window with newer content below it', () => {
+            expect(resolveJumpToBottomAffordanceState({
+                ...base,
+                distanceFromBottom: 0,
+                hasMoreNewerBeyondRenderedWindow: true,
+            }).count).toBe(0);
+        });
+    });
+
     it('stays hidden while pinned or disabled', () => {
         expect(resolveJumpToBottomAffordanceState({
             distanceFromBottom: 600,

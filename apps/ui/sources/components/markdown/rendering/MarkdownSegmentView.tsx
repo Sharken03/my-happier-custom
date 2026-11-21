@@ -11,6 +11,7 @@ import type { MarkdownRenderingProfile } from './MarkdownRenderingProfile';
 import type { MarkdownRenderSegment } from './markdownRenderSegmentTypes';
 import { SpecialMarkdownBlockView } from './SpecialMarkdownBlockView';
 import { MarkdownContainerView } from './MarkdownContainerView';
+import { MarkdownRemoteImage } from './MarkdownRemoteImage';
 
 type MarkdownSegmentViewProps = Readonly<{
     segment: MarkdownRenderSegment;
@@ -59,6 +60,14 @@ export const MarkdownSegmentView = React.memo((props: MarkdownSegmentViewProps) 
                 suppressLeadingTopMargin={props.segment.first}
                 selectionActions={props.selectionActions}
                 agentTexMath={props.agentTexMath}
+            />
+        )
+        : props.segment.type === 'remote-image' ? (
+            <MarkdownRemoteImage
+                url={props.segment.url}
+                alt={props.segment.alt}
+                first={props.segment.first}
+                last={props.segment.last}
             />
         )
         : props.segment.type === 'container-block' ? (

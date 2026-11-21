@@ -24,12 +24,20 @@ import { normalizeSessionListFolderSortMode } from '@/sync/domains/session/listi
 import { normalizeSessionListBackgroundWorkAttentionMode } from '@/sync/domains/session/listing/sessionListBackgroundWorkAttention';
 import { Icon } from '@/components/ui/icons/Icon';
 import {
+    SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1,
     SESSION_LIST_ORDERING_MODES_V1,
+    normalizeSessionListKeepStoppedInActiveDays,
     normalizeSessionListOrderingModeV1,
     resolveEffectiveSessionListFolderSortMode,
     type SessionListOrderingModeV1,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import { getCodingPromptTitleUpdatesModeItems } from '@/components/settings/session/codingPromptBehaviorOptions';
+
+const KEEP_STOPPED_IN_ACTIVE_ITEMS = SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1.map((days) => ({
+    id: String(days),
+    title: days === 0 ? 'Off' : days === 1 ? '1 day' : `${days} days`,
+    ...(days === 0 ? { subtitle: 'A session leaves Active when it stops' } : {}),
+}));
 
 export default React.memo(function SessionSettingsScreen() {
     const { theme } = useUnistyles();
@@ -53,6 +61,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [sessionListDensity, setSessionListDensity] = useSettingMutable('sessionListDensity');
     const [sessionListIdentityDisplay, setSessionListIdentityDisplay] = useSettingMutable('sessionListIdentityDisplay');
     const [sessionListActiveColorMode, setSessionListActiveColorMode] = useSettingMutable('sessionListActiveColorModeV1');
+    const [sessionListHighlightAttention, setSessionListHighlightAttention] = useSettingMutable('sessionListHighlightAttention');
     const [sessionListAttentionPromotionMode, setSessionListAttentionPromotionMode] = useSettingMutable('sessionListAttentionPromotionModeV1');
     const [sessionListBackgroundWorkAttentionMode, setSessionListBackgroundWorkAttentionMode] = useSettingMutable('sessionListBackgroundWorkAttentionModeV1');
     const [sessionListAttentionStandingDefault, setSessionListAttentionStandingDefault] = useSettingMutable('sessionListAttentionStandingDefaultV1');
@@ -62,6 +71,10 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceFaviconsEnabled, setWorkspaceFaviconsEnabled] = useSettingMutable('workspaceFaviconsEnabled');
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
+    const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
+    const [sessionListArchivedSection, setSessionListArchivedSection] = useSettingMutable('sessionListArchivedSectionV1');
+    const [keepStoppedInActiveDays, setKeepStoppedInActiveDays] = useSettingMutable('sessionListKeepStoppedInActiveDaysV1');
+    const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -75,6 +88,7 @@ export default React.memo(function SessionSettingsScreen() {
 
     const [openGroupingMenu, setOpenGroupingMenu] = React.useState<null | 'active' | 'inactive'>(null);
     const [openSessionListDensityMenu, setOpenSessionListDensityMenu] = React.useState(false);
+    const [openKeepStoppedInActiveMenu, setOpenKeepStoppedInActiveMenu] = React.useState(false);
     const [openSessionListIdentityDisplayMenu, setOpenSessionListIdentityDisplayMenu] = React.useState(false);
     const [openSessionHeaderIdentityDisplayMenu, setOpenSessionHeaderIdentityDisplayMenu] = React.useState(false);
     const [openSessionListActiveColorModeMenu, setOpenSessionListActiveColorModeMenu] = React.useState(false);
@@ -136,10 +150,16 @@ export default React.memo(function SessionSettingsScreen() {
             title: t('settingsFeatures.sessionListGrouping.dateTitle'),
             subtitle: t('settingsFeatures.sessionListGrouping.dateSubtitle'),
         },
+        // Plain English like the Active/Archived menu, so no locale file changes.
+        {
+            id: 'none',
+            title: 'None',
+            subtitle: 'One list, newest first; the age shows on each row',
+        },
     ], []);
 
     const selectGrouping = React.useCallback((itemId: string, section: 'active' | 'inactive') => {
-        if (itemId !== 'project' && itemId !== 'date') return;
+        if (itemId !== 'project' && itemId !== 'date' && itemId !== 'none') return;
         if (section === 'active') {
             setSessionListActiveGroupingV1(itemId);
             return;
@@ -164,6 +184,12 @@ export default React.memo(function SessionSettingsScreen() {
             subtitle: t('settingsAppearance.sessionListDensity.narrowDescription'),
         },
     ], []);
+
+    const handleKeepStoppedInActiveSelect = React.useCallback((itemId: string) => {
+        const days = Number(itemId);
+        if (!(SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1 as readonly number[]).includes(days)) return;
+        setKeepStoppedInActiveDays(days);
+    }, [setKeepStoppedInActiveDays]);
 
     const handleSessionListDensitySelect = React.useCallback((itemId: string) => {
         if (itemId !== 'detailed' && itemId !== 'cozy' && itemId !== 'narrow') return;
@@ -683,6 +709,52 @@ export default React.memo(function SessionSettingsScreen() {
                     rightElement={<Switch value={hideInactiveSessions} onValueChange={setHideInactiveSessions} />}
                     showChevron={false}
                 />
+                {/* Plain English like the Active/Archived menu, so no locale file changes. */}
+                {/* Plain English like the setting above, so no locale file changes. */}
+                <Item
+                    testID="settings-session-openBeforeUpload"
+                    title="Open new chat before upload"
+                    subtitle="Attachments upload in the background"
+                    icon={<Icon name="cloud-arrow-up" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={newSessionOpenBeforeUpload} onValueChange={setNewSessionOpenBeforeUpload} />}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-session-archivedSection"
+                    title="Archived as own section"
+                    subtitle="Off: archived sessions join the inactive sessions"
+                    icon={<Icon name="archive" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={sessionListArchivedSection} onValueChange={setSessionListArchivedSection} />}
+                    showChevron={false}
+                />
+                {/* Plain English like the Active/Archived menu, so no locale file changes. */}
+                <DropdownMenu
+                    open={openKeepStoppedInActiveMenu}
+                    onOpenChange={setOpenKeepStoppedInActiveMenu}
+                    variant="selectable"
+                    search={false}
+                    selectedId={String(normalizeSessionListKeepStoppedInActiveDays(keepStoppedInActiveDays))}
+                    showCategoryTitles={false}
+                    matchTriggerWidth={true}
+                    connectToTrigger={true}
+                    rowKind="item"
+                    popoverBoundaryRef={popoverBoundaryRef}
+                    itemTrigger={{
+                        title: 'Keep stopped sessions in Active',
+                        subtitle: 'Days a stopped session stays in the Active list',
+                        icon: <Icon name="clock" size={29} color={theme.colors.accent.indigo} />,
+                        itemProps: { testID: 'settings-session-keepStoppedInActive-trigger' },
+                    }}
+                    items={KEEP_STOPPED_IN_ACTIVE_ITEMS}
+                    onSelect={handleKeepStoppedInActiveSelect}
+                />
+                <Item
+                    title={t('settingsFeatures.showArchivedSessionsLink')}
+                    subtitle={t('settingsFeatures.showArchivedSessionsLinkSubtitle')}
+                    icon={<Icon name="archive" size={29} color={theme.colors.accent.blue} />}
+                    rightElement={<Switch value={showArchivedSessionsLink} onValueChange={setShowArchivedSessionsLink} />}
+                    showChevron={false}
+                />
                 <Item
                     title={t('settingsAppearance.sessionsRightPaneDefaultOpen')}
                     subtitle={t('settingsAppearance.sessionsRightPaneDefaultOpenDescription')}
@@ -773,6 +845,15 @@ export default React.memo(function SessionSettingsScreen() {
                     }}
                     items={sessionListActiveColorModeItems}
                     onSelect={handleSessionListActiveColorModeSelect}
+                />
+                <Item
+                    testID="settings-session-sessionListHighlightAttention"
+                    title={t('settingsSession.sessionList.highlightAttentionTitle')}
+                    subtitle={t('settingsSession.sessionList.highlightAttentionSubtitle')}
+                    icon={<Icon name="text-b" size={29} color={theme.colors.accent.purple} />}
+                    rightElement={<Switch value={sessionListHighlightAttention === true} onValueChange={setSessionListHighlightAttention} />}
+                    showChevron={false}
+                    onPress={() => setSessionListHighlightAttention(!(sessionListHighlightAttention === true))}
                 />
                 <DropdownMenu
                     open={openWorkspacePathDisplayMenu}

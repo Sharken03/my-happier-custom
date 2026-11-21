@@ -109,7 +109,9 @@ describe('ChangedFilesReviewDiffBlock (svg previews)', () => {
             component: AttachmentImagePreviewModal,
             props: {
                 images: [{ kind: 'session-image', sessionId: 's1', filePath: 'src/icon.svg', title: 'src/icon.svg', cacheKey: 'sig' }],
+                sessionId: 's1',
             },
+            chrome: { kind: 'fullscreen' },
         }));
     });
 });
