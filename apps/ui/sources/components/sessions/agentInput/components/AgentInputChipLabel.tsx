@@ -19,14 +19,14 @@ export const AgentInputChipLabel = React.memo(function AgentInputChipLabel(props
 
     return (
         <Text numberOfLines={1} ellipsizeMode="tail" style={[props.textStyle, cappedLabelStyle]}>
-            {hasCount ? (
-                <>
-                    {props.label}
-                    <Text style={props.countTextStyle}>
+            {hasCount
+                ? [
+                    props.label,
+                    <Text key="count" style={props.countTextStyle}>
                         {` (${props.count})`}
-                    </Text>
-                </>
-            ) : props.label}
+                    </Text>,
+                ]
+                : props.label}
         </Text>
     );
 });
