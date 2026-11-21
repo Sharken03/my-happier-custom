@@ -134,7 +134,7 @@ function resolveSpecificAcpWrappedToolName(toolName: string, input: unknown): st
     return null;
 }
 
-export function canonicalizeToolNameForRendering(toolName: string, input: unknown, description?: string | null): string {
+export function canonicalizeToolNameForRendering(toolName: string, input?: unknown, description?: string | null): string {
     const inputObj = asRecord(input);
     const happier = asRecord(asRecord(inputObj)?._happier);
     const canonicalFromHappier = firstNonEmptyString(happier?.canonicalToolName);
