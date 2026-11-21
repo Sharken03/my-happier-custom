@@ -72,6 +72,7 @@ export type SessionListOrderingTimestampSource = Readonly<{
 }>;
 
 export type SessionListSessionOrderingKey = Readonly<{
+    active: boolean;
     updated: SessionListUpdatedOrderingKey;
     createdAt: number;
     stableId: string;
@@ -116,6 +117,7 @@ export function buildSessionListSessionOrderingKey(params: Readonly<{
     row: SessionListRenderableSession | null | undefined;
 }>): SessionListSessionOrderingKey {
     return {
+        active: params.row?.active === true,
         updated: readSessionListUpdatedOrderingKey(params.row),
         createdAt: normalizePositiveTimestamp(params.row?.createdAt),
         stableId: normalizeSessionListKeyParts(params.item.serverId, params.item.sessionId).sessionKey
@@ -128,6 +130,12 @@ export function compareSessionListSessionOrderingKeys(
     b: SessionListSessionOrderingKey,
     orderingMode: SessionListOrderingModeV1,
 ): number {
+    // A running (active) chat is always shown before a finished (inactive) one,
+    // regardless of how recent the finished chat's last activity was.
+    if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+    }
+
     if (orderingMode === 'updated') {
         if (b.updated.bucket !== a.updated.bucket) return b.updated.bucket - a.updated.bucket;
         if (b.updated.createdAtSecondary !== a.updated.createdAtSecondary) {

@@ -760,8 +760,8 @@ describe('computeVisibleSessionListIndex', () => {
         )).toEqual([
             'h:sessions:Sessions',
             'h:project:Alpha',
-            's:inactive-new:inactive',
             's:active-old:active',
+            's:inactive-new:inactive',
         ]);
     });
 
