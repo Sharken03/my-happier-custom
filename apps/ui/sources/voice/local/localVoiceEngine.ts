@@ -244,7 +244,7 @@ async function stopLocalVoiceInput(sessionId: string): Promise<void> {
   ]));
 }
 
-async function stopDeviceSpeechRecognitionAndSend(sessionId: string): Promise<void> {
+async function stopDeviceSpeechRecognitionAndSend(sessionId: string, onTranscript?: (text: string) => void): Promise<void> {
   const dispatch = prepareLocalVoiceTextTurn(sessionId);
   patchLocalVoiceState({ status: 'transcribing', error: null });
 
@@ -255,6 +255,16 @@ async function stopDeviceSpeechRecognitionAndSend(sessionId: string): Promise<vo
       return;
     }
     patchLocalVoiceState({ status: 'idle', sessionId, error: null });
+    return;
+  }
+
+  // When an onTranscript callback is provided (new-session draft mode), the transcript goes into
+  // the local prompt field instead of being sent as a voice turn via RPC.
+  if (onTranscript) {
+    onTranscript(text);
+    if (deviceSttController.isHandsFreeSession(sessionId) && isHandsFreeSttEnabled(storage.getState().settings)) {
+      await startLocalVoiceInput(sessionId, 'device');
+    }
     return;
   }
 
@@ -272,7 +282,7 @@ async function stopDeviceSpeechRecognitionAndSend(sessionId: string): Promise<vo
   }
 }
 
-async function stopSherpaSpeechRecognitionAndSend(sessionId: string): Promise<void> {
+async function stopSherpaSpeechRecognitionAndSend(sessionId: string, onTranscript?: (text: string) => void): Promise<void> {
   const dispatch = prepareLocalVoiceTextTurn(sessionId);
   patchLocalVoiceState({ status: 'transcribing', error: null });
 
@@ -283,6 +293,14 @@ async function stopSherpaSpeechRecognitionAndSend(sessionId: string): Promise<vo
       return;
     }
     patchLocalVoiceState({ status: 'idle', sessionId, error: null });
+    return;
+  }
+
+  if (onTranscript) {
+    onTranscript(text);
+    if (sherpaSttController.isHandsFreeSession(sessionId) && isHandsFreeSttEnabled(storage.getState().settings)) {
+      await startLocalVoiceInput(sessionId, 'local_neural');
+    }
     return;
   }
 
@@ -447,7 +465,7 @@ export function shouldHoldLocalVoiceCallWhileIdle(): boolean {
   return isHandsFreeSttEnabled(settings) || !isDictationModeEnabled(settings);
 }
 
-export async function toggleLocalVoiceTurn(sessionId: string): Promise<void> {
+export async function toggleLocalVoiceTurn(sessionId: string, onTranscript?: (text: string) => void): Promise<void> {
   const realtimeStatus = (storage.getState() as any)?.realtimeStatus;
   if (realtimeStatus === 'connected' || realtimeStatus === 'connecting') {
     // Avoid audio-session conflicts: local voice should not start while a realtime call is active.
@@ -575,9 +593,9 @@ export async function toggleLocalVoiceTurn(sessionId: string): Promise<void> {
     }
 
     inFlight = (useDeviceStt
-      ? stopDeviceSpeechRecognitionAndSend(sessionId)
+      ? stopDeviceSpeechRecognitionAndSend(sessionId, onTranscript)
       : useSherpaStt
-        ? stopSherpaSpeechRecognitionAndSend(sessionId)
+        ? stopSherpaSpeechRecognitionAndSend(sessionId, onTranscript)
         : stopAndSendRecordedTurn(sessionId)).finally(() => {
       inFlight = null;
     });

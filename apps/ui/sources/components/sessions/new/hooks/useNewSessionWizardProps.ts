@@ -176,6 +176,12 @@ export function useNewSessionWizardProps(params: Readonly<{
     agentInputExtraActionChips?: ReadonlyArray<AgentInputExtraActionChip>;
     attachmentFlowId?: string | null;
     resumePersistedLaunchKey?: string | null;
+
+    // Voice props for the new-session composer
+    onMicPress?: () => void;
+    isMicActive?: boolean;
+    isMicRecording?: boolean;
+    dictationMode?: boolean;
 }>): Readonly<{
     profiles: NewSessionWizardProfilesProps;
     wizardSections: NewSessionWizardSectionProps | null;
@@ -492,6 +498,10 @@ export function useNewSessionWizardProps(params: Readonly<{
             agentInputExtraActionChips: params.agentInputExtraActionChips,
             attachmentFlowId: params.attachmentFlowId,
             resumePersistedLaunchKey: params.resumePersistedLaunchKey,
+            onMicPress: params.onMicPress,
+            isMicActive: params.isMicActive,
+            isMicRecording: params.isMicRecording,
+            dictationMode: params.dictationMode,
         };
         // NOTE: Agent selection doesn't affect these props, but keeping dependencies
         // broad mirrors the previous in-screen memoization behavior and avoids subtle
@@ -504,12 +514,16 @@ export function useNewSessionWizardProps(params: Readonly<{
         params.resumePersistedLaunchKey,
         params.canCreate,
         params.connectionStatus,
+        params.dictationMode,
         params.emptyAutocompleteKinds,
         params.emptyAutocompleteSuggestions,
         params.handleCreateSession,
         params.isCreating,
+        params.isMicActive,
+        params.isMicRecording,
         params.isResumeSupportChecking,
         params.machinePopover,
+        params.onMicPress,
         params.pathPopover,
         params.resumePopover,
         params.resumeSessionId,

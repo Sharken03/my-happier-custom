@@ -179,6 +179,12 @@ export interface NewSessionWizardFooterProps {
     agentInputExtraActionChips?: React.ComponentProps<typeof AgentInput>['extraActionChips'];
     attachmentFlowId?: string | null;
     resumePersistedLaunchKey?: string | null;
+
+    // Voice props for the new-session composer
+    onMicPress?: () => void;
+    isMicActive?: boolean;
+    isMicRecording?: boolean;
+    dictationMode?: boolean;
 }
 
 export interface NewSessionWizardProps {
@@ -632,6 +638,10 @@ export const NewSessionWizard = React.memo(function NewSessionWizard(props: NewS
                                         resumeIsChecking={resumeIsChecking}
                                         contentPaddingHorizontal={0}
                                         attachmentsUploadsEnabled={attachmentsUploadsEnabled}
+                                        onMicPress={props.footer.onMicPress}
+                                        isMicActive={props.footer.isMicActive}
+                                        isMicRecording={props.footer.isMicRecording}
+                                        dictationMode={props.footer.dictationMode}
                                         filePickerRef={filePickerRef}
                                         onAttachmentsPicked={addPickedAttachments}
                                         {...(useProfiles ? {

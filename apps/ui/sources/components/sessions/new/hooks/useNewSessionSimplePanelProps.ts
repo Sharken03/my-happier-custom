@@ -153,6 +153,10 @@ export function useNewSessionSimplePanelProps(
         targetServerId: params.targetServerId,
         attachmentFlowId: params.attachmentFlowId,
         resumePersistedLaunchKey: params.resumePersistedLaunchKey,
+        onMicPress: params.onMicPress,
+        isMicActive: params.isMicActive,
+        isMicRecording: params.isMicRecording,
+        dictationMode: params.dictationMode,
     }), [
         params.acpConfigOptionOverrides,
         params.acpConfigOptions,
@@ -212,5 +216,9 @@ export function useNewSessionSimplePanelProps(
         params.attachmentFlowId,
         params.resumePersistedLaunchKey,
         params.useProfiles,
+        params.dictationMode,
+        params.isMicActive,
+        params.isMicRecording,
+        params.onMicPress,
     ]);
 }

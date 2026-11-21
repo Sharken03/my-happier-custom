@@ -150,6 +150,12 @@ export type NewSessionSimplePanelProps = Readonly<{
     targetServerId?: string | null;
     attachmentFlowId?: string | null;
     resumePersistedLaunchKey?: string | null;
+
+    // Voice props for the new-session composer
+    onMicPress?: () => void;
+    isMicActive?: boolean;
+    isMicRecording?: boolean;
+    dictationMode?: boolean;
 }>;
 
 /**
@@ -570,6 +576,10 @@ function NewSessionSimplePanelComposer({
                         resumeIsChecking={props.isResumeSupportChecking}
                         contentPaddingHorizontal={0}
                         maxWidthCap={null}
+                        onMicPress={props.onMicPress}
+                        isMicActive={props.isMicActive}
+                        isMicRecording={props.isMicRecording}
+                        dictationMode={props.dictationMode}
                         {...(props.useProfiles
                             ? {
                                 profileId: props.selectedProfileId,

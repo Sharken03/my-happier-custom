@@ -3,6 +3,8 @@ import { View, useWindowDimensions, InteractionManager } from 'react-native';
 import { useLaunchSelectionMachines, useSessionRecentPathEntries, storage, useSetting, useSettingMutable, useSettings } from '@/sync/domains/state/storage';
 import { settingsDefaults } from '@/sync/domains/settings/settings';
 import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
+import { useVoiceSessionSnapshot, voiceSessionManager } from '@/voice/session/voiceSession';
+import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useHeaderHeight } from '@/utils/platform/responsive';
@@ -298,6 +300,35 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     const [secretBindingsByProfileId, setSecretBindingsByProfileId] = useSettingMutable('secretBindingsByProfileId');
     const sessionDefaultPermissionModeByTargetKey = useSetting('sessionDefaultPermissionModeByTargetKey');
     const settings = useSettings() ?? settingsDefaults;
+
+    // Voice state for the new-session composer. A new session has no sessionId until it is
+    // created, so voice recording uses a stable temporary session id; the transcript is placed
+    // into the prompt field instead of being sent as a voice turn.
+    const voice = settings.voice as any;
+    const voiceProviderId = voice?.providerId ?? 'off';
+    const voiceSnap = useVoiceSessionSnapshot();
+    const isLocalVoiceProvider = voiceProviderId === 'local_direct' || voiceProviderId === 'local_conversation';
+    const dictationModeEnabled = isDictationModeEnabled({ voice });
+    const NEW_SESSION_VOICE_SESSION_ID = 'new-session';
+
+    const handleMicrophonePress = React.useCallback(async () => {
+        await voiceSessionManager.toggle(NEW_SESSION_VOICE_SESSION_ID);
+    }, []);
+
+    const micButtonState = React.useMemo(
+        () => ({
+            onMicPress:
+                voiceProviderId !== 'off' || voiceSnap.status !== 'disconnected'
+                    ? handleMicrophonePress
+                    : undefined,
+            isMicActive: isLocalVoiceProvider && dictationModeEnabled
+                ? voiceSnap.status !== 'disconnected' && voiceSnap.status !== 'error'
+                : voiceSnap.status !== 'disconnected',
+            isRecording: voiceSnap.status !== 'disconnected' && voiceSnap.mode === 'listening',
+        }),
+        [handleMicrophonePress, voiceProviderId, isLocalVoiceProvider, voiceSnap.status, voiceSnap.mode, voice],
+    );
+
     const accountProfile = useAccountProfile();
     const activeServerSource = useNewSessionActiveServerSource();
     const draftScope = useActiveServerAccountScope();
@@ -2079,6 +2110,10 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         agentInputExtraActionChips,
         attachmentFlowId: effectiveAttachmentFlowId,
         resumePersistedLaunchKey,
+        onMicPress: micButtonState.onMicPress,
+        isMicActive: micButtonState.isMicActive,
+        isMicRecording: micButtonState.isRecording,
+        dictationMode: dictationModeEnabled,
     });
 
     const { profilePopover } = React.useMemo(() => {
@@ -2156,6 +2191,10 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         targetServerId,
         attachmentFlowId: effectiveAttachmentFlowId,
         resumePersistedLaunchKey,
+        onMicPress: micButtonState.onMicPress,
+        isMicActive: micButtonState.isMicActive,
+        isMicRecording: micButtonState.isRecording,
+        dictationMode: dictationModeEnabled,
     });
 
     const variantModel = buildNewSessionScreenVariantModel({
