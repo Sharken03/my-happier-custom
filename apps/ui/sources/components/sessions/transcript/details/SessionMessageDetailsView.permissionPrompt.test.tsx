@@ -57,6 +57,9 @@ vi.mock('@/components/sessions/model/useDirectSessionRuntime', () => ({
 
 vi.mock('@/sync/store/hooks', () => ({
     useSessionMessages: () => ({ messages: [] }),
+    // `@/sync/domains/state/storage` re-exports this one, and a host that reads a subagent's live
+    // sidechain (useSubagentToolTranscriptMessages) asks for it even when this test seeds no reducer.
+    useSessionMessagesReducerSnapshot: () => ({ reducerState: null, reducerVersion: 0 }),
 }));
 
 vi.mock('@/sync/domains/session/participants/deriveExecutionRunPollingRefreshKey', () => ({

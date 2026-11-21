@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icons/Icon';
 import { Text, TextSelectabilityScope } from '@/components/ui/text/Text';
 import { Typography } from '@/constants/Typography';
 import { useEnsureSidechainsLoaded } from '@/hooks/session/useEnsureSidechainsLoaded';
+import { useSubagentToolTranscriptMessages } from '@/hooks/session/useSubagentToolTranscriptMessages';
 import type { ToolCallMessage } from '@/sync/domains/messages/messageTypes';
 import { resolveSessionSubagentVisibleMessages } from '@/sync/domains/session/subagents/visibleMessages/resolveSessionSubagentVisibleMessages';
 import type { Session } from '@/sync/domains/state/storageTypes';
@@ -52,6 +53,14 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
     const tool = message.tool;
 
     const { messages: committedMessages } = useSessionMessages(sessionId);
+
+    // The sheet draws the live sidechain, not the children snapshot published with the call: a
+    // subagent that keeps working appends to the reducer's sidechain, and the sheet must grow.
+    const focusedMessages = useSubagentToolTranscriptMessages({
+        sessionId,
+        tool,
+        fallback: message.children,
+    });
     const sidechainId = React.useMemo(
         () => resolveToolTranscriptSidechainId({ tool, normalizedToolName: tool.name }),
         [tool],
@@ -63,9 +72,9 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
         session,
         tool,
         messages: committedMessages,
-        focusedMessages: message.children,
+        focusedMessages,
         activeExecutionRuns: EMPTY_RUNS,
-    }), [committedMessages, message.children, session, tool]);
+    }), [committedMessages, focusedMessages, session, tool]);
 
     const interaction = React.useMemo(() => ({
         ...deriveTranscriptInteractionFromSession({
@@ -79,8 +88,8 @@ export function ToolCallsSheetSubagentView(props: ToolCallsSheetSubagentViewProp
 
     // The CLI's count in the result, or the edits among the subagent's loaded calls.
     const diffStats = React.useMemo(
-        () => readSubagentResultDiffStats(tool) ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(message.children)),
-        [message.children, tool],
+        () => readSubagentResultDiffStats(tool) ?? computeToolCallsGroupDiffStats(collectToolCallsGroupDiffTools(focusedMessages)),
+        [focusedMessages, tool],
     );
     const subagentType = readSubagentCallType(tool);
     const prompt = shouldShowToolCallsSheetSubagentPrompt(visibleMessages) ? readSubagentCallPrompt(tool) : null;

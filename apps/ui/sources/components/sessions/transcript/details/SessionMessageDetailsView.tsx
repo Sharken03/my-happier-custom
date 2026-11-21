@@ -32,6 +32,7 @@ import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveT
 import { Typography } from '@/constants/Typography';
 import { ToolFullView } from '@/components/tools/shell/views/ToolFullView';
 import { useSessionRecipientState } from '@/components/sessions/agentInput/routing/useSessionRecipientState';
+import { useSubagentToolTranscriptMessages } from '@/hooks/session/useSubagentToolTranscriptMessages';
 
 type SessionMessageDetailsTheme = Readonly<{
     colors: Readonly<{
@@ -193,6 +194,13 @@ function ToolCallDetailsView(props: Readonly<{
     const focusedTool = props.message.tool;
     const toolName = focusedTool?.name;
     const canShowComposer = typeof toolName === 'string' && isSubAgentTranscriptToolName(toolName);
+    // The children published with the tool message are a snapshot; the sidechain is the live list
+    // (see useSubagentToolTranscriptMessages), so a child that keeps working keeps growing here.
+    const focusedMessages = useSubagentToolTranscriptMessages({
+        sessionId: props.sessionId,
+        tool: focusedTool ?? null,
+        fallback: props.message.children,
+    });
 
     const baseParticipantTargets = React.useMemo(() => {
         return deriveSessionParticipantTargets({
@@ -210,20 +218,20 @@ function ToolCallDetailsView(props: Readonly<{
             tool: focusedTool,
             messages: committedMessages,
             activeExecutionRuns: runningExecutionRuns,
-            focusedMessages: props.message.children,
+            focusedMessages,
             canControlExecutionRuns,
         });
-    }, [canControlExecutionRuns, canShowComposer, committedMessages, focusedTool, props.message.children, props.session, runningExecutionRuns]);
+    }, [canControlExecutionRuns, canShowComposer, committedMessages, focusedMessages, focusedTool, props.session, runningExecutionRuns]);
 
     const visibleFocusedMessages = React.useMemo(() => {
         return resolveSessionSubagentVisibleMessages({
             session: props.session,
             tool: focusedTool,
             messages: committedMessages,
-            focusedMessages: props.message.children,
+            focusedMessages,
             activeExecutionRuns: runningExecutionRuns,
         });
-    }, [committedMessages, focusedTool, props.message.children, props.session, runningExecutionRuns]);
+    }, [committedMessages, focusedMessages, focusedTool, props.session, runningExecutionRuns]);
 
     const participantTargets = React.useMemo(() => {
         return ensureAutoRecipientTarget(baseParticipantTargets, autoRecipient);
