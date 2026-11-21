@@ -13,18 +13,15 @@ import {
 import { getAgentCore } from '@/agents/catalog/catalog';
 import type { ResolvedBackendCatalogEntry } from '@/agents/backendCatalog/getResolvedBackendCatalogEntries';
 import { resolveNewSessionConnectedServicesBindingsForAgent } from '@/components/sessions/new/modules/connectedServicesNewSessionBindings';
-import { NewSessionFavoriteModelsDetail } from '@/components/sessions/new/components/NewSessionFavoriteModelsDetail';
 import {
     APPLIED_RUNTIME_MARKER_ICON,
     APPLIED_RUNTIME_MARKER_RAIL_SIZE,
     resolveAppliedRuntimeStatus,
     type AppliedRuntimeStatus,
 } from '@/components/sessions/agentInput/appliedRuntimeMarker';
-import { FavoriteModelsPickerIcon } from '@/components/sessions/agentPicker/FavoriteModelsPickerIcon';
 import type { AgentInputChipPickerOption } from '@/components/sessions/agentInput/components/AgentInputChipPickerTypes';
 import {
     buildFavoriteModelBackendIdentityForEntry,
-    favoriteModelSelectionMatchesBackend,
     toggleFavoriteModelSelection,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
@@ -32,7 +29,6 @@ import { announceAccessibilityMessage } from '@/components/ui/accessibility/anno
 import { Icon } from '@/components/ui/icons/Icon';
 import { randomUUID } from '@/platform/randomUUID';
 import { t } from '@/text';
-import type { SessionConfigOptionValueId } from '@/sync/domains/sessionControl/configOptionsControl';
 
 import { existingSessionDraftSemanticValues } from '@/sync/domains/input/drafts/existingSessionDraftSemanticValues';
 import { useExistingSessionDraftSemanticValue } from '@/hooks/session/useExistingSessionDraftSemanticValue';
@@ -148,8 +144,8 @@ type UseInSessionAgentPickerControlsParams = Readonly<{
     favoriteBackendTargetKeys?: ReadonlyArray<string>;
     /**
      * The Account-level model favorites, shared with New Session's Favorites view.
-     * The rail offers them for the Agents this Session could switch to, and a star
-     * tapped here is read by every other surface of the same Account.
+     * Each Agent's own model list reads them, and a star tapped here is read by
+     * every other surface of the same Account.
      */
     favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
     /** Writes the shared Account-level favorite model list. */
@@ -208,17 +204,7 @@ const CURRENT_AGENT_ACCESSIBILITY_LABEL_KEY = {
     lastReported: 'session.agentContinuation.currentAgentLastReportedAccessibilityLabel',
 } as const satisfies Record<AppliedRuntimeStatus, string>;
 
-function useLatestRef<Value>(value: Value): React.MutableRefObject<Value> {
-    const ref = React.useRef(value);
-    ref.current = value;
-    return ref;
-}
-
-/** The Favorites view's row id, shared with New Session so it is one view concept. */
-export const FAVORITE_MODELS_AGENT_PICKER_OPTION_ID = 'favorite-models';
-
 const EMPTY_FAVORITE_MODEL_SELECTIONS: readonly FavoriteModelSelectionV1[] = Object.freeze([]);
-const EMPTY_CONFIG_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({});
 
 /** A target Agent starts at its own defaults, exactly as New Session starts it. */
 const DEFAULT_TARGET_SELECTION: SessionAgentPickerSelection = {
@@ -710,11 +696,6 @@ export function useInSessionAgentPickerControls(
         }));
     }, [favoriteModelSelections, setFavoriteModelSelections]);
 
-    const handleRemoveFavoriteModelSelection = React.useCallback((favorite: FavoriteModelSelectionV1) => {
-        if (!setFavoriteModelSelections) return;
-        setFavoriteModelSelections(favoriteModelSelections.filter((item) => item !== favorite));
-    }, [favoriteModelSelections, setFavoriteModelSelections]);
-
     // Restoring an arm is not rehydrating it. An armed choice is only meaningful
     // in the context it was made in, and persistence must not defeat the scope
     // that protects it: the gate has to still be open, the Session has to still
@@ -855,55 +836,6 @@ export function useInSessionAgentPickerControls(
             : null;
     }, [persistArmedContinuation, readInspection, source]);
 
-    const favoriteModelsDetailSelectionRef = useLatestRef({
-        backendTargetKey: armedTargetKey,
-        modelId: armedTargetKey === null ? '' : readTargetSelection(armedTargetKey).modelId,
-        configOverrides: armedTargetKey === null
-            ? EMPTY_CONFIG_OVERRIDES
-            : readTargetSelection(armedTargetKey).configOverrides,
-    });
-
-    // Choosing a favorite arms exactly the Agent that favorite belongs to, carrying
-    // the model in the words the reader just read so the composer's engine chip
-    // names it without asking another model list.
-    const armFavoriteModel = React.useCallback((
-        entry: ResolvedBackendCatalogEntry,
-        modelId: string,
-        configOverrides?: Readonly<Record<string, string>>,
-        modelLabel?: string,
-    ) => {
-        const sourceAgentId = currentAgentId;
-        if (sourceAgentId === null) return;
-        const current = readTargetSelection(entry.targetKey);
-        const nextSelection: SessionAgentPickerSelection = {
-            modelId,
-            modelLabel: modelLabel ?? current.modelLabel,
-            sessionModeId: current.sessionModeId,
-            configOverrides: configOverrides ?? current.configOverrides,
-        };
-        setSelectionByTargetKey((previous) => {
-            const next = new Map(previous);
-            next.set(entry.targetKey, nextSelection);
-            return next;
-        });
-        armExactSelection(entry, sourceAgentId, nextSelection);
-    }, [armExactSelection, currentAgentId, readTargetSelection]);
-
-    // A modifier on an already chosen favorite is part of the same choice, so it
-    // travels through the same arming path rather than being left dead on screen.
-    const armFavoriteModelOptionValue = React.useCallback((
-        entry: ResolvedBackendCatalogEntry,
-        modelId: string,
-        configId: string,
-        valueId: SessionConfigOptionValueId,
-    ) => {
-        const current = readTargetSelection(entry.targetKey);
-        armFavoriteModel(entry, modelId, {
-            ...current.configOverrides,
-            [configId]: valueId,
-        });
-    }, [armFavoriteModel, readTargetSelection]);
-
     React.useEffect(() => {
         const pending = pendingArmRef.current;
         if (pending === null) return;
@@ -941,61 +873,9 @@ export function useInSessionAgentPickerControls(
         const eligibilityByTargetKey = new Map(
             targetRows.map(({ entry, eligibility }) => [entry.targetKey, eligibility] as const),
         );
-        // The Favorites view is offered only for the Agents this rail can actually
-        // switch to, so nothing in it names a model this Session could not run next.
-        const targetBackendIdentities = targetEntries.map(buildFavoriteModelBackendIdentityForEntry);
-        const favoriteModelSelectionsForTargets = favoriteModelSelections.filter((favorite) => (
-            targetBackendIdentities.some((identity) => (
-                favoriteModelSelectionMatchesBackend(favorite, identity)
-            ))
-        ));
-        const favoriteModelsOption: AgentInputChipPickerOption[] = favoriteModelSelectionsForTargets.length === 0
-            ? []
-            : [{
-                id: FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
-                label: t('profiles.groups.favorites'),
-                icon: <FavoriteModelsPickerIcon />,
-                closeOnSelectImmediate: false,
-                deferRenderDetailContent: true,
-                deferredDetailContentCacheKey: [
-                    'session-continuation-favorite-models',
-                    params.detail.capabilityServerId,
-                    params.detail.machineId ?? '',
-                    params.detail.cwd ?? '',
-                    params.detail.profileId ?? '',
-                ].join(':'),
-                renderDetailContent: () => {
-                    const selection = favoriteModelsDetailSelectionRef.current;
-                    return (
-                        <NewSessionFavoriteModelsDetail
-                            favoriteModelSelections={favoriteModelSelectionsForTargets}
-                            resolvedBackendEntries={targetEntries}
-                            selectedBackendTargetKey={selection.backendTargetKey ?? ''}
-                            selectedModelId={selection.modelId}
-                            selectedConfigOverrides={selection.configOverrides}
-                            selectedMachineId={params.detail.machineId}
-                            capabilityServerId={params.detail.capabilityServerId}
-                            cwd={params.detail.cwd}
-                            profileId={params.detail.profileId ?? null}
-                            settings={params.detail.settings}
-                            connectedServicesByTargetKey={Object.fromEntries(targetEntries.map((entry) => [
-                                entry.targetKey,
-                                resolveConnectedServicesForEntry(entry),
-                            ]))}
-                            onSelectFavoriteModel={armFavoriteModel}
-                            onSelectFavoriteModelOptionValue={armFavoriteModelOptionValue}
-                            onToggleFavoriteModel={handleToggleFavoriteModel}
-                            onRemoveFavoriteModelSelection={setFavoriteModelSelections
-                                ? handleRemoveFavoriteModelSelection
-                                : undefined}
-                        />
-                    );
-                },
-            }];
         return buildSessionAgentPickerOptions({
             entries: targetEntries,
             favoriteBackendTargetKeys: params.favoriteBackendTargetKeys ?? [],
-            leadingOptions: favoriteModelsOption,
             resolvePresentation: (entry) => {
                 const eligibility = eligibilityByTargetKey.get(entry.targetKey);
                 // A row still being asked about is held in the same restrained
@@ -1097,12 +977,9 @@ export function useInSessionAgentPickerControls(
         });
     }, [
         armedTargetKey,
-        armFavoriteModel,
-        armFavoriteModelOptionValue,
         currentAgentId,
         favoriteModelSelections,
         featureEnabled,
-        handleRemoveFavoriteModelSelection,
         handleToggleFavoriteModel,
         params.detail,
         params.favoriteBackendTargetKeys,
@@ -1127,17 +1004,7 @@ export function useInSessionAgentPickerControls(
         currentAgentOptions: ReadonlyArray<AgentInputChipPickerOption>,
     ): ReadonlyArray<AgentInputChipPickerOption> => {
         if (targetOptions.length === 0) return currentAgentOptions;
-        // The Favorites view opens the rail, exactly as it does in New Session: it is
-        // a way to find a model, not an Agent, so it must not be reached through the
-        // running Agent's row — and the Agent you are running is still one row below.
-        const favoritesOptions = targetOptions.filter((option) => (
-            option.id === FAVORITE_MODELS_AGENT_PICKER_OPTION_ID
-        ));
-        const agentOptions = targetOptions.filter((option) => (
-            option.id !== FAVORITE_MODELS_AGENT_PICKER_OPTION_ID
-        ));
         return [
-            ...favoritesOptions,
             ...currentAgentOptions.map((option) => ({
                 ...option,
                 // One checkmark, on the selection — the same shape every sibling model
@@ -1176,7 +1043,7 @@ export function useInSessionAgentPickerControls(
                     clearArmedContinuation();
                 },
             })),
-            ...agentOptions,
+            ...targetOptions,
         ];
     }, [armedTargetKey, clearArmedContinuation, currentAgentAppliedStatus, currentAgentLabel, targetOptions]);
 

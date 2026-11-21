@@ -13,10 +13,8 @@ import { APPLIED_RUNTIME_MARKER_ICON } from '@/components/sessions/agentInput/ap
 
 import {
     useInSessionAgentPickerControls,
-    FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
     type SessionAgentContinuationFeatureDecision,
 } from './useInSessionAgentPickerControls';
-import { NewSessionFavoriteModelsDetail } from '@/components/sessions/new/components/NewSessionFavoriteModelsDetail';
 import type { FavoriteModelSelectionV1 } from '@/sync/domains/models/favoriteModelSelections';
 import type {
     SessionAgentContinuationMachineTarget,
@@ -1022,89 +1020,26 @@ describe('useInSessionAgentPickerControls', () => {
             modelLabel: 'GPT-5',
         };
 
-        function favoritesOptionOf(controls: ReturnType<typeof useInSessionAgentPickerControls>) {
-            return optionsOf(controls).find((option) => option.id === FAVORITE_MODELS_AGENT_PICKER_OPTION_ID) ?? null;
-        }
-
-        function renderedFavoritesDetail(controls: ReturnType<typeof useInSessionAgentPickerControls>) {
-            const option = favoritesOptionOf(controls);
-            expect(option?.renderDetailContent).toBeTypeOf('function');
-            return option?.renderDetailContent?.() as React.ReactElement<React.ComponentProps<typeof NewSessionFavoriteModelsDetail>>;
-        }
-
-        it('leads the rail with the favorites New Session already holds, and stays absent when it holds none', async () => {
+        it('offers no Favorites view in the rail: the Session reaches favorites through each Agent', async () => {
             const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
             await openPicker(hook);
 
             expect(optionsOf(hook.getCurrent()).map((option) => option.id)).toEqual([
-                FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
                 'engine:claude',
                 'builtInAgent:codex',
             ]);
-            expect(favoritesOptionOf(hook.getCurrent())?.label).toBe(t('profiles.groups.favorites'));
-            expect(renderedFavoritesDetail(hook.getCurrent()).type).toBe(NewSessionFavoriteModelsDetail);
-
-            const withoutFavorites = await renderControls();
-            await openPicker(withoutFavorites);
-            expect(favoritesOptionOf(withoutFavorites.getCurrent())).toBeNull();
+            expect(optionsOf(hook.getCurrent()).map((option) => option.label))
+                .not.toContain(t('profiles.groups.favorites'));
         });
 
-        it('offers only favorites of Agents this Session could actually switch to', async () => {
-            const hook = await renderControls({
-                favoriteModelSelections: [
-                    codexFavorite,
-                    { backendTargetKey: 'builtInAgent:gemini', modelId: 'gemini-3-pro', builtInAgentId: 'gemini' },
-                ],
-            });
-            await openPicker(hook);
-
-            expect(renderedFavoritesDetail(hook.getCurrent()).props.favoriteModelSelections)
-                .toEqual([codexFavorite]);
-        });
-
-        it('arms the Agent with the model chosen from the favorites list', async () => {
+        it('keeps each Agent\'s own model list, deferred until its row is opened', async () => {
             const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
             await openPicker(hook);
 
-            const detail = renderedFavoritesDetail(hook.getCurrent());
-            await act(async () => {
-                detail.props.onSelectFavoriteModel(entry('codex'), 'gpt-5', undefined, 'GPT-5');
-                await Promise.resolve();
-            });
-            // The chosen model is inspected before it may be armed, so the picker
-            // waits for the machine's answer rather than promising a switch it has
-            // not been cleared for.
-            for (let flush = 0; flush < 4; flush += 1) {
-                await act(async () => { await Promise.resolve(); });
-            }
-
-            expect(hook.getCurrent().armedContinuation?.selection.agentId).toBe('codex');
-            expect(hook.getCurrent().armedContinuation?.selection.modelId).toBe('gpt-5');
-            // The composer's engine chip names the model in the words the reader
-            // just tapped, so the label travels with the choice instead of being
-            // re-derived from another model list.
-            expect(hook.getCurrent().armedContinuationModelLabel).toBe('GPT-5');
-        });
-
-        it('writes a star tapped in this Session into the same shared favorites', async () => {
-            favoriteModelSelectionsWrites.length = 0;
-            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
-            await openPicker(hook);
-
-            const detail = renderedFavoritesDetail(hook.getCurrent());
-            await act(async () => {
-                detail.props.onToggleFavoriteModel(entry('codex'), { modelId: 'gpt-5-mini', modelLabel: 'GPT-5 mini' });
-            });
-
-            expect(favoriteModelSelectionsWrites).toHaveLength(1);
-            expect(favoriteModelSelectionsWrites[0]).toEqual([
-                codexFavorite,
-                expect.objectContaining({
-                    backendTargetKey: 'builtInAgent:codex',
-                    modelId: 'gpt-5-mini',
-                    modelLabel: 'GPT-5 mini',
-                }),
-            ]);
+            const option = optionsOf(hook.getCurrent()).find((candidate) => candidate.id === 'builtInAgent:codex');
+            expect(option?.deferRenderDetailContent).toBe(true);
+            expect(option?.deferredDetailContentCacheKey).toContain('builtInAgent:codex');
+            expect(option?.renderDetailContent).toBeTypeOf('function');
         });
     });
 });
