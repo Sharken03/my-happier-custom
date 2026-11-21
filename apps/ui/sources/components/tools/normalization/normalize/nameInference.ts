@@ -88,6 +88,7 @@ function canonicalizeToolNameNonV2(toolName: string, input: unknown, description
         return hasTodos ? 'TodoWrite' : 'Write';
     }
 
+    if (lower === 'command') return 'Bash';
     if (lower === 'glob') return 'Glob';
     if (lower === 'grep') return 'Grep';
     if (lower === 'ls') return 'LS';

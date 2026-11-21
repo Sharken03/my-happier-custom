@@ -233,6 +233,14 @@ describe('resolveToolHeaderTextPresentation (real known tools)', () => {
         expect(model.subtitle).toBe('task_1');
     });
 
+    it('renders an agy command call like a pi Bash call', () => {
+        const tool = makeToolCall({ name: 'command', input: { command: 'ls -la' } });
+        const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
+        expect(model.normalizedToolName).toBe('Bash');
+        expect(model.title).toBe('Terminal(cmd: ls)');
+        expect(model.subtitle).toBe('ls -la');
+    });
+
     it('capitalizes simple lowercase tool names (skill)', () => {
         const tool = makeToolCall({ name: 'skill', input: {} });
         const model = resolveToolHeaderTextPresentation({ tool, metadata: null });

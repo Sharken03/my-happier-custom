@@ -110,6 +110,17 @@ describe('normalizeToolCallForRendering (input shapes)', () => {
         expect(edit.input).toMatchObject({ file_path: '/tmp/a.txt', old_string: 'hello', new_string: 'hi' });
     });
 
+    it('maps agy command tool name to Bash like pi shell tool', () => {
+        const normalized = normalizeToolCallForRendering(
+            makeTool({
+                name: 'command',
+                input: { command: 'ls -la' },
+            }),
+        );
+        expect(normalized.name).toBe('Bash');
+        expect(normalized.input).toEqual({ command: 'ls -la' });
+    });
+
     it('maps write todos payloads to TodoWrite and items[] into todos[]', () => {
         const directTodos = normalizeToolCallForRendering(
             makeTool({

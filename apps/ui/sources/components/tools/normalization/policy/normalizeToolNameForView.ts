@@ -19,6 +19,7 @@ const legacyToolNameToCanonical: Record<string, string> = {
     task_stop: 'TaskStop',
 
     // Legacy lowercase names (ACP + older sessions).
+    command: 'Bash',
     edit: 'Edit',
     execute: 'Bash',
     read: 'Read',
