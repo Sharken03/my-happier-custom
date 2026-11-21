@@ -158,6 +158,7 @@ import { APPLIED_RUNTIME_MARKER_ICON, resolveAppliedRuntimeStatus } from './appl
 import { resolveArmedComposerContinuation } from './components/agentContinuationSubmitPresentation';
 import { AgentInputStatusBadge } from './status/AgentInputStatusBadge';
 import type { AgentInputChipPickerOption } from './components/AgentInputChipPickerTypes';
+import { resolveAgentPickerSelectedOptionId } from './agentPickerSelectedOptionId';
 import { isMobileLayoutWidth } from '@/components/sessions/layout/isMobileLayoutWidth';
 import { useComposerKeyboardLayoutContext } from '@/components/sessions/keyboardAvoidance';
 import { insertTextAtSelection } from './insertTextAtSelection';
@@ -2400,12 +2401,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         props.composeAgentPickerOptions,
     ]);
 
-    const effectiveAgentPickerSelectedOptionId = React.useMemo(() => {
-        if (typeof props.agentPickerSelectedOptionId === 'string' && props.agentPickerSelectedOptionId.length > 0) {
-            return props.agentPickerSelectedOptionId;
-        }
-        return agentPickerOptions[0]?.id ?? null;
-    }, [agentPickerOptions, props.agentPickerSelectedOptionId]);
+    const currentAgentOptionIds = React.useMemo(
+        () => new Set(internalAgentPickerOptions.map((option) => option.id)),
+        [internalAgentPickerOptions],
+    );
+
+    const effectiveAgentPickerSelectedOptionId = React.useMemo(() => (
+        resolveAgentPickerSelectedOptionId({
+            requestedOptionId: props.agentPickerSelectedOptionId,
+            options: agentPickerOptions,
+            currentAgentOptionIds,
+        })
+    ), [agentPickerOptions, currentAgentOptionIds, props.agentPickerSelectedOptionId]);
 
     const hasAgentPickerOptions = agentPickerOptions.length > 0;
     // A deferred picker is still an available surface before its detail rows
