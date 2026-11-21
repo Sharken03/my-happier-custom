@@ -1252,7 +1252,7 @@ describe('useVisibleSessionListViewData', () => {
         const hook = await renderHook(() => useVisibleSessionListViewData());
 
         expect(hook.getCurrent()?.filter((item) => item.type === 'session').map((item) => item.session.id))
-            .toEqual(['inactive-new', 'active-old']);
+            .toEqual(['active-old', 'inactive-new']);
         await hook.unmount();
     });
 
