@@ -1037,8 +1037,8 @@ describe('useInSessionAgentPickerControls', () => {
             await openPicker(hook);
 
             expect(optionsOf(hook.getCurrent()).map((option) => option.id)).toEqual([
-                'engine:claude',
                 FAVORITE_MODELS_AGENT_PICKER_OPTION_ID,
+                'engine:claude',
                 'builtInAgent:codex',
             ]);
             expect(favoritesOptionOf(hook.getCurrent())?.label).toBe(t('profiles.groups.favorites'));

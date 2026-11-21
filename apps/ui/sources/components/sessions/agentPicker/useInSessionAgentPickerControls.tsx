@@ -1127,7 +1127,17 @@ export function useInSessionAgentPickerControls(
         currentAgentOptions: ReadonlyArray<AgentInputChipPickerOption>,
     ): ReadonlyArray<AgentInputChipPickerOption> => {
         if (targetOptions.length === 0) return currentAgentOptions;
+        // The Favorites view opens the rail, exactly as it does in New Session: it is
+        // a way to find a model, not an Agent, so it must not be reached through the
+        // running Agent's row — and the Agent you are running is still one row below.
+        const favoritesOptions = targetOptions.filter((option) => (
+            option.id === FAVORITE_MODELS_AGENT_PICKER_OPTION_ID
+        ));
+        const agentOptions = targetOptions.filter((option) => (
+            option.id !== FAVORITE_MODELS_AGENT_PICKER_OPTION_ID
+        ));
         return [
+            ...favoritesOptions,
             ...currentAgentOptions.map((option) => ({
                 ...option,
                 // One checkmark, on the selection — the same shape every sibling model
@@ -1166,7 +1176,7 @@ export function useInSessionAgentPickerControls(
                     clearArmedContinuation();
                 },
             })),
-            ...targetOptions,
+            ...agentOptions,
         ];
     }, [armedTargetKey, clearArmedContinuation, currentAgentAppliedStatus, currentAgentLabel, targetOptions]);
 
