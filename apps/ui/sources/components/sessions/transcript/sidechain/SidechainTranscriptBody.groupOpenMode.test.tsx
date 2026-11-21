@@ -15,7 +15,7 @@ import { renderScreen } from '@/dev/testkit';
  */
 
 const chainTranscriptListProps = vi.hoisted(() => ({
-    latest: null as Record<string, unknown> | null,
+    latest: null as any,
 }));
 
 vi.mock('@/components/sessions/transcript/ChainTranscriptList', () => ({

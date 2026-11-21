@@ -303,6 +303,14 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
     const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
     const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
     const toolCallsGroupOpenMode = props.toolCallsGroupOpenMode ?? transcriptToolCallsGroupOpenMode;
+    // The group header decides sheet-or-expand from the chrome it receives, so an overridden open
+    // mode has to reach the rows too — not just the item decomposition.
+    const rowToolChromeCommon = React.useMemo(
+        () => (props.toolCallsGroupOpenMode == null
+            ? transcriptSessionCommon.toolChrome
+            : { ...transcriptSessionCommon.toolChrome, transcriptToolCallsGroupOpenMode: props.toolCallsGroupOpenMode }),
+        [props.toolCallsGroupOpenMode, transcriptSessionCommon.toolChrome],
+    );
 
     // Tool-group expansion state is keyed by anchor message ids (declared before the
     // items memo: N2c per-unit decomposition derives the list rows from it).
@@ -958,7 +966,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     rollbackRanges={[]}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -985,7 +993,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     })}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -1008,7 +1016,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     })}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -1028,7 +1036,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     forcePermissionPromptsInTranscript={props.forcePermissionPromptsInTranscript}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -1052,7 +1060,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     interaction={props.interaction}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -1072,7 +1080,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     interaction={props.interaction}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             );
@@ -1099,7 +1107,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
                     onThinkingExpandedChange={isThinking ? (next) => setThinkingExpanded(message.id, next) : undefined}
                     forkCommon={transcriptSessionCommon.fork}
                     messageDisplayCommon={transcriptSessionCommon.messageDisplay}
-                    toolChromeCommon={transcriptSessionCommon.toolChrome}
+                    toolChromeCommon={rowToolChromeCommon}
                     toolRouteCommon={transcriptSessionCommon.toolRoute}
                 />
             </View>
@@ -1118,7 +1126,7 @@ export const ChainTranscriptList = React.memo(function ChainTranscriptList(props
         testIdPrefix,
         transcriptSessionCommon.fork,
         transcriptSessionCommon.messageDisplay,
-        transcriptSessionCommon.toolChrome,
+        rowToolChromeCommon,
         transcriptSessionCommon.toolRoute,
     ]);
 
