@@ -68,13 +68,21 @@ describe('toPiChatChangeRow', () => {
 });
 
 describe('addPiChatChangeCounts', () => {
-    it('counts created files as added and the rest as modified', () => {
+    it('counts created files as added, modified as pending, excludes deleted from pending', () => {
         const merged = addPiChatChangeCounts(statusFiles, [
             file({ path: '/a', created: true }),
             file({ path: '/b' }),
             file({ path: '/c', deleted: true }),
         ]);
-        expect(merged).toMatchObject({ branch: 'main', totalIncluded: 2, totalPending: 4 });
+        expect(merged).toMatchObject({ branch: 'main', totalIncluded: 2, totalPending: 3 });
+    });
+
+    it('excludes only-deleted files from pending entirely', () => {
+        const merged = addPiChatChangeCounts(statusFiles, [
+            file({ path: '/a', deleted: true }),
+            file({ path: '/b', deleted: true }),
+        ]);
+        expect(merged).toMatchObject({ branch: 'main', totalIncluded: 1, totalPending: 2 });
     });
 
     it('keeps the same object when there are no files, and null stays null', () => {

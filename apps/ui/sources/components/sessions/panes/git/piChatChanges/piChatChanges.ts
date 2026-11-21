@@ -30,17 +30,20 @@ export function toPiChatChangeRow(file: PiChatChangesFile): ScmFileStatus {
     };
 }
 
-/** Adds the files to the header numbers next to the branch: created files as added, the rest as modified. */
+/** Adds the files to the header numbers next to the branch: created files as added, the rest as modified.
+ * Deleted files are excluded: they cannot be staged and do not belong in pending. */
 export function addPiChatChangeCounts(
     statusFiles: ScmStatusFiles | null,
     files: readonly PiChatChangesFile[],
 ): ScmStatusFiles | null {
     if (!statusFiles || files.length === 0) return statusFiles;
     const created = files.filter((file) => file.created).length;
+    const deleted = files.filter((file) => file.deleted).length;
+    const modified = files.length - created - deleted;
     return {
         ...statusFiles,
         totalIncluded: statusFiles.totalIncluded + created,
-        totalPending: statusFiles.totalPending + files.length - created,
+        totalPending: statusFiles.totalPending + modified,
     };
 }
 
