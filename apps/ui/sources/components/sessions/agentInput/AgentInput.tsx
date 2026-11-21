@@ -182,6 +182,8 @@ import {
 } from '@/keyboard/composer';
 import { useKeyboardShortcutHandlers } from '@/keyboard/KeyboardShortcutProvider';
 import type { KeyboardShortcutHandlers } from '@/keyboard/runtime';
+import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
+
 import { Icon, type IconName } from '@/components/ui/icons/Icon';
 import type { StyleProp } from 'react-native';
 
@@ -1310,6 +1312,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const pendingApprovalRequests = props.approvalRequests ?? [];
     const canApprovePermissions = props.canApprovePermissions ?? true;
     const permissionPromptSurface = useSetting('permissionPromptSurface');
+    const voiceSettingsForComposer = useSetting('voice');
+    const dictationModeEnabled = isDictationModeEnabled({ voice: voiceSettingsForComposer } as any);
     const resolvedPermissionPromptSurface = resolvePermissionPromptSurface(permissionPromptSurface);
     const showComposerPermissionCards = resolvedPermissionPromptSurface === 'composer';
     const composerPermissionRequests = React.useMemo(
@@ -3238,6 +3242,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         canStop={canStopFromComposer}
                         micPressHandler={micPressHandler}
                         micActive={micActive}
+                        dictationMode={dictationModeEnabled}
                         armedContinuationTarget={props.armedContinuationTarget ?? null}
                         onSend={handleSend}
                         sendMenuItems={sendMenuItems}

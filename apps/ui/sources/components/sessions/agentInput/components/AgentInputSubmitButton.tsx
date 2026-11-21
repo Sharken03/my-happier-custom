@@ -119,6 +119,11 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     isStopping?: boolean;
     hasSendableContent: boolean;
     canStop?: boolean;
+    /**
+     * Dictation mode: the microphone is one action per message. While a turn runs, the empty
+     * composer's button stops it instead of handing the slot to the microphone.
+     */
+    dictationMode?: boolean;
     micPressHandler?: (() => void) | undefined;
     micActive: boolean;
     /**
@@ -147,13 +152,16 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     };
 
     React.useEffect(() => { setSendMenuOpen(false); }, [props.sessionId, sendMenuEnabled]);
-    const showStopWhenEmpty = !hasSendIntent && !props.micPressHandler && props.canStop === true;
     /*
-     * With nothing to send, a composer that has Voice hands this button to the
-     * microphone — `submitPress` routes there before it ever reaches Stop, whether
-     * or not the mic is already listening. Text takes the button back.
+     * A running turn owns the empty composer when dictation mode is on: the button stops the run
+     * and the microphone waits, because a mic press during a turn used to be swallowed by the voice
+     * engine. A microphone that is actually listening keeps the slot — otherwise the person could
+     * not stop a recording started while the previous turn is still running. With dictation mode
+     * off the microphone keeps the slot, as before. Text takes it back.
      */
     const micHoldsSubmit = Boolean(props.micPressHandler) && !hasSendIntent;
+    const showStopWhenEmpty = !hasSendIntent && props.canStop === true && props.dictationMode !== false
+        && !(micHoldsSubmit && props.micActive === true);
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
 
     // The armed switch only reaches the button while the button is actually a
@@ -178,10 +186,10 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
         hapticsLight();
         if (hasSendIntent) {
             props.onSend();
-        } else if (props.micPressHandler) {
-            props.micPressHandler();
         } else if (showStopWhenEmpty) {
             props.onStop?.();
+        } else if (props.micPressHandler) {
+            props.micPressHandler();
         }
     }, [hasSendIntent, props.micPressHandler, props.onSend, props.onStop, showStopWhenEmpty]);
 
@@ -248,10 +256,10 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                     props.hasSendableContent
                         ? (props.submitAccessibilityLabel ?? (props.sessionId ? t('common.send') : t('newSession.title')))
                         : (
-                            props.micPressHandler
-                                ? t('voiceAssistant.label')
-                                : showStopWhenEmpty
-                                    ? t('runs.stop.stopRunA11y')
+                            showStopWhenEmpty
+                                ? t('runs.stop.stopRunA11y')
+                                : props.micPressHandler
+                                    ? t('voiceAssistant.label')
                                 : (props.submitAccessibilityLabel ?? (props.sessionId ? t('common.send') : t('newSession.title')))
                         )
                 }
@@ -283,6 +291,8 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                         color={theme.colors.button.primary.tint}
                         style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                     />
+                ) : showStopWhenEmpty ? (
+                    <Icon name="stop" size={16} weight="fill" color={theme.colors.button.primary.tint} />
                 ) : props.micPressHandler ? (
                     props.micActive ? (
                         <Icon name="stop-circle" size={20} color={theme.colors.button.primary.tint} />
@@ -293,8 +303,6 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                             tintColor={theme.colors.button.primary.tint}
                         />
                     )
-                ) : showStopWhenEmpty ? (
-                    <Icon name="stop" size={16} weight="fill" color={theme.colors.button.primary.tint} />
                 ) : (
                     <Icon
                         name="arrow-up"

@@ -9702,6 +9702,12 @@ settingsSession: {
       conversationModeSubtitle:
         "Bezpośrednio do sesji lub agent głosowy z jawnym commitem",
       conversation: {
+        dictationMode: {
+          title: "Tryb dyktowania",
+          footer: "Mikrofon to jedna akcja na wiadomość; przycisk kompozytora zatrzymuje trwającą odpowiedź.",
+          enableTitle: "Włącz tryb dyktowania",
+          enableSubtitle: "Kompozytor zatrzymuje trwającą odpowiedź zamiast nagrywać.",
+        },
         mode: {
           voiceAgentSubtitle:
             "Użyj agenta głosowego (jawny commit, kontrola narzędzi).",

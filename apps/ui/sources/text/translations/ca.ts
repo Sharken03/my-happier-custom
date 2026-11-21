@@ -8560,7 +8560,7 @@ settingsSession: {
                     searchModelsPlaceholder: 'Cerca models…',
                     notSet: 'No configurat',
                     customTitle: 'Personalitzat',
-                    customBackendIdSubtitle: 'Introdueix un id de backend (p. ex. claude).',
+                customBackendIdSubtitle: 'Introdueix un id de backend (p. ex. claude).',
                     customModelIdSubtitle: 'Introdueix un id de model (p. ex. default).',
                     requiresModelNotice: 'Tria un model de resum a sota. Sense cap, la reproducció recorre només als missatges recents.',
                     requiresExecutionRunsNotice: 'Els resums necessiten execucions, que estan desactivades en aquest compte. La reproducció només farà servir els missatges recents.',
@@ -9147,6 +9147,12 @@ settingsSession: {
             conversationMode: 'Mode de conversa',
             conversationModeSubtitle: 'Directe a la sessió o mediador amb commit explícit',
             conversation: {
+              dictationMode: {
+                title: 'Mode dictat',
+                footer: 'El micròfon és una acció per missatge; el botó del compositor atura la resposta en curs.',
+                enableTitle: 'Activa el mode dictat',
+                enableSubtitle: 'El compositor atura la resposta en curs en lloc d’enregistrar.',
+              },
                 mode: {
                     voiceAgentSubtitle: 'Fes servir l’agent de veu (commit explícit, control d’eines).',
                     directTitle: 'Sessió directa',

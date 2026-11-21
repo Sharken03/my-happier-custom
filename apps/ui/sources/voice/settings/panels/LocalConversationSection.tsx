@@ -19,6 +19,7 @@ import { t } from '@/text';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 import { LocalVoiceSttGroup } from '@/voice/settings/panels/localStt/LocalVoiceSttGroup';
 import { LocalVoiceHandsFreeGroup } from '@/voice/settings/panels/localStt/LocalVoiceHandsFreeGroup';
+import { LocalVoiceDictationModeGroup } from '@/voice/settings/panels/localStt/LocalVoiceDictationModeGroup';
 import { LocalVoiceTtsGroup } from '@/voice/settings/panels/localTts/LocalVoiceTtsGroup';
 import { resetGlobalVoiceAgentPersistence } from '@/voice/agent/resetGlobalVoiceAgentPersistence';
 import { canAgentResume } from '@/agents/runtime/resumeCapabilities';
@@ -266,6 +267,11 @@ export function LocalConversationSection(props: {
         cfgStt={cfg.stt}
         handsFree={cfg.handsFree}
         setHandsFree={(next) => setCfg({ handsFree: next })}
+      />
+
+      <LocalVoiceDictationModeGroup
+        dictationMode={cfg.dictationMode !== false}
+        setDictationMode={(next) => setCfg({ dictationMode: next })}
       />
 
       <LocalVoiceTtsGroup

@@ -9398,6 +9398,12 @@ settingsSession: {
       conversationMode: "对话模式",
       conversationModeSubtitle: "直接写入会话，或使用中介并显式提交",
       conversation: {
+        dictationMode: {
+          title: "听写模式",
+          footer: "麦克风是每条消息的一次操作；输入区按钮会停止正在进行的回复。",
+          enableTitle: "启用听写模式",
+          enableSubtitle: "输入区按钮会停止正在进行的回复，而不是录音。",
+        },
         mode: {
           voiceAgentSubtitle: "使用语音代理（显式提交、工具控制）。",
           directTitle: "直连会话",

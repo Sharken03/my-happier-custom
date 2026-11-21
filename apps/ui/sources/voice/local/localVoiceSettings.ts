@@ -73,6 +73,16 @@ export function isHandsFreeSttEnabled(settings: LocalVoiceSettingsInput): boolea
   return config?.handsFree?.enabled === true && localSttProviderSupportsHandsFree(resolveLocalSttProvider(settings));
 }
 
+/**
+ * Dictation mode treats the microphone as one action per message: record, send, then steer by
+ * typing. It is on unless the person turned it off, because a composer whose microphone silently
+ * swallows the stop press reads as broken.
+ */
+export function isDictationModeEnabled(settings: LocalVoiceSettingsInput): boolean {
+  const { config } = resolveLocalVoiceAdapterSettings(settings);
+  return (config as { dictationMode?: boolean } | null | undefined)?.dictationMode !== false;
+}
+
 export function resolveHandsFreeTurnEndpointPolicy(settings: LocalVoiceSettingsInput): TurnEndpointPolicy {
   const { config } = resolveLocalVoiceAdapterSettings(settings);
   return normalizeTurnEndpointPolicy({

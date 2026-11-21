@@ -30,6 +30,7 @@ import {
 } from './localVoiceState';
 import {
   isHandsFreeSttEnabled,
+  isDictationModeEnabled,
   isVoiceBargeInEnabled,
   resolveLocalSttProvider,
   resolveLocalVoiceAdapterSettings,
@@ -436,6 +437,16 @@ export async function abortLocalVoiceTurn(sessionId: string): Promise<void> {
   }
 }
 
+/**
+ * Whether an idle local voice state should still read as a live call. Hands-free keeps listening
+ * between turns; outside dictation mode the voice surface owns cancellation, so the call stays
+ * visible. In dictation mode an idle call is over and the composer gets its microphone back.
+ */
+export function shouldHoldLocalVoiceCallWhileIdle(): boolean {
+  const settings = storage.getState().settings as any;
+  return isHandsFreeSttEnabled(settings) || !isDictationModeEnabled(settings);
+}
+
 export async function toggleLocalVoiceTurn(sessionId: string): Promise<void> {
   const realtimeStatus = (storage.getState() as any)?.realtimeStatus;
   if (realtimeStatus === 'connected' || realtimeStatus === 'connecting') {
@@ -454,8 +465,12 @@ export async function toggleLocalVoiceTurn(sessionId: string): Promise<void> {
   }
 
   if (inFlight && !canAttemptBargeIn) {
-    // A tap while a turn is starting, transcribing, or waiting for its reply is not a request to
-    // record once that turn finishes; cancelling a pending reply is the surface's cancel control.
+    // A tap while a turn is starting, transcribing, or waiting for its reply is a request to
+    // cancel that voice turn. Returning silently used to leave the composer's stop control dead.
+    // Only dictation mode reads the tap that way; outside it the voice surface owns cancellation.
+    if (isDictationModeEnabled(storage.getState().settings as any)) {
+      await abortLocalVoiceTurn(sessionId);
+    }
     return;
   }
 

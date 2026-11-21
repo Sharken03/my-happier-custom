@@ -8676,7 +8676,7 @@ settingsSession: {
                   searchModelsPlaceholder: 'Modelle suchen…',
                   notSet: 'Nicht gesetzt',
                   customTitle: 'Eigenes',
-                  customBackendIdSubtitle: 'Gib eine Backend-ID ein (z. B. claude).',
+                customBackendIdSubtitle: 'Gib eine Backend-ID ein (z. B. claude).',
                   customModelIdSubtitle: 'Gib eine Modell-ID ein (z. B. default).',
                   requiresModelNotice: 'Wähl unten ein Modell für Zusammenfassungen. Ohne eines nutzt Replay nur die aktuellen Nachrichten.',
                   requiresExecutionRunsNotice: 'Zusammenfassungen brauchen Execution Runs, die für dieses Konto aus sind. Replay nutzt nur die aktuellen Nachrichten.',
@@ -9215,6 +9215,12 @@ settingsSession: {
             conversationMode: 'Gesprächsmodus',
             conversationModeSubtitle: 'Direkt in die Session oder Voice-Agent mit ausdrücklichem Absenden',
             conversation: {
+              dictationMode: {
+                title: 'Diktatmodus',
+                footer: 'Das Mikrofon ist eine Aktion pro Nachricht; die Composer-Taste stoppt eine laufende Antwort.',
+                enableTitle: 'Diktatmodus aktivieren',
+                enableSubtitle: 'Der Composer stoppt die laufende Antwort statt aufzunehmen.',
+              },
                 mode: {
                     voiceAgentSubtitle: 'Den Voice-Agent nutzen (ausdrückliches Absenden, Tool-Steuerung).',
                     directTitle: 'Direkte Session',

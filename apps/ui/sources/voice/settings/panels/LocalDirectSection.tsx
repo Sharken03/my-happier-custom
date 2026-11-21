@@ -8,6 +8,7 @@ import { t } from '@/text';
 import { LocalVoiceTtsGroup } from '@/voice/settings/panels/localTts/LocalVoiceTtsGroup';
 import { LocalVoiceSttGroup } from '@/voice/settings/panels/localStt/LocalVoiceSttGroup';
 import { LocalVoiceHandsFreeGroup } from '@/voice/settings/panels/localStt/LocalVoiceHandsFreeGroup';
+import { LocalVoiceDictationModeGroup } from '@/voice/settings/panels/localStt/LocalVoiceDictationModeGroup';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 
 export function LocalDirectSection(props: {
@@ -38,6 +39,11 @@ export function LocalDirectSection(props: {
         cfgStt={cfg.stt}
         handsFree={cfg.handsFree}
         setHandsFree={(next) => setCfg({ handsFree: next })}
+      />
+
+      <LocalVoiceDictationModeGroup
+        dictationMode={cfg.dictationMode !== false}
+        setDictationMode={(next) => setCfg({ dictationMode: next })}
       />
 
       <LocalVoiceTtsGroup

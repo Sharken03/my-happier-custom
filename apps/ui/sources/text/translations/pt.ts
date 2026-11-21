@@ -9814,6 +9814,12 @@ settingsSession: {
       conversationModeSubtitle:
         "Direto para a sessão ou mediador com commit explícito",
       conversation: {
+        dictationMode: {
+          title: "Modo ditado",
+          footer: "O microfone é uma ação por mensagem; o botão do compositor interrompe a resposta em curso.",
+          enableTitle: "Ativar o modo ditado",
+          enableSubtitle: "O compositor interrompe a resposta em curso em vez de gravar.",
+        },
         mode: {
           voiceAgentSubtitle:
             "Use o agente de voz (commit explícito, controle de ferramentas).",

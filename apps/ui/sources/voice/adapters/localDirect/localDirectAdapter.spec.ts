@@ -5,6 +5,7 @@ type LocalVoiceState = Readonly<{ status: string; sessionId: string | null; erro
 const toggleLocalVoiceTurn = vi.fn(async () => {});
 const stopLocalVoiceSession = vi.fn(async () => {});
 const abortLocalVoiceTurn = vi.fn(async (_sessionId: string) => {});
+const shouldHoldLocalVoiceCallWhileIdle = vi.fn(() => false);
 const getLocalVoiceState = vi.fn<() => LocalVoiceState>(() => ({ status: 'idle', sessionId: null, error: null }));
 
 vi.mock('@/voice/local/localVoiceEngine', () => ({
@@ -12,11 +13,13 @@ vi.mock('@/voice/local/localVoiceEngine', () => ({
   stopLocalVoiceSession,
   abortLocalVoiceTurn,
   getLocalVoiceState,
+  shouldHoldLocalVoiceCallWhileIdle,
 }));
 
 describe('local direct voice adapter', () => {
   it('maps idle+sessionId to connected so the status bar can remain stoppable', async () => {
     getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: 's1', error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(true);
     const { createLocalDirectVoiceAdapter } = await import('./localDirectAdapter');
     const adapter = createLocalDirectVoiceAdapter();
 
@@ -26,6 +29,21 @@ describe('local direct voice adapter', () => {
       status: 'connected',
       mode: 'idle',
       canStop: true,
+    });
+  });
+
+  it('releases an idle dictation-mode call so the composer gets its microphone back', async () => {
+    getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: 's1', error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(false);
+    const { createLocalDirectVoiceAdapter } = await import('./localDirectAdapter');
+    const adapter = createLocalDirectVoiceAdapter();
+
+    expect(adapter.getSnapshot()).toEqual({
+      adapterId: 'local_direct',
+      sessionId: 's1',
+      status: 'disconnected',
+      mode: 'idle',
+      canStop: false,
     });
   });
 

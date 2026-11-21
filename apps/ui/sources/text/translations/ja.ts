@@ -9941,6 +9941,12 @@ settingsSession: {
       conversationModeSubtitle:
         "セッションへ直接、またはメディエーターで明示的にコミット",
       conversation: {
+        dictationMode: {
+          title: "ディクテーションモード",
+          footer: "マイクはメッセージごとの操作です。コンポーザーのボタンは実行中の応答を停止します。",
+          enableTitle: "ディクテーションモードを有効化",
+          enableSubtitle: "コンポーザーは録音ではなく実行中の応答を停止します。",
+        },
         mode: {
           voiceAgentSubtitle:
             "音声エージェントを使用（明示的コミット、ツール制御）。",

@@ -8663,7 +8663,7 @@ settingsSession: {
                   searchModelsPlaceholder: 'Rechercher un modèle…',
                   notSet: 'Non défini',
                   customTitle: 'Personnalisé',
-                  customBackendIdSubtitle: 'Saisis un id de backend (ex. claude).',
+                customBackendIdSubtitle: 'Saisis un id de backend (ex. claude).',
                   customModelIdSubtitle: 'Saisis un id de modèle (ex. default).',
                   requiresModelNotice: 'Choisis un modèle de résumé ci-dessous. Sans modèle, la relecture se limite aux messages récents.',
                   requiresExecutionRunsNotice: 'Les résumés nécessitent les exécutions, désactivées sur ce compte. La relecture utilisera uniquement les messages récents.',
@@ -9202,6 +9202,12 @@ settingsSession: {
             conversationMode: 'Mode conversation',
             conversationModeSubtitle: 'Directement dans la session, ou agent vocal avec commit explicite',
             conversation: {
+              dictationMode: {
+                title: 'Mode dictée',
+                footer: 'Le micro est une action par message ; le bouton du composeur arrête la réponse en cours.',
+                enableTitle: 'Activer le mode dictée',
+                enableSubtitle: 'Le composeur arrête la réponse en cours au lieu d’enregistrer.',
+              },
                 mode: {
                     voiceAgentSubtitle: 'Utiliser l’agent vocal (commit explicite, contrôle des outils).',
                     directTitle: 'Session directe',

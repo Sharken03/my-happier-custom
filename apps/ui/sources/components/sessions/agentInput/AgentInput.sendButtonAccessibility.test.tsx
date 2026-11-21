@@ -1,6 +1,6 @@
 import React from 'react';
 import { act } from 'react-test-renderer';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { collectUnexpectedRawTextNodes, renderScreen } from '@/dev/testkit';
 import { installAgentInputCommonModuleMocks } from './agentInputTestHelpers';
 
@@ -263,6 +263,13 @@ vi.mock('@/sync/domains/sessionControl/configOptionsControl', () => ({
 }));
 
 describe('AgentInput (send button accessibility)', () => {
+    // Cold transform of the composer graph costs a minute on a slow device, and the first test
+    // used to spend its whole per-test budget before reaching a single assertion. Warm the
+    // module once, with its own budget, so every test starts from a cached import.
+    beforeAll(async () => {
+        await import('./AgentInput');
+    }, 180_000);
+
     it('exposes available send choices to assistive technology and dismisses without changing the draft', async () => {
         const { AgentInput } = await import('./AgentInput');
         const { Popover } = await import('@/components/ui/popover');
@@ -882,6 +889,39 @@ describe('AgentInput (send button accessibility)', () => {
 
         await screen.unmount();
         featureEnabledState.voice = true;
+    });
+
+    it('lets a running turn keep the button while dictation mode is on', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+        const onAbort = vi.fn();
+        const onMicPress = vi.fn();
+        const onSend = vi.fn();
+
+        const screen = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={onSend}
+                    onAbort={onAbort}
+                    onMicPress={onMicPress}
+                    showAbortButton={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+
+        const send = screen.findByTestId('session-composer-send');
+        if (!send) throw new Error('session-composer-send not found');
+        expect(send.props.accessibilityLabel).toBe('runs.stop.stopRunA11y');
+
+        await screen.pressByTestIdAsync('session-composer-send');
+
+        expect(onAbort).toHaveBeenCalledTimes(1);
+        expect(onMicPress).not.toHaveBeenCalled();
+        expect(onSend).not.toHaveBeenCalled();
+
+        await screen.unmount();
     });
 
     it('sets an accessible label for session creation context (no sessionId)', async () => {

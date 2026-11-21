@@ -9260,6 +9260,12 @@ settingsSession: {
                     pushToTalkTitle: 'Push-to-talk',
                     pushToTalkSubtitle: 'This provider transcribes a finished recording, so tap the mic again to send. Choose Device or Local neural speech recognition for hands-free.',
                 },
+                dictationMode: {
+                    title: 'Dictation mode',
+                    footer: 'On, the microphone is one action per message and the composer button stops a running turn. Off, the voice surface keeps the call open and owns cancellation.',
+                    enableTitle: 'Enable dictation mode',
+                    enableSubtitle: 'While a turn runs, the composer button stops it instead of recording.',
+                },
                 customBackendIdSubtitle: 'Enter a custom backend id.',
                 searchBackendsPlaceholder: 'Search backends',
                 searchModelsPlaceholder: 'Search models',
