@@ -184,6 +184,7 @@ import type { KeyboardShortcutHandlers } from '@/keyboard/runtime';
 import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
 
 import { Icon, type IconName } from '@/components/ui/icons/Icon';
+import { VoiceBars } from '@/components/ui/status/VoiceBars';
 import type { StyleProp } from 'react-native';
 
 /**
@@ -281,6 +282,8 @@ interface AgentInputProps {
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
     isMicActive?: boolean;
+    /** Voice is actually capturing audio right now, as opposed to merely holding a call open. */
+    isMicRecording?: boolean;
     permissionMode?: PermissionMode;
     onPermissionModeChange?: (mode: PermissionMode) => void;
     onPermissionClick?: () => void;
@@ -1305,6 +1308,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     }), [afterSendShortcut, props.newSessionAfterSendMode, props.sendMenuModes, sendMenuShortcuts]);
     const micPressHandler = voiceEnabled ? props.onMicPress : undefined;
     const micActive = voiceEnabled && props.isMicActive === true;
+    const micRecording = voiceEnabled && props.isMicRecording === true;
     const [fileDragActive, setFileDragActive] = React.useState(false);
 
     const pendingPermissionRequests = props.permissionRequests ?? [];
@@ -3224,6 +3228,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             {renderedActionControlNodes as any}
                         </View>
                     )}
+                    {micRecording ? (
+                        <View
+                            testID="session-composer-recording-indicator"
+                            style={{ alignSelf: 'center', marginRight: 8 }}
+                            accessibilityLabel={t('voiceSurface.recording')}
+                        >
+                            <VoiceBars isActive color={theme.colors.status.error} size="small" />
+                        </View>
+                    ) : null}
                     <AgentInputSubmitButton
                         testID={props.sessionId ? AGENT_INPUT_TEST_IDS.sessionSend : AGENT_INPUT_TEST_IDS.newSessionSend}
                         sessionId={props.sessionId}
@@ -3235,6 +3248,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         canStop={canStopFromComposer}
                         micPressHandler={micPressHandler}
                         micActive={micActive}
+                        micRecording={props.isMicRecording === true}
                         dictationMode={dictationModeEnabled}
                         armedContinuationTarget={props.armedContinuationTarget ?? null}
                         onSend={handleSend}

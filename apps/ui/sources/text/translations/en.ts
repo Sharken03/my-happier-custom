@@ -6026,6 +6026,7 @@ export const en = {
     },
 
     voiceSurface: {
+        recording: "Recording…",
         start: 'Start',
         stop: 'Stop',
         selectSessionToStart: 'Select a session to start voice',

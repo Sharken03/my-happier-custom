@@ -126,6 +126,8 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     dictationMode?: boolean;
     micPressHandler?: (() => void) | undefined;
     micActive: boolean;
+    /** Capturing audio right now: the stop glyph turns the recording color. */
+    micRecording?: boolean;
     /**
      * The Agent the in-session picker has armed, or null for an ordinary send.
      *
@@ -295,7 +297,11 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                     <Icon name="stop" size={16} weight="fill" color={theme.colors.button.primary.tint} />
                 ) : props.micPressHandler ? (
                     props.micActive ? (
-                        <Icon name="stop-circle" size={20} color={theme.colors.button.primary.tint} />
+                        <Icon
+                            name="stop-circle"
+                            size={20}
+                            color={props.micRecording ? theme.colors.status.error : theme.colors.button.primary.tint}
+                        />
                     ) : (
                         <Image
                             source={require('@/assets/images/icon-voice-white.png')}

@@ -6912,6 +6912,7 @@ export const ru: TranslationStructure = {
     },
 
         voiceSurface: {
+          recording: "Запись…",
           start: "Старт",
           stop: "Стоп",
           selectSessionToStart: "Выберите сессию, чтобы запустить голос",

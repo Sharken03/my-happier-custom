@@ -6005,6 +6005,7 @@ export const de: TranslationStructure = {
     },
 
     voiceSurface: {
+        recording: "Aufnahme läuft…",
         start: 'Start',
         stop: 'Stopp',
         selectSessionToStart: 'Wähl eine Session, um Voice zu starten',

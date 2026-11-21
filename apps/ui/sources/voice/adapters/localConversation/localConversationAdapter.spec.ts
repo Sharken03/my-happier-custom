@@ -12,6 +12,7 @@ const getLocalVoiceState = vi.fn(() => ({
   sessionId: null as string | null,
   error: null as Error | null,
 }));
+const shouldHoldLocalVoiceCallWhileIdle = vi.fn(() => true);
 
 const ensureBound = vi.fn(async (_params: any) => null);
 const voiceAgentSessions = { sendTurn: vi.fn(), stop: vi.fn(), isActive: vi.fn(), appendContextUpdate: vi.fn() };
@@ -48,6 +49,7 @@ vi.mock('@/voice/local/localVoiceEngine', () => ({
   abortLocalVoiceTurn,
   appendLocalVoiceAgentContextUpdate,
   getLocalVoiceState,
+  shouldHoldLocalVoiceCallWhileIdle,
 }));
 vi.mock('@/voice/local/sendVoiceTextTurn', () => ({
   prepareVoiceTextTurn,
@@ -121,6 +123,7 @@ describe('local conversation voice adapter', () => {
 
   it('treats idle local voice state with a sessionId as connected (ready)', async () => {
     getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: VOICE_AGENT_GLOBAL_SESSION_ID, error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(true);
     const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
     const adapter = createLocalConversationVoiceAdapter();
 
@@ -129,6 +132,19 @@ describe('local conversation voice adapter', () => {
       mode: 'idle',
       sessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
       canStop: true,
+    });
+  });
+
+  it('releases an idle dictation-mode call so the composer keeps its microphone', async () => {
+    getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: VOICE_AGENT_GLOBAL_SESSION_ID, error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(false);
+    const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
+    const adapter = createLocalConversationVoiceAdapter();
+
+    expect(adapter.getSnapshot()).toMatchObject({
+      status: 'disconnected',
+      mode: 'idle',
+      canStop: false,
     });
   });
 

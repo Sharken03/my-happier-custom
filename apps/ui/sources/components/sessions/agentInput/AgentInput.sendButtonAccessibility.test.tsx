@@ -30,6 +30,12 @@ const translateOverride = vi.hoisted(() => ({
     fn: null as null | ((key: string, params?: Record<string, unknown>) => string),
 }));
 
+// The indicator animates with Animated.delay, which this harness does not provide; the composer
+// only has to render it, so the bars are stubbed.
+vi.mock('@/components/ui/status/VoiceBars', () => ({
+    VoiceBars: (props: Record<string, unknown>) => React.createElement('VoiceBars', props),
+}));
+
 vi.mock('@/agents/registry/AgentIcon', () => ({
     AgentIcon: (props: Record<string, unknown>) => React.createElement('AgentIcon', props),
 }));
@@ -889,6 +895,41 @@ describe('AgentInput (send button accessibility)', () => {
 
         await screen.unmount();
         featureEnabledState.voice = true;
+    });
+
+    it('shows a recording indicator only while the microphone is capturing', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+
+        const idle = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onMicPress={() => {}}
+                    isMicActive={false}
+                    isMicRecording={false}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+        expect(idle.findByTestId('session-composer-recording-indicator')).toBeNull();
+        await idle.unmount();
+
+        const recording = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onMicPress={() => {}}
+                    isMicActive={true}
+                    isMicRecording={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+        expect(recording.findByTestId('session-composer-recording-indicator')).toBeTruthy();
+        await recording.unmount();
     });
 
     it('lets a running turn keep the button while dictation mode is on', async () => {

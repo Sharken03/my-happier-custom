@@ -284,6 +284,7 @@ import { supportsEffectiveLocalControlForSession } from '@/sync/domains/session/
 import { readControlSwitchUiTimeoutMsFromEnv } from '@/sync/domains/session/control/controlSwitchUiTimeout';
 import { getActiveServerSnapshot } from '@/sync/domains/server/serverRuntime';
 import { useVoiceSessionSnapshot, voiceSessionManager } from '@/voice/session/voiceSession';
+import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
 import { getVoiceAdapterRegistry } from '@/voice/session/voiceAdapterRegistry';
 import { isVoiceConversationSystemSessionMetadata } from '@/voice/sessionBinding/voiceConversationSession';
 import { resolveVoiceSessionComposerRouting } from '@/voice/sessionBinding/voiceSessionComposerRouting';
@@ -4960,15 +4961,22 @@ function SessionViewLoaded({
     }, [sessionId, voiceProviderId]);
 
     // Memoize mic button state to prevent flashing during chat transitions
+    const isLocalVoiceProvider = voiceProviderId === 'local_direct' || voiceProviderId === 'local_conversation';
     const micButtonState = useMemo(
         () => ({
             onMicPress:
                 voiceProviderId !== 'off' || voiceSnap.status !== 'disconnected'
                     ? handleMicrophonePress
                     : undefined,
-            isMicActive: voiceSnap.status !== 'disconnected',
+            // Only the local adapters answer dictation mode. The realtime provider reports `idle` for
+            // a live call, so a mode check here would take the hang-up control away from it. An
+            // error is not activity and used to keep the stop control alive forever.
+            isMicActive: isLocalVoiceProvider && isDictationModeEnabled({ voice } as any)
+                ? voiceSnap.status !== 'disconnected' && voiceSnap.status !== 'error'
+                : voiceSnap.status !== 'disconnected',
+            isRecording: voiceSnap.status !== 'disconnected' && voiceSnap.mode === 'listening',
         }),
-        [handleMicrophonePress, voiceProviderId, voiceSnap.status],
+        [handleMicrophonePress, voiceProviderId, isLocalVoiceProvider, voiceSnap.status, voiceSnap.mode, voice],
     );
 
     const showInactiveNotResumableNotice = inactiveUi.noticeKind === 'not-resumable';
@@ -6531,6 +6539,7 @@ function SessionViewLoaded({
                 isSending={isComposerSendPending}
                 onMicPress={micButtonState.onMicPress}
                 isMicActive={micButtonState.isMicActive}
+                isMicRecording={micButtonState.isRecording}
                 onAbort={handleAgentInputAbort}
                 inactiveStatusText={inactiveStatusText}
                 onFileViewerPress={handleAgentInputFileViewerPress}

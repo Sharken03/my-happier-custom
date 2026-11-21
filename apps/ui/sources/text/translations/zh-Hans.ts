@@ -6164,6 +6164,7 @@ export const zhHans: TranslationStructure = {
   },
 
   voiceSurface: {
+    recording: "录音中…",
     start: "开始",
     stop: "停止",
     selectSessionToStart: "请选择一个会话以开始语音",

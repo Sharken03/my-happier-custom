@@ -6711,6 +6711,7 @@ export const it: TranslationStructure = {
   },
 
   voiceSurface: {
+    recording: "Registrazione…",
     start: "Avvia",
     stop: "Ferma",
     selectSessionToStart: "Seleziona una sessione per avviare la voce",

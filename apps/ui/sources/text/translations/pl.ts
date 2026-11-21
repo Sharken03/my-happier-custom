@@ -6379,6 +6379,7 @@ export const pl: TranslationStructure = {
   },
 
   voiceSurface: {
+    recording: "Nagrywanie…",
     start: "Uruchom",
     stop: "Zatrzymaj",
     selectSessionToStart: "Wybierz sesje, aby uruchomic glos",

@@ -6634,6 +6634,7 @@ localTailscale: {
   },
 
   voiceSurface: {
+    recording: "録音中…",
     start: "開始",
     stop: "停止",
     selectSessionToStart: "音声を開始するセッションを選択してください",

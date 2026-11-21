@@ -6004,6 +6004,7 @@ deps: {
     },
 
       voiceSurface: {
+          recording: "Enregistrant…",
           start: 'Inicia',
           stop: 'Atura',
           selectSessionToStart: 'Selecciona una sessio per iniciar la veu',

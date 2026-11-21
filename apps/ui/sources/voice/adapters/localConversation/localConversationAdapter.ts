@@ -2,6 +2,7 @@ import {
   appendLocalVoiceAgentContextUpdate,
   abortLocalVoiceTurn,
   getLocalVoiceState,
+  shouldHoldLocalVoiceCallWhileIdle,
   subscribeLocalVoiceState,
   stopLocalVoiceSession,
   toggleLocalVoiceTurn,
@@ -44,9 +45,13 @@ export function createLocalConversationVoiceAdapter(): VoiceAdapterController {
   const getSnapshot = (): VoiceSessionSnapshot => {
     const local = getLocalVoiceState();
     const mapped = (() => {
-      // Local voice keeps the sessionId set while the "call" is active, even when idle.
+      // Local voice keeps the sessionId set while the "call" is active, even when idle. Hands-free
+      // keeps listening between turns, so that is a real call; a dictation-mode call is not. The
+      // engine owns that decision, so both local adapters answer it the same way.
       if (local.status === 'idle' && local.sessionId) {
-        return { status: 'connected' as const, mode: 'idle' as const };
+        return shouldHoldLocalVoiceCallWhileIdle()
+          ? { status: 'connected' as const, mode: 'idle' as const }
+          : mapLocalStatus(local.status);
       }
       return mapLocalStatus(local.status);
     })();
