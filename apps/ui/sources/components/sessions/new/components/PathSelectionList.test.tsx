@@ -581,12 +581,11 @@ describe('PathSelectionList', () => {
             />,
         );
 
+        // A saved row shows one home-relative path line; the second full-path line is gone.
         const title = findTextNodeByContent(screen.tree.root, displayPath);
-        const subtitle = findTextNodeByContent(screen.tree.root, absolutePath);
         expect(title).not.toBeUndefined();
-        expect(subtitle).not.toBeUndefined();
         expect(readProps<TextLikeProps>(title!).ellipsizeMode).toBe('head');
-        expect(readProps<TextLikeProps>(subtitle!).ellipsizeMode).toBe('head');
+        expect(findTextNodeByContent(screen.tree.root, absolutePath)).toBeUndefined();
         act(() => screen.tree.unmount());
     });
 
