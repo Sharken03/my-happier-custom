@@ -104,6 +104,37 @@ describe('probeSessionRunnerServiceability', () => {
     expect(probeCapability).not.toHaveBeenCalled();
   });
 
+  it.skipIf(process.platform === 'win32')('proves runner absence when the lock PID now belongs to another user (EPERM)', async () => {
+    // Android gives a freed runner PID to another app UID: signal 0 throws EPERM and
+    // /proc and ps hide the process, so no fingerprint can be read.
+    vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
+    });
+    const probeCapability = vi.fn(async () => ({ state: 'unknown' as const, reason: 'rpc_failed' as const }));
+    try {
+      await expect(probeSessionRunnerServiceability({
+        sessionId: 'sess_1',
+        trackedSessions: [],
+        readSessionRunnerLockStatus: async () => ({
+          ok: true,
+          lock: {
+            sessionId: 'sess_1',
+            pid: 2_147_483_646,
+            acquiredAtMs: 1,
+            processCommandHash: 'a'.repeat(64),
+            processInstanceFingerprint: 'linux-proc:172501561',
+          },
+        }),
+        getProcessCommandHash: async () => { throw new Error('unreadable'); },
+        getProcessInstanceFingerprint: () => null,
+        probeCapability,
+      })).resolves.toEqual({ state: 'runner_absent' });
+      expect(probeCapability).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('lets atomic lock acquisition replace a proven matching stopped lock holder', async () => {
     const probeCapability = vi.fn(async () => ({ state: 'servable' as const }));
 

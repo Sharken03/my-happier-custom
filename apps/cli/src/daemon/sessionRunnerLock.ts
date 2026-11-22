@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { configuration } from '@/configuration';
 
-import { readProcessRunState as readProcessRunStateDefault, type ProcessRunState } from './processRunState';
+import { readSessionRunnerProcessRunState as readProcessRunStateDefault, type ProcessRunState } from './processRunState';
 import {
   classifySessionRunnerProcessPresence,
   readSessionRunnerProcessIdentity,

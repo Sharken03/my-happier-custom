@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { acquireSessionRunnerLock, releaseSessionRunnerLock, sessionRunnerLockPathForSessionId } from './sessionRunnerLock';
 
@@ -152,6 +152,40 @@ describe('sessionRunnerLock', () => {
     if (!res.ok) return;
     const raw = await readFile(lockPath, 'utf8');
     expect(JSON.parse(raw).pid).toBe(123);
+  });
+
+  it.skipIf(process.platform === 'win32')('breaks a stale lock whose pid now belongs to another user (EPERM)', async () => {
+    const happyHomeDir = await mkdtemp(join(tmpdir(), 'happier-session-runner-lock-'));
+    const lockPath = sessionRunnerLockPathForSessionId({ happyHomeDir, sessionId: 'sess_eperm' });
+    expect(lockPath).not.toBeNull();
+    if (!lockPath) return;
+
+    await mkdir(dirname(lockPath), { recursive: true });
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        sessionId: 'sess_eperm', pid: 2_147_483_646, acquiredAtMs: 1,
+        processCommandHash: 'a'.repeat(64), processInstanceFingerprint: 'linux-proc:172501561',
+      }, null, 2),
+      'utf8',
+    );
+    vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
+    });
+    try {
+      const res = await acquireSessionRunnerLock({
+        happyHomeDir,
+        sessionId: 'sess_eperm',
+        pid: 123,
+        nowMs: 10_000,
+        getCurrentProcessCommandHash: async () => { throw new Error('unreadable'); },
+        getProcessInstanceFingerprint: () => null,
+      });
+      expect(res.ok).toBe(true);
+      expect(JSON.parse(await readFile(lockPath, 'utf8')).pid).toBe(123);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('breaks a lock held by a live pid only when the process-instance fingerprint differs', async () => {
