@@ -1475,7 +1475,15 @@ export class PiRpcBackend implements AgentBackend {
     this.assertSession(sessionId);
     await abortPendingAcpPermissionRequests(this.permissionHandler, 'Pi turn cancelled');
     const pendingTurn = this.pendingTurn;
-    await this.sendCommand({ type: 'abort' });
+    // Let an in-flight spawn or restart finish, so its turn can still be aborted.
+    if (!this.process && this.processTransitionInFlight) await this.processTransitionInFlight;
+    if (!this.process) {
+      // No live Pi process means no running turn to abort. Do not restart Pi only to send
+      // abort: a cold `--session` start takes seconds and delays session stop.
+      if (pendingTurn && this.pendingTurn === pendingTurn) this.resolvePendingTurn();
+      return;
+    }
+    await this.sendCommand({ type: 'abort' }, 30_000, { processAlreadyEnsured: true });
     // Pi's successful abort response is an idle barrier: its RPC handler awaits the provider's
     // waitForIdle() before acknowledging. Settle the same local turn from that authoritative
     // boundary even if its preceding uncorrelated agent_end event was lost or misattributed.
