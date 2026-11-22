@@ -12,13 +12,15 @@ const processBoundary = vi.hoisted(() => ({ calls: 0, version: '1.2.3', wait: Pr
 vi.mock('child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('child_process')>();
   const execFile = Object.assign(vi.fn(), {
-    [promisify.custom]: async (file: string) => {
-      if (file.includes('opencode')) {
+    [promisify.custom]: async (file: string, args: readonly string[] = []) => {
+      // A node script launcher runs as `node <script> --version`.
+      const provider = file.includes('opencode') || String(args[0] ?? '').includes('opencode');
+      if (provider) {
         processBoundary.calls++;
         await processBoundary.beforeProbe?.();
       }
       const version = processBoundary.version;
-      if (file.includes('opencode')) await processBoundary.wait;
+      if (provider) await processBoundary.wait;
       return { stdout: version ? `opencode ${version}\n` : 'no version\n', stderr: '' };
     },
   });
@@ -49,6 +51,36 @@ async function withNativeCli(run: (context: {
     delete process.env.HAPPIER_OPENCODE_PATH;
     const { detectCliSnapshotOnDaemonPath: detect, invalidateCliSnapshots: invalidate } = await import('./cliSnapshot');
     await run({ binary, detect, invalidate });
+  } finally { env.restore(); await fixture.cleanup(); }
+}
+
+async function withPackageCli(run: (context: {
+  launcher: string;
+  manifest: string;
+  detect: typeof import('./cliSnapshot')['detectCliSnapshotOnDaemonPath'];
+}) => Promise<void>, binEntry = 'bin/opencode') {
+  vi.resetModules();
+  processBoundary.calls = 0;
+  processBoundary.version = '1.2.3';
+  processBoundary.wait = Promise.resolve();
+  processBoundary.beforeProbe = null;
+  const fixture = await createProbeTempDir('happier-version-cache-package');
+  const env = createEnvKeyScope(['HOME', 'USERPROFILE', 'PATH', 'HAPPIER_OPENCODE_PATH']);
+  try {
+    // A package manager install: the PATH entry is a symlink to the bin script of a package.
+    const packageRoot = join(fixture.dir, 'lib', 'node_modules', 'opencode-fixture');
+    const launcher = join(packageRoot, 'bin', 'opencode');
+    await mkdir(dirname(launcher), { recursive: true });
+    await writeExecutableScript(launcher, "#!/usr/bin/env node\nrequire('../lib/main.cjs');\n");
+    const manifest = join(packageRoot, 'package.json');
+    await writeFile(manifest, JSON.stringify({ name: 'opencode-fixture', version: '1.2.3', bin: { opencode: binEntry } }));
+    const bin = join(fixture.dir, 'bin');
+    await mkdir(bin, { recursive: true });
+    await symlink(launcher, join(bin, 'opencode'));
+    env.patch({ HOME: fixture.dir, USERPROFILE: fixture.dir, PATH: `${bin}${delimiter}${process.env.PATH ?? ''}` });
+    delete process.env.HAPPIER_OPENCODE_PATH;
+    const { detectCliSnapshotOnDaemonPath: detect } = await import('./cliSnapshot');
+    await run({ launcher, manifest, detect });
   } finally { env.restore(); await fixture.cleanup(); }
 }
 
@@ -220,4 +252,32 @@ describe('CLI version reuse', () => {
       });
     },
   );
+
+  it.runIf(process.platform !== 'win32')('reuses the version of a package bin script until its package changes', async () => {
+    await withPackageCli(async ({ manifest, detect }) => {
+      expect((await detect(request)).clis.opencode.version).toBe('1.2.3');
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.now() + 31_000);
+      expect((await detect(request)).clis.opencode.version).toBe('1.2.3');
+      expect(processBoundary.calls).toBe(1);
+      // A package update rewrites the manifest, also when the bin script stays the same.
+      processBoundary.version = '2.0.0';
+      await writeFile(manifest, JSON.stringify({ name: 'opencode-fixture', version: '2.0.0', bin: { opencode: 'bin/opencode' } }));
+      const later = new Date(Date.now() + 60_000);
+      await utimes(manifest, later, later);
+      vi.setSystemTime(Date.now() + 31_000);
+      expect((await detect(request)).clis.opencode.version).toBe('2.0.0');
+      expect(processBoundary.calls).toBe(2);
+    });
+  });
+
+  it.runIf(process.platform !== 'win32')('does not persist versions for a script that is not the bin entry of its package', async () => {
+    await withPackageCli(async ({ detect }) => {
+      await detect(request);
+      processBoundary.version = '2.0.0';
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.now() + 31_000);
+      expect((await detect(request)).clis.opencode.version).toBe('2.0.0');
+    }, 'bin/other');
+  });
 });

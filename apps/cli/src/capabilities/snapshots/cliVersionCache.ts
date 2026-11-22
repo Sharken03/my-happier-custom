@@ -1,4 +1,5 @@
-import { open, realpath } from 'node:fs/promises';
+import { open, readFile, realpath, stat } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 
 import { AsyncTtlCache } from '@happier-dev/protocol';
 
@@ -31,7 +32,7 @@ export class CliVersionCache {
             cache = new AsyncTtlCache<VersionFact>({ successTtlMs: Infinity, errorTtlMs: 0 });
             this.#caches.set(params.name, cache);
         }
-        const identity = params.nativeInstall ? await readNativeExecutableIdentity(params.resolvedPath) : null;
+        const identity = await readExecutableIdentity(params.resolvedPath, params.nativeInstall);
         const cached = cache.get(params.name);
         if (!params.fresh && identity && cached?.kind === 'success' && cached.value.identity === identity) {
             return cached.value.version;
@@ -40,7 +41,7 @@ export class CliVersionCache {
             const { version, successful } = await params.probe();
             // Updates may retarget a launcher while the bounded process probe is running.
             // Admit only an observation bracketed by the same executable identity.
-            if (successful && identity && version && await readNativeExecutableIdentity(params.resolvedPath) === identity) {
+            if (successful && identity && version && await readExecutableIdentity(params.resolvedPath, params.nativeInstall) === identity) {
                 cache.setSuccess(params.name, { identity, version });
             }
             return version;
@@ -50,6 +51,46 @@ export class CliVersionCache {
         return params.fresh ? await run() : await cache.runDedupe(
             JSON.stringify([params.name, params.resolvedPath, identity, params.probeKey]), run,
         );
+    }
+}
+
+async function readExecutableIdentity(path: string, nativeInstall: boolean): Promise<string | null> {
+    return (nativeInstall ? await readNativeExecutableIdentity(path) : null) ?? await readPackageBinIdentity(path);
+}
+
+/**
+ * A package manager install (npm, for example) links the command to a bin script of a package.
+ * The script can load other files, but an update of the package also rewrites its manifest, so
+ * the script and the manifest together identify the installed version.
+ */
+async function readPackageBinIdentity(path: string): Promise<string | null> {
+    try {
+        const resolved = await realpath(path);
+        // The nearest manifest owns the script.
+        let dir = dirname(resolved);
+        for (let depth = 0; depth < 6; depth += 1) {
+            const manifestPath = join(dir, 'package.json');
+            const manifestInfo = await stat(manifestPath).catch(() => null);
+            if (manifestInfo) {
+                const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { bin?: unknown };
+                const bin = manifest.bin;
+                const entries = typeof bin === 'string' ? [bin]
+                    : bin && typeof bin === 'object' ? Object.values(bin as Record<string, unknown>) : [];
+                if (!entries.some(entry => typeof entry === 'string' && resolve(dir, entry) === resolved)) return null;
+                const info = await stat(resolved);
+                return JSON.stringify([
+                    resolved, info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs,
+                    manifestPath, manifestInfo.dev, manifestInfo.ino, manifestInfo.size, manifestInfo.mtimeMs, manifestInfo.ctimeMs,
+                ]);
+            }
+            const parent = dirname(dir);
+            if (parent === dir) return null;
+            dir = parent;
+        }
+        return null;
+    } catch {
+        // No readable package: probe without version reuse.
+        return null;
     }
 }
 
