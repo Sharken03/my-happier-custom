@@ -42,7 +42,6 @@ type SessionListRenderableCommitSettings = Readonly<{
     sessionListActiveGroupingV1?: 'project' | 'date' | 'none';
     sessionListInactiveGroupingV1?: 'project' | 'date' | 'none';
     sessionListSectionModeV1?: 'activity' | 'single';
-    sessionListArchivedSectionV1?: boolean;
     sessionListAttentionPromotionModeV1?: SessionListAttentionPromotionMode;
     sessionListWorkingPlacementModeV1?: SessionListWorkingPlacementMode;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
@@ -183,7 +182,6 @@ export function buildSessionListViewDataForRenderableState(
         activeGroupingV1: state.settings.sessionListActiveGroupingV1,
         inactiveGroupingV1: state.settings.sessionListInactiveGroupingV1,
         sectionModeV1: state.settings.sessionListSectionModeV1,
-        archivedSectionV1: state.settings.sessionListArchivedSectionV1,
         workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
         getProjectForSession: state.getProjectForSession,
     });

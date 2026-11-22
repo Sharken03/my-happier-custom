@@ -79,7 +79,6 @@ import {
 } from './row/sessionListVisibleRowStoreScopes';
 import { treeRowId } from './drop-resolution/treeRowId';
 import { SessionListViewMenuButton } from './sessionListViewMenu';
-import { SessionListVisibilityMenu } from './sessionListVisibilityMenu';
 import { buildNewSessionTempDataFromSessionConfiguration } from '@/components/sessions/authoring/draft/sessionConfigurationSeed';
 import { storeTempData } from '@/utils/sessions/tempDataStore';
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
@@ -113,7 +112,7 @@ import { SessionListHeaderControls } from './SessionListHeaderControls';
 import { useSessionListSearchTextByKey } from './useSessionListSearchTextByKey';
 import { useSessionListMemorySearchAugmentation } from './search/useSessionListMemorySearchAugmentation';
 import { useSessionListHeaderFilterRetention } from './search/useSessionListHeaderFilterRetention';
-import { isSessionListPrimaryHeaderKind, withPrimaryHeaderFallback } from './sessionListPrimaryHeader';
+import { isSessionListPrimaryHeaderKind } from './sessionListPrimaryHeader';
 import {
     getSessionListHeaderControlsAnchorKey,
     hasActiveSessionListHeaderFilters,
@@ -614,8 +613,6 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         hideInactiveSessions,
         setHideInactiveSessions,
-        sessionListVisibilityScope,
-        setSessionListVisibilityScope,
         rememberLastProjectSessionSelections,
         workspaceLabelsV1,
         setWorkspaceLabelsV1,
@@ -821,11 +818,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         activeSnapshot: activeDragSnapshot,
         liveViewItems: listItems as ReadonlyArray<SessionListViewItem>,
     });
-    const frozenViewItems = frozenListProjection.viewItems;
-    const renderedListItems = React.useMemo(() => withPrimaryHeaderFallback(frozenViewItems, {
-        title: sessionListVisibilityScope === 'archived' ? 'Archived' : t('tabs.sessions'),
-        headerKind: sessionListVisibilityScope === 'archived' ? 'archived' : 'sessions',
-    }), [frozenViewItems, sessionListVisibilityScope]);
+    const renderedListItems = frozenListProjection.viewItems;
     const rowStoreScopesRaw = React.useMemo(() => renderedListItems
         .filter((item): item is SessionListSessionItem => item.type === 'session')
         .map((item) => ({
@@ -1002,12 +995,6 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         if (!surfaceDataActiveRef.current) return;
         fireAndForget(sync.fetchMoreSessions(), { tag: 'SessionsList.fetchMoreSessions' });
     }, []);
-    // The main session list holds no archived rows (the server leaves them out). The All and
-    // Archived scopes load them with the same request as the Archived Sessions screen.
-    React.useEffect(() => {
-        if (sessionListVisibilityScope === 'active' || !surfaceOwnership.dataActive) return;
-        fireAndForget(sync.fetchArchivedSessions(), { tag: 'SessionsList.fetchArchivedSessions' });
-    }, [sessionListVisibilityScope, surfaceOwnership.dataActive]);
     const handleRefreshSessions = React.useCallback(async () => {
         if (!surfaceDataActiveRef.current) return;
         if (refreshingSessionsRef.current) return;
@@ -1865,12 +1852,6 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 disabled={!folderActionsEnabled}
             />
         );
-        const visibilityMenu = (
-            <SessionListVisibilityMenu
-                value={sessionListVisibilityScope}
-                onChange={setSessionListVisibilityScope}
-            />
-        );
         return (
             <SessionListHeaderControls
                 allKnownTags={sessionTagsEnabled === true ? allKnownTags : EMPTY_SESSION_KEYS}
@@ -1881,7 +1862,6 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 onSearchQueryChange={setSearchQuery}
                 onSearchOpenChange={(open) => handleHeaderSearchOpenChange(anchorKey, open)}
                 searchTrailingAccessory={searchTrailingAccessory}
-                visibilityMenu={visibilityMenu}
                 viewMenu={menu}
             />
         );
@@ -1896,8 +1876,6 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         folderActionsEnabled,
         hideInactiveSessions,
-        sessionListVisibilityScope,
-        setSessionListVisibilityScope,
         sessionListOrderingMode,
         sessionListSavedFolderSortMode,
         sessionFolderViewMode,

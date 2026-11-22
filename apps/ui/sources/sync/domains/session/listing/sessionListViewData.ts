@@ -27,7 +27,7 @@ export type SessionListViewItem =
     | {
         type: 'header';
         title: string;
-        headerKind?: 'date' | 'server' | 'active' | 'inactive' | 'archived' | 'sessions' | 'project' | 'pinned' | 'attention' | 'working' | 'shared' | 'folder';
+        headerKind?: 'date' | 'server' | 'active' | 'inactive' | 'sessions' | 'project' | 'pinned' | 'attention' | 'working' | 'shared' | 'folder';
         groupKey?: string;
         workspaceKey?: string;
         appearanceColor?: SessionAppearanceColor | null;
@@ -48,7 +48,7 @@ export type SessionListViewItem =
     | {
         type: 'session';
         session: SessionListRenderableSession;
-        section?: 'active' | 'inactive' | 'archived';
+        section?: 'active' | 'inactive';
         groupKey?: string;
         groupKind?: 'active' | 'date' | 'project' | 'pinned' | 'attention' | 'working' | 'shared' | 'folder';
         folderId?: string | null;
@@ -68,8 +68,6 @@ export interface BuildSessionListViewDataOptions {
     activeGroupingV1?: 'project' | 'date' | 'none';
     inactiveGroupingV1?: 'project' | 'date' | 'none';
     sectionModeV1?: 'activity' | 'single';
-    // false: archived sessions join the inactive sessions instead of an own Archived section.
-    archivedSectionV1?: boolean;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
     /**
      * Optional state snapshot used to resolve reachable machine targets when session metadata is stale
@@ -92,7 +90,7 @@ type ServerScopeMeta = Readonly<{
     serverName?: string;
 }>;
 
-type SessionListActivitySection = 'active' | 'inactive' | 'archived';
+type SessionListActivitySection = 'active' | 'inactive';
 type SessionListSectionScope = SessionListActivitySection | 'sessions';
 
 function isSessionActive(session: { active: boolean }): boolean {
@@ -712,10 +710,8 @@ export function buildSessionListViewData(
         : {};
     const activeSessions: SessionListRenderableSession[] = [];
     const inactiveSessions: SessionListRenderableSession[] = [];
-    const archivedSessions: SessionListRenderableSession[] = [];
     const activeSharedSessions: SessionListRenderableSession[] = [];
     const inactiveSharedSessions: SessionListRenderableSession[] = [];
-    const archivedSharedSessions: SessionListRenderableSession[] = [];
 
     Object.values(sessions).forEach((session) => {
         // Hide system sessions from user-facing lists by default.
@@ -723,13 +719,7 @@ export function buildSessionListViewData(
             return;
         }
         const isSharedSession = typeof session.owner === 'string' && session.owner.trim().length > 0;
-        if (session.archivedAt != null && options.archivedSectionV1 !== false) {
-            if (isSharedSession) {
-                archivedSharedSessions.push(session);
-            } else {
-                archivedSessions.push(session);
-            }
-        } else if (isSharedSession && isSessionActive(session)) {
+        if (isSharedSession && isSessionActive(session)) {
             activeSharedSessions.push(session);
         } else if (isSharedSession) {
             inactiveSharedSessions.push(session);
@@ -742,10 +732,8 @@ export function buildSessionListViewData(
 
     activeSessions.sort(compareSessionsStableNewestFirst);
     inactiveSessions.sort(compareSessionsStableNewestFirst);
-    archivedSessions.sort(compareSessionsStableNewestFirst);
     activeSharedSessions.sort(compareSessionsStableNewestFirst);
     inactiveSharedSessions.sort(compareSessionsStableNewestFirst);
-    archivedSharedSessions.sort(compareSessionsStableNewestFirst);
 
     const listData: SessionListViewItem[] = [];
     const serverKey = normalizeServerIdForKey(options.serverScope?.serverId);
@@ -795,28 +783,6 @@ export function buildSessionListViewData(
                 sessions: allOwnedSessions,
                 section: 'sessions',
                 grouping,
-                machines,
-                serverKey,
-                serverScopeMeta,
-                sessionTargetState: options.sessionTargetState,
-                workspacePathDisplayModeV1: options.workspacePathDisplayModeV1,
-                groupGitWorktreesByRepository: options.groupGitWorktreesByRepository !== false,
-            });
-        }
-        if (archivedSessions.length > 0 || archivedSharedSessions.length > 0) {
-            listData.push({ type: 'header', title: 'Archived', headerKind: 'archived', ...serverScopeMeta });
-            pushSharedSessionsToList({
-                listData,
-                sessions: archivedSharedSessions,
-                section: 'archived',
-                serverKey,
-                serverScopeMeta,
-            });
-            pushOwnedSessionsToList({
-                listData,
-                sessions: archivedSessions,
-                section: 'archived',
-                grouping: 'date',
                 machines,
                 serverKey,
                 serverScopeMeta,
@@ -876,28 +842,6 @@ export function buildSessionListViewData(
         });
     }
 
-    if (archivedSessions.length > 0 || archivedSharedSessions.length > 0) {
-        listData.push({ type: 'header', title: 'Archived', headerKind: 'archived', ...serverScopeMeta });
-        pushSharedSessionsToList({
-            listData,
-            sessions: archivedSharedSessions,
-            section: 'archived',
-            serverKey,
-            serverScopeMeta,
-        });
-        pushOwnedSessionsToList({
-            listData,
-            sessions: archivedSessions,
-            section: 'archived',
-            grouping: 'date',
-            machines,
-            serverKey,
-            serverScopeMeta,
-            sessionTargetState: options.sessionTargetState,
-            workspacePathDisplayModeV1: options.workspacePathDisplayModeV1,
-            groupGitWorktreesByRepository: options.groupGitWorktreesByRepository !== false,
-        });
-    }
 
     return completeSessionWorkspaces();
 }

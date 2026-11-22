@@ -1644,67 +1644,6 @@ describe('computeVisibleSessionListIndex', () => {
         ]);
     });
 
-    it('keeps inactive sessions that were active since the keep threshold when inactive sessions are hidden', () => {
-        const groupKey = 'server:s1:day:2026-02-17';
-        const source: SessionListIndexItem[] = [
-            { type: 'header', headerKind: 'date', title: 'Today', serverId: 's1', groupKey },
-            { type: 'session', sessionId: 'running', serverId: 's1', section: 'active', groupKey, groupKind: 'date' },
-            { type: 'session', sessionId: 'stoppedRecently', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
-            { type: 'session', sessionId: 'stoppedLongAgo', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
-        ];
-        const result = computeVisibleSessionListIndex({
-            source,
-            resolveSessionRow: makeResolver({
-                's1:running': makeSessionRow('running', { active: true, activeAt: 5_000 }),
-                's1:stoppedRecently': makeSessionRow('stoppedRecently', { activeAt: 2_000 }),
-                's1:stoppedLongAgo': makeSessionRow('stoppedLongAgo', { activeAt: 500 }),
-            }),
-            hideInactiveSessions: true,
-            keepInactiveSinceMs: 1_000,
-            pinnedSessionKeysV1: [],
-            sessionListGroupOrderV1: {},
-            sessionListOrderingModeV1: 'custom',
-            presentation: { enabled: false, presentation: 'grouped', selectedServerIds: [] },
-        })!;
-
-        expect(result.filter((item) => item.type === 'session').map((item) => item.sessionId)).toEqual([
-            'running',
-            'stoppedRecently',
-        ]);
-    });
-
-    it('leaves sessions that the Active scope keeps out of the Archived scope', () => {
-        const groupKey = 'server:s1:day:2026-02-17';
-        const source: SessionListIndexItem[] = [
-            { type: 'header', headerKind: 'date', title: 'Today', serverId: 's1', groupKey },
-            { type: 'session', sessionId: 'running', serverId: 's1', section: 'active', groupKey, groupKind: 'date' },
-            { type: 'session', sessionId: 'stoppedRecently', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
-            { type: 'session', sessionId: 'stoppedLongAgo', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
-            { type: 'session', sessionId: 'archived', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
-        ];
-        const result = computeVisibleSessionListIndex({
-            source,
-            resolveSessionRow: makeResolver({
-                's1:running': makeSessionRow('running', { active: true, activeAt: 5_000 }),
-                's1:stoppedRecently': makeSessionRow('stoppedRecently', { activeAt: 2_000 }),
-                's1:stoppedLongAgo': makeSessionRow('stoppedLongAgo', { activeAt: 500 }),
-                's1:archived': makeSessionRow('archived', { activeAt: 3_000, archivedAt: 4_000 }),
-            }),
-            hideInactiveSessions: false,
-            keepInactiveSinceMs: 1_000,
-            sessionListVisibilityScope: 'archived',
-            pinnedSessionKeysV1: [],
-            sessionListGroupOrderV1: {},
-            sessionListOrderingModeV1: 'custom',
-            presentation: { enabled: false, presentation: 'grouped', selectedServerIds: [] },
-        })!;
-
-        expect(result.filter((item) => item.type === 'session').map((item) => item.sessionId).sort()).toEqual([
-            'archived',
-            'stoppedLongAgo',
-        ]);
-    });
-
     it('keeps the unified sessions section header when inactive rows are hidden', () => {
         const groupKey = 'server:s1:sessions:project:repo';
         const source: SessionListIndexItem[] = [

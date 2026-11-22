@@ -21,8 +21,6 @@ import {
 import {
     SESSION_LIST_ORDERING_MODE_DEFAULT_V1,
     SESSION_LIST_ORDERING_MODES_V1,
-    SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
-    SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import {
     DEFAULT_SESSION_INACTIVE_RESUME_POLICY,
@@ -356,27 +354,6 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Whether a new chat with attachments opens at once and uploads them in the background, instead of after the upload',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
-    },
-    sessionListArchivedSectionV1: {
-        schema: z.boolean(),
-        default: true,
-        description: 'Whether archived sessions get their own Archived section in the session list or join the inactive sessions',
-        storageScope: 'account',
-        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
-    },
-    sessionListKeepStoppedInActiveDaysV1: {
-        schema: z.number().int().min(0).max(365),
-        default: 0,
-        description: 'Days a stopped session stays in the Active session list after it was last active; 0 hides it when it stops',
-        storageScope: 'account',
-        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
-    },
-    sessionListVisibilityScope: {
-        schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
-        default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,
-        description: 'Which sessions the main list shows: active (running) or archived (inactive and archived)',
-        storageScope: 'account',
-        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
     sessionListActiveColorModeV1: {
         schema: z.enum(['activityAndAttention', 'attentionOnly', 'allActive']),

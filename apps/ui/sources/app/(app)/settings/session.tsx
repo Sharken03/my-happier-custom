@@ -24,20 +24,12 @@ import { normalizeSessionListFolderSortMode } from '@/sync/domains/session/listi
 import { normalizeSessionListBackgroundWorkAttentionMode } from '@/sync/domains/session/listing/sessionListBackgroundWorkAttention';
 import { Icon } from '@/components/ui/icons/Icon';
 import {
-    SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1,
     SESSION_LIST_ORDERING_MODES_V1,
-    normalizeSessionListKeepStoppedInActiveDays,
     normalizeSessionListOrderingModeV1,
     resolveEffectiveSessionListFolderSortMode,
     type SessionListOrderingModeV1,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import { getCodingPromptTitleUpdatesModeItems } from '@/components/settings/session/codingPromptBehaviorOptions';
-
-const KEEP_STOPPED_IN_ACTIVE_ITEMS = SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1.map((days) => ({
-    id: String(days),
-    title: days === 0 ? 'Off' : days === 1 ? '1 day' : `${days} days`,
-    ...(days === 0 ? { subtitle: 'A session leaves Active when it stops' } : {}),
-}));
 
 export default React.memo(function SessionSettingsScreen() {
     const { theme } = useUnistyles();
@@ -72,8 +64,6 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
-    const [sessionListArchivedSection, setSessionListArchivedSection] = useSettingMutable('sessionListArchivedSectionV1');
-    const [keepStoppedInActiveDays, setKeepStoppedInActiveDays] = useSettingMutable('sessionListKeepStoppedInActiveDaysV1');
     const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
@@ -88,7 +78,6 @@ export default React.memo(function SessionSettingsScreen() {
 
     const [openGroupingMenu, setOpenGroupingMenu] = React.useState<null | 'active' | 'inactive'>(null);
     const [openSessionListDensityMenu, setOpenSessionListDensityMenu] = React.useState(false);
-    const [openKeepStoppedInActiveMenu, setOpenKeepStoppedInActiveMenu] = React.useState(false);
     const [openSessionListIdentityDisplayMenu, setOpenSessionListIdentityDisplayMenu] = React.useState(false);
     const [openSessionHeaderIdentityDisplayMenu, setOpenSessionHeaderIdentityDisplayMenu] = React.useState(false);
     const [openSessionListActiveColorModeMenu, setOpenSessionListActiveColorModeMenu] = React.useState(false);
@@ -150,7 +139,7 @@ export default React.memo(function SessionSettingsScreen() {
             title: t('settingsFeatures.sessionListGrouping.dateTitle'),
             subtitle: t('settingsFeatures.sessionListGrouping.dateSubtitle'),
         },
-        // Plain English like the Active/Archived menu, so no locale file changes.
+        // Plain English, so no locale file changes.
         {
             id: 'none',
             title: 'None',
@@ -184,12 +173,6 @@ export default React.memo(function SessionSettingsScreen() {
             subtitle: t('settingsAppearance.sessionListDensity.narrowDescription'),
         },
     ], []);
-
-    const handleKeepStoppedInActiveSelect = React.useCallback((itemId: string) => {
-        const days = Number(itemId);
-        if (!(SESSION_LIST_KEEP_STOPPED_IN_ACTIVE_DAYS_OPTIONS_V1 as readonly number[]).includes(days)) return;
-        setKeepStoppedInActiveDays(days);
-    }, [setKeepStoppedInActiveDays]);
 
     const handleSessionListDensitySelect = React.useCallback((itemId: string) => {
         if (itemId !== 'detailed' && itemId !== 'cozy' && itemId !== 'narrow') return;
@@ -709,8 +692,7 @@ export default React.memo(function SessionSettingsScreen() {
                     rightElement={<Switch value={hideInactiveSessions} onValueChange={setHideInactiveSessions} />}
                     showChevron={false}
                 />
-                {/* Plain English like the Active/Archived menu, so no locale file changes. */}
-                {/* Plain English like the setting above, so no locale file changes. */}
+                {/* Plain English, so no locale file changes. */}
                 <Item
                     testID="settings-session-openBeforeUpload"
                     title="Open new chat before upload"
@@ -718,35 +700,6 @@ export default React.memo(function SessionSettingsScreen() {
                     icon={<Icon name="cloud-arrow-up" size={29} color={theme.colors.accent.indigo} />}
                     rightElement={<Switch value={newSessionOpenBeforeUpload} onValueChange={setNewSessionOpenBeforeUpload} />}
                     showChevron={false}
-                />
-                <Item
-                    testID="settings-session-archivedSection"
-                    title="Archived as own section"
-                    subtitle="Off: archived sessions join the inactive sessions"
-                    icon={<Icon name="archive" size={29} color={theme.colors.accent.indigo} />}
-                    rightElement={<Switch value={sessionListArchivedSection} onValueChange={setSessionListArchivedSection} />}
-                    showChevron={false}
-                />
-                {/* Plain English like the Active/Archived menu, so no locale file changes. */}
-                <DropdownMenu
-                    open={openKeepStoppedInActiveMenu}
-                    onOpenChange={setOpenKeepStoppedInActiveMenu}
-                    variant="selectable"
-                    search={false}
-                    selectedId={String(normalizeSessionListKeepStoppedInActiveDays(keepStoppedInActiveDays))}
-                    showCategoryTitles={false}
-                    matchTriggerWidth={true}
-                    connectToTrigger={true}
-                    rowKind="item"
-                    popoverBoundaryRef={popoverBoundaryRef}
-                    itemTrigger={{
-                        title: 'Keep stopped sessions in Active',
-                        subtitle: 'Days a stopped session stays in the Active list',
-                        icon: <Icon name="clock" size={29} color={theme.colors.accent.indigo} />,
-                        itemProps: { testID: 'settings-session-keepStoppedInActive-trigger' },
-                    }}
-                    items={KEEP_STOPPED_IN_ACTIVE_ITEMS}
-                    onSelect={handleKeepStoppedInActiveSelect}
                 />
                 <Item
                     title={t('settingsFeatures.showArchivedSessionsLink')}

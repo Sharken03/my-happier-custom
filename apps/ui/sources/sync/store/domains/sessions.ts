@@ -289,7 +289,6 @@ type SessionsDomainDependencies = {
         sessionListActiveGroupingV1?: 'project' | 'date' | 'none';
         sessionListInactiveGroupingV1?: 'project' | 'date' | 'none';
         sessionListSectionModeV1?: 'activity' | 'single';
-        sessionListArchivedSectionV1?: boolean;
         sessionListAttentionPromotionModeV1?: SessionListAttentionPromotionMode;
         sessionListWorkingPlacementModeV1?: SessionListWorkingPlacementMode;
         workspacePathDisplayModeV1?: 'name' | 'path';

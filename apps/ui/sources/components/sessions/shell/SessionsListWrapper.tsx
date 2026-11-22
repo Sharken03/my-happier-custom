@@ -10,6 +10,7 @@ import {
     useVisibleSessionListPaneState,
     type VisibleSessionListViewDataOptions,
 } from '@/hooks/session/useVisibleSessionListViewData';
+import { HiddenInactiveSessionsEmptyState } from '@/components/sessions/guidance/HiddenInactiveSessionsEmptyState';
 import { SessionsListContent } from '@/components/sessions/shell/SessionsList';
 import { ActivitySpinner, HERO_SPINNER_SIZE } from '@/components/ui/feedback/ActivitySpinner';
 import { readSessionIdFromPathname } from '@/components/sessions/shell/readSessionIdFromPathname';
@@ -27,8 +28,6 @@ import {
     useSessionListPaneSourceScopeKey,
 } from '@/components/sessions/shell/surface/sessionListPaneRetention';
 import { useNewSessionDraftProjections } from '@/components/sessions/shell/NewSessionDraftsSection';
-import { useSetting } from '@/sync/domains/state/storage';
-import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -218,9 +217,6 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
         ?? (paneStateMatchesStorageKind && paneStateMatchesSource ? paneState : EMPTY_SESSIONS_LIST_PANE_STATE);
     const { sessionListViewData, visibleSessionCount, hasHiddenInactiveSessions } = displayPaneState;
     const styles = stylesheet;
-    // The getting-started page shows only when the account has no sessions in the Active scope.
-    // Otherwise an empty list still renders, so its header keeps the visibility menu.
-    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const storageChrome = (
         <SessionsListStorageChrome
             directSessionsEnabled={directSessionsEnabled}
@@ -256,18 +252,17 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
                 </View>
             </View>
         );
-    } else if (
-        visibleSessionCount === 0
-        && newSessionDrafts.length === 0
-        && sessionListVisibilityScope === 'active'
-        && !hasHiddenInactiveSessions
-    ) {
+    } else if (visibleSessionCount === 0 && newSessionDrafts.length === 0) {
         content = (
             <View style={styles.container}>
                 {storageChrome}
                 <View style={styles.emptyStateContainer}>
                     <View style={styles.emptyStateContentContainer}>
-                        <SessionGettingStartedGuidance variant="phone" />
+                        {hasHiddenInactiveSessions ? (
+                            <HiddenInactiveSessionsEmptyState />
+                        ) : (
+                            <SessionGettingStartedGuidance variant="phone" />
+                        )}
                     </View>
                 </View>
             </View>

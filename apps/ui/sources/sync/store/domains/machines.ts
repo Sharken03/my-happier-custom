@@ -472,7 +472,6 @@ export function createMachinesDomain<S extends MachinesDomain & MachinesDomainDe
                         activeGroupingV1: state.settings.sessionListActiveGroupingV1,
                         inactiveGroupingV1: state.settings.sessionListInactiveGroupingV1,
                         sectionModeV1: state.settings.sessionListSectionModeV1,
-                        archivedSectionV1: state.settings.sessionListArchivedSectionV1,
                         workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
                         getProjectForSession: state.getProjectForSession,
                     })
@@ -540,7 +539,6 @@ export function createMachinesDomain<S extends MachinesDomain & MachinesDomainDe
                     activeGroupingV1: state.settings.sessionListActiveGroupingV1,
                     inactiveGroupingV1: state.settings.sessionListInactiveGroupingV1,
                     sectionModeV1: state.settings.sessionListSectionModeV1,
-                    archivedSectionV1: state.settings.sessionListArchivedSectionV1,
                     workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
                     getProjectForSession: state.getProjectForSession,
                 });

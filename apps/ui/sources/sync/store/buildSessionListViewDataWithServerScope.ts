@@ -102,7 +102,6 @@ export function buildSessionListViewDataWithServerScope(params: {
     activeGroupingV1?: 'project' | 'date' | 'none';
     inactiveGroupingV1?: 'project' | 'date' | 'none';
     sectionModeV1?: 'activity' | 'single';
-    archivedSectionV1?: boolean;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
     getProjectForSession?: (sessionId: string) => ProjectLookupResult;
 }): SessionListViewItem[] {
@@ -126,7 +125,6 @@ export function buildSessionListViewDataWithServerScope(params: {
             activeGroupingV1: params.activeGroupingV1,
             inactiveGroupingV1: params.inactiveGroupingV1,
             sectionModeV1: params.sectionModeV1,
-            archivedSectionV1: params.archivedSectionV1,
             workspacePathDisplayModeV1: params.workspacePathDisplayModeV1,
             serverScope: {
                 serverId,

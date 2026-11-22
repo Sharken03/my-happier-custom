@@ -1,6 +1,5 @@
 import type { SessionListIndexItem } from './sessionListIndex';
 import { resolveSessionRowForIndexItem, type ResolveSessionListIndexRow } from './sessionListIndexSessionRows';
-import { isInactiveSessionKeptInActiveScope } from './sessionListOrderingRules';
 
 export type VisibleSessionListSourceState = Readonly<{
     hasArchivedSessionItems: boolean;
@@ -26,7 +25,7 @@ function pendingHeadersContainFolder(headers: ReadonlyArray<Extract<SessionListI
 }
 
 function isPrimarySectionHeader(item: Extract<SessionListIndexItem, { type: 'header' }>): boolean {
-    return item.headerKind === 'active' || item.headerKind === 'inactive' || item.headerKind === 'archived' || item.headerKind === 'sessions';
+    return item.headerKind === 'active' || item.headerKind === 'inactive' || item.headerKind === 'sessions';
 }
 
 function flushPendingFolderHeaders(params: Readonly<{
@@ -85,7 +84,6 @@ export function inspectVisibleSessionListIndexSourceState(
             !hasInactiveSessionsThatNeedFiltering
             && item.section !== 'active'
             && row.active !== true
-            && row.archivedAt == null
             && row.keepVisibleWhenInactive !== true
         ) {
             hasInactiveSessionsThatNeedFiltering = true;
@@ -133,7 +131,6 @@ export function pruneOrphanSessionListIndexHeaders(items: ReadonlyArray<SessionL
 export function filterHiddenInactiveSessionListIndexItems(
     items: ReadonlyArray<SessionListIndexItem>,
     resolveSessionRow: ResolveSessionListIndexRow,
-    keepInactiveSinceMs: number | null = null,
 ): SessionListIndexItem[] {
     const out: SessionListIndexItem[] = [];
     const headerState = createVisibleSessionListHeaderState();
@@ -150,21 +147,14 @@ export function filterHiddenInactiveSessionListIndexItems(
             continue;
         }
         const row = resolveSessionRowForIndexItem(item, resolveSessionRow);
-        const isArchived = row?.archivedAt != null;
-        const isActive = isArchived || item.section === 'active' || row?.active === true;
-        if (
-            !isActive
-            && item.keepVisibleWhenInactive !== true
-            && row?.keepVisibleWhenInactive !== true
-            && !isInactiveSessionKeptInActiveScope(row?.activeAt, keepInactiveSinceMs)
-        ) {
+        const isActive = item.section === 'active' || row?.active === true;
+        if (!isActive && item.keepVisibleWhenInactive !== true && row?.keepVisibleWhenInactive !== true) {
             continue;
         }
         if (headerState.pendingSectionHeader) {
             if (
                 headerState.pendingSectionHeader.headerKind === 'active'
                 || headerState.pendingSectionHeader.headerKind === 'sessions'
-                || headerState.pendingSectionHeader.headerKind === 'archived'
             ) {
                 out.push(headerState.pendingSectionHeader);
             }
