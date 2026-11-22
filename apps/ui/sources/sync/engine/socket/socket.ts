@@ -1458,8 +1458,6 @@ export async function handleUpdateContainer(params: {
             enqueueMessages: (sessionId, messages) => socketMessageApplyCoalescer.enqueue(sessionId, messages, {
                 shouldContinue,
             }),
-            isMutableToolCall: (sessionId, toolUseId) => storage.getState().isMutableToolCall(sessionId, toolUseId),
-            invalidateScmStatus: (sessionId) => scmStatusSync.invalidateFromMutation(sessionId),
             isSessionMessagesLoaded,
             isSessionActivelyViewed: (sessionId) => isSessionActivelyViewedForRealtime(sessionId, sourceServerId),
             isSessionFullContentConsumerActive: (sessionId) => isSessionFullContentConsumerActiveForRealtime(sessionId, sourceServerId),
@@ -1529,8 +1527,6 @@ export async function handleUpdateContainer(params: {
                 applyMessages(sessionId, messages);
             },
             onNormalizedMessagesApplied: ingestWorkspaceMutationMessages,
-            isMutableToolCall: (sessionId, toolUseId) => storage.getState().isMutableToolCall(sessionId, toolUseId),
-            invalidateScmStatus: (sessionId) => scmStatusSync.invalidateFromMutation(sessionId),
             isSessionMessagesLoaded,
             isSessionActivelyViewed: (sessionId) => isSessionActivelyViewedForRealtime(sessionId, sourceServerId),
             isSessionFullContentConsumerActive: (sessionId) => isSessionFullContentConsumerActiveForRealtime(sessionId, sourceServerId),

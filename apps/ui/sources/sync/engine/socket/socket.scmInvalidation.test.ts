@@ -101,11 +101,14 @@ describe('socket scm invalidation', () => {
     expect(invalidateScmSpy).not.toHaveBeenCalled();
   });
 
-  it('routes mutable-tool socket scm invalidations through the mutation path', async () => {
+  it('leaves scm invalidation for tool results to the workspace mutation ingestion', async () => {
+    // The ingestion classifies each applied message and throttles unknown tools. A second
+    // invalidation from the socket path skipped that throttle and doubled the snapshots.
     const sessionId = 's1';
     storage.getState().applySessions([buildSession(sessionId)]);
-    handleNewMessageSocketUpdateSpy.mockImplementationOnce(async (params: { invalidateScmStatus: (sessionId: string) => void }) => {
-      params.invalidateScmStatus(sessionId);
+    let socketUpdateParams: Record<string, unknown> | null = null;
+    handleNewMessageSocketUpdateSpy.mockImplementationOnce(async (params: Record<string, unknown>) => {
+      socketUpdateParams = params;
     });
 
     const updateData: ApiUpdateContainer = {
@@ -156,7 +159,10 @@ describe('socket scm invalidation', () => {
       log: { log: vi.fn() },
     });
 
-    expect(invalidateScmMutationSpy).toHaveBeenCalledWith(sessionId);
+    expect(socketUpdateParams).not.toBeNull();
+    expect(socketUpdateParams).not.toHaveProperty('invalidateScmStatus');
+    expect(socketUpdateParams).not.toHaveProperty('isMutableToolCall');
+    expect(invalidateScmMutationSpy).not.toHaveBeenCalled();
     expect(invalidateScmSpy).not.toHaveBeenCalled();
   });
 });

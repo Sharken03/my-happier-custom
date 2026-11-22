@@ -99,8 +99,6 @@ function buildHarness(
         applySessions,
         fetchSessions,
         applyMessages,
-        isMutableToolCall: () => false,
-        invalidateScmStatus: () => {},
         isSessionMessagesLoaded: () => true,
         getSessionMaterializedMaxSeq: () => 1,
         markSessionMaterializedMaxSeq,
