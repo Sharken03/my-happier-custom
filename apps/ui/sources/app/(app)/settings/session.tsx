@@ -65,6 +65,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
     const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
+    const [favoriteModelsSortByUse, setFavoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -699,6 +700,14 @@ export default React.memo(function SessionSettingsScreen() {
                     subtitle="Attachments upload in the background"
                     icon={<Icon name="cloud-arrow-up" size={29} color={theme.colors.accent.indigo} />}
                     rightElement={<Switch value={newSessionOpenBeforeUpload} onValueChange={setNewSessionOpenBeforeUpload} />}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-session-favoriteModelsSortByUse"
+                    title="Sort favorite models by use"
+                    subtitle="Models with the most new chats come first"
+                    icon={<Icon name="star" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={favoriteModelsSortByUse} onValueChange={setFavoriteModelsSortByUse} />}
                     showChevron={false}
                 />
                 <Item

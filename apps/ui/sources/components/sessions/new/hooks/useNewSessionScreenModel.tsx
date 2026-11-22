@@ -145,6 +145,7 @@ import {
     writeSessionDraftLocalSupplement,
 } from '@/sync/ops/sessionDrafts/sessionDraftRepository';
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
+import { sortFavoriteModelSelectionsByUse } from '@/sync/domains/models/favoriteModelSelections';
 import {
     useNewSessionDraftHostSnapshot,
     useNewSessionDraftPromptProjection,
@@ -414,7 +415,11 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     const [favoriteDirectories, setFavoriteDirectories] = useSettingMutable('favoriteDirectories');
     const [favoriteMachines, setFavoriteMachines] = useSettingMutable('favoriteMachines');
     const [favoriteProfileIds, setFavoriteProfileIds] = useSettingMutable('favoriteProfiles');
-    const [favoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [storedFavoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [favoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
+    const favoriteModelSelections = React.useMemo(() => (
+        favoriteModelsSortByUse ? sortFavoriteModelSelectionsByUse(storedFavoriteModelSelections) : storedFavoriteModelSelections
+    ), [favoriteModelsSortByUse, storedFavoriteModelSelections]);
     const [favoriteBackendTargetKeys, setFavoriteBackendTargetKeys] = useSettingMutable('favoriteBackendTargetKeysV1');
     const [lastNewSessionAgentPickerView, setLastNewSessionAgentPickerView] = useSettingMutable('lastNewSessionAgentPickerViewV1');
     const [dismissedCLIWarnings, setDismissedCLIWarnings] = useSettingMutable('dismissedCLIWarnings');

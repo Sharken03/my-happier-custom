@@ -357,6 +357,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    favoriteModelsSortByUseV1: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Whether the favorite models list shows the models with the most new chats first',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     transcriptInitialFillToUserMessageV1: {
         schema: z.boolean(),
         default: true,

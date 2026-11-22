@@ -25,6 +25,7 @@ import type { SavedSecret } from '@/sync/domains/settings/savedSecretTypes';
 import type { ServerAccountScope } from '@/sync/domains/scope/serverAccountScope';
 import { resolveEffectiveWindowsRemoteSessionLaunchMode } from '@/sync/domains/session/spawn/windowsRemoteSessionLaunchMode';
 import { getAgentCore, type AgentId } from '@/agents/catalog/catalog';
+import { countFavoriteModelUse } from '@/sync/domains/models/favoriteModelSelections';
 import { log } from '@/log';
 import { buildSpawnEnvironmentVariablesFromUiState, buildSpawnSessionExtrasFromUiState, getAgentResumeExperimentsFromSettings, getNewSessionPreflightIssues } from '@/agents/catalog/catalog';
 import { buildProfileEnvironmentVariablesForSession } from '@/components/sessions/new/modules/profileHelpers';
@@ -32,7 +33,7 @@ import type { NewSessionPromptStore } from '@/components/sessions/new/hooks/scre
 import type { UseMachineEnvPresenceResult } from '@/hooks/machine/useMachineEnvPresence';
 import { getMachineCapabilitiesSnapshot } from '@/hooks/server/useMachineCapabilitiesCache';
 import type { PermissionMode, ModelMode } from '@/sync/domains/permissions/permissionTypes';
-import { SPAWN_SESSION_ERROR_CODES, type ActionOperationSnapshotV1, type BackendTargetRefV1, type WindowsRemoteSessionLaunchMode } from '@happier-dev/protocol';
+import { buildBackendTargetKey, SPAWN_SESSION_ERROR_CODES, type ActionOperationSnapshotV1, type BackendTargetRefV1, type WindowsRemoteSessionLaunchMode } from '@happier-dev/protocol';
 import type { AcpConfigOptionOverridesV1 } from '@happier-dev/protocol';
 import type { SessionSpawnSourceContextV1 } from '@happier-dev/protocol';
 import { parsePermissionIntentAlias } from '@happier-dev/agents';
@@ -495,6 +496,7 @@ export function useCreateNewSession(params: Readonly<{
             ].slice(0, 10);
             const profilesActive = current.useProfiles;
 
+            const backendTarget: BackendTargetRefV1 = current.backendTarget ?? { kind: 'builtInAgent', agentId: current.agentType };
             const settingsUpdate: MutableSettingsDelta = {
                 recentMachinePaths: updatedPaths,
                 lastUsedAgent: current.agentType,
@@ -503,9 +505,23 @@ export function useCreateNewSession(params: Readonly<{
             if (profilesActive) {
                 settingsUpdate.lastUsedProfile = current.selectedProfileId;
             }
+            // A new chat with a favorite model counts one use for that favorite.
+            const countedFavorites = getAgentCore(current.agentType).model.supportsSelection === true
+                ? countFavoriteModelUse({
+                    favorites: current.settings.favoriteModelSelectionsV1 ?? [],
+                    backend: {
+                        backendTargetKey: buildBackendTargetKey(backendTarget),
+                        builtInAgentId: backendTarget.kind === 'builtInAgent' ? backendTarget.agentId : null,
+                        configuredBackendId: backendTarget.kind === 'configuredAcpBackend' ? backendTarget.backendId : null,
+                    },
+                    modelId: current.modelMode,
+                })
+                : null;
+            if (countedFavorites) {
+                settingsUpdate.favoriteModelSelectionsV1 = countedFavorites;
+            }
             applySettings(settingsUpdate);
 
-            const backendTarget: BackendTargetRefV1 = current.backendTarget ?? { kind: 'builtInAgent', agentId: current.agentType };
             let environmentVariables = undefined;
             if (profilesActive && current.selectedProfileId) {
                 const selectedProfile = current.profileMap.get(current.selectedProfileId) || getBuiltInProfile(current.selectedProfileId);

@@ -188,6 +188,7 @@ import { getModelOverrideForSpawn } from '@/sync/domains/models/modelOverride';
 import {
     buildFavoriteModelBackendIdentityForEntry,
     resolveFavoriteModelValuesForBackend,
+    sortFavoriteModelSelectionsByUse,
     toggleFavoriteModelSelection,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
@@ -3872,7 +3873,13 @@ function SessionViewLoaded({
     // The Session's own Agent, as the favorites catalog knows it. A favorite is one
     // Agent's model, so reading the picker's stars for any other identity would
     // show — and toggle — models that belong to an Agent this Session does not run.
-    const [favoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [storedFavoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [favoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
+    const favoriteModelSelections = React.useMemo(() => (
+        favoriteModelsSortByUse && storedFavoriteModelSelections
+            ? sortFavoriteModelSelectionsByUse(storedFavoriteModelSelections)
+            : storedFavoriteModelSelections
+    ), [favoriteModelsSortByUse, storedFavoriteModelSelections]);
     const sessionFavoriteModelBackendEntry = React.useMemo(() => (
         sessionAgentCatalogEntries.find((candidate) => candidate.targetKey === sessionAgentCurrentTargetKey) ?? null
     ), [sessionAgentCatalogEntries, sessionAgentCurrentTargetKey]);
