@@ -28,6 +28,8 @@ import {
     useSessionListPaneSourceScopeKey,
 } from '@/components/sessions/shell/surface/sessionListPaneRetention';
 import { useNewSessionDraftProjections } from '@/components/sessions/shell/NewSessionDraftsSection';
+import { useSetting } from '@/sync/domains/state/storage';
+import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -217,6 +219,8 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
         ?? (paneStateMatchesStorageKind && paneStateMatchesSource ? paneState : EMPTY_SESSIONS_LIST_PANE_STATE);
     const { sessionListViewData, visibleSessionCount, hasHiddenInactiveSessions } = displayPaneState;
     const styles = stylesheet;
+    // An empty Archived scope still renders the list, so its header keeps the visibility menu.
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const storageChrome = (
         <SessionsListStorageChrome
             directSessionsEnabled={directSessionsEnabled}
@@ -252,7 +256,11 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
                 </View>
             </View>
         );
-    } else if (visibleSessionCount === 0 && newSessionDrafts.length === 0) {
+    } else if (
+        visibleSessionCount === 0
+        && newSessionDrafts.length === 0
+        && sessionListVisibilityScope === 'active'
+    ) {
         content = (
             <View style={styles.container}>
                 {storageChrome}

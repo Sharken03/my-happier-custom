@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SessionListRenderableSession } from './sessionListRenderable';
-import { readSessionListUpdatedOrderingKey, SESSION_LIST_UPDATED_ORDERING_BUCKET_MS } from './sessionListOrderingRules';
+import {
+    normalizeSessionListVisibilityScope,
+    readSessionListUpdatedOrderingKey,
+    SESSION_LIST_UPDATED_ORDERING_BUCKET_MS,
+} from './sessionListOrderingRules';
 
 function makeRow(partial: Partial<SessionListRenderableSession> = {}): SessionListRenderableSession {
     return {
@@ -28,5 +32,14 @@ describe('readSessionListUpdatedOrderingKey', () => {
             bucket: Math.floor(650_000 / SESSION_LIST_UPDATED_ORDERING_BUCKET_MS),
             createdAtSecondary: 100,
         });
+    });
+});
+
+describe('normalizeSessionListVisibilityScope', () => {
+    it('reads archived as Archived and every other value, also the former all, as Active', () => {
+        expect(normalizeSessionListVisibilityScope('archived')).toBe('archived');
+        expect(normalizeSessionListVisibilityScope('active')).toBe('active');
+        expect(normalizeSessionListVisibilityScope('all')).toBe('active');
+        expect(normalizeSessionListVisibilityScope(undefined)).toBe('active');
     });
 });
