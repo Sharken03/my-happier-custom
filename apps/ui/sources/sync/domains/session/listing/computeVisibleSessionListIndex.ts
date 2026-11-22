@@ -36,6 +36,7 @@ import {
     resolveEffectiveSessionListOrderingModeForGroup,
     resolveEffectiveSessionListFolderSortMode,
     normalizeSessionListVisibilityScope,
+    isInactiveSessionKeptInActiveScope,
     type SessionListOrderingSectionMode,
     type SessionListVisibilityScope,
 } from './sessionListOrderingRules';
@@ -462,8 +463,15 @@ function computeVisibleSessionListIndexUnmeasured(
         if (item.type !== 'session') return true;
         const row = resolveSessionRowForIndexItem(item, params.resolveSessionRow);
         const isArchived = row?.archivedAt != null;
-        // Archived holds every session that does not run: archived and inactive ones.
-        if (visibilityScope === 'archived') return isArchived || !(item.section === 'active' || row?.active === true);
+        // Archived holds every session that the Active scope does not show: archived sessions
+        // and inactive ones that Active does not keep (keepVisibleWhenInactive or the keep window).
+        if (visibilityScope === 'archived') {
+            if (isArchived) return true;
+            if (item.section === 'active' || row?.active === true) return false;
+            return item.keepVisibleWhenInactive !== true
+                && row?.keepVisibleWhenInactive !== true
+                && !isInactiveSessionKeptInActiveScope(row?.activeAt, params.keepInactiveSinceMs ?? null);
+        }
         return !isArchived;
     });
 
