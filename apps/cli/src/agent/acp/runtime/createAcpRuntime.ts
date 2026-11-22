@@ -2393,7 +2393,8 @@ export function createAcpRuntime(params: {
     try {
       await applySessionModelControl(pendingModel.modelId);
     } catch (error) {
-      logger.debug(`[${params.provider}] Failed to apply startup model override before pending drain (non-fatal)`, error);
+      // The session continues on the provider's default model, so record why.
+      logger.warnFile(`[${params.provider}] Failed to apply startup model override before pending drain (non-fatal)`, error);
     }
   };
 

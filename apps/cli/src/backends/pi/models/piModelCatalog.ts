@@ -24,8 +24,9 @@ export function qualifyPiModelId(providerRaw: unknown, modelIdRaw: unknown): str
   const provider = typeof providerRaw === 'string' ? providerRaw.trim() : '';
   const modelId = typeof modelIdRaw === 'string' ? modelIdRaw.trim() : '';
   if (!provider || !modelId) return null;
-  const providerPrefix = `${provider}/`;
-  return modelId.startsWith(providerPrefix) ? modelId : `${providerPrefix}${modelId}`;
+  // Always prefix: a native id can itself start with the provider name (`nvidia/<model>` in
+  // the `nvidia` provider), and set_model splits the qualified id at the first slash.
+  return `${provider}/${modelId}`;
 }
 
 export function createPiModelCatalogEntry(params: Readonly<{

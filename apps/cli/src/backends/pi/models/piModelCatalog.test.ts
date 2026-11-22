@@ -7,7 +7,13 @@ describe('Pi model catalog identity', () => {
     const raw = { provider: 'openrouter', modelId: 'anthropic/claude-sonnet', name: 'Claude Sonnet' };
     const entry = createPiModelCatalogEntry(raw);
     expect(entry).toMatchObject({ id: 'openrouter/anthropic/claude-sonnet', name: 'Claude Sonnet' });
-    expect(createPiModelCatalogEntry({ ...raw, modelId: entry?.id })).toEqual(entry);
+  });
+
+  it('retains the Pi provider when the native model id starts with the provider name', () => {
+    // NVIDIA's catalog names its own models `nvidia/<model>`. The id must still split into
+    // the provider and the native model id at the first slash.
+    const entry = createPiModelCatalogEntry({ provider: 'nvidia', modelId: 'nvidia/nemotron-3.5-super-vl-120b-a12b' });
+    expect(entry?.id).toBe('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b');
   });
 });
 
