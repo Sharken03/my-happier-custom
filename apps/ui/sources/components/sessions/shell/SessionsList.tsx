@@ -113,7 +113,7 @@ import { SessionListHeaderControls } from './SessionListHeaderControls';
 import { useSessionListSearchTextByKey } from './useSessionListSearchTextByKey';
 import { useSessionListMemorySearchAugmentation } from './search/useSessionListMemorySearchAugmentation';
 import { useSessionListHeaderFilterRetention } from './search/useSessionListHeaderFilterRetention';
-import { isSessionListPrimaryHeaderKind, withPrimaryHeaderFallback } from './sessionListPrimaryHeader';
+import { isSessionListPrimaryHeaderKind, withSessionListControlsHeader } from './sessionListPrimaryHeader';
 import {
     getSessionListHeaderControlsAnchorKey,
     hasActiveSessionListHeaderFilters,
@@ -822,9 +822,10 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         liveViewItems: listItems as ReadonlyArray<SessionListViewItem>,
     });
     const frozenViewItems = frozenListProjection.viewItems;
-    const renderedListItems = React.useMemo(() => (sessionListVisibilityScope === 'archived'
-        ? withPrimaryHeaderFallback(frozenViewItems, { title: 'Archived' })
-        : frozenViewItems), [frozenViewItems, sessionListVisibilityScope]);
+    const renderedListItems = React.useMemo(
+        () => withSessionListControlsHeader(frozenViewItems, sessionListVisibilityScope),
+        [frozenViewItems, sessionListVisibilityScope],
+    );
     const rowStoreScopesRaw = React.useMemo(() => renderedListItems
         .filter((item): item is SessionListSessionItem => item.type === 'session')
         .map((item) => ({

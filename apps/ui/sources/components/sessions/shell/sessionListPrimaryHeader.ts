@@ -1,4 +1,5 @@
 import type { SessionListViewItem } from '@/sync/domains/state/storage';
+import type { SessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 
 type SessionListHeaderKind = Extract<SessionListViewItem, { type: 'header' }>['headerKind'];
 
@@ -36,4 +37,18 @@ export function withPrimaryHeaderFallback(
         groupKey: 'sessions:controls-fallback',
     };
     return [header, ...items];
+}
+
+/**
+ * The list items with a header for the controls when the list needs one. The Archived scope
+ * always gets the controls. The Active scope gets them when it shows no session (for example
+ * only drafts), so the user can still open Archived or show stopped sessions.
+ */
+export function withSessionListControlsHeader(
+    items: ReadonlyArray<SessionListViewItem>,
+    scope: SessionListVisibilityScope,
+): ReadonlyArray<SessionListViewItem> {
+    if (scope === 'archived') return withPrimaryHeaderFallback(items, { title: 'Archived' });
+    if (items.some((item) => item.type === 'session')) return items;
+    return withPrimaryHeaderFallback(items, { title: 'Sessions' });
 }
