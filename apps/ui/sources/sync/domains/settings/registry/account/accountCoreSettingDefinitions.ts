@@ -357,6 +357,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    transcriptInitialFillToUserMessageV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether the native chat open loads older pages until a user message is loaded, also when the pages only grow a collapsed tool group',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     sessionListVisibilityScope: {
         schema: z.enum(SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES),
         default: SESSION_LIST_VISIBILITY_SCOPE_DEFAULT,

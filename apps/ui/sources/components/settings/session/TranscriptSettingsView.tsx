@@ -94,6 +94,7 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptScrollJumpToBottomEnabled, setTranscriptScrollJumpToBottomEnabled] = useSettingMutable('transcriptScrollJumpToBottomEnabled');
     const [transcriptJumpToBottomPosition, setTranscriptJumpToBottomPosition] = useSettingMutable('transcriptJumpToBottomPosition');
     const [transcriptScrollJumpToBottomShowCount, setTranscriptScrollJumpToBottomShowCount] = useSettingMutable('transcriptScrollJumpToBottomShowCount');
+    const [transcriptInitialFillToUserMessage, setTranscriptInitialFillToUserMessage] = useSettingMutable('transcriptInitialFillToUserMessageV1');
     const [transcriptChatFont, setTranscriptChatFont] = useSettingMutable('transcriptChatFont');
 
     // Code & Diffs settings (moved from Appearance)
@@ -1070,6 +1071,17 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                         setTranscriptJumpToBottomPosition(id as any);
                         setOpenJumpToBottomPositionMenu(false);
                     }}
+                />
+
+                {/* Plain English, so no locale file changes. */}
+                <Item
+                    testID="settings-transcript-initialFillToUserMessage"
+                    title="Open at your last message"
+                    subtitle="On phones, load older pages until your last message is loaded"
+                    icon={<Icon name="chat-circle-dots" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={transcriptInitialFillToUserMessage} onValueChange={setTranscriptInitialFillToUserMessage} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptInitialFillToUserMessage(!transcriptInitialFillToUserMessage)}
                 />
 
                 <Item

@@ -12,6 +12,10 @@ import type {
     TranscriptViewportTelemetryScrollReason,
 } from '@/components/sessions/transcript/scroll/transcriptViewportTelemetry';
 import { resolveTranscriptInitialFillTuning } from '@/components/sessions/transcript/scroll/resolveTranscriptInitialFillTuning';
+import {
+    hasLoadedUserMessage,
+    shouldContinueInitialFillToUserMessage,
+} from '@/components/sessions/transcript/scroll/initialFillUntilUserMessage';
 import type { RestoreDecisionTelemetryParams } from '@/components/sessions/transcript/viewport/telemetryHost/viewportEvents';
 import { readNativeAbsoluteScrollOffset } from '@/components/sessions/transcript/viewport/driver/readNativeAbsoluteScrollOffset';
 import {
@@ -1426,6 +1430,17 @@ export function useTranscriptEntryHost(deps: TranscriptEntryHostDeps): Transcrip
                     if (displayableContentHeightPx > displayableContentHeightBaselinePx + 1) {
                         displayableContentHeightBaselinePx = displayableContentHeightPx;
                         lastDisplayableProgressAtMs = Date.now();
+                    } else {
+                        // Older tool events can only grow one collapsed group, so a page that
+                        // adds messages counts as progress until a user message is loaded.
+                        const state = getStorage().getState();
+                        if (shouldContinueInitialFillToUserMessage({
+                            enabled: state?.settings?.transcriptInitialFillToUserMessageV1 === true,
+                            pageAddedMessages: madeProgress,
+                            hasUserMessage: hasLoadedUserMessage(state?.sessionMessages?.[deps.sessionId]?.messagesById ?? {}),
+                        })) {
+                            lastDisplayableProgressAtMs = Date.now();
+                        }
                     }
                     if (shouldPinDuringInitialFill && deps.wantsPinnedRef.current) {
                         deps.pinToBottomRespectingNativeMountSettle('initial-open');

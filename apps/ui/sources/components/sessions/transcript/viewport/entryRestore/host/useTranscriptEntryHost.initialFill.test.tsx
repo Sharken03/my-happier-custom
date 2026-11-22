@@ -45,8 +45,11 @@ vi.mock('@/sync/sync', () => ({
         }),
     },
 }));
+// Store state the fill reads after each page: the fill-to-user-message setting and the
+// loaded messages. Empty by default, so the setting is off.
+const storageState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@/sync/domains/state/storage', () => ({
-    getStorage: () => ({ getState: () => ({}) }),
+    getStorage: () => ({ getState: () => storageState.current }),
 }));
 
 type EntryHostDeps = Parameters<typeof useTranscriptEntryHost>[0];
@@ -227,6 +230,7 @@ describe('useTranscriptEntryHost initial fill sufficiency (S-L/S-M)', () => {
 
     beforeEach(() => {
         Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+        storageState.current = {};
         return () => {
             Object.defineProperty(Platform, 'OS', { value: originalPlatformOS, configurable: true });
             vi.restoreAllMocks();
@@ -675,6 +679,55 @@ describe('useTranscriptEntryHost initial fill sufficiency (S-L/S-M)', () => {
         });
 
         // Window expires after ceil(2000 / 700) = 3 loads without displayable growth.
+        expect(harness.loadOlder.mock.calls.length).toBeLessThanOrEqual(3);
+    });
+
+    it('keeps filling zero-growth pages until a user message is loaded when the setting is on', async () => {
+        // One long agent turn: older pages only grow the same collapsed tool group, so the
+        // content height stays flat. The fill continues until no_more instead of the budget.
+        storageState.current = {
+            settings: { transcriptInitialFillToUserMessageV1: true },
+            sessionMessages: { s1: { messagesById: { t1: { id: 't1', kind: 'tool-call' } } } },
+        };
+        const harness = createFillHarness({
+            layoutHeightPx: 600,
+            initialContentHeightPx: 200,
+            contentGrowthPerLoadPx: [0, 0, 0, 0, 0],
+            loadDurationMs: 700,
+        });
+
+        await renderHook(
+            (deps: EntryHostDeps) => useTranscriptEntryHost(deps),
+            { initialProps: harness.deps },
+        );
+        await vi.waitFor(() => {
+            expect(harness.sessionOpenLatch.initialFillStatus()).toBe('done');
+        });
+
+        // Five loaded pages, then the no_more answer.
+        expect(harness.loadOlder).toHaveBeenCalledTimes(6);
+    });
+
+    it('stops zero-growth pages at the budget window once a user message is loaded', async () => {
+        storageState.current = {
+            settings: { transcriptInitialFillToUserMessageV1: true },
+            sessionMessages: { s1: { messagesById: { u1: { id: 'u1', kind: 'user-text' } } } },
+        };
+        const harness = createFillHarness({
+            layoutHeightPx: 600,
+            initialContentHeightPx: 200,
+            contentGrowthPerLoadPx: [0, 0, 0, 0, 0],
+            loadDurationMs: 700,
+        });
+
+        await renderHook(
+            (deps: EntryHostDeps) => useTranscriptEntryHost(deps),
+            { initialProps: harness.deps },
+        );
+        await vi.waitFor(() => {
+            expect(harness.sessionOpenLatch.initialFillStatus()).toBe('done');
+        });
+
         expect(harness.loadOlder.mock.calls.length).toBeLessThanOrEqual(3);
     });
 
