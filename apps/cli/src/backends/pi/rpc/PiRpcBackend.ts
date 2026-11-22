@@ -23,6 +23,7 @@ import {
 } from '@/agent/acp/AcpBackend';
 import { abortPendingAcpPermissionRequests } from '@/agent/acp/backend/permissions/acpPermissionFinalization';
 import { killProcessTree } from '@/agent/runtime/process/killProcessTree';
+import { SessionControlApplyError } from '@/agent/runtime/sessionControlApplyError';
 import { materializeProtectedTempTextArtifact, type ProtectedTempTextArtifact } from '@/utils/fs/protectedTempTextArtifact';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_HOST_TOOLS_FD } from '@/backends/pi/bridgeExtension/piBridgeExtensionEnv';
 import { logger } from '@/ui/logger';
@@ -218,6 +219,14 @@ class PiRpcCommandResponseTimeoutError extends Error {
     super(`Timed out waiting for Pi RPC response (${commandType})`);
     this.name = 'PiRpcCommandResponseTimeoutError';
     this.commandType = commandType;
+  }
+}
+
+/** Pi answered a command with `success: false`; a retry of the same command gets the same answer. */
+class PiRpcCommandRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PiRpcCommandRejectedError';
   }
 }
 
@@ -1433,7 +1442,13 @@ export class PiRpcBackend implements AgentBackend {
     if (!normalized) return;
 
     const selection = await this.resolveModelSelection(normalized);
-    await this.sendProviderAffectingCommand({ type: 'set_model', provider: selection.provider, modelId: selection.modelId }, 60_000);
+    try {
+      await this.sendProviderAffectingCommand({ type: 'set_model', provider: selection.provider, modelId: selection.modelId }, 60_000);
+    } catch (error) {
+      // An unknown model or a provider without credentials; a timeout or process failure stays retryable.
+      if (error instanceof PiRpcCommandRejectedError) throw SessionControlApplyError.definitive(error);
+      throw error;
+    }
     this.currentModelProvider = selection.provider;
     this.publishRuntimeState(await this.getState());
   }
@@ -2101,7 +2116,7 @@ export class PiRpcBackend implements AgentBackend {
         ));
         return;
       }
-      pending.reject(new Error(rawDetail));
+      pending.reject(new PiRpcCommandRejectedError(rawDetail));
       return;
     }
     if (pending.commandType === 'prompt') {

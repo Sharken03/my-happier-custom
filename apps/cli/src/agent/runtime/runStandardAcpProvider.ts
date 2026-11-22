@@ -767,6 +767,17 @@ export async function runStandardAcpProvider(
           session,
           runtime,
           isStarted,
+          reportTerminalFailure: (failure) => {
+            // A rejected model choice is final for that choice, so the chat gets one notice;
+            // the synchronizer then clears the choice and the provider keeps its model.
+            if (failure.kind !== 'model') return;
+            const reason = (failure.error instanceof Error ? failure.error.message : String(failure.error))
+              .split('\n')[0].slice(0, 300);
+            session.sendSessionEvent({
+              type: 'message',
+              message: `Could not switch to model ${failure.requested}: ${reason}. The chat keeps its current model.`,
+            });
+          },
         });
         rebindOverrideSynchronizerSession = synchronizer.rebindSession;
         return synchronizer;
