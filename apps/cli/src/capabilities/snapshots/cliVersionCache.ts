@@ -9,6 +9,8 @@ export type CliVersionProbeResult = Readonly<{ version: string | null; successfu
 
 type VersionFact = Readonly<{ identity: string; version: string }>;
 
+type ExecutableIdentity = Readonly<{ identity: string; manifestVersion: string | null }>;
+
 /** Inventory reuse only; launch/install verification continues to own its fresh probes. */
 export class CliVersionCache {
     // One current executable fact per provider, rather than one entry per historical fingerprint.
@@ -32,7 +34,11 @@ export class CliVersionCache {
             cache = new AsyncTtlCache<VersionFact>({ successTtlMs: Infinity, errorTtlMs: 0 });
             this.#caches.set(params.name, cache);
         }
-        const identity = await readExecutableIdentity(params.resolvedPath, params.nativeInstall);
+        const executable = await readExecutableIdentity(params.resolvedPath, params.nativeInstall);
+        // Ordinary listings take the version a package declares for its bin script; starting a
+        // JavaScript CLI can take longer than the inventory budget.
+        if (!params.fresh && executable?.manifestVersion) return executable.manifestVersion;
+        const identity = executable?.identity ?? null;
         const cached = cache.get(params.name);
         if (!params.fresh && identity && cached?.kind === 'success' && cached.value.identity === identity) {
             return cached.value.version;
@@ -41,7 +47,7 @@ export class CliVersionCache {
             const { version, successful } = await params.probe();
             // Updates may retarget a launcher while the bounded process probe is running.
             // Admit only an observation bracketed by the same executable identity.
-            if (successful && identity && version && await readExecutableIdentity(params.resolvedPath, params.nativeInstall) === identity) {
+            if (successful && identity && version && (await readExecutableIdentity(params.resolvedPath, params.nativeInstall))?.identity === identity) {
                 cache.setSuccess(params.name, { identity, version });
             }
             return version;
@@ -54,16 +60,18 @@ export class CliVersionCache {
     }
 }
 
-async function readExecutableIdentity(path: string, nativeInstall: boolean): Promise<string | null> {
-    return (nativeInstall ? await readNativeExecutableIdentity(path) : null) ?? await readPackageBinIdentity(path);
+async function readExecutableIdentity(path: string, nativeInstall: boolean): Promise<ExecutableIdentity | null> {
+    const native = nativeInstall ? await readNativeExecutableIdentity(path) : null;
+    return native ? { identity: native, manifestVersion: null } : await readPackageBinIdentity(path);
 }
 
 /**
  * A package manager install (npm, for example) links the command to a bin script of a package.
  * The script can load other files, but an update of the package also rewrites its manifest, so
- * the script and the manifest together identify the installed version.
+ * the script and the manifest together identify the installed version, and the manifest
+ * declares it.
  */
-async function readPackageBinIdentity(path: string): Promise<string | null> {
+async function readPackageBinIdentity(path: string): Promise<ExecutableIdentity | null> {
     try {
         const resolved = await realpath(path);
         // The nearest manifest owns the script.
@@ -72,16 +80,18 @@ async function readPackageBinIdentity(path: string): Promise<string | null> {
             const manifestPath = join(dir, 'package.json');
             const manifestInfo = await stat(manifestPath).catch(() => null);
             if (manifestInfo) {
-                const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { bin?: unknown };
+                const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { bin?: unknown; version?: unknown };
                 const bin = manifest.bin;
                 const entries = typeof bin === 'string' ? [bin]
                     : bin && typeof bin === 'object' ? Object.values(bin as Record<string, unknown>) : [];
                 if (!entries.some(entry => typeof entry === 'string' && resolve(dir, entry) === resolved)) return null;
                 const info = await stat(resolved);
-                return JSON.stringify([
+                const identity = JSON.stringify([
                     resolved, info.dev, info.ino, info.size, info.mtimeMs, info.ctimeMs,
                     manifestPath, manifestInfo.dev, manifestInfo.ino, manifestInfo.size, manifestInfo.mtimeMs, manifestInfo.ctimeMs,
                 ]);
+                const version = typeof manifest.version === 'string' ? manifest.version.trim() : '';
+                return { identity, manifestVersion: version || null };
             }
             const parent = dirname(dir);
             if (parent === dir) return null;

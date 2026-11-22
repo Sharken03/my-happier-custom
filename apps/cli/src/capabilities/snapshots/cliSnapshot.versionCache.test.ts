@@ -253,21 +253,21 @@ describe('CLI version reuse', () => {
     },
   );
 
-  it.runIf(process.platform !== 'win32')('reuses the version of a package bin script until its package changes', async () => {
+  it.runIf(process.platform !== 'win32')('reads the version of a package bin script from its manifest without a process', async () => {
     await withPackageCli(async ({ manifest, detect }) => {
+      // The probe answers differently, so the result shows which source was read.
+      processBoundary.version = '9.9.9';
       expect((await detect(request)).clis.opencode.version).toBe('1.2.3');
+      expect(processBoundary.calls).toBe(0);
+      // A package update rewrites the manifest.
+      await writeFile(manifest, JSON.stringify({ name: 'opencode-fixture', version: '2.0.0', bin: { opencode: 'bin/opencode' } }));
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(Date.now() + 31_000);
-      expect((await detect(request)).clis.opencode.version).toBe('1.2.3');
-      expect(processBoundary.calls).toBe(1);
-      // A package update rewrites the manifest, also when the bin script stays the same.
-      processBoundary.version = '2.0.0';
-      await writeFile(manifest, JSON.stringify({ name: 'opencode-fixture', version: '2.0.0', bin: { opencode: 'bin/opencode' } }));
-      const later = new Date(Date.now() + 60_000);
-      await utimes(manifest, later, later);
-      vi.setSystemTime(Date.now() + 31_000);
       expect((await detect(request)).clis.opencode.version).toBe('2.0.0');
-      expect(processBoundary.calls).toBe(2);
+      expect(processBoundary.calls).toBe(0);
+      // Explicit refresh still asks the executable.
+      expect((await detect({ ...request, bypassCache: true })).clis.opencode.version).toBe('9.9.9');
+      expect(processBoundary.calls).toBe(1);
     });
   });
 
