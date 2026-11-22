@@ -6,7 +6,7 @@ import {
 } from '@/cli/commands/toolsServe';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE, PI_BRIDGE_USER_INPUT_MARKER_TYPE } from './piBridgeExtensionEnv';
 
-export const PI_BRIDGE_EXTENSION_VERSION = '7';
+export const PI_BRIDGE_EXTENSION_VERSION = '8';
 
 function jsString(value: string): string {
   return JSON.stringify(value);
@@ -481,7 +481,13 @@ export default function HappierPiToolsBridgeExtension(pi) {
     pi.on("before_agent_start", async (event) => {
       const addition = config.promptAddition.trim();
       const result = {};
-      if (addition) {
+      const sections = event?.systemPromptOptions?.sections;
+      if (addition && sections && typeof sections === "object") {
+        // A returned systemPrompt replaces Pi's whole prompt, and Pi then rebuilds the prompt
+        // start on each change (an edited context file, a new title state), so a resumed chat
+        // loses its prompt cache. A section lets Pi send such a change as a patch at the end.
+        sections.happier = addition;
+      } else if (addition) {
         const base = event && typeof event.systemPrompt === "string" ? event.systemPrompt.trim() : "";
         result.systemPrompt = base ? base + "\\n\\n" + addition : addition;
       }

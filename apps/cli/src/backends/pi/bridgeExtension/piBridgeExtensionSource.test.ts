@@ -748,6 +748,12 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
 
       expect(harness.tools.map((tool) => tool.name)).toEqual(['host_resolved_tool']);
       expect(harness.tools[0]?.parameters).toEqual(expect.objectContaining({ required: ['value'] }));
+      // A Pi with structured prompt sections keeps its own prompt and adds the Happier text as
+      // one section, so Pi can patch a later change at the end instead of moving the prompt start.
+      const systemPromptOptions = { sections: { other: 'OTHER_EXTENSION' } as Record<string, string> };
+      await expect(harness.emit('before_agent_start', { systemPrompt: 'PI_BASE', systemPromptOptions })).resolves.toBeUndefined();
+      expect(systemPromptOptions.sections).toEqual({ other: 'OTHER_EXTENSION', happier: 'HOST_RESOLVED_GUIDANCE' });
+      // A Pi without prompt sections gets the full prompt.
       await expect(harness.emit('before_agent_start', { systemPrompt: 'PI_BASE' })).resolves.toEqual({
         systemPrompt: 'PI_BASE\n\nHOST_RESOLVED_GUIDANCE',
       });
