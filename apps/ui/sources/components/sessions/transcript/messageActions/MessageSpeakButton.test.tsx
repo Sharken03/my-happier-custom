@@ -60,7 +60,8 @@ function setVoice(voice: ReturnType<typeof voiceSettingsParse>): void {
 
 const localVoice = voiceSettingsParse({
     providerId: 'local_conversation',
-    adapters: { local_conversation: { tts: { provider: 'device' } } },
+    // Dictation mode hides the idle surface; these tests need the idle activity feed.
+    adapters: { local_conversation: { tts: { provider: 'device' }, dictationMode: false } },
 });
 
 let utterances: SpeakOptions[] = [];

@@ -1134,6 +1134,7 @@ describe('VoiceSurface', () => {
     voiceSettingState.current = {
       providerId: 'local_direct',
       ui: { activityFeedEnabled: false, scopeDefault: 'global', surfaceLocation: 'auto' },
+      adapters: { local_direct: { dictationMode: false } },
     };
     useVoiceTargetStore.getState().setLastFocusedSessionId(null);
 
@@ -1151,6 +1152,54 @@ describe('VoiceSurface', () => {
     const screen = await renderScreen(React.createElement(VoiceSurface, { variant: 'sidebar' }));
 
     expect(screen.findByProps({ accessibilityLabel: 'voiceAssistant.label' }).props.disabled).toBe(true);
+  });
+
+  it('hides the idle sidebar surface for session-scoped local voice in dictation mode', async () => {
+    vi.resetModules();
+    voiceSettingState.current = {
+      providerId: 'local_conversation',
+      ui: { activityFeedEnabled: false, scopeDefault: 'global', surfaceLocation: 'auto' },
+      adapters: { local_conversation: { conversationMode: 'direct_session', dictationMode: true } },
+    };
+
+    const { setVoiceSessionSnapshot } = await import('@/voice/session/voiceSessionStore');
+    setVoiceSessionSnapshot({
+      adapterId: 'local_conversation',
+      sessionId: null,
+      status: 'disconnected',
+      mode: 'idle',
+      canStop: false,
+    });
+
+    const { VoiceSurface } = await import('./VoiceSurface');
+
+    const screen = await renderScreen(React.createElement(VoiceSurface, { variant: 'sidebar' }));
+
+    expect(screen.findAllByProps({ accessibilityLabel: 'voiceAssistant.label' })).toHaveLength(0);
+  });
+
+  it('shows the sidebar surface in dictation mode while a voice turn runs', async () => {
+    vi.resetModules();
+    voiceSettingState.current = {
+      providerId: 'local_conversation',
+      ui: { activityFeedEnabled: false, scopeDefault: 'global', surfaceLocation: 'auto' },
+      adapters: { local_conversation: { conversationMode: 'direct_session', dictationMode: true } },
+    };
+
+    const { setVoiceSessionSnapshot } = await import('@/voice/session/voiceSessionStore');
+    setVoiceSessionSnapshot({
+      adapterId: 'local_conversation',
+      sessionId: 's1',
+      status: 'connected',
+      mode: 'idle',
+      canStop: true,
+    });
+
+    const { VoiceSurface } = await import('./VoiceSurface');
+
+    const screen = await renderScreen(React.createElement(VoiceSurface, { variant: 'sidebar' }));
+
+    expect(screen.findByProps({ accessibilityLabel: 'voiceAssistant.tapToEnd' }).props.disabled).toBe(false);
   });
 
   it('shows correct sidebar activity count and allows clearing when events exist', async () => {

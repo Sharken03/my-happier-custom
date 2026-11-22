@@ -21,7 +21,7 @@ import { voiceActivityController } from '@/voice/activity/voiceActivityControlle
 import { VOICE_AGENT_GLOBAL_SESSION_ID } from '@/voice/agent/voiceAgentGlobalSessionId';
 import { toggleLocalVoiceTurn } from '@/voice/local/localVoiceEngine';
 import { formatLocalVoiceErrorMessage } from '@/voice/local/localVoiceErrorMessage';
-import { isVoiceBargeInEnabled } from '@/voice/local/localVoiceSettings';
+import { isDictationModeEnabled, isVoiceBargeInEnabled } from '@/voice/local/localVoiceSettings';
 import { useVoiceTargetStore } from '@/voice/runtime/voiceTargetStore';
 import { useVoiceSessionSnapshot, voiceSessionManager } from '@/voice/session/voiceSession';
 import { hydrateVoiceAgentActivityFromCarrierSession } from '@/voice/persistence/hydrateVoiceAgentActivityFromCarrierSession';
@@ -178,8 +178,17 @@ function VoiceSurfaceContent(props: VoiceSurfaceProps & Readonly<{
     return scopeDefault === 'global' ? props.variant === 'sidebar' : props.variant === 'session';
   })();
 
+  // Dictation mode starts local voice from the composer microphone. An idle surface that cannot
+  // start a global voice session has no use there, so it shows only while a voice turn runs.
+  const idleDictationSurface =
+    (providerId === 'local_direct' || providerId === 'local_conversation') &&
+    !allowsGlobalStart &&
+    snap.status === 'disconnected' &&
+    isDictationModeEnabled({ voice });
+
   const showSurface = props.readingAloud || (
     providerId !== 'off' &&
+    !idleDictationSurface &&
     locationAllowsVariant &&
     !(props.variant === 'session' && isHiddenSystemSession({ metadata: currentSessionMetadata })));
   if (!showSurface) return null;
