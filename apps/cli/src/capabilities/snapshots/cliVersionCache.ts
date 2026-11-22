@@ -69,7 +69,7 @@ async function readExecutableIdentity(path: string, nativeInstall: boolean): Pro
  * A package manager install (npm, for example) links the command to a bin script of a package.
  * The script can load other files, but an update of the package also rewrites its manifest, so
  * the script and the manifest together identify the installed version, and the manifest
- * declares it.
+ * declares it. A local build that keeps the manifest version reports that version.
  */
 async function readPackageBinIdentity(path: string): Promise<ExecutableIdentity | null> {
     try {

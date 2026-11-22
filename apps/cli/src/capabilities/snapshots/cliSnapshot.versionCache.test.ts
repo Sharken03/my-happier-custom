@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { mkdir, writeFile, utimes, rename, symlink, unlink } from 'node:fs/promises';
 import { basename, delimiter, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -29,6 +29,18 @@ vi.mock('child_process', async (importOriginal) => {
 
 afterEach(() => { vi.useRealTimers(); });
 
+// The first import transforms the whole snapshot module graph; on a slow machine that takes
+// longer than one test may run. Later imports after vi.resetModules reuse the transform cache.
+beforeAll(async () => { await import('./cliSnapshot'); }, 120_000);
+
+// Native install classification knows darwin, linux and win32. Android (Termux) runs the same
+// Linux binaries but reports `android`, so the native tests run as on Linux there.
+function withLinuxPlatformOnAndroid(): () => void {
+  const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  if (process.platform === 'android') Object.defineProperty(process, 'platform', { ...original, value: 'linux' });
+  return () => { Object.defineProperty(process, 'platform', original); };
+}
+
 async function withNativeCli(run: (context: {
   binary: string;
   detect: typeof import('./cliSnapshot')['detectCliSnapshotOnDaemonPath'];
@@ -41,6 +53,7 @@ async function withNativeCli(run: (context: {
   processBoundary.beforeProbe = null;
   const fixture = await createProbeTempDir('happier-version-cache');
   const env = createEnvKeyScope(['HOME', 'USERPROFILE', 'PATH', 'HAPPIER_OPENCODE_PATH']);
+  const restorePlatform = withLinuxPlatformOnAndroid();
   try {
     const bin = join(fixture.dir, '.opencode', 'bin');
     await mkdir(bin, { recursive: true });
@@ -51,7 +64,7 @@ async function withNativeCli(run: (context: {
     delete process.env.HAPPIER_OPENCODE_PATH;
     const { detectCliSnapshotOnDaemonPath: detect, invalidateCliSnapshots: invalidate } = await import('./cliSnapshot');
     await run({ binary, detect, invalidate });
-  } finally { env.restore(); await fixture.cleanup(); }
+  } finally { restorePlatform(); env.restore(); await fixture.cleanup(); }
 }
 
 async function withPackageCli(run: (context: {
