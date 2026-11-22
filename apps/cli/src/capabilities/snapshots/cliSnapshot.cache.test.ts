@@ -374,7 +374,7 @@ process.exit(0);
 
     process.env.PATH = `${binDir}${delimiter}${prevPath ?? ''}`;
     process.env.HAPPIER_TEST_CLI_SNAPSHOT_COUNT_FILE = countFile;
-    process.env.HAPPIER_HOME_DIR = '/tmp/happier-home-1';
+    process.env.HAPPIER_HOME_DIR = join(fixture.dir, 'happier-home-1');
     process.env.HAPPIER_PNPM_BIN = await writePnpmNodeBridge({ dir: fixture.dir, pathLookup: prevPath });
 
     try {
@@ -388,7 +388,7 @@ process.exit(0);
       expect(afterSecond).toBe(afterFirst);
 
       // Change HAPPIER_HOME_DIR - should invalidate cache
-      process.env.HAPPIER_HOME_DIR = '/tmp/happier-home-2';
+      process.env.HAPPIER_HOME_DIR = join(fixture.dir, 'happier-home-2');
       await detectCliSnapshotOnDaemonPath({ includeLoginStatus: false });
       const afterThird = (await readFile(countFile, 'utf8')).length;
       expect(afterThird).toBeGreaterThan(afterSecond);
