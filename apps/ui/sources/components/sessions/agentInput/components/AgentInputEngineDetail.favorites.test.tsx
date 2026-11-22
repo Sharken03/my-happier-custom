@@ -1,12 +1,24 @@
 import { act } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderScreen } from '@/dev/testkit';
-import { AgentInputEngineDetail } from './AgentInputEngineDetail';
-import { OptionPickerOverlay, type OptionPickerOption } from '@/components/sessions/pickers/OptionPickerOverlay';
+import type { OptionPickerOption } from '@/components/sessions/pickers/OptionPickerOverlay';
 import { installNewSessionComponentsCommonModuleMocks } from '@/components/sessions/new/components/newSessionComponentsTestHelpers';
 
-installNewSessionComponentsCommonModuleMocks();
+const settingValues = vi.hoisted(() => ({ agentInputModelPickerAlphabetical: false }));
+
+installNewSessionComponentsCommonModuleMocks({
+    storage: async () => {
+        const { createStorageModuleStub, createUseSettingMock } = await import('@/dev/testkit/mocks/storage');
+        return createStorageModuleStub({
+            useSetting: createUseSettingMock({ values: settingValues }),
+        });
+    },
+});
+
+// Imported after the mocks are installed, so the components read the stubbed settings.
+const { AgentInputEngineDetail } = await import('./AgentInputEngineDetail');
+const { OptionPickerOverlay } = await import('@/components/sessions/pickers/OptionPickerOverlay');
 
 const MODEL_OPTIONS = [
     { value: 'default', label: 'Use CLI settings', description: '' },
@@ -17,9 +29,10 @@ const MODEL_OPTIONS = [
 async function renderEngineDetail(params: Readonly<{
     favoriteModelValues?: ReadonlySet<string>;
     onToggleFavoriteModel?: (option: OptionPickerOption) => void;
+    modelOptions?: readonly Readonly<{ value: string; label: string; description: string }>[];
 }>) {
     return renderScreen(<AgentInputEngineDetail
-        modelOptions={[...MODEL_OPTIONS]}
+        modelOptions={[...(params.modelOptions ?? MODEL_OPTIONS)]}
         selectedModelId="default"
         favoriteModelValues={params.favoriteModelValues}
         onToggleFavoriteModel={params.onToggleFavoriteModel}
@@ -27,7 +40,31 @@ async function renderEngineDetail(params: Readonly<{
     />);
 }
 
+afterEach(() => {
+    settingValues.agentInputModelPickerAlphabetical = false;
+});
+
 describe('model favorites in a session composer', () => {
+    it('sorts favorites and the other models by name when the alphabetical setting is on', async () => {
+        settingValues.agentInputModelPickerAlphabetical = true;
+        const screen = await renderEngineDetail({
+            modelOptions: [
+                { value: 'default', label: 'Use CLI settings', description: '' },
+                { value: 'z', label: 'Zeta 10', description: '' },
+                { value: 'g10', label: 'GPT 6.10', description: '' },
+                { value: 'a', label: 'alpha', description: '' },
+                { value: 'g2', label: 'GPT 6.2', description: '' },
+                { value: 'b', label: 'Beta', description: '' },
+            ],
+            favoriteModelValues: new Set(['z', 'b']),
+            onToggleFavoriteModel: vi.fn(),
+        });
+
+        const overlay = screen.findByType(OptionPickerOverlay);
+        expect(overlay.props.options.map((option: OptionPickerOption) => option.value))
+            .toEqual(['b', 'z', 'default', 'a', 'g2', 'g10']);
+    });
+
     it('lists the favorites the Session\'s backend stars first, keeping the rest in order', async () => {
         const screen = await renderEngineDetail({
             favoriteModelValues: new Set(['model-b']),

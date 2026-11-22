@@ -16,7 +16,9 @@ import {
     toggleFavoriteModelSelection,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
+import { sortModelPickerEntriesByLabel } from '@/sync/domains/models/modelPickerOrder';
 import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
+import { useSetting } from '@/sync/domains/state/storage';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 
@@ -55,6 +57,7 @@ type ModelSelectionRow = Readonly<{
 }>;
 
 function buildRows(params: Readonly<{
+    alphabetical: boolean;
     modelOptions: readonly NewSessionModelOption[];
     selectedBackendEntry?: ResolvedBackendCatalogEntry | null;
     favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
@@ -112,7 +115,15 @@ function buildRows(params: Readonly<{
         }];
     });
 
-    return { favoriteRows, allRows };
+    if (!params.alphabetical) return { favoriteRows, allRows };
+    return {
+        favoriteRows: sortModelPickerEntriesByLabel(favoriteRows, readRowOrderKey),
+        allRows: sortModelPickerEntriesByLabel(allRows, readRowOrderKey),
+    };
+}
+
+function readRowOrderKey(row: ModelSelectionRow): Readonly<{ value: string; label: string }> {
+    return { value: row.id, label: row.title };
 }
 
 function FavoriteToggle(props: Readonly<{
@@ -223,11 +234,14 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
     const { theme } = useUnistyles();
     const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
+    const alphabetical = useSetting('agentInputModelPickerAlphabetical') === true;
     const rows = React.useMemo(() => buildRows({
+        alphabetical,
         modelOptions: props.modelOptions,
         selectedBackendEntry: props.selectedBackendEntry,
         favoriteModelSelections: props.favoriteModelSelections,
     }), [
+        alphabetical,
         props.favoriteModelSelections,
         props.modelOptions,
         props.selectedBackendEntry,

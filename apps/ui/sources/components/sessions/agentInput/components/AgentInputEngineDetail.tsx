@@ -14,6 +14,7 @@ import type {
   SessionConfigOptionValueId,
 } from "@/sync/domains/sessionControl/configOptionsControl";
 import { useSetting } from "@/sync/domains/state/storage";
+import { sortModelPickerEntriesByLabel } from "@/sync/domains/models/modelPickerOrder";
 import { t } from "@/text";
 
 import { AgentInputSessionConfigOptionsSection } from "./AgentInputSessionConfigOptionsSection";
@@ -80,25 +81,35 @@ function wrapSection(
 function orderFavoriteModelOptionsFirst(
   options: ReadonlyArray<AgentInputEngineModelOption>,
   favoriteValues: ReadonlySet<string> | null | undefined,
+  alphabetical: boolean,
 ): ReadonlyArray<AgentInputEngineModelOption> {
-  if (!favoriteValues || favoriteValues.size === 0) return options;
-
   const favoriteOptions: AgentInputEngineModelOption[] = [];
   const otherOptions: AgentInputEngineModelOption[] = [];
   for (const option of options) {
-    if (favoriteValues.has(option.value)) {
+    if (favoriteValues?.has(option.value)) {
       favoriteOptions.push(option);
     } else {
       otherOptions.push(option);
     }
   }
 
+  if (alphabetical) {
+    return [
+      ...sortModelPickerEntriesByLabel(favoriteOptions, readModelOptionOrderKey),
+      ...sortModelPickerEntriesByLabel(otherOptions, readModelOptionOrderKey),
+    ];
+  }
   if (favoriteOptions.length === 0) return options;
   return [...favoriteOptions, ...otherOptions];
 }
 
+function readModelOptionOrderKey(option: AgentInputEngineModelOption): Readonly<{ value: string; label: string }> {
+  return { value: option.value, label: option.label };
+}
+
 export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
   const compact = useSetting("agentInputCompactModelPicker") === true;
+  const alphabetical = useSetting("agentInputModelPickerAlphabetical") === true;
   const favoriteModelValues = props.favoriteModelValues;
   const onToggleFavoriteModel = props.onToggleFavoriteModel;
   // "Use CLI settings" is not a model.
@@ -133,8 +144,8 @@ export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
       return { ...option, description: t("agentInput.model.configureInCli") };
     }) : options;
 
-    return orderFavoriteModelOptionsFirst(describedOptions, favoriteModelValues);
-  }, [compact, favoriteModelValues, props.modelOptions]);
+    return orderFavoriteModelOptionsFirst(describedOptions, favoriteModelValues, alphabetical);
+  }, [alphabetical, compact, favoriteModelValues, props.modelOptions]);
 
   const favoriteOptions = React.useMemo<OptionPickerFavoriteOptions | undefined>(() => {
     if (!onToggleFavoriteModel || !favoriteModelValues) {

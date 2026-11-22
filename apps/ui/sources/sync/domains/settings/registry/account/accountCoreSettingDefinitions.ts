@@ -194,6 +194,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    agentInputModelPickerAlphabetical: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Model picker sorted by model name, with favorites first in the same order',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     agentInputModelChipStyle: {
         schema: z.enum(['agentAndModel', 'modelAndEffort']),
         default: 'agentAndModel',

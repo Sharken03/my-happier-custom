@@ -74,4 +74,13 @@ describe('Session composer settings: composer buttons', () => {
         screen.pressRow('settings-model-picker-compact');
         expect(sessionSettingsEntryState.settingsState.agentInputCompactModelPicker).toBe(true);
     });
+
+    it('turns on the alphabetical model list', async () => {
+        const mod = await import('@/app/(app)/settings/session/composer');
+        const SessionComposerSettingsScreen = mod.default;
+        const screen = await renderSettingsView(React.createElement(SessionComposerSettingsScreen));
+
+        screen.pressRow('settings-model-picker-alphabetical');
+        expect(sessionSettingsEntryState.settingsState.agentInputModelPickerAlphabetical).toBe(true);
+    });
 });

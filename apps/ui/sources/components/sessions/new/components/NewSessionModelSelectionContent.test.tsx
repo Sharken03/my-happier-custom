@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderScreen } from '@/dev/testkit';
+import { storage } from '@/sync/domains/state/storage';
 
 vi.mock('react-native', async (importOriginal) => {
     const actual = await importOriginal<typeof import('react-native')>();
@@ -45,6 +46,50 @@ const codexEntry = {
 describe('NewSessionModelSelectionContent', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        storage.getState().applySettingsLocal({ agentInputModelPickerAlphabetical: false });
+    });
+
+    it('sorts favorites and all models by name when the alphabetical setting is on', async () => {
+        storage.getState().applySettingsLocal({ agentInputModelPickerAlphabetical: true });
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+        const favorite = (modelId: string, modelLabel: string) => ({
+            backendTargetKey: 'agent:codex',
+            providerAgentId: 'codex',
+            builtInAgentId: 'codex',
+            configuredBackendId: null,
+            modelId,
+            modelLabel,
+            backendLabel: 'Codex',
+            addedAtMs: 1,
+        });
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'default', label: 'Default', description: 'Use CLI settings' },
+                    { value: 'z', label: 'Zeta', description: '' },
+                    { value: 'g10', label: 'GPT 6.10', description: '' },
+                    { value: 'a', label: 'alpha', description: '' },
+                    { value: 'g2', label: 'GPT 6.2', description: '' },
+                    { value: 'm', label: 'Mu', description: '' },
+                ]}
+                selectedModelId="default"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={[favorite('z', 'Zeta'), favorite('m', 'Mu')]}
+                onSelectModel={vi.fn()}
+                onFavoriteModelSelectionsChange={vi.fn()}
+            />,
+        );
+
+        const ids = screen.findAllByType('Item' as any)
+            .map((item) => String(item.props.testID ?? ''))
+            .filter((id) => id.startsWith('new-session-model:'))
+            .map((id) => id.slice('new-session-model:'.length));
+        expect(ids).toEqual(['m', 'z', 'default', 'a', 'g2', 'g10']);
     });
 
     it('renders favorite models first and does not duplicate them in all models', async () => {
