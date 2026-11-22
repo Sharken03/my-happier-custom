@@ -316,54 +316,48 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
         toggleFavorite,
     ]);
 
-    if (props.presentation === 'compact') {
-        // Both compact builds must agree: a star that cannot record a favorite is disabled,
-        // so the row never offers an action that silently does nothing.
-        const favoritesDisabled = !props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange;
-        const dropdownItems: DropdownMenuItem[] = [
-            ...rows.favoriteRows.map((row) => ({
-                id: row.id,
-                title: row.title,
-                subtitle: row.subtitle,
-                category: t('profiles.groups.favorites'),
-                disabled: !row.available,
-                icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: (
-                    <CompactRowRightElement
-                        model={row}
-                        favoriteAction={row.favoritable ? (
-                            <FavoriteToggle
-                                model={row}
-                                disabled={favoritesDisabled}
-                                selectedIndicatorColor={props.selectedIndicatorColor}
-                                onPress={() => toggleFavorite(row)}
-                            />
-                        ) : undefined}
-                    />
-                ),
-            })),
-            ...rows.allRows.map((row) => ({
-                id: row.id,
-                title: row.title,
-                subtitle: row.subtitle,
-                category: t('common.all'),
-                disabled: !row.available,
-                icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
-                rightElement: (
-                    <CompactRowRightElement
-                        model={row}
-                        favoriteAction={row.favoritable ? (
-                            <FavoriteToggle
-                                model={row}
-                                disabled={favoritesDisabled}
-                                selectedIndicatorColor={props.selectedIndicatorColor}
-                                onPress={() => toggleFavorite(row)}
-                            />
-                        ) : undefined}
-                    />
-                ),
-            })),
+    const compact = props.presentation === 'compact';
+    // Both compact builds must agree: a star that cannot record a favorite is disabled,
+    // so the row never offers an action that silently does nothing.
+    const favoritesDisabled = !props.selectedBackendEntry || !props.onFavoriteModelSelectionsChange;
+    // Built once per row change, so the open menu keeps its rows when the wizard renders again.
+    const dropdownItems = React.useMemo((): readonly DropdownMenuItem[] => {
+        if (!compact) return NO_DROPDOWN_ITEMS;
+        const toDropdownItem = (row: ModelSelectionRow, category: string): DropdownMenuItem => ({
+            id: row.id,
+            title: row.title,
+            subtitle: row.subtitle,
+            category,
+            disabled: !row.available,
+            icon: normalizeNodeForView(<Icon name="sparkle" size={20} color={theme.colors.text.secondary} />),
+            rightElement: (
+                <CompactRowRightElement
+                    model={row}
+                    favoriteAction={row.favoritable ? (
+                        <FavoriteToggle
+                            model={row}
+                            disabled={favoritesDisabled}
+                            selectedIndicatorColor={props.selectedIndicatorColor}
+                            onPress={() => toggleFavorite(row)}
+                        />
+                    ) : undefined}
+                />
+            ),
+        });
+        return [
+            ...rows.favoriteRows.map((row) => toDropdownItem(row, t('profiles.groups.favorites'))),
+            ...rows.allRows.map((row) => toDropdownItem(row, t('common.all'))),
         ];
+    }, [
+        compact,
+        favoritesDisabled,
+        props.selectedIndicatorColor,
+        rows,
+        theme.colors.text.secondary,
+        toggleFavorite,
+    ]);
+
+    if (compact) {
         return (
             <ItemGroup title="">
                 <DropdownMenu
@@ -408,6 +402,8 @@ export function NewSessionModelSelectionContent(props: NewSessionModelSelectionC
         </>
     );
 }
+
+const NO_DROPDOWN_ITEMS: readonly DropdownMenuItem[] = Object.freeze([]);
 
 const styles = StyleSheet.create(() => ({
     priceColumn: {

@@ -25,17 +25,21 @@ vi.mock('@/components/ui/lists/SelectableRow', () => ({
     },
 }));
 
+const itemRenders = vi.hoisted(() => ({ count: 0 }));
+// A real context, so a row that reads it renders again when its value changes, as the real Item does.
+const selectionContext = vi.hoisted(() => require('react').createContext(null));
+
 vi.mock('@/components/ui/lists/Item', () => ({
     Item: (props: any) => {
         const React = require('react');
+        React.useContext(selectionContext);
+        itemRenders.count += 1;
         return React.createElement('Item', props);
     },
 }));
 
 vi.mock('@/components/ui/lists/ItemGroup', () => ({
-    ItemGroupSelectionContext: {
-        Provider: ({ children }: any) => children,
-    },
+    ItemGroupSelectionContext: selectionContext,
 }));
 
 vi.mock('@/components/ui/lists/ItemGroupRowPosition', () => ({
@@ -274,5 +278,57 @@ describe('SelectableMenuResults', () => {
         />);
         expect((await render(false)).findByTestId('dropdown-option-color_blue:highlight')).toBeNull();
         expect((await render(true)).findByTestId('dropdown-option-color_blue:highlight')).not.toBeNull();
+    });
+
+    describe('with a long result list', () => {
+        const longItems = Array.from({ length: 120 }, (_, index) => ({ id: `m${index}`, title: `Model ${index}` }));
+        const longCategories = [{ id: 'all', title: '', items: longItems }];
+
+        async function renderLongList(selectedIndex: number, resetKey = '') {
+            const { SelectableMenuResults } = await import('./SelectableMenuResults');
+            return <SelectableMenuResults
+                categories={longCategories}
+                selectedIndex={selectedIndex}
+                onSelectionChange={() => {}}
+                onPressItem={() => {}}
+                rowVariant="slim"
+                rowKind="item"
+                revealResetKey={resetKey}
+            />;
+        }
+
+        async function flushFrames() {
+            for (let frame = 0; frame < 20; frame += 1) {
+                await act(async () => {
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+            }
+        }
+
+        it('shows the first rows at once and the remaining rows in the next frames', async () => {
+            const screen = await renderScreen(await renderLongList(0));
+            const firstCount = screen.findAllByType('Item').length;
+            expect(firstCount).toBeGreaterThan(0);
+            expect(firstCount).toBeLessThan(longItems.length);
+
+            await flushFrames();
+            expect(screen.findAllByType('Item').map((item: any) => item.props.title))
+                .toEqual(longItems.map((item) => item.title));
+        });
+
+        it('re-renders only the rows whose highlight changed', async () => {
+            const screen = await renderScreen(await renderLongList(0));
+            await flushFrames();
+
+            itemRenders.count = 0;
+            const next = await renderLongList(5);
+            await act(async () => {
+                screen.tree.update(next);
+            });
+
+            expect(itemRenders.count).toBe(2);
+            expect(screen.findAllByType('Item').filter((item: any) => item.props.selected).map((item: any) => item.props.title))
+                .toEqual(['Model 5']);
+        });
     });
 });

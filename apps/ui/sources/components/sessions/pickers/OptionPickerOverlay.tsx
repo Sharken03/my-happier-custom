@@ -21,6 +21,7 @@ import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionCont
 import { readModelPriceDisplay } from '@/sync/domains/models/priceTier';
 import { Typography } from '@/constants/Typography';
 import { Icon } from '@/components/ui/icons/Icon';
+import { useProgressiveRowCount } from '@/components/ui/lists/useProgressiveRowCount';
 
 type WebHoverablePressableState = Readonly<{
     pressed: boolean;
@@ -79,23 +80,6 @@ export type OptionPickerOverlayProps = Readonly<{
 }>;
 
 const MOBILE_SINGLE_COLUMN_WIDTH = 560;
-
-/**
- * Option cards mounted in the first frame and added in each later frame. A card costs about
- * 1.4 ms of render work in the UI render tests (380 models), so a batch stays far inside a frame
- * and the first batch still fills the picker on a phone.
- */
-const OPTION_CARD_BATCH = 24;
-
-/** Runs the callback in the next frame; returns a function that cancels it. */
-function scheduleNextFrame(callback: () => void): () => void {
-    if (typeof globalThis.requestAnimationFrame === 'function') {
-        const frame = globalThis.requestAnimationFrame(callback);
-        return () => globalThis.cancelAnimationFrame(frame);
-    }
-    const timer = setTimeout(callback, 0);
-    return () => clearTimeout(timer);
-}
 
 type OptionPickerTransientStyles = Readonly<Record<
     'optionCardSelected' | 'optionCardHovered' | 'optionCardPressed' | 'refreshIconButtonPressed' | 'refreshIconButtonDisabled',
@@ -383,16 +367,8 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
         });
     }, [normalizedQuery, props.options, showSearch]);
     const optionColumnCount = filteredOptions.length <= 1 || windowWidth < MOBILE_SINGLE_COLUMN_WIDTH ? 1 : 2;
-    // A long list mounts in batches, one batch per frame, so opening the picker and each search
-    // keystroke mount at most one batch at once. A new query starts again from the first batch.
-    const [cardBatch, setCardBatch] = React.useState({ query: normalizedQuery, count: OPTION_CARD_BATCH });
-    const shownCardCount = cardBatch.query === normalizedQuery ? cardBatch.count : OPTION_CARD_BATCH;
-    React.useEffect(() => {
-        if (shownCardCount >= filteredOptions.length) return;
-        return scheduleNextFrame(() => {
-            setCardBatch({ query: normalizedQuery, count: shownCardCount + OPTION_CARD_BATCH });
-        });
-    }, [filteredOptions.length, normalizedQuery, shownCardCount]);
+    // A long list mounts in batches, one batch per frame. A new query starts again from the first batch.
+    const shownCardCount = useProgressiveRowCount(filteredOptions.length, normalizedQuery);
     const shownOptions = shownCardCount >= filteredOptions.length
         ? filteredOptions
         : filteredOptions.slice(0, shownCardCount);

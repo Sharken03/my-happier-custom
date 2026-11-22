@@ -754,6 +754,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
                                     rowKind={props.rowKind}
                                     itemProps={props.itemRowProps}
                                     registerItemLayout={resultScroll.registerItemLayout}
+                                    revealResetKey={searchQuery}
                                     submenuAnchorRegistry={submenuAnchorsRef.current}
                                 />
                             </View>

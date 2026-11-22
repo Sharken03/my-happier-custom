@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { act } from 'react-test-renderer';
+
 import { renderScreen } from '@/dev/testkit';
 import { storage } from '@/sync/domains/state/storage';
 
@@ -422,5 +424,38 @@ describe('NewSessionModelSelectionContent', () => {
         expect(menu.props.itemTrigger.subtitle).toBe('Use CLI settings');
         expect(menu.props.itemTrigger.showSelectedDetail).toBe(false);
         expect(menu.props.itemTrigger.showSelectedSubtitle).toBe(false);
+    });
+
+    it('keeps the compact dropdown items when the wizard renders again with the same models', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+        const modelOptions = [
+            { value: 'default', label: 'Use CLI settings', description: 'Use the model configured in the CLI' },
+            { value: 'gpt-5.4', label: 'GPT-5.4', description: 'Fast' },
+        ] as const;
+        const favoriteModelSelections: never[] = [];
+        const onSelectModel = vi.fn();
+        const onFavoriteModelSelectionsChange = vi.fn();
+        const element = (selectedModelId: string) => (
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={modelOptions}
+                selectedModelId={selectedModelId as any}
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={favoriteModelSelections}
+                onSelectModel={onSelectModel}
+                onFavoriteModelSelectionsChange={onFavoriteModelSelectionsChange}
+            />
+        );
+
+        const screen = await renderScreen(element('default'));
+        const firstItems = screen.root.findByType('DropdownMenu' as any).props.items;
+        await act(async () => {
+            screen.tree.update(element('gpt-5.4'));
+        });
+
+        const menu = screen.root.findByType('DropdownMenu' as any);
+        expect(menu.props.selectedId).toBe('gpt-5.4');
+        expect(menu.props.items).toBe(firstItems);
     });
 });
