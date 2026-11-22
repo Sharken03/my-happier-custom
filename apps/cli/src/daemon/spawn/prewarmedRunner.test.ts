@@ -171,6 +171,23 @@ describe('prewarmed runner slot', () => {
     children[1]!.emit('exit', 1, null);
     expect(slot.take({ filePath: '/bin/node', baseArgs: BASE.baseArgs, userArgs: ['pi'], env: ENV, cwd: '/w' })).toBeNull();
   });
+
+  it('keeps a waiting process for a new time limit when a prewarm is asked again', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    vi.advanceTimersByTime(40_000);
+    slot.prewarm();
+    vi.advanceTimersByTime(40_000);
+
+    expect(spawnChild).toHaveBeenCalledTimes(1);
+    expect(children[0]!.stdin.writableEnded).toBe(false);
+    // An empty line tells the process to wait its own time limit again.
+    expect(children[0]!.written()).toBe('\n');
+
+    vi.advanceTimersByTime(20_000);
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+  });
 });
 
 describe('prewarmed runner assignment', () => {
@@ -205,6 +222,27 @@ describe('prewarmed runner assignment', () => {
       expect(settled).toBeNull();
       await vi.advanceTimersByTimeAsync(1);
       expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits its whole time limit again after each empty line, then applies the launch', async () => {
+    vi.useFakeTimers();
+    try {
+      const proc = fakeProcess();
+      let settled: boolean | null = null;
+      void awaitPrewarmedRunnerAssignment(proc, { maxWaitMs: 1_000 }).then((value) => { settled = value; });
+
+      await vi.advanceTimersByTimeAsync(800);
+      proc.stdin.write('\n');
+      await vi.advanceTimersByTimeAsync(800);
+      expect(settled).toBeNull();
+
+      proc.stdin.write(`${JSON.stringify({ args: ['pi'], env: { PATH: '/bin' }, cwd: '/work' })}\n`);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(true);
+      expect(proc.chdir).toHaveBeenCalledWith('/work');
     } finally {
       vi.useRealTimers();
     }

@@ -655,8 +655,9 @@ class Configuration {
       'HAPPIER_PROMPT_LOOP_USER_MESSAGE_SEQ_WAIT_TIMEOUT_MS',
       { min: 0, max: 10_000, default: 1_000 },
     );
-    // The daemon releases an unused prewarmed runner after 2 minutes; this limit is a little
-    // longer and ends the process also when the daemon hangs.
+    // The daemon releases an unused prewarmed runner 2 minutes after the last prewarm request;
+    // this limit is a little longer, starts again at each request, and ends the process also
+    // when the daemon hangs.
     this.runnerPrewarmMaxWaitMs = resolveIntEnvWithBounds(
       'HAPPIER_RUNNER_PREWARM_MAX_WAIT_MS',
       { min: 0, max: 86_400_000, default: 180_000 },

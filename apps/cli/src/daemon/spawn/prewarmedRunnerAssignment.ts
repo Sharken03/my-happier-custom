@@ -36,32 +36,45 @@ function parseAssignment(line: string): PrewarmedRunnerAssignment | null {
 /**
  * Waits for the daemon's launch (one JSON line on stdin) and makes this process the runner a
  * cold spawn would have been: same arguments, environment and working directory. Resolves
- * `false` when stdin closes with no valid launch (the daemon let the process go).
+ * `false` when stdin closes with no valid launch (the daemon let the process go). An empty
+ * line is no launch: the daemon keeps the process, so its time limit starts again.
  */
 export async function awaitPrewarmedRunnerAssignment(
   proc: AssignableProcess,
   opts: Readonly<{ maxWaitMs?: number }> = {},
 ): Promise<boolean> {
-  const readFirstLine = async (): Promise<string> => {
-    let buffered = '';
-    for await (const chunk of proc.stdin) {
-      buffered += typeof chunk === 'string' ? chunk : (chunk as Buffer).toString('utf8');
-      if (buffered.includes('\n')) break;
-    }
-    return buffered;
-  };
   // The daemon lets an unused process go by closing its input. The time limit ends the process
   // also when the daemon cannot (it hangs); 0 or no value means no limit.
   const maxWaitMs = opts.maxWaitMs ?? 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const buffered = maxWaitMs > 0
-    ? await Promise.race([
-      readFirstLine(),
-      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), maxWaitMs); }),
-    ]).finally(() => clearTimeout(timer))
-    : await readFirstLine();
-  if (buffered === null) return false;
-  const assignment = parseAssignment(buffered.split('\n', 1)[0] ?? '');
+  let expire: () => void = () => {};
+  const expired = new Promise<null>((resolve) => { expire = () => resolve(null); });
+  const startTimeLimit = () => {
+    if (maxWaitMs <= 0) return;
+    clearTimeout(timer);
+    timer = setTimeout(expire, maxWaitMs);
+  };
+  const readLaunchLine = async (): Promise<string> => {
+    let buffered = '';
+    for await (const chunk of proc.stdin) {
+      buffered += typeof chunk === 'string' ? chunk : (chunk as Buffer).toString('utf8');
+      let index = buffered.indexOf('\n');
+      while (index >= 0) {
+        const line = buffered.slice(0, index);
+        buffered = buffered.slice(index + 1);
+        if (line.trim()) return line;
+        startTimeLimit();
+        index = buffered.indexOf('\n');
+      }
+    }
+    return buffered;
+  };
+  startTimeLimit();
+  const line = maxWaitMs > 0
+    ? await Promise.race([readLaunchLine(), expired]).finally(() => clearTimeout(timer))
+    : await readLaunchLine();
+  if (line === null) return false;
+  const assignment = parseAssignment(line);
   if (!assignment) return false;
 
   for (const key of Object.keys(proc.env)) {

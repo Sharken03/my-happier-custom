@@ -128,7 +128,7 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
   const ttlMs = deps.ttlMs ?? 120_000;
   const isEnabled = deps.isEnabled ?? (() => process.env.HAPPIER_DAEMON_RUNNER_PREWARM === '1');
 
-  type WarmEntry = { child: ChildProcess; launch: RememberedLaunch; timer: ReturnType<typeof setTimeout> };
+  type WarmEntry = { child: ChildProcess; launch: RememberedLaunch; timer: ReturnType<typeof setTimeout> | undefined };
   let remembered: RememberedLaunch | null = null;
   let warm: WarmEntry | null = null;
   let storedText: string | null = null;
@@ -156,6 +156,14 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
     } catch (error) {
       logDebug('[DAEMON RUN] Could not store the remembered launch', { error: String(error) });
     }
+  };
+
+  const releaseAfterTtl = (entry: WarmEntry): ReturnType<typeof setTimeout> => {
+    const timer = setTimeout(() => {
+      if (warm === entry) release();
+    }, ttlMs);
+    timer.unref?.();
+    return timer;
   };
 
   const release = () => {
@@ -190,9 +198,22 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
       }
     },
 
-    /** Starts the prewarmed process, unless one waits already. */
+    /**
+     * Starts the prewarmed process. When one waits already, it waits a new time limit: a chat
+     * that the user types in for longer than the limit still finds it.
+     */
     prewarm(): void {
       if (isEnabled()) readStoredLaunch();
+      const waiting = warm;
+      const waitingInput = waiting?.child.stdin;
+      if (isEnabled() && waiting && waitingInput && !waitingInput.writableEnded) {
+        clearTimeout(waiting.timer);
+        waiting.timer = releaseAfterTtl(waiting);
+        // An empty line restarts the process's own time limit (see awaitPrewarmedRunnerAssignment).
+        waitingInput.write('\n');
+        logDebug('[DAEMON RUN] Prewarmed runner kept', { pid: waiting.child.pid });
+        return;
+      }
       if (!isEnabled() || !remembered || warm) {
         logDebug('[DAEMON RUN] Prewarm skipped', { enabled: isEnabled(), remembered: Boolean(remembered), waiting: Boolean(warm) });
         return;
@@ -208,14 +229,8 @@ export function createPrewarmedRunnerSlot(deps: Readonly<{
       if (!child.pid || !child.stdin) return;
       logDebug('[DAEMON RUN] Prewarmed runner started', { pid: child.pid });
       child.stdin.on('error', () => {});
-      const entry: WarmEntry = {
-        child,
-        launch,
-        timer: setTimeout(() => {
-          if (warm === entry) release();
-        }, ttlMs),
-      };
-      entry.timer.unref?.();
+      const entry: WarmEntry = { child, launch, timer: undefined };
+      entry.timer = releaseAfterTtl(entry);
       child.once('exit', () => {
         if (warm === entry) {
           clearTimeout(entry.timer);
