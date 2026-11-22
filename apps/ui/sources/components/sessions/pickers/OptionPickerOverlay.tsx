@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { Pressable, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text, TextInput } from '@/components/ui/text/Text';
 import { Switch } from '@/components/ui/forms/Switch';
@@ -79,6 +79,195 @@ export type OptionPickerOverlayProps = Readonly<{
 }>;
 
 const MOBILE_SINGLE_COLUMN_WIDTH = 560;
+
+/**
+ * Option cards mounted in the first frame and added in each later frame. A card costs about
+ * 1.4 ms of render work in the UI render tests (380 models), so a batch stays far inside a frame
+ * and the first batch still fills the picker on a phone.
+ */
+const OPTION_CARD_BATCH = 24;
+
+/** Runs the callback in the next frame; returns a function that cancels it. */
+function scheduleNextFrame(callback: () => void): () => void {
+    if (typeof globalThis.requestAnimationFrame === 'function') {
+        const frame = globalThis.requestAnimationFrame(callback);
+        return () => globalThis.cancelAnimationFrame(frame);
+    }
+    const timer = setTimeout(callback, 0);
+    return () => clearTimeout(timer);
+}
+
+type OptionPickerTransientStyles = Readonly<Record<
+    'optionCardSelected' | 'optionCardHovered' | 'optionCardPressed' | 'refreshIconButtonPressed' | 'refreshIconButtonDisabled',
+    ViewStyle
+>>;
+
+type OptionPickerCardProps = Readonly<{
+    option: OptionPickerOption;
+    isSelected: boolean;
+    favoriteOptions: OptionPickerFavoriteOptions | undefined;
+    optionTestIDPrefix: string;
+    selectedIndicatorColor: string;
+    primaryTextColor: string;
+    secondaryTextColor: string;
+    transientStyles: OptionPickerTransientStyles;
+    selectionPressPendingRef: React.MutableRefObject<boolean>;
+    onSelect: (value: string) => void;
+    /** The selected card's inline controls; null for every other card. */
+    selectedControls: React.ReactNode;
+}>;
+
+/**
+ * One option card. Memoized, so a card that is already mounted does not render again when the
+ * picker mounts the next batch of cards or the search query changes.
+ */
+const OptionPickerCard = React.memo(function OptionPickerCard(props: OptionPickerCardProps) {
+    const styles = stylesheet;
+    const { option, isSelected, favoriteOptions } = props;
+    const isFavorite = favoriteOptions?.values.has(option.value) === true;
+    const canToggleFavorite = (isSelected || isFavorite)
+        && Boolean(favoriteOptions)
+        && (favoriteOptions?.isFavoritable?.(option) ?? true);
+    // The card shows the same level as a model row: the
+    // glyph right-aligned in the content row, the level
+    // for assistive tech.
+    const price = readModelPriceDisplay({
+        costInputPerMTok: option.costInputPerMTok,
+        costOutputPerMTok: option.costOutputPerMTok,
+    });
+    // The card itself is the accessible element, so the level
+    // joins its label and the glyph stays decorative. An
+    // explicit label wins; otherwise the visible text is the
+    // base, so a priced card still announces its model name.
+    const priceLabel = price.accessibilityLabel;
+    const baseLabel = option.accessibilityLabel
+        ?? (priceLabel
+            ? [option.label, option.description]
+                .filter((part): part is string => typeof part === 'string' && part.length > 0)
+                .join(', ')
+            : '');
+    const cardAccessibilityLabel = [baseLabel, priceLabel]
+        .filter((part): part is string => typeof part === 'string' && part.length > 0)
+        .join(', ') || undefined;
+    return (
+        <View
+            testID={`${props.optionTestIDPrefix}-container:${option.value}`}
+            style={[
+                styles.optionCardContainer,
+                isSelected ? props.transientStyles.optionCardSelected : null,
+            ]}
+        >
+            <Pressable
+                testID={`${props.optionTestIDPrefix}:${option.value}`}
+                onPressIn={() => { props.selectionPressPendingRef.current = true; }}
+                onPress={() => props.onSelect(option.value)}
+                accessibilityRole="button"
+                accessibilityLabel={cardAccessibilityLabel}
+                accessibilityState={{ selected: isSelected }}
+                style={(state) => {
+                    const { pressed } = state;
+                    // RN Web exposes `hovered` in the Pressable state callback, but `react-native` types do not model it.
+                    const hovered = (state as WebHoverablePressableState).hovered === true;
+                    return [
+                        styles.optionCard,
+                        isSelected ? props.transientStyles.optionCardSelected : null,
+                        !isSelected && hovered ? props.transientStyles.optionCardHovered : null,
+                        pressed ? props.transientStyles.optionCardPressed : null,
+                    ];
+                }}
+            >
+                <View
+                    testID={isSelected ? `model-picker-overlay-option-selected-indicator:${option.value}` : undefined}
+                    pointerEvents="box-none"
+                    style={styles.optionCardIndicator}
+                >
+                    {isSelected ? (
+                        <View style={styles.optionCardSelectionMark}>
+                            <Icon
+                                name="check"
+                                size={14}
+                                color={props.primaryTextColor}
+                                style={styles.optionCardIndicatorIcon}
+                            />
+                        </View>
+                    ) : null}
+                    {option.trailingStatusIcon ? (
+                        <View
+                            testID={`${props.optionTestIDPrefix}-status-icon:${option.value}`}
+                            pointerEvents="none"
+                            style={styles.optionCardStatusIcon}
+                        >
+                            {normalizeNodeForView(option.trailingStatusIcon)}
+                        </View>
+                    ) : null}
+                    {canToggleFavorite ? (
+                        <Pressable
+                            testID={`${props.optionTestIDPrefix}-favorite:${option.value}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                                favoriteOptions?.getAccessibilityLabel?.(option, isFavorite)
+                                ?? (isFavorite
+                                    ? t('profiles.actions.removeFromFavorites')
+                                    : t('profiles.actions.addToFavorites'))
+                            }
+                            hitSlop={8}
+                            onPress={(event) => {
+                                event?.stopPropagation?.();
+                                favoriteOptions?.onToggle(option);
+                            }}
+                            style={styles.optionFavoriteButton}
+                        >
+                            <Icon
+                                name="star"
+                                size={14}
+                                color={isFavorite ? props.selectedIndicatorColor : props.secondaryTextColor}
+                                weight={isFavorite ? 'fill' : 'regular'}
+                            />
+                        </Pressable>
+                    ) : null}
+                </View>
+                <View style={styles.optionCardContentRow}>
+                    {option.icon ? (
+                        <View
+                            testID={`${props.optionTestIDPrefix}-icon:${option.value}`}
+                            style={styles.optionCardIconSlot}
+                        >
+                            {normalizeNodeForView(option.icon)}
+                        </View>
+                    ) : null}
+                    <View style={styles.optionCardTextBlock}>
+                        <Text style={[styles.optionCardTitle, isSelected ? styles.optionCardTitleSelected : null]}>
+                            {option.label}
+                        </Text>
+                        {option.description ? (
+                            <Text style={styles.optionCardDescription}>
+                                {option.description}
+                            </Text>
+                        ) : null}
+                    </View>
+                    {price.symbol === null ? null : (
+                        <View
+                            style={styles.optionCardPrice}
+                            accessibilityElementsHidden
+                            importantForAccessibility="no-hide-descendants"
+                        >
+                            <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
+                        </View>
+                    )}
+                </View>
+            </Pressable>
+            {isSelected ? (
+                <View
+                    testID={`model-picker-overlay-option-controls:${option.value}`}
+                    style={styles.optionCardControls}
+                >
+                    {props.selectedControls}
+                </View>
+            ) : null}
+        </View>
+    );
+});
+
 
 export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
     const styles = stylesheet;
@@ -194,6 +383,19 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
         });
     }, [normalizedQuery, props.options, showSearch]);
     const optionColumnCount = filteredOptions.length <= 1 || windowWidth < MOBILE_SINGLE_COLUMN_WIDTH ? 1 : 2;
+    // A long list mounts in batches, one batch per frame, so opening the picker and each search
+    // keystroke mount at most one batch at once. A new query starts again from the first batch.
+    const [cardBatch, setCardBatch] = React.useState({ query: normalizedQuery, count: OPTION_CARD_BATCH });
+    const shownCardCount = cardBatch.query === normalizedQuery ? cardBatch.count : OPTION_CARD_BATCH;
+    React.useEffect(() => {
+        if (shownCardCount >= filteredOptions.length) return;
+        return scheduleNextFrame(() => {
+            setCardBatch({ query: normalizedQuery, count: shownCardCount + OPTION_CARD_BATCH });
+        });
+    }, [filteredOptions.length, normalizedQuery, shownCardCount]);
+    const shownOptions = shownCardCount >= filteredOptions.length
+        ? filteredOptions
+        : filteredOptions.slice(0, shownCardCount);
 
     const renderSelectedOptionControls = React.useCallback(() => {
         if ((props.selectedOptionControls?.length ?? 0) === 0) {
@@ -435,152 +637,25 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
                                     testID={`model-picker-overlay-column:${colIdx}`}
                                     style={styles.cardsColumn}
                                 >
-                                    {filteredOptions
+                                    {shownOptions
                                         .filter((_, i) => i % optionColumnCount === colIdx)
                                         .map((option) => {
                                             const isSelected = selectedTileValue === option.value;
-                                            const isFavorite = props.favoriteOptions?.values.has(option.value) === true;
-                                            const canToggleFavorite = (isSelected || isFavorite)
-                                                && Boolean(props.favoriteOptions)
-                                                && (props.favoriteOptions?.isFavoritable?.(option) ?? true);
-                                            // The card shows the same level as a model row: the
-                                            // glyph right-aligned in the content row, the level
-                                            // for assistive tech.
-                                            const price = readModelPriceDisplay({
-                                                costInputPerMTok: option.costInputPerMTok,
-                                                costOutputPerMTok: option.costOutputPerMTok,
-                                            });
-                                            // The card itself is the accessible element, so the level
-                                            // joins its label and the glyph stays decorative. An
-                                            // explicit label wins; otherwise the visible text is the
-                                            // base, so a priced card still announces its model name.
-                                            const priceLabel = price.accessibilityLabel;
-                                            const baseLabel = option.accessibilityLabel
-                                                ?? (priceLabel
-                                                    ? [option.label, option.description]
-                                                        .filter((part): part is string => typeof part === 'string' && part.length > 0)
-                                                        .join(', ')
-                                                    : '');
-                                            const cardAccessibilityLabel = [baseLabel, priceLabel]
-                                                .filter((part): part is string => typeof part === 'string' && part.length > 0)
-                                                .join(', ') || undefined;
                                             return (
-                                                <View
+                                                <OptionPickerCard
                                                     key={option.value}
-                                                    testID={`${optionTestIDPrefix}-container:${option.value}`}
-                                                    style={[
-                                                        styles.optionCardContainer,
-                                                        isSelected ? transientStyles.optionCardSelected : null,
-                                                    ]}
-                                                >
-                                                    <Pressable
-                                                        testID={`${optionTestIDPrefix}:${option.value}`}
-                                                        onPressIn={() => { selectionPressPendingRef.current = true; }}
-                                                        onPress={() => handleSelectOption(option.value)}
-                                                        accessibilityRole="button"
-                                                        accessibilityLabel={cardAccessibilityLabel}
-                                                        accessibilityState={{ selected: isSelected }}
-                                                        style={(state) => {
-                                                            const { pressed } = state;
-                                                            // RN Web exposes `hovered` in the Pressable state callback, but `react-native` types do not model it.
-                                                            const hovered = (state as WebHoverablePressableState).hovered === true;
-                                                            return [
-                                                                styles.optionCard,
-                                                                isSelected ? transientStyles.optionCardSelected : null,
-                                                                !isSelected && hovered ? transientStyles.optionCardHovered : null,
-                                                                pressed ? transientStyles.optionCardPressed : null,
-                                                            ];
-                                                        }}
-                                                    >
-                                                        <View
-                                                            testID={isSelected ? `model-picker-overlay-option-selected-indicator:${option.value}` : undefined}
-                                                            pointerEvents="box-none"
-                                                            style={styles.optionCardIndicator}
-                                                        >
-                                                            {isSelected ? (
-                                                                <View style={styles.optionCardSelectionMark}>
-                                                                    <Icon
-                                                                        name="check"
-                                                                        size={14}
-                                                                        color={theme.colors.text.primary}
-                                                                        style={styles.optionCardIndicatorIcon}
-                                                                    />
-                                                                </View>
-                                                            ) : null}
-                                                            {option.trailingStatusIcon ? (
-                                                                <View
-                                                                    testID={`${optionTestIDPrefix}-status-icon:${option.value}`}
-                                                                    pointerEvents="none"
-                                                                    style={styles.optionCardStatusIcon}
-                                                                >
-                                                                    {normalizeNodeForView(option.trailingStatusIcon)}
-                                                                </View>
-                                                            ) : null}
-                                                            {canToggleFavorite ? (
-                                                                <Pressable
-                                                                    testID={`${optionTestIDPrefix}-favorite:${option.value}`}
-                                                                    accessibilityRole="button"
-                                                                    accessibilityLabel={
-                                                                        props.favoriteOptions?.getAccessibilityLabel?.(option, isFavorite)
-                                                                        ?? (isFavorite
-                                                                            ? t('profiles.actions.removeFromFavorites')
-                                                                            : t('profiles.actions.addToFavorites'))
-                                                                    }
-                                                                    hitSlop={8}
-                                                                    onPress={(event) => {
-                                                                        event?.stopPropagation?.();
-                                                                        props.favoriteOptions?.onToggle(option);
-                                                                    }}
-                                                                    style={styles.optionFavoriteButton}
-                                                                >
-                                                                    <Icon
-                                                                        name="star"
-                                                                        size={14}
-                                                                        color={isFavorite ? selectedIndicatorColor : theme.colors.text.secondary}
-                                                                        weight={isFavorite ? 'fill' : 'regular'}
-                                                                    />
-                                                                </Pressable>
-                                                            ) : null}
-                                                        </View>
-                                                        <View style={styles.optionCardContentRow}>
-                                                            {option.icon ? (
-                                                                <View
-                                                                    testID={`${optionTestIDPrefix}-icon:${option.value}`}
-                                                                    style={styles.optionCardIconSlot}
-                                                                >
-                                                                    {normalizeNodeForView(option.icon)}
-                                                                </View>
-                                                            ) : null}
-                                                            <View style={styles.optionCardTextBlock}>
-                                                                <Text style={[styles.optionCardTitle, isSelected ? styles.optionCardTitleSelected : null]}>
-                                                                    {option.label}
-                                                                </Text>
-                                                                {option.description ? (
-                                                                    <Text style={styles.optionCardDescription}>
-                                                                        {option.description}
-                                                                    </Text>
-                                                                ) : null}
-                                                            </View>
-                                                            {price.symbol === null ? null : (
-                                                                <View
-                                                                    style={styles.optionCardPrice}
-                                                                    accessibilityElementsHidden
-                                                                    importantForAccessibility="no-hide-descendants"
-                                                                >
-                                                                    <Text style={styles.optionCardPriceText}>{price.symbol}</Text>
-                                                                </View>
-                                                            )}
-                                                        </View>
-                                                    </Pressable>
-                                                    {isSelected ? (
-                                                        <View
-                                                            testID={`model-picker-overlay-option-controls:${option.value}`}
-                                                            style={styles.optionCardControls}
-                                                        >
-                                                            {renderSelectedOptionControls()}
-                                                        </View>
-                                                    ) : null}
-                                                </View>
+                                                    option={option}
+                                                    isSelected={isSelected}
+                                                    favoriteOptions={props.favoriteOptions}
+                                                    optionTestIDPrefix={optionTestIDPrefix}
+                                                    selectedIndicatorColor={selectedIndicatorColor}
+                                                    primaryTextColor={theme.colors.text.primary}
+                                                    secondaryTextColor={theme.colors.text.secondary}
+                                                    transientStyles={transientStyles}
+                                                    selectionPressPendingRef={selectionPressPendingRef}
+                                                    onSelect={handleSelectOption}
+                                                    selectedControls={isSelected ? renderSelectedOptionControls() : null}
+                                                />
                                             );
                                         })}
                                 </View>
