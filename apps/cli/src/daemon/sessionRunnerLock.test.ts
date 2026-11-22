@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -69,6 +70,34 @@ describe('sessionRunnerLock', () => {
     } finally {
       await res.release();
     }
+  });
+
+  it('removes its owned lock before process exit when release is still pending', async () => {
+    const happyHomeDir = await mkdtemp(join(tmpdir(), 'happier-session-runner-lock-'));
+    const processExitEmitter = new EventEmitter();
+    const res = await acquireSessionRunnerLock({
+      happyHomeDir,
+      sessionId: 'sess_release_then_exit',
+      pid: process.pid,
+      nowMs: 10_002,
+      processExitEmitter,
+      getCurrentProcessCommandHash: async () => 'a'.repeat(64),
+      readProcessRunState: async () => 'servable',
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const lockPath = sessionRunnerLockPathForSessionId({ happyHomeDir, sessionId: 'sess_release_then_exit' });
+    expect(lockPath).not.toBeNull();
+    if (!lockPath) return;
+    expect(existsSync(lockPath)).toBe(true);
+
+    // process.exit runs 'exit' listeners synchronously while an async release can still wait on I/O.
+    const pendingRelease = res.release();
+    processExitEmitter.emit('exit', 0);
+    expect(existsSync(lockPath)).toBe(false);
+    await pendingRelease;
   });
 
   it('uses a hashed lock filename when sessionId is too long', async () => {
