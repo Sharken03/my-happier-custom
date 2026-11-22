@@ -23,13 +23,18 @@ export function resolveInactiveSessionRunnerPrewarmMachineId(
 /**
  * The daemon prewarms a session runner when the app previews the spawn environment (the
  * new-chat screen does the same on its first keystroke). Typing in an inactive chat shows
- * that a resume is likely, so the returned callback asks once per session for a preview of
- * no keys. The daemon ignores the request when a prewarmed runner already waits.
+ * that a resume is likely, so the returned callback asks for a preview of no keys once each
+ * time the session is inactive: a chat that ran and stopped while it stayed open asks again.
+ * The daemon ignores the request when a prewarmed runner already waits.
  */
 export function useInactiveSessionRunnerPrewarm(target: InactiveSessionRunnerPrewarmTarget): () => void {
     const targetRef = React.useRef(target);
     targetRef.current = target;
     const requestedSessionIdRef = React.useRef<string | null>(null);
+    // The resume took the prewarmed runner, so the next inactive period needs a new one.
+    React.useEffect(() => {
+        if (target.isSessionActive) requestedSessionIdRef.current = null;
+    }, [target.isSessionActive]);
     return React.useCallback(() => {
         const current = targetRef.current;
         if (requestedSessionIdRef.current === current.sessionId) return;

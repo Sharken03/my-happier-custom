@@ -66,4 +66,16 @@ describe('useInactiveSessionRunnerPrewarm', () => {
         hook.getCurrent()();
         expect(machinePreviewEnvSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('asks again after the session ran and stopped while the chat stayed open', async () => {
+        const hook = await renderHook(useInactiveSessionRunnerPrewarm, { initialProps: inactiveTarget });
+        hook.getCurrent()();
+        expect(machinePreviewEnvSpy).toHaveBeenCalledTimes(1);
+
+        await hook.rerender({ ...inactiveTarget, isSessionActive: true });
+        await hook.rerender(inactiveTarget);
+        hook.getCurrent()();
+        hook.getCurrent()();
+        expect(machinePreviewEnvSpy).toHaveBeenCalledTimes(2);
+    });
 });
