@@ -1,0 +1,42 @@
+diff --git a/node_modules/@react-navigation/routers/lib/module/StackRouter.js b/node_modules/@react-navigation/routers/lib/module/StackRouter.js
+index c1459d5918..081d8886ba 100644
+--- a/node_modules/@react-navigation/routers/lib/module/StackRouter.js
++++ b/node_modules/@react-navigation/routers/lib/module/StackRouter.js
+@@ -167,7 +167,7 @@ export function StackRouter(options) {
+             });
+ 
+             // Re-use preloaded route if available
+-            let route = state.preloadedRoutes.find(route => route.name === action.payload.name && id === getId?.({
++            let route = state.preloadedRoutes.find(route => route.name === action.payload.name && id !== undefined && id === getId?.({
+               params: route.params
+             }));
+             if (!route) {
+@@ -380,7 +380,7 @@ export function StackRouter(options) {
+             // If the route doesn't exist, remove the current route and add the new one
+             if (index === -1) {
+               // Re-use preloaded route if available
+-              let route = state.preloadedRoutes.find(route => route.name === action.payload.name && id === getId?.({
++              let route = state.preloadedRoutes.find(route => route.name === action.payload.name && id !== undefined && id === getId?.({
+                 params: route.params
+               }));
+               if (!route) {
+diff --git a/node_modules/@react-navigation/routers/src/StackRouter.tsx b/node_modules/@react-navigation/routers/src/StackRouter.tsx
+index a5819765a8..f44a7ce146 100644
+--- a/node_modules/@react-navigation/routers/src/StackRouter.tsx
++++ b/node_modules/@react-navigation/routers/src/StackRouter.tsx
+@@ -333,6 +333,7 @@ export function StackRouter(options: StackRouterOptions) {
+           let route = state.preloadedRoutes.find(
+             (route) =>
+               route.name === action.payload.name &&
++              id !== undefined &&
+               id === getId?.({ params: route.params })
+           );
+ 
+@@ -615,6 +616,7 @@ export function StackRouter(options: StackRouterOptions) {
+             let route = state.preloadedRoutes.find(
+               (route) =>
+                 route.name === action.payload.name &&
++                id !== undefined &&
+                 id === getId?.({ params: route.params })
+             );
+ 
