@@ -1,3 +1,4 @@
+import type { OptionPickerOption } from '../../pickers/OptionPickerOverlay';
 import type { AgentInputPopoverAnchor } from '../agentInputContracts';
 
 export type AgentInputSelectionOverlayId =
@@ -12,6 +13,14 @@ export type AgentInputSelectionOverlayId =
     | 'collapsedExtra'
     | 'modelPicker';
 
+export type AgentInputModelPickerOverlayData = Readonly<{
+    sessionId: string;
+    selectedModelId: string;
+    modelOptions: ReadonlyArray<OptionPickerOption>;
+    onSelectModel: (value: string) => void;
+    onClose: () => void;
+}>;
+
 type AgentInputBaseSelectionOverlayState = Readonly<{
     anchor: AgentInputPopoverAnchor;
 }>;
@@ -24,11 +33,6 @@ export type AgentInputSelectionOverlayState =
         id: 'collapsedExtra';
         chipKey: string;
     }>)
-    | (AgentInputBaseSelectionOverlayState & Readonly<{
+    | (AgentInputBaseSelectionOverlayState & AgentInputModelPickerOverlayData & Readonly<{
         id: 'modelPicker';
-        sessionId: string;
-        selectedModelId: string;
-        modelOptions: ReadonlyArray<any>;
-        onSelectModel: (value: string) => void;
-        onClose: () => void;
     }>);

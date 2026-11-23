@@ -33,7 +33,7 @@ export function buildAgentInputSelectionOverlayViewModel(params: Readonly<{
     activeExtraCollapsedPopoverAnchor: AgentInputPopoverAnchor;
     closeActiveExtraCollapsedPopoverChip: () => void;
     showModelPicker: boolean;
-    modelPickerData: AgentInputSelectionOverlayState | null;
+    modelPickerData: Extract<AgentInputSelectionOverlayState, { id: 'modelPicker' }> | null;
     closeModelPicker: () => void;
 }> {
     const activeOverlay = params.activeSelectionOverlay;

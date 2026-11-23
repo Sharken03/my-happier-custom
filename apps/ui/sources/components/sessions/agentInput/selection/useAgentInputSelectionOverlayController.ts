@@ -6,6 +6,7 @@ import {
     type AgentInputPopoverAnchor,
 } from '../agentInputContracts';
 import type {
+    AgentInputModelPickerOverlayData,
     AgentInputSelectionOverlayId,
     AgentInputSelectionOverlayState,
 } from './agentInputSelectionOverlayTypes';
@@ -160,13 +161,7 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
-        modelPickerData?: Readonly<{
-            sessionId: string;
-            selectedModelId: string;
-            modelOptions: ReadonlyArray<any>;
-            onSelectModel: (value: string) => void;
-            onClose: () => void;
-        }>,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => {
         if (id === 'collapsedExtra') {
             if (!chipKey || chipKey.length === 0) {
@@ -192,13 +187,7 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
-        modelPickerData?: Readonly<{
-            sessionId: string;
-            selectedModelId: string;
-            modelOptions: ReadonlyArray<any>;
-            onSelectModel: (value: string) => void;
-            onClose: () => void;
-        }>,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => {
         retainKeyboardLift();
         setActiveSelectionOverlay((current) => {

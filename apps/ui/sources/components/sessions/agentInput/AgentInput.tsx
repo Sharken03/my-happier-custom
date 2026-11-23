@@ -2441,6 +2441,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         resumeChipAnchorRef,
         profileChipAnchorRef,
         envVarsChipAnchorRef,
+        modelChipAnchorRef,
     } = useAgentInputSelectionAnchors();
     const [showActionMenu, setShowActionMenu] = React.useState(false);
     const statusBadgeAnchorRef = React.useRef<any>(null);
@@ -2914,7 +2915,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         agentLabel: resolvedAgentLabel,
         engineLabel: engineChipDisplayLabel,
         modelLabel: selectedModelLabel,
-        modelChipAnchorRef: React.createRef<any>(),
+        modelChipAnchorRef,
         onModelPress: handleModelPress,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,

@@ -244,7 +244,7 @@ export function AgentInputOverlayLayer(props: Readonly<{
     onEnvVarsPopoverRequestClose: () => void;
 
     showModelPicker: boolean;
-    modelPickerData: AgentInputSelectionOverlayState | null;
+    modelPickerData: Extract<AgentInputSelectionOverlayState, { id: 'modelPicker' }> | null;
     closeModelPicker: () => void;
 }>): React.ReactNode {
     const agentPickerOptions = useOpenStableAgentPickerOptions(
@@ -516,12 +516,9 @@ export function AgentInputOverlayLayer(props: Readonly<{
 
         {props.showModelPicker && props.modelPickerData ? (
             <ModelPickerBottomSheet
+                modelPickerData={props.modelPickerData}
                 onClosed={props.closeModelPicker}
-                title="Model"
-                subtitle={props.modelPickerData.selectedModelId}
-            >
-                {/* Model picker content will be rendered here */}
-            </ModelPickerBottomSheet>
+            />
         ) : null}
 
         </>

@@ -7,22 +7,17 @@ import { t } from '@/text';
 
 import type { ChipOptionInteraction } from '../chipOptionInteraction';
 import type { AgentInputContentPopoverConfig } from '../components/AgentInputContentPopover';
-import type { AgentInputSelectionOverlayId } from '../selection/agentInputSelectionOverlayTypes';
+import type { AgentInputModelPickerOverlayData, AgentInputSelectionOverlayId } from '../selection/agentInputSelectionOverlayTypes';
 
 function buildContentPopoverHandler(params: Readonly<{
     overlayId: Extract<AgentInputSelectionOverlayId, 'machine' | 'path' | 'resume' | 'profile' | 'envVars'>;
     popover?: AgentInputContentPopoverConfig;
     onLegacyClick?: () => void;
     toggleSelectionOverlay: (
+        id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
-        modelPickerData?: Readonly<{
-            sessionId: string;
-            selectedModelId: string;
-            modelOptions: ReadonlyArray<any>;
-            onSelectModel: (value: string) => void;
-            onClose: () => void;
-        }>,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
 }>): (() => void) | undefined {
     if (!params.popover && !params.onLegacyClick) {
@@ -65,24 +60,20 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
-        modelPickerData?: Readonly<{
-            sessionId: string;
-            selectedModelId: string;
-            modelOptions: ReadonlyArray<any>;
-            onSelectModel: (value: string) => void;
-            onClose: () => void;
-        }>,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
+}>): Readonly<{
+    hasAgentSelection: boolean;
+    resolvedAgentLabel: string;
     handlePermissionPress: () => void;
     handleModePress: () => void;
     handleProfilePress: () => void;
     handleEnvVarsPress: () => void;
     handleAgentPress: () => void;
-    handleModelPress: () => void;
     handleMachinePress?: () => void;
     handlePathPress?: () => void;
     handleResumePress?: () => void;
-}
+}> {
     const hasAgentSelection = Boolean(params.agentType && (params.onAgentClick || params.hasAgentPickerOptions));
 
     const resolvedAgentLabel = React.useMemo(() => {
@@ -154,17 +145,6 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         params.toggleSelectionOverlay,
     ]);
 
-    const handleModelPress = React.useCallback(() => {
-        hapticsLight();
-        params.toggleSelectionOverlay('modelPicker', 'chip', undefined, {
-            sessionId: '',
-            selectedModelId: '',
-            modelOptions: [],
-            onSelectModel: () => {},
-            onClose: () => {},
-        });
-    }, [params.toggleSelectionOverlay]);
-
     const handleMachinePress = React.useMemo(() => {
         return buildContentPopoverHandler({
             overlayId: 'machine',
@@ -201,7 +181,6 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         handleEnvVarsPress,
         handleAgentPress,
         handleMachinePress,
-        handleModelPress,
         handlePathPress,
         handleResumePress,
     };
