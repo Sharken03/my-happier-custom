@@ -7,6 +7,7 @@ import { resolveServerIdForSessionIdFromLocalCache } from '@/sync/runtime/orches
 import { markSessionOpenRequestedForSessionUiTelemetry } from '@/sync/runtime/performance/sessionUiTelemetry';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 
+import { requestSessionOpenPrewarm } from '@/sync/runtime/sessionOpenPrewarm';
 import { buildScopedSessionRouteHref } from './sessionRouteServerScope';
 
 /**
@@ -48,6 +49,8 @@ export function navigateToSessionRoute(params: Readonly<{
         sessionId: params.sessionId,
         source: 'navigate-hook',
     });
+    // Start the session and transcript fetch now, so the network overlaps the route render.
+    requestSessionOpenPrewarm(params.sessionId, targetServerId || null);
     if (Platform.OS === 'web') {
         params.router.push(href);
     } else {
