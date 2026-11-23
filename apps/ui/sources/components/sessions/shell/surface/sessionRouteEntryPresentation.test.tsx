@@ -15,18 +15,30 @@ vi.mock('expo-router', async () => {
     const { createExpoRouterMock } = await import('@/dev/testkit/mocks/router');
     return createExpoRouterMock({ pathname: () => navigationState.pathname }).module;
 });
-const stackState = vi.hoisted(() => ({ preloadedKeys: [] as string[], listeners: new Set<() => void>(), dispatched: [] as unknown[] }));
+const stackState = vi.hoisted(() => ({ preloadedKeys: [] as string[], listeners: new Set<() => void>(), dispatched: [] as unknown[], takenKey: null as string | null }));
 
 vi.mock('@react-navigation/native', async () => {
     const ReactModule = await import('react');
     const navigation = {
         getState: () => ({
             key: 'stack-1',
-            index: 0,
-            routes: [{ key: 'index-1', name: 'index' }],
+            index: stackState.takenKey ? 1 : 0,
+            routes: [
+                { key: 'index-1', name: 'index' },
+                ...(stackState.takenKey ? [{ key: stackState.takenKey, name: 'session/[id]/index' }] : []),
+            ],
             preloadedRoutes: stackState.preloadedKeys.map((key) => ({ key, name: 'session/[id]/index' })),
         }),
-        dispatch: (action: unknown) => { stackState.dispatched.push(action); },
+        // A preloaded screen gets a placeholder navigation object whose dispatch throws.
+        dispatch: () => { throw new Error('Actions cannot be dispatched from a placeholder screen.'); },
+        getParent: () => ({
+            dispatch: (action: { payload: { routes: Array<{ key: string }> } }) => {
+                stackState.dispatched.push(action);
+                const taken = action.payload.routes[action.payload.routes.length - 1]?.key;
+                stackState.preloadedKeys = stackState.preloadedKeys.filter((key) => key !== taken);
+                stackState.takenKey = taken ?? null;
+            },
+        }),
         addListener: (_event: string, listener: () => void) => {
             stackState.listeners.add(listener);
             return () => stackState.listeners.delete(listener);
@@ -47,6 +59,7 @@ afterEach(() => {
     stackState.preloadedKeys = [];
     stackState.listeners.clear();
     stackState.dispatched = [];
+    stackState.takenKey = null;
 });
 
 async function countMountsUnderGate(sessionId: string): Promise<number> {
