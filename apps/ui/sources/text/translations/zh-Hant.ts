@@ -3224,6 +3224,7 @@ const zhHantOverrides: DeepPartial<TranslationStructure> = {
             backendPromptMessage: '輸入後端 ID',
             instructionsPlaceholder: '提交訊息指令',
         },
+        changedFilesRefresh: { title: "已變更的檔案", footer: "可變更檔案的工具完成時也重新整理已變更檔案清單，而不只是在開始時。", refreshOnToolDone: { title: "工具完成時重新整理" } },
         commitAttribution: {
             title: '提交署名',
             footer: '啟用後，AI 產生的提交訊息將包含 Co-Authored-By 署名。',

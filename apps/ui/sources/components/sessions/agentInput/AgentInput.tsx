@@ -9,7 +9,7 @@ import {
     resolveLiveInputTextStatus,
 } from './liveInputState';
 import { isGlassComposerSurface } from './composerSurfaceStyle';
-import { resolveComposerFilledButtonColors } from './composerFilledButtons';
+import { COMPOSER_FILLED_BUTTON_HEIGHT, resolveComposerFilledButtonColors } from './composerFilledButtons';
 import { resolveComposerSelectionRestore } from './composerSelectionRestore';
 import { COMPOSER_SURFACE_RADIUS } from './composerContentInset';
 import { Typography } from '@/constants/Typography';
@@ -2443,7 +2443,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         resumeChipAnchorRef,
         profileChipAnchorRef,
         envVarsChipAnchorRef,
-        modelChipAnchorRef,
     } = useAgentInputSelectionAnchors();
     const [showActionMenu, setShowActionMenu] = React.useState(false);
     const statusBadgeAnchorRef = React.useRef<any>(null);
@@ -2503,9 +2502,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeEnvVarsPopover,
         activeExtraCollapsedPopoverAnchor,
         closeActiveExtraCollapsedPopoverChip,
-        showModelPicker,
-        modelPickerData,
-        closeModelPicker,
     } = buildAgentInputSelectionOverlayViewModel({
         activeSelectionOverlay,
         activeExtraCollapsedPopoverChip,
@@ -2570,26 +2566,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeSelectionOverlay,
         toggleSelectionOverlay,
     });
-
-    // Open model picker bottom sheet with current model data
-    const handleModelPress = React.useCallback(() => {
-        hapticsLight();
-        toggleSelectionOverlay('modelPicker', 'chip', undefined, {
-            sessionId: props.sessionId ?? '',
-            selectedModelId: effectiveModelPolicy.selectedModelId,
-            modelOptions: modelOptions.map((opt) => ({
-                value: opt.value,
-                label: opt.label,
-                description: opt.description,
-                costInputPerMTok: opt.costInputPerMTok,
-                costOutputPerMTok: opt.costOutputPerMTok,
-            })),
-            onSelectModel: (value: string) => {
-                props.onModelModeChange?.(value);
-            },
-            onClose: () => {},
-        });
-    }, [toggleSelectionOverlay, props.sessionId, effectiveModelPolicy.selectedModelId, modelOptions, props.onModelModeChange]);
     const engineChipLabel = React.useMemo(() => {
         // Selection IS the selection. An armed target with a model chosen names
         // that model; an armed target still on the Agent's own defaults names the
@@ -2674,11 +2650,22 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         },
     }), []);
     const filledButtons = useSetting('composerFilledButtonsV1') !== false;
+    // Filled buttons are lower than the outlined ones, so two wrapped rows of them do not touch.
     const filledButtonStyle = React.useMemo(() => (filledButtons
-        ? { backgroundColor: resolveComposerFilledButtonColors(theme.dark).fill }
+        ? {
+            backgroundColor: resolveComposerFilledButtonColors(theme.dark).fill,
+            height: COMPOSER_FILLED_BUTTON_HEIGHT,
+            paddingVertical: 4,
+            borderRadius: COMPOSER_FILLED_BUTTON_HEIGHT / 2,
+        }
         : null), [filledButtons, theme.dark]);
     const actionChipStyle = React.useMemo(() => [styles.actionChip, filledButtonStyle], [filledButtonStyle, styles.actionChip]);
-    const actionButtonStyle = React.useMemo(() => [styles.actionButton, filledButtonStyle], [filledButtonStyle, styles.actionButton]);
+    // An icon-only button stays round at the lower height.
+    const actionButtonStyle = React.useMemo(() => [
+        styles.actionButton,
+        filledButtonStyle,
+        filledButtonStyle ? { paddingHorizontal: 6 } : null,
+    ], [filledButtonStyle, styles.actionButton]);
     const chipStyle = React.useCallback((pressed: boolean) => ([
         actionChipStyle,
         !showChipLabels ? actionChipTransientStyles.iconOnly : null,
@@ -2916,9 +2903,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         agentChipAnchorRef,
         agentLabel: resolvedAgentLabel,
         engineLabel: engineChipDisplayLabel,
-        modelLabel: selectedModelLabel,
-        modelChipAnchorRef,
-        onModelPress: handleModelPress,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,
         machineChipAnchorRef,
@@ -3480,9 +3464,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     envVarsChipAnchorRef={envVarsChipAnchorRef}
                     envVarsPopover={props.envVarsPopover}
                     onEnvVarsPopoverRequestClose={closeEnvVarsPopover}
-                    showModelPicker={showModelPicker}
-                    modelPickerData={modelPickerData}
-                    closeModelPicker={closeModelPicker}
                 />
                 {/* CommandMenu renders autocomplete suggestions with caret-anchor fallback. */}
                 <AgentInputCommandMenu

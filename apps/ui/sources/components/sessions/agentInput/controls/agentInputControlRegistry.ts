@@ -2,7 +2,6 @@ import type { AgentInputControlDescriptor } from './agentInputControlTypes';
 
 export const AGENT_INPUT_CONTROL_REGISTRY = [
     { id: 'engine', line: 'primary' },
-    { id: 'model', line: 'primary' },
     { id: 'mode', line: 'primary' },
     { id: 'goal', line: 'primary' },
     { id: 'permission', line: 'primary' },
@@ -36,7 +35,7 @@ export const AGENT_INPUT_CONTROL_REGISTRY = [
  * Recipient, delivery and the Windows launch mode appear only where they decide where a message goes.
  */
 export const AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS = [
-    'engine', 'model', 'mode', 'goal', 'permission', 'profile', 'env', 'server', 'connectedServices', 'mcp', 'checkout',
+    'engine', 'mode', 'goal', 'permission', 'profile', 'env', 'server', 'connectedServices', 'mcp', 'checkout',
     'automation', 'attachments', 'linkedFiles', 'files', 'reviewComments', 'storage', 'providerOption', 'shortcuts',
     'machine', 'path', 'resume',
 ] as const satisfies ReadonlyArray<AgentInputControlDescriptor['id']>;

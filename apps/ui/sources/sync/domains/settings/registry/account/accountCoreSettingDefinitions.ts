@@ -374,7 +374,7 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
     transcriptInitialFillToUserMessageV1: {
         schema: z.boolean(),
         default: true,
-        description: 'Whether the native chat open loads older pages until a user message is loaded, also when the pages only grow a collapsed tool group',
+        description: 'Whether the native chat open loads older pages until a user message is loaded, also when the pages only grow a collapsed tool group, and reads the scroll state from the list renderer',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },

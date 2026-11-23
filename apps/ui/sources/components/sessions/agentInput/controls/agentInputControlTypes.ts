@@ -2,7 +2,6 @@ import type { AgentInputActionBarLayout } from '@/components/sessions/agentInput
 
 export type AgentInputControlId =
     | 'engine'
-    | 'model'
     | 'mode'
     | 'goal'
     | 'permission'

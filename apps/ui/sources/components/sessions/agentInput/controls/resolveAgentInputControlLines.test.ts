@@ -100,7 +100,6 @@ describe('resolveAgentInputControlLines', () => {
     it('keeps stop pinned in the early primary order defined by the canonical registry', () => {
         expect(AGENT_INPUT_CONTROL_REGISTRY.map((control) => control.id)).toEqual([
             'engine',
-            'model',
             'mode',
             'goal',
             'permission',

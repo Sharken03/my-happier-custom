@@ -5,6 +5,8 @@
  */
 export const COMPOSER_SEND_ACCENT = '#D97757';
 export const COMPOSER_SEND_ACCENT_TINT = '#FFFFFF';
+/** Height of a filled chip or action button; the outlined ones are 32. */
+export const COMPOSER_FILLED_BUTTON_HEIGHT = 28;
 
 export type ComposerFilledButtonColors = Readonly<{
     /** Fill behind the chips, the action buttons and the idle microphone. */

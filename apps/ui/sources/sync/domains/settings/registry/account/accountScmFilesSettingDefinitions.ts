@@ -199,6 +199,13 @@ export const ACCOUNT_SCM_FILES_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'bucket', privacy: 'bucketed', identityScope: 'person', serializeCurrent: serializeCountBucket(60_000, 300_000) },
     },
+    scmRefreshOnToolDoneV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether changed files refresh when a tool that can change files finishes, not only when it starts',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     scmFilesAutoRefreshIntervalMs: {
         schema: z.number(),
         default: 60_000,

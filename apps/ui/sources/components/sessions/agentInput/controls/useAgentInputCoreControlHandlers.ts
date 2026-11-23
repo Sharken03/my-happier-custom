@@ -7,7 +7,7 @@ import { t } from '@/text';
 
 import type { ChipOptionInteraction } from '../chipOptionInteraction';
 import type { AgentInputContentPopoverConfig } from '../components/AgentInputContentPopover';
-import type { AgentInputModelPickerOverlayData, AgentInputSelectionOverlayId } from '../selection/agentInputSelectionOverlayTypes';
+import type { AgentInputSelectionOverlayId } from '../selection/agentInputSelectionOverlayTypes';
 
 function buildContentPopoverHandler(params: Readonly<{
     overlayId: Extract<AgentInputSelectionOverlayId, 'machine' | 'path' | 'resume' | 'profile' | 'envVars'>;
@@ -17,7 +17,6 @@ function buildContentPopoverHandler(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
-        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
 }>): (() => void) | undefined {
     if (!params.popover && !params.onLegacyClick) {
@@ -60,7 +59,6 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
-        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
 }>): Readonly<{
     hasAgentSelection: boolean;

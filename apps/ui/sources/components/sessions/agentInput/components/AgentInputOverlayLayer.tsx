@@ -18,8 +18,6 @@ import type { AgentInputExtraActionChip, AgentInputPopoverAnchor } from '../agen
 import type { AgentId } from '@/agents/catalog/catalog';
 import type { AgentInputChipPickerOption } from './AgentInputChipPickerTypes';
 import type { SelectionListStep } from '@/components/ui/selectionList';
-import { ModelPickerBottomSheet } from '@/components/sessions/pickers/ModelPickerBottomSheet';
-import type { AgentInputSelectionOverlayState } from '../selection/agentInputSelectionOverlayTypes';
 
 type SimpleOption = Readonly<{
     id: string;
@@ -242,10 +240,6 @@ export function AgentInputOverlayLayer(props: Readonly<{
     envVarsChipAnchorRef: React.RefObject<View | null>;
     envVarsPopover?: SharedContentPopoverLike;
     onEnvVarsPopoverRequestClose: () => void;
-
-    showModelPicker: boolean;
-    modelPickerData: Extract<AgentInputSelectionOverlayState, { id: 'modelPicker' }> | null;
-    closeModelPicker: () => void;
 }>): React.ReactNode {
     const agentPickerOptions = useOpenStableAgentPickerOptions(
         props.agentPickerOptions,
@@ -386,6 +380,7 @@ export function AgentInputOverlayLayer(props: Readonly<{
                     // don't waste horizontal space.
                     maxWidthCap={shouldShowAgentInputChipPickerRail(agentPickerOptions, props.screenWidth) ? 720 : 570}
                     maxHeightCap={460}
+                    presentation="sheet"
                 />
             ) : null}
 
@@ -513,13 +508,6 @@ export function AgentInputOverlayLayer(props: Readonly<{
                     />
                 );
             })() : null}
-
-        {props.showModelPicker && props.modelPickerData ? (
-            <ModelPickerBottomSheet
-                modelPickerData={props.modelPickerData}
-                onClosed={props.closeModelPicker}
-            />
-        ) : null}
 
         </>
     );

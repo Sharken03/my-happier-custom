@@ -3239,6 +3239,7 @@ export const en = {
             backendPromptMessage: 'Enter backend id',
             instructionsPlaceholder: 'Commit message instructions',
         },
+        changedFilesRefresh: { title: "Changed files", footer: "The list of changed files also refreshes when a tool that can change files finishes, not only when it starts.", refreshOnToolDone: { title: "Refresh when a tool finishes" } },
         commitAttribution: {
             title: 'Commit attribution',
             footer: 'When enabled, AI-generated commit messages will include Co-Authored-By credits.',
@@ -7991,7 +7992,7 @@ export const en = {
     },
 
 settingsSession: {
-    composerButtons: {"title": "Composer buttons", "footer": "Switch off the buttons you do not use. They also leave the collapsed menu.", "controls": {"engine": "Agent and model", "model": "Model", "mode": "Session mode", "goal": "Goal", "permission": "Permissions", "profile": "Profile", "env": "Environment variables", "server": "Server", "connectedServices": "Accounts (CLI Auth)", "mcp": "MCP servers", "checkout": "Branch and worktree", "automation": "Automation", "attachments": "Attach files", "linkedFiles": "Link files (@)", "files": "Files", "reviewComments": "Review comments", "storage": "Transcript storage", "providerOption": "Provider options", "shortcuts": "Shortcuts", "machine": "Machine", "path": "Folder", "resume": "Resume"}},
+    composerButtons: {"title": "Composer buttons", "footer": "Switch off the buttons you do not use. They also leave the collapsed menu.", "controls": {"engine": "Agent and model", "mode": "Session mode", "goal": "Goal", "permission": "Permissions", "profile": "Profile", "env": "Environment variables", "server": "Server", "connectedServices": "Accounts (CLI Auth)", "mcp": "MCP servers", "checkout": "Branch and worktree", "automation": "Automation", "attachments": "Attach files", "linkedFiles": "Link files (@)", "files": "Files", "reviewComments": "Review comments", "storage": "Transcript storage", "providerOption": "Provider options", "shortcuts": "Shortcuts", "machine": "Machine", "path": "Folder", "resume": "Resume"}},
     modelChip: {"title": "Model chip", "footer": "How the composer names the model that runs next.", "agentAndModelTitle": "Agent icon and model", "agentAndModelSubtitle": "The agent's icon with the model name.", "modelAndEffortTitle": "Model and effort", "modelAndEffortSubtitle": "The model name and its reasoning effort, without the icon (like the Claude app).", "compactTitle": "Compact model list", "compactSubtitle": "Leave out the status lines and the provider under each model. Star a model to list it first.", "alphabeticalTitle": "Sort models by name", "alphabeticalSubtitle": "List the models in alphabetical order. Starred models stay first, also in alphabetical order.", "layoutTitle": "Model picker layout", "layoutSubtitle": "Choose how the model picker is displayed: cards (grid) or list (compact).", "layoutOptions": {"carded": "Cards (grid)", "compact": "List (compact)"}},
     terminalHostTitle: 'Terminal host for new sessions',
     terminalHostNone: 'No terminal host',

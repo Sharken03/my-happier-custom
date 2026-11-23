@@ -17,6 +17,8 @@ export type AgentInputPopoverSurfaceProps = Readonly<{
    * contains its own scrollable list).
    */
   scrollEnabled?: boolean;
+  /** Keeps the scroller, but the user cannot scroll it (see FloatingOverlay). */
+  scrollLocked?: boolean;
   showScrollIndicator?: boolean;
   keyboardShouldPersistTaps?: boolean | "always" | "never" | "handled";
   edgeFades?: FloatingOverlayEdgeFades;
@@ -39,6 +41,7 @@ export const AgentInputPopoverSurface = React.memo(
       maxHeight,
       testID,
       scrollEnabled = true,
+      scrollLocked = false,
       showScrollIndicator = false,
       keyboardShouldPersistTaps = "handled",
       edgeFades = { top: true, bottom: true, size: 28 },
@@ -53,6 +56,7 @@ export const AgentInputPopoverSurface = React.memo(
         <FloatingOverlay
           maxHeight={maxHeight}
           scrollEnabled={scrollEnabled}
+          scrollLocked={scrollLocked}
           showScrollIndicator={showScrollIndicator}
           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
           edgeFades={edgeFades}

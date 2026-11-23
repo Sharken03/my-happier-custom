@@ -683,6 +683,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const waitForNextVisualUpdate = React.useCallback(waitForNextTranscriptVisualUpdate, []);
     const { motionConfig, reducedMotionPreferred } = useTranscriptMotionConfig();
     const transcriptScrollPinEnabled = useSetting('transcriptScrollPinEnabled');
+    const initialFillToUserMessageEnabled = useSetting('transcriptInitialFillToUserMessageV1') === true;
     const transcriptScrollPinOffsetThresholdPx = useSetting('transcriptScrollPinOffsetThresholdPx');
     const transcriptScrollAutoFollowWhenPinned = useSetting('transcriptScrollAutoFollowWhenPinned');
     const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
@@ -2382,12 +2383,18 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 // fall through to measurement-based heuristic
             }
         }
+        // Native: the synthesized Legend content height includes the end padding that fills a
+        // short list to the viewport, so a short list reads as scrollable. Ask the renderer.
+        if (Platform.OS !== 'web' && initialFillToUserMessageEnabled) {
+            const overflow = listRef.current?.readNativeContentOverflow?.() ?? null;
+            if (overflow !== null) return overflow;
+        }
         const layout = listLayoutHeight;
         const content = listContentHeight;
         if (!Number.isFinite(layout) || layout <= 0) return false;
         if (!Number.isFinite(content) || content <= 0) return false;
         return content > layout + 16;
-    }, [listContentHeight, listLayoutHeight, resolveWebScrollMetrics]);
+    }, [initialFillToUserMessageEnabled, listContentHeight, listLayoutHeight, resolveWebScrollMetrics]);
     useCommittedTranscriptRef(isScrollableRef, isScrollable);
     const skipRendererOwnedContentSizePin = React.useCallback(() => false, []);
     const flashListStartReachedThreshold = React.useMemo(() => {

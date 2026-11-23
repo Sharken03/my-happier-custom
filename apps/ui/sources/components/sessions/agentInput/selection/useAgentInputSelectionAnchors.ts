@@ -12,7 +12,6 @@ export function useAgentInputSelectionAnchors(): Readonly<{
     resumeChipAnchorRef: React.RefObject<View | null>;
     profileChipAnchorRef: React.RefObject<View | null>;
     envVarsChipAnchorRef: React.RefObject<View | null>;
-    modelChipAnchorRef: React.RefObject<View | null>;
 }> {
     const overlayAnchorRef = React.useRef<View>(null);
     const actionMenuAnchorRef = React.useRef<View>(null);
@@ -24,7 +23,6 @@ export function useAgentInputSelectionAnchors(): Readonly<{
     const resumeChipAnchorRef = React.useRef<View>(null);
     const profileChipAnchorRef = React.useRef<View>(null);
     const envVarsChipAnchorRef = React.useRef<View>(null);
-    const modelChipAnchorRef = React.useRef<View>(null);
 
     return {
         overlayAnchorRef,
@@ -37,6 +35,5 @@ export function useAgentInputSelectionAnchors(): Readonly<{
         resumeChipAnchorRef,
         profileChipAnchorRef,
         envVarsChipAnchorRef,
-        modelChipAnchorRef,
     };
 }

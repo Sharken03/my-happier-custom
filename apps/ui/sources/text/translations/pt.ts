@@ -3618,6 +3618,7 @@ export const pt: TranslationStructure = {
       backendPromptMessage: "Digite o id do backend",
       instructionsPlaceholder: "Instruções de mensagem de commit",
     },
+    changedFilesRefresh: { title: "Arquivos alterados", footer: "A lista de arquivos alterados também é atualizada quando termina uma ferramenta que pode alterar arquivos, não só quando começa.", refreshOnToolDone: { title: "Atualizar quando uma ferramenta termina" } },
     commitAttribution: {
       title: "Atribuição do commit",
       footer:
@@ -8523,7 +8524,7 @@ export const pt: TranslationStructure = {
     },
 
 settingsSession: {
-    composerButtons: {"title": "Botões do editor", "footer": "Desative os botões que você não usa. Eles também saem do menu recolhido.", "controls": {"engine": "Agente e modelo", "model": "Modelo", "mode": "Modo de sessão", "goal": "Objetivo", "permission": "Permissões", "profile": "Perfil", "env": "Variáveis de ambiente", "server": "Servidor", "connectedServices": "Contas (CLI Auth)", "mcp": "Servidores MCP", "checkout": "Branch e worktree", "automation": "Automação", "attachments": "Anexar arquivos", "linkedFiles": "Vincular arquivos (@)", "files": "Arquivos", "reviewComments": "Comentários de revisão", "storage": "Armazenamento da transcrição", "providerOption": "Opções do provedor", "shortcuts": "Atalhos", "machine": "Máquina", "path": "Pasta", "resume": "Retomar"}},
+    composerButtons: {"title": "Botões do editor", "footer": "Desative os botões que você não usa. Eles também saem do menu recolhido.", "controls": {"engine": "Agente e modelo", "mode": "Modo de sessão", "goal": "Objetivo", "permission": "Permissões", "profile": "Perfil", "env": "Variáveis de ambiente", "server": "Servidor", "connectedServices": "Contas (CLI Auth)", "mcp": "Servidores MCP", "checkout": "Branch e worktree", "automation": "Automação", "attachments": "Anexar arquivos", "linkedFiles": "Vincular arquivos (@)", "files": "Arquivos", "reviewComments": "Comentários de revisão", "storage": "Armazenamento da transcrição", "providerOption": "Opções do provedor", "shortcuts": "Atalhos", "machine": "Máquina", "path": "Pasta", "resume": "Retomar"}},
     modelChip: {"title": "Chip do modelo", "footer": "Como o editor nomeia o modelo que roda em seguida.", "agentAndModelTitle": "Ícone do agente e modelo", "agentAndModelSubtitle": "O ícone do agente com o nome do modelo.", "modelAndEffortTitle": "Modelo e esforço", "modelAndEffortSubtitle": "O nome do modelo e seu esforço de raciocínio, sem o ícone (como o app Claude).", "compactTitle": "Lista de modelos compacta", "compactSubtitle": "Sem as linhas de status e o provedor abaixo de cada modelo. Marque um modelo com estrela para vê-lo primeiro.", "alphabeticalTitle": "Ordenar modelos por nome", "alphabeticalSubtitle": "Mostra os modelos em ordem alfabética. Os modelos com estrela ficam primeiro, também em ordem alfabética.", "layoutTitle": "Layout do seletor de modelos", "layoutSubtitle": "Escolha como o seletor de modelos é exibido: cartões (grade) ou lista (compacta).", "layoutOptions": {"carded": "Cartões (grade)", "compact": "Lista (compacta)"}},
     terminalHostTitle: 'Host de terminal para novas sessões',
     terminalHostNone: 'Sem host de terminal',
