@@ -28,7 +28,9 @@ type SheetDetent = Readonly<{
     scrollEnabled: boolean;
 }>;
 
+// Runs in the pan's onEnd on the UI thread, so it must be a worklet.
 function resolveSheetSnap(translateY: number, velocityY: number, half: number, closed: number): number {
+    'worklet';
     if (velocityY < -500) return 0;
     if (velocityY > 500) return closed;
     if (translateY < half * 0.5) return 0;
