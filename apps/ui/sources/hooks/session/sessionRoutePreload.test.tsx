@@ -65,18 +65,24 @@ describe('session route preload', () => {
         expect(prefetch).not.toHaveBeenCalled();
     });
 
-    it('does nothing when the setting is off or on web', async () => {
+    it('does nothing when the setting is off', async () => {
         const prefetch = vi.fn();
         const off = await renderHook(() => useSessionRoutePreloadOnLeave({
             sessionId: 's1', serverId: null, enabled: false, prefetch,
         }));
         await off.unmount();
-        Platform.OS = 'web';
-        const web = await renderHook(() => useSessionRoutePreloadOnLeave({
-            sessionId: 's1', serverId: null, enabled: true, prefetch,
-        }));
-        await web.unmount();
         vi.runAllTimers();
         expect(prefetch).not.toHaveBeenCalled();
+    });
+
+    it('also preloads on web, where a left entry unmounts its content', async () => {
+        Platform.OS = 'web';
+        const prefetch = vi.fn();
+        const hook = await renderHook(() => useSessionRoutePreloadOnLeave({
+            sessionId: 's1', serverId: 'srv', enabled: true, prefetch,
+        }));
+        await hook.unmount();
+        vi.runAllTimers();
+        expect(prefetch).toHaveBeenCalledWith('/session/s1?serverId=srv');
     });
 });
