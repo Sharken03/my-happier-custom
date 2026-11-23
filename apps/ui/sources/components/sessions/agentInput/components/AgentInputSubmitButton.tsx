@@ -172,11 +172,13 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
         && !(micHoldsSubmit && props.micActive === true);
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
     // Setting composerFilledButtonsV1: orange while the press sends or the microphone records,
-    // a dim orange for a send with nothing to send, and the composer's gray fill otherwise.
+    // a dim orange for a send with nothing to send, and the composer's gray fill otherwise. A voice
+    // turn that waits for the reply or reads it aloud keeps the gray fill: only capture is orange.
     const filledButtons = useSetting('composerFilledButtonsV1') !== false;
     const filledColors = resolveComposerFilledButtonColors(theme.dark);
     const accented = filledButtons
-        && ((props.hasSendableContent && !disabled) || props.isSending === true || (micHoldsSubmit && props.micActive === true));
+        && ((props.hasSendableContent && !disabled) || props.isSending === true
+            || (micHoldsSubmit && props.micActive === true && props.micRecording === true));
     const dimSend = filledButtons && !accented && !micHoldsSubmit && !showStopWhenEmpty;
     const fillColor = !filledButtons ? undefined
         : accented ? COMPOSER_SEND_ACCENT
