@@ -23,3 +23,20 @@ export function shouldContinueInitialFillToUserMessage(params: Readonly<{
 }>): boolean {
     return params.enabled && params.pageAddedMessages && !params.hasUserMessage;
 }
+
+/**
+ * Native Legend renderer: true when the rows overflow the viewport.
+ * Legend pads short content up to the viewport (`alignItemsAtEnd`), so its `contentLength` is
+ * never below `scrollLength`. Only a length above the viewport means the list can scroll.
+ * Returns null when Legend has not measured the viewport yet.
+ */
+export function isLegendContentOverflowing(state: Readonly<{
+    contentLength: number;
+    scrollLength: number;
+}> | null | undefined): boolean | null {
+    if (!state) return null;
+    const { contentLength, scrollLength } = state;
+    if (!Number.isFinite(contentLength) || !Number.isFinite(scrollLength)) return null;
+    if (contentLength <= 0 || scrollLength <= 0) return null;
+    return contentLength > scrollLength + 1;
+}

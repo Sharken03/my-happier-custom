@@ -70,6 +70,11 @@ export type TranscriptListShellRef<TItem = unknown> = Readonly<{
      * consumer that must not act on a guess reads THIS instead.
      */
     readVisibleSourceIndexRange?: () => TranscriptRendererVisibleSourceIndexRange | null;
+    /**
+     * Native/Legend only: whether the rows overflow the viewport, from Legend's own lengths.
+     * `null` when the viewport is not measured yet.
+     */
+    readNativeContentOverflow?: () => boolean | null;
     getAbsoluteLastScrollOffset?: () => number;
     getFirstVisibleIndex?: () => number;
     getLayout?: (index: number) => { x: number; y: number; width: number; height: number } | undefined;
