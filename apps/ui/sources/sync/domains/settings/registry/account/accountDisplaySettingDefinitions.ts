@@ -330,6 +330,13 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    sessionOpenDeferComposerV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether a chat opens with header and transcript first and mounts the composer one frame later, so the chat shows sooner after a tap',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     composerAbortChipOnlyWithMicV1: {
         schema: z.boolean(),
         default: true,
