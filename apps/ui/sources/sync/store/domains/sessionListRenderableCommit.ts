@@ -184,6 +184,7 @@ export function buildSessionListViewDataForRenderableState(
         sectionModeV1: state.settings.sessionListSectionModeV1,
         workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
         getProjectForSession: state.getProjectForSession,
+        showHibernatedInActiveList: state.settings.showHibernatedInActiveList === true,
     });
 }
 

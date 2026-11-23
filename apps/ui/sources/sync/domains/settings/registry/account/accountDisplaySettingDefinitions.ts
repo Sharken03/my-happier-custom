@@ -316,6 +316,13 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    showHibernatedInActiveList: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show hibernated (stopped but not archived) sessions in the active session list',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
 });
 
 export const ACCOUNT_DISPLAY_SETTING_ARTIFACTS = buildSettingArtifacts(ACCOUNT_DISPLAY_SETTING_DEFINITIONS);

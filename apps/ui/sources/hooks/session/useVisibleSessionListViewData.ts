@@ -105,6 +105,7 @@ type SessionListDataState = Readonly<{
     normalizedWorkspaceOrder: SessionWorkspaceOrderV1;
     folderSource: SessionListViewItem[] | null;
     sessionFoldersEnabled: boolean;
+    showHibernatedInActiveList: boolean;
 }>;
 
 function collectVisibleSessionIdsByServer(items: ReadonlyArray<SessionListViewItem> | null): Record<string, string[]> {
@@ -808,6 +809,7 @@ function useSessionListDataState(
     const sessionListSectionModeV1 = normalizeSessionListOrderingSectionMode(useSetting('sessionListSectionModeV1'));
     const sessionFoldersEnabled = useFeatureEnabled('sessions.folders');
     const sessionFolderViewModeV1 = useSetting('sessionFolderViewModeV1');
+    const showHibernatedInActiveList = useSetting('showHibernatedInActiveList') === true;
     const selection = useResolvedActiveServerSelection();
     const organizationProjection = useSessionOrganizationProjection(selection.activeServerId);
     const organizationListViewState = React.useMemo(() => buildSessionOrganizationListViewState({
@@ -968,6 +970,7 @@ function useSessionListDataState(
         normalizedGroupOrder,
         normalizedWorkspaceOrder,
         sessionFoldersEnabled,
+        showHibernatedInActiveList,
     }), [
         attentionSource,
         folderSource,
@@ -984,6 +987,7 @@ function useSessionListDataState(
         sessionListOrderingModeV1,
         sessionListSectionModeV1,
         sessionFoldersEnabled,
+        showHibernatedInActiveList,
         selectedServerIdsKey,
         selection.activeServerId,
         selection.enabled,

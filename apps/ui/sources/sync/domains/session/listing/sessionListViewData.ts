@@ -78,6 +78,12 @@ export interface BuildSessionListViewDataOptions {
         serverId: string;
         serverName?: string;
     };
+    /**
+     * When true, show hibernated (stopped but not archived) sessions in the active list.
+     * Controlled by the 'showHibernatedInActiveList' account setting.
+     */
+    showHibernatedInActiveList?: boolean;
+
     sessionFolders?: {
         enabled: boolean;
         folders: SessionFoldersV1;
@@ -93,16 +99,20 @@ type ServerScopeMeta = Readonly<{
 type SessionListActivitySection = 'active' | 'inactive';
 type SessionListSectionScope = SessionListActivitySection | 'sessions';
 
-function isSessionActive(session: { active: boolean }): boolean {
-    return session.active;
+function isSessionActive(session: { active: boolean; archivedAt?: number | null }, showHibernatedInActiveList?: boolean): boolean {
+    if (session.active) return true;
+    // If setting is enabled, treat non-archived inactive sessions as active for display
+    if (showHibernatedInActiveList && session.archivedAt == null) return true;
+    return false;
 }
 
 function resolveSectionForSession(
     section: SessionListSectionScope,
     session: SessionListRenderableSession,
+    showHibernatedInActiveList?: boolean,
 ): SessionListActivitySection {
     if (section !== 'sessions') return section;
-    return isSessionActive(session) ? 'active' : 'inactive';
+    return isSessionActive(session, showHibernatedInActiveList) ? 'active' : 'inactive';
 }
 
 function resolveGroupingForSection(
@@ -291,6 +301,7 @@ function pushProjectGroupsToList(params: Readonly<{
     section: SessionListSectionScope;
     serverKey: string;
     serverScopeMeta: ServerScopeMeta;
+    showHibernatedInActiveList?: boolean;
 }>): void {
     for (const group of params.groups) {
         const hasGroupHeader = Boolean(group.displayPath);
@@ -327,7 +338,7 @@ function pushProjectGroupsToList(params: Readonly<{
             params.listData.push({
                 type: 'session',
                 session,
-                section: resolveSectionForSession(params.section, session),
+                section: resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
                 groupKey,
                 groupKind: 'project',
                 variant: hasGroupHeader && checkout.pathKey === group.workspaceRootPath ? 'no-path' : 'default',
@@ -364,7 +375,7 @@ function pushFolderAwareProjectSessionsToList(params: Readonly<{
             params.listData.push({
                 type: 'session',
                 session,
-                section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session),
+                section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
                 groupKey: params.projectGroupKey,
                 groupKind: 'project',
                 variant: params.variantBySessionId?.get(session.id) ?? params.variant,
@@ -417,7 +428,7 @@ function pushFolderAwareProjectSessionsToList(params: Readonly<{
             params.listData.push({
                 type: 'session',
                 session,
-                section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session),
+                section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
                 groupKey: folderGroupKey,
                 groupKind: 'folder',
                 variant: params.variantBySessionId?.get(session.id) ?? params.variant,
@@ -434,7 +445,7 @@ function pushFolderAwareProjectSessionsToList(params: Readonly<{
         params.listData.push({
             type: 'session',
             session,
-            section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session),
+            section: params.sectionBySessionId?.get(session.id) ?? resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
             groupKey: params.projectGroupKey,
             groupKind: 'project',
             variant: params.variantBySessionId?.get(session.id) ?? params.variant,
@@ -448,6 +459,7 @@ function pushFolderAwareProjectSessionsToList(params: Readonly<{
 
 function resolveSectionScopeForCollectedProjectSessions(
     sessions: ReadonlyArray<Extract<SessionListViewItem, { type: 'session' }>>,
+    showHibernatedInActiveList?: boolean,
 ): SessionListSectionScope {
     let hasActive = false;
     let hasInactive = false;
@@ -455,7 +467,7 @@ function resolveSectionScopeForCollectedProjectSessions(
     for (const session of sessions) {
         const section = session.section === 'active' || session.section === 'inactive'
             ? session.section
-            : resolveSectionForSession('sessions', session.session);
+            : resolveSectionForSession('sessions', session.session, showHibernatedInActiveList);
         if (section === 'active') {
             hasActive = true;
         } else {
@@ -472,6 +484,7 @@ function resolveSectionScopeForCollectedProjectSessions(
 export function applySessionFoldersToSessionListViewData(
     source: ReadonlyArray<SessionListViewItem>,
     options: NonNullable<BuildSessionListViewDataOptions['sessionFolders']>,
+    showHibernatedInActiveList?: boolean,
 ): SessionListViewItem[] {
     if (options.enabled !== true || source.length === 0) return source as SessionListViewItem[];
     if (source.some((item) => item.type === 'header' && item.headerKind === 'folder')) {
@@ -529,7 +542,7 @@ export function applySessionFoldersToSessionListViewData(
             pushFolderAwareProjectSessionsToList({
                 listData: out,
                 sessions: bucket.rows.map((row) => row.session),
-                section: resolveSectionScopeForCollectedProjectSessions(bucket.rows),
+                section: resolveSectionScopeForCollectedProjectSessions(bucket.rows, showHibernatedInActiveList),
                 projectGroupKey: item.groupKey,
                 variant: bucket.rows[0]?.variant ?? 'default',
                 serverScopeMeta: { serverId: item.serverId, serverName: item.serverName },
@@ -553,6 +566,7 @@ function pushDateGroupsToList(params: Readonly<{
     section: SessionListSectionScope;
     serverKey: string;
     serverScopeMeta: ServerScopeMeta;
+    showHibernatedInActiveList?: boolean;
 }>): void {
     if (params.sessions.length === 0) return;
 
@@ -587,7 +601,7 @@ function pushDateGroupsToList(params: Readonly<{
             params.listData.push({
                 type: 'session',
                 session: sess,
-                section: resolveSectionForSession(params.section, sess),
+                section: resolveSectionForSession(params.section, sess, params.showHibernatedInActiveList),
                 groupKey,
                 groupKind: 'date',
                 ...params.serverScopeMeta,
@@ -617,6 +631,7 @@ function pushSharedSessionsToList(params: Readonly<{
     section: SessionListSectionScope;
     serverKey: string;
     serverScopeMeta: ServerScopeMeta;
+    showHibernatedInActiveList?: boolean;
 }>): void {
     if (params.sessions.length === 0) return;
 
@@ -633,7 +648,7 @@ function pushSharedSessionsToList(params: Readonly<{
         params.listData.push({
             type: 'session',
             session,
-            section: resolveSectionForSession(params.section, session),
+            section: resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
             groupKey,
             groupKind: 'shared',
             ...params.serverScopeMeta,
@@ -652,6 +667,7 @@ function pushOwnedSessionsToList(params: Readonly<{
     sessionTargetState?: SessionMachineTargetState;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
     groupGitWorktreesByRepository?: boolean;
+    showHibernatedInActiveList?: boolean;
 }>): void {
     if (params.sessions.length === 0) return;
 
@@ -663,7 +679,7 @@ function pushOwnedSessionsToList(params: Readonly<{
             params.listData.push({
                 type: 'session',
                 session,
-                section: resolveSectionForSession(params.section, session),
+                section: resolveSectionForSession(params.section, session, params.showHibernatedInActiveList),
                 groupKey,
                 ...params.serverScopeMeta,
             });
@@ -684,6 +700,7 @@ function pushOwnedSessionsToList(params: Readonly<{
             section: params.section,
             serverKey: params.serverKey,
             serverScopeMeta: params.serverScopeMeta,
+            showHibernatedInActiveList: params.showHibernatedInActiveList,
         });
         return;
     }
@@ -694,6 +711,7 @@ function pushOwnedSessionsToList(params: Readonly<{
         section: params.section,
         serverKey: params.serverKey,
         serverScopeMeta: params.serverScopeMeta,
+        showHibernatedInActiveList: params.showHibernatedInActiveList,
     });
 }
 
@@ -719,11 +737,11 @@ export function buildSessionListViewData(
             return;
         }
         const isSharedSession = typeof session.owner === 'string' && session.owner.trim().length > 0;
-        if (isSharedSession && isSessionActive(session)) {
+        if (isSharedSession && isSessionActive(session, options.showHibernatedInActiveList)) {
             activeSharedSessions.push(session);
         } else if (isSharedSession) {
             inactiveSharedSessions.push(session);
-        } else if (isSessionActive(session)) {
+        } else if (isSessionActive(session, options.showHibernatedInActiveList)) {
             activeSessions.push(session);
         } else {
             inactiveSessions.push(session);
@@ -755,7 +773,7 @@ export function buildSessionListViewData(
             }) ?? undefined;
         }
         return options.sessionFolders?.enabled
-            ? applySessionFoldersToSessionListViewData(listData, options.sessionFolders)
+            ? applySessionFoldersToSessionListViewData(listData, options.sessionFolders, options.showHibernatedInActiveList)
             : listData;
     };
 
@@ -777,6 +795,7 @@ export function buildSessionListViewData(
                 section: 'sessions',
                 serverKey,
                 serverScopeMeta,
+                showHibernatedInActiveList: options.showHibernatedInActiveList,
             });
             pushOwnedSessionsToList({
                 listData,
@@ -789,6 +808,7 @@ export function buildSessionListViewData(
                 sessionTargetState: options.sessionTargetState,
                 workspacePathDisplayModeV1: options.workspacePathDisplayModeV1,
                 groupGitWorktreesByRepository: options.groupGitWorktreesByRepository !== false,
+                showHibernatedInActiveList: options.showHibernatedInActiveList,
             });
         }
         return completeSessionWorkspaces();
@@ -803,6 +823,7 @@ export function buildSessionListViewData(
             section: 'active',
             serverKey,
             serverScopeMeta,
+            showHibernatedInActiveList: options.showHibernatedInActiveList,
         });
         pushOwnedSessionsToList({
             listData,
@@ -815,6 +836,7 @@ export function buildSessionListViewData(
             sessionTargetState: options.sessionTargetState,
             workspacePathDisplayModeV1: options.workspacePathDisplayModeV1,
             groupGitWorktreesByRepository: options.groupGitWorktreesByRepository !== false,
+            showHibernatedInActiveList: options.showHibernatedInActiveList,
         });
     }
 
@@ -827,6 +849,7 @@ export function buildSessionListViewData(
             section: 'inactive',
             serverKey,
             serverScopeMeta,
+            showHibernatedInActiveList: options.showHibernatedInActiveList,
         });
         pushOwnedSessionsToList({
             listData,
@@ -839,6 +862,7 @@ export function buildSessionListViewData(
             sessionTargetState: options.sessionTargetState,
             workspacePathDisplayModeV1: options.workspacePathDisplayModeV1,
             groupGitWorktreesByRepository: options.groupGitWorktreesByRepository !== false,
+            showHibernatedInActiveList: options.showHibernatedInActiveList,
         });
     }
 

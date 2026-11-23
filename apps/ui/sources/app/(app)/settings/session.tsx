@@ -63,6 +63,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceFaviconsEnabled, setWorkspaceFaviconsEnabled] = useSettingMutable('workspaceFaviconsEnabled');
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
+    const [showHibernatedInActiveList, setShowHibernatedInActiveList] = useSettingMutable('showHibernatedInActiveList');
     const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
     const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
     const [favoriteModelsSortByUse, setFavoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
@@ -691,6 +692,13 @@ export default React.memo(function SessionSettingsScreen() {
                     subtitle={t('settingsFeatures.hideInactiveSessionsSubtitle')}
                     icon={<Icon name="eye-slash" size={29} color={theme.colors.accent.orange} />}
                     rightElement={<Switch value={hideInactiveSessions} onValueChange={setHideInactiveSessions} />}
+                    showChevron={false}
+                />
+                <Item
+                    title="Show hibernated sessions in active list"
+                    subtitle="Sessions stopped to free RAM but not archived appear in Active"
+                    icon={<Icon name="moon" size={29} color={theme.colors.accent.purple} />}
+                    rightElement={<Switch value={showHibernatedInActiveList} onValueChange={setShowHibernatedInActiveList} />}
                     showChevron={false}
                 />
                 {/* Plain English, so no locale file changes. */}
