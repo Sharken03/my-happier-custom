@@ -14,7 +14,6 @@ function buildContentPopoverHandler(params: Readonly<{
     popover?: AgentInputContentPopoverConfig;
     onLegacyClick?: () => void;
     toggleSelectionOverlay: (
-        id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
         modelPickerData?: Readonly<{
@@ -74,13 +73,6 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
             onClose: () => void;
         }>,
     ) => void;
-        id: AgentInputSelectionOverlayId,
-        anchor: 'chip' | 'actionMenu',
-        chipKey?: string,
-    ) => void;
-}>): Readonly<{
-    hasAgentSelection: boolean;
-    resolvedAgentLabel: string;
     handlePermissionPress: () => void;
     handleModePress: () => void;
     handleProfilePress: () => void;
