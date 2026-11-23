@@ -15,12 +15,18 @@ vi.mock('expo-router', async () => {
     const { createExpoRouterMock } = await import('@/dev/testkit/mocks/router');
     return createExpoRouterMock({ pathname: () => navigationState.pathname }).module;
 });
-const stackState = vi.hoisted(() => ({ preloadedKeys: [] as string[], listeners: new Set<() => void>() }));
+const stackState = vi.hoisted(() => ({ preloadedKeys: [] as string[], listeners: new Set<() => void>(), dispatched: [] as unknown[] }));
 
 vi.mock('@react-navigation/native', async () => {
     const ReactModule = await import('react');
     const navigation = {
-        getState: () => ({ preloadedRoutes: stackState.preloadedKeys.map((key) => ({ key })) }),
+        getState: () => ({
+            key: 'stack-1',
+            index: 0,
+            routes: [{ key: 'index-1', name: 'index' }],
+            preloadedRoutes: stackState.preloadedKeys.map((key) => ({ key, name: 'session/[id]/index' })),
+        }),
+        dispatch: (action: unknown) => { stackState.dispatched.push(action); },
         addListener: (_event: string, listener: () => void) => {
             stackState.listeners.add(listener);
             return () => stackState.listeners.delete(listener);
@@ -40,6 +46,7 @@ afterEach(() => {
     navigationState.focused = true;
     stackState.preloadedKeys = [];
     stackState.listeners.clear();
+    stackState.dispatched = [];
 });
 
 async function countMountsUnderGate(sessionId: string): Promise<number> {
@@ -82,6 +89,25 @@ describe('SessionRouteEntryGate (web)', () => {
         stackState.preloadedKeys = ['session-route-key'];
 
         expect(await countMountsUnderGate('s1')).toBe(1);
+    });
+
+    it('offers a preloaded entry to the next open of its session, and stops once it is taken', async () => {
+        const { takePreloadedSessionRoute } = await import('@/hooks/session/sessionRoutePreloadRegistry');
+        const { act } = await import('react-test-renderer');
+        navigationState.pathname = '/';
+        navigationState.focused = false;
+        stackState.preloadedKeys = ['session-route-key'];
+        await countMountsUnderGate('s1');
+
+        expect(takePreloadedSessionRoute('s2')).toBe(false);
+        expect(takePreloadedSessionRoute('s1')).toBe(true);
+        expect(stackState.dispatched).toHaveLength(1);
+
+        await act(async () => {
+            stackState.preloadedKeys = [];
+            for (const listener of stackState.listeners) listener();
+        });
+        expect(takePreloadedSessionRoute('s1')).toBe(false);
     });
 
     it('keeps the entry mounted under its own sub-route, where it is still the visible anchor', async () => {
