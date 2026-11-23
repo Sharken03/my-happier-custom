@@ -8,6 +8,7 @@ import {
 } from '@happier-dev/agents';
 import { readNonBlankSessionControlIdentifier } from '@/sync/domains/sessionControl/opaqueIdentifiers';
 import { matchesSessionControlProvider, readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
+import type { SessionModelsState } from '@/sync/domains/sessionControl/schema';
 
 export type AgentType = AgentId;
 
@@ -372,12 +373,23 @@ function resolveSessionModelList(
     );
     if (preflight && !sessionListIsNewer) return preflight;
     return sessionList ? {
-        availableModels: sessionList.availableModels.map((model) => ({
-            ...model,
-            modelOptions: normalizeSessionConfigOptionsArray(model.modelOptions) ?? undefined,
-        })),
+        availableModels: readNormalizedSessionModels(sessionList),
         supportsFreeform: getAgentCore(agentType).model.supportsFreeform === true,
     } : null;
+}
+
+// The parsed models state is cached per metadata object, so its identity is a safe cache key.
+const normalizedSessionModelsByState = new WeakMap<SessionModelsState, PreflightModelList['availableModels']>();
+
+function readNormalizedSessionModels(state: SessionModelsState): PreflightModelList['availableModels'] {
+    const cached = normalizedSessionModelsByState.get(state);
+    if (cached) return cached;
+    const normalized = state.availableModels.map((model) => ({
+        ...model,
+        modelOptions: normalizeSessionConfigOptionsArray(model.modelOptions) ?? undefined,
+    }));
+    normalizedSessionModelsByState.set(state, normalized);
+    return normalized;
 }
 
 function resolveModelOptionsForSession(
