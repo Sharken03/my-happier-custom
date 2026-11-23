@@ -183,9 +183,14 @@ function flushScheduledAvatarXmlStoreWrites(): void {
 
     const current = hydrateState();
     const nextXmlEntries = { ...current.xmlEntries };
+    let changed = false;
     for (const [key, xml] of pendingWrites.entries()) {
+        // Avatars schedule persistence on every mount; skip the full-store rewrite when nothing changed.
+        if (current.xmlEntries[key]?.value === xml) continue;
         nextXmlEntries[key] = { updatedAt: allocateUpdatedAt(current), value: xml };
+        changed = true;
     }
+    if (!changed) return;
     state = {
         ...current,
         xmlEntries: pruneByLimit(
