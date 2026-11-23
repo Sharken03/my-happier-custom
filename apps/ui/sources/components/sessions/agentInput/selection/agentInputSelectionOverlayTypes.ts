@@ -9,7 +9,8 @@ export type AgentInputSelectionOverlayId =
     | 'resume'
     | 'profile'
     | 'envVars'
-    | 'collapsedExtra';
+    | 'collapsedExtra'
+    | 'modelPicker';
 
 type AgentInputBaseSelectionOverlayState = Readonly<{
     anchor: AgentInputPopoverAnchor;
@@ -17,9 +18,17 @@ type AgentInputBaseSelectionOverlayState = Readonly<{
 
 export type AgentInputSelectionOverlayState =
     | (AgentInputBaseSelectionOverlayState & Readonly<{
-        id: Exclude<AgentInputSelectionOverlayId, 'collapsedExtra'>;
+        id: Exclude<AgentInputSelectionOverlayId, 'collapsedExtra' | 'modelPicker'>;
     }>)
     | (AgentInputBaseSelectionOverlayState & Readonly<{
         id: 'collapsedExtra';
         chipKey: string;
+    }>)
+    | (AgentInputBaseSelectionOverlayState & Readonly<{
+        id: 'modelPicker';
+        sessionId: string;
+        selectedModelId: string;
+        modelOptions: ReadonlyArray<any>;
+        onSelectModel: (value: string) => void;
+        onClose: () => void;
     }>);

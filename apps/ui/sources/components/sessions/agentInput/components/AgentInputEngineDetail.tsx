@@ -60,6 +60,8 @@ type AgentInputEngineDetailProps = Readonly<{
 
   sectionOrder?: ReadonlyArray<"model" | "config">;
   surfaceVariant?: "carded" | "plain";
+  /** Callback to open the model picker as a bottom sheet */
+  onOpenModelPickerBottomSheet?: () => void;
 }>;
 
 function wrapSection(

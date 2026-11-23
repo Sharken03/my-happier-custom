@@ -65,6 +65,8 @@ function isSelectionOverlaySupported(
                 && chip.controlId
                 && hasCollapsedExtraPopover(chip)
             ));
+        case 'modelPicker':
+            return true;
     }
 }
 
@@ -158,6 +160,13 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
+        modelPickerData?: Readonly<{
+            sessionId: string;
+            selectedModelId: string;
+            modelOptions: ReadonlyArray<any>;
+            onSelectModel: (value: string) => void;
+            onClose: () => void;
+        }>,
     ) => {
         if (id === 'collapsedExtra') {
             if (!chipKey || chipKey.length === 0) {
@@ -169,6 +178,12 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
             setActiveSelectionOverlay({ id, anchor, chipKey });
             return;
         }
+        if (id === 'modelPicker') {
+            if (!modelPickerData) return;
+            retainKeyboardLift();
+            setActiveSelectionOverlay({ id, anchor, ...modelPickerData });
+            return;
+        }
         retainKeyboardLift();
         setActiveSelectionOverlay({ id, anchor });
     }, [releaseKeyboardLift, retainKeyboardLift]);
@@ -177,6 +192,13 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
+        modelPickerData?: Readonly<{
+            sessionId: string;
+            selectedModelId: string;
+            modelOptions: ReadonlyArray<any>;
+            onSelectModel: (value: string) => void;
+            onClose: () => void;
+        }>,
     ) => {
         retainKeyboardLift();
         setActiveSelectionOverlay((current) => {
@@ -190,6 +212,10 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
             if (id === 'collapsedExtra') {
                 if (!chipKey || chipKey.length === 0) return null;
                 return { id, anchor, chipKey };
+            }
+            if (id === 'modelPicker') {
+                if (!modelPickerData) return current;
+                return { id, anchor, ...modelPickerData };
             }
             return { id, anchor };
         });

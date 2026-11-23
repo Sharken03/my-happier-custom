@@ -32,6 +32,9 @@ export function buildAgentInputSelectionOverlayViewModel(params: Readonly<{
     activeExtraCollapsedPopoverChip: AgentInputExtraActionChip | null;
     activeExtraCollapsedPopoverAnchor: AgentInputPopoverAnchor;
     closeActiveExtraCollapsedPopoverChip: () => void;
+    showModelPicker: boolean;
+    modelPickerData: AgentInputSelectionOverlayState | null;
+    closeModelPicker: () => void;
 }> {
     const activeOverlay = params.activeSelectionOverlay;
 
@@ -64,5 +67,8 @@ export function buildAgentInputSelectionOverlayViewModel(params: Readonly<{
             : null,
         activeExtraCollapsedPopoverAnchor: activeOverlay?.id === 'collapsedExtra' ? activeOverlay.anchor : 'actionMenu',
         closeActiveExtraCollapsedPopoverChip: () => params.closeSelectionOverlay('collapsedExtra'),
+        showModelPicker: activeOverlay?.id === 'modelPicker',
+        modelPickerData: activeOverlay?.id === 'modelPicker' ? activeOverlay : null,
+        closeModelPicker: () => params.closeSelectionOverlay('modelPicker'),
     };
 }

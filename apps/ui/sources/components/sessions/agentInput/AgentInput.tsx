@@ -2500,6 +2500,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeEnvVarsPopover,
         activeExtraCollapsedPopoverAnchor,
         closeActiveExtraCollapsedPopoverChip,
+        showModelPicker,
+        modelPickerData,
+        closeModelPicker,
     } = buildAgentInputSelectionOverlayViewModel({
         activeSelectionOverlay,
         activeExtraCollapsedPopoverChip,
@@ -3450,6 +3453,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     envVarsChipAnchorRef={envVarsChipAnchorRef}
                     envVarsPopover={props.envVarsPopover}
                     onEnvVarsPopoverRequestClose={closeEnvVarsPopover}
+                    showModelPicker={showModelPicker}
+                    modelPickerData={modelPickerData}
+                    closeModelPicker={closeModelPicker}
                 />
                 {/* CommandMenu renders autocomplete suggestions with caret-anchor fallback. */}
                 <AgentInputCommandMenu
