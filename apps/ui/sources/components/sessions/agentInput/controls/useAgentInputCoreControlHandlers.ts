@@ -82,7 +82,7 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
     handleMachinePress?: () => void;
     handlePathPress?: () => void;
     handleResumePress?: () => void;
-}> {
+}, {
     const hasAgentSelection = Boolean(params.agentType && (params.onAgentClick || params.hasAgentPickerOptions));
 
     const resolvedAgentLabel = React.useMemo(() => {
