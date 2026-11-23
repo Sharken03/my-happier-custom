@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Keyboard, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Keyboard, Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, type NativeGesture } from 'react-native-gesture-handler';
 import Animated, {
     runOnJS,
@@ -163,6 +163,13 @@ export function ModelPickerBottomSheet(props: Readonly<{
     }, [close, modelPickerData]);
 
     return (
+        <Modal
+            visible
+            transparent
+            animationType="none"
+            statusBarTranslucent
+            onRequestClose={close}
+        >
         <View style={styles.root}>
             <Animated.View style={[styles.backdrop, backdropStyle]}>
                 <Pressable testID="model-picker-sheet-backdrop" style={styles.fill} onPress={close} />
@@ -195,6 +202,7 @@ export function ModelPickerBottomSheet(props: Readonly<{
                 </Animated.View>
             </GestureDetector>
         </View>
+        </Modal>
     );
 }
 
