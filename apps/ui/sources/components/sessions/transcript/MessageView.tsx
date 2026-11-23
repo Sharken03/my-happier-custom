@@ -291,6 +291,49 @@ function buildStreamingMarkdownParseCacheKey(messageId: string): string {
   return `message:${messageId}`;
 }
 
+/**
+ * Escape markdown underscores in agent-mail messages to prevent them from being rendered as emphasis.
+ * Agent-mail messages (peer.handoff === true) often contain technical terms like `agent_send`
+ * where underscores should be displayed literally, not as markdown emphasis.
+ * This only escapes underscores in identifier-like contexts (alphanumeric chars on both sides),
+ * not markdown emphasis syntax like _italic_ or __bold__.
+ * It also preserves code spans (`code`) and fenced code blocks (```code```).
+ */
+function escapeMarkdownUnderscoresForAgentMail(text: string): string {
+  // Protect code spans and fenced blocks by temporarily replacing them with placeholders
+  // that use a character not matched by [^\W_] (underscore). Using NUL char ensures
+  // placeholders never match the escape regex. Placeholders use only NUL + index + NUL
+  // with no word characters to avoid being corrupted by the escape pass.
+  const codeSpans: string[] = [];
+  const fencedBlocks: string[] = [];
+  const NUL = '\0';
+  
+  // Protect fenced code blocks first (```...``` or ~~~...~~~)
+  let protected = text.replace(/^( {0,3})([`~]{3,})([^`~]*)\n([\s\S]*?)\n\1\2/gm, (match, indent, fence, info, content) => {
+    const idx = fencedBlocks.length;
+    fencedBlocks.push(match);
+    return `${NUL}FB${idx}${NUL}`;
+  });
+  
+  // Protect inline code spans (`code`)
+  protected = protected.replace(/`([^`\n]+)`/g, (match, content) => {
+    const idx = codeSpans.length;
+    codeSpans.push(match);
+    return `${NUL}CS${idx}${NUL}`;
+  });
+  
+  // Escape underscores only in prose (alphanumeric on both sides, not already escaped)
+  protected = protected.replace(/(?<!\\)(?<=[^\W_])_(?=[^\W_])/g, '\\_');
+  
+  // Restore fenced blocks - use RegExp constructor with double-escaped backslash for \d in string literal
+  protected = protected.replace(new RegExp(NUL + 'FB(\\d+)' + NUL, 'g'), (_, idx) => fencedBlocks[parseInt(idx, 10)]);
+  
+  // Restore code spans
+  protected = protected.replace(new RegExp(NUL + 'CS(\\d+)' + NUL, 'g'), (_, idx) => codeSpans[parseInt(idx, 10)]);
+  
+  return protected;
+}
+
 type MessageViewProps = {
   message: Message;
   metadata: Metadata | null;
@@ -1095,6 +1138,10 @@ function AgentTextBlock(props: {
   const markdown = (!unsupportedContentMeta && props.message.isThinking)
     ? unwrapLegacyThinkingWrapper(markdownSource)
     : markdownSource;
+  // Agent-mail messages (peer.handoff === true) often contain technical terms with underscores
+  // that should be displayed literally, not as markdown emphasis.
+  const isAgentMail = props.message.peer?.handback === true;
+  const renderMarkdown = isAgentMail ? escapeMarkdownUnderscoresForAgentMail(markdown) : markdown;
   const deriveThinkingSummary = (text: string) => {
     const trimmed = String(text ?? '').trim();
     if (!trimmed) return '';
@@ -1409,7 +1456,7 @@ function AgentTextBlock(props: {
                   summary={deriveThinkingSummary(markdown)}
                 >
                   <MarkdownView
-                    markdown={markdown}
+                    markdown={renderMarkdown}
                     codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])}
                     agentTexMath
                     onOptionPress={handleOptionPress}
@@ -1423,7 +1470,7 @@ function AgentTextBlock(props: {
               ) : (
                 <MarkdownView
                   {...quoteMarkdownProps}
-                  markdown={markdown}
+                  markdown={renderMarkdown}
                   codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])}
                   agentTexMath
                   onOptionPress={handleOptionPress}
