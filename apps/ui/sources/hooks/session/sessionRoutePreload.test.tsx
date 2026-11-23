@@ -141,6 +141,18 @@ describe('session route preload', () => {
         expect(prefetch).toHaveBeenCalledTimes(1);
     });
 
+    it('skips the start preload once a chat has been opened, which preloads itself on leave', async () => {
+        const prefetch = vi.fn();
+        await renderHook(() => useSessionRoutePreloadOnLeave({
+            sessionId: 's2', serverId: null, enabled: true, prefetch: vi.fn(),
+        }));
+        await renderHook(() => useSessionRoutePreloadAtStart({
+            target: { sessionId: 's1', serverId: null }, ready: true, prefetch,
+        }));
+        vi.runAllTimers();
+        expect(prefetch).not.toHaveBeenCalled();
+    });
+
     it('does nothing at app start when no chat was opened before', async () => {
         const prefetch = vi.fn();
         await renderHook(() => useSessionRoutePreloadAtStart({ target: null, ready: true, prefetch }));

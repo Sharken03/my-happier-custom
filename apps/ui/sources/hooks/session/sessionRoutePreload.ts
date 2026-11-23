@@ -84,6 +84,8 @@ export function useSessionRoutePreloadOnLeave(params: Readonly<{
 
     useFocusEffect(React.useCallback(() => {
         hadFocusRef.current = true;
+        // A chat that was opened preloads itself on leave, so the start preload is not needed.
+        preloadAtStartDone = true;
         const latest = latestRef.current;
         if (latest.enabled) rememberOpenedSessionRoute({ sessionId: latest.sessionId, serverId: latest.serverId });
     }, []));
