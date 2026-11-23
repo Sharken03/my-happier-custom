@@ -102,14 +102,36 @@ export function parseSessionModesState(raw: unknown): SessionModesState | null {
     return parsed.success ? parsed.data : null;
 }
 
+/**
+ * Caches one parse result per raw metadata object.
+ *
+ * Model and config option lists can hold hundreds of entries, and the composer reads them several
+ * times per render. Metadata objects are replaced, not mutated, so a new value gets a new parse.
+ */
+function createRawObjectParseCache<T>(schema: z.ZodType<T>): (raw: unknown) => T | null {
+    const cache = new WeakMap<object, T | null>();
+    return (raw) => {
+        if (raw === null || typeof raw !== 'object') {
+            const parsed = schema.safeParse(raw);
+            return parsed.success ? parsed.data : null;
+        }
+        if (cache.has(raw)) return cache.get(raw) ?? null;
+        const parsed = schema.safeParse(raw);
+        const result = parsed.success ? parsed.data : null;
+        cache.set(raw, result);
+        return result;
+    };
+}
+
+const parseSessionModelsStateCached = createRawObjectParseCache<SessionModelsState>(SessionModelsStateSchema);
+const parseSessionConfigOptionsStateCached = createRawObjectParseCache<SessionConfigOptionsState>(SessionConfigOptionsStateSchema);
+
 export function parseSessionModelsState(raw: unknown): SessionModelsState | null {
-    const parsed = SessionModelsStateSchema.safeParse(raw);
-    return parsed.success ? parsed.data : null;
+    return parseSessionModelsStateCached(raw);
 }
 
 export function parseSessionConfigOptionsState(raw: unknown): SessionConfigOptionsState | null {
-    const parsed = SessionConfigOptionsStateSchema.safeParse(raw);
-    return parsed.success ? parsed.data : null;
+    return parseSessionConfigOptionsStateCached(raw);
 }
 
 export function parseSessionConfigOptionOverridesState(raw: unknown): SessionConfigOptionOverridesState | null {
