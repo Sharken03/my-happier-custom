@@ -32,7 +32,7 @@ import { isTauriDesktop } from "@/utils/platform/tauri";
 import { isAuthenticatedRootDeepLinkRedirectAllowed } from "@/auth/routing/isAuthenticatedRootDeepLinkRedirectAllowed";
 import { buildScopedSessionRouteHref } from "@/hooks/session/sessionRouteServerScope";
 import { readLastOpenedSessionRoute, useSessionRoutePreloadAtStart } from "@/hooks/session/sessionRoutePreload";
-import { selectSessionViewShellSessionForRouteState } from "@/components/sessions/shell/sessionViewStableSession";
+import { resolveServerIdForSessionIdFromLocalState } from "@/sync/runtime/orchestration/serverScopedRpc/resolveServerIdForSessionIdFromLocalCache";
 import { storage, useSetting } from "@/sync/domains/state/storage";
 import { useIsFocused } from "@react-navigation/native";
 import { RemoteWelcomeDecisionPanel } from "@/components/account/auth/RemoteWelcomeDecisionPanel";
@@ -134,11 +134,11 @@ function Authenticated() {
     // Setting sessionOpenPreloadV1: preload the chat that was open last, once the list knows it.
     const preloadEnabled = useSetting('sessionOpenPreloadV1') === true;
     const lastOpened = React.useMemo(() => readLastOpenedSessionRoute(), []);
-    const lastOpenedKnown = storage((state) => lastOpened !== null && Boolean(selectSessionViewShellSessionForRouteState(
+    // The list cache knows a chat before its session is hydrated into state.sessions.
+    const lastOpenedKnown = storage((state) => lastOpened !== null && resolveServerIdForSessionIdFromLocalState(
         { sessions: state.sessions, sessionListViewDataByServerId: state.sessionListViewDataByServerId },
         lastOpened.sessionId,
-        lastOpened.serverId,
-    )));
+    ) !== null);
     const listFocused = useIsFocused();
     useSessionRoutePreloadAtStart({
         target: lastOpened,
