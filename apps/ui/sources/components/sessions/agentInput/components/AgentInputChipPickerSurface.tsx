@@ -20,8 +20,6 @@ export type AgentInputChipPickerSurfaceProps = Readonly<{
     detailPaneHeaderAccessory?: React.ReactNode;
     maxHeight?: number | null;
     testID?: string;
-    /** False while the surface sits in a sheet that a vertical drag moves instead. */
-    scrollEnabled?: boolean;
 }>;
 
 export function AgentInputChipPickerSurface(props: AgentInputChipPickerSurfaceProps) {
@@ -45,10 +43,7 @@ export function AgentInputChipPickerSurface(props: AgentInputChipPickerSurfacePr
         return panel;
     }
 
-    // `scrollEnabled` is true in every popover. A sheet passes false while it sits below full
-    // height, because there a vertical drag moves the sheet and not the list.
-    //
-    // The successor tree passes a
+    // `scrollEnabled` is unconditional ON PURPOSE. The successor tree passes a
     // `detailContentOwnsScroll` flag here to hand scrolling to a bounded detail
     // pane, but that only works because its panel chain has a
     // `fillAvailableSpace` host that gives the detail content a bounded box to
@@ -61,7 +56,7 @@ export function AgentInputChipPickerSurface(props: AgentInputChipPickerSurfacePr
         <AgentInputPopoverSurface
             testID={props.testID}
             maxHeight={props.maxHeight}
-            scrollEnabled={props.scrollEnabled ?? true}
+            scrollEnabled
             keyboardShouldPersistTaps="handled"
         >
             {panel}
