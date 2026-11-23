@@ -110,6 +110,7 @@ function readModelOptionOrderKey(option: AgentInputEngineModelOption): Readonly<
 export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
   const compact = useSetting("agentInputCompactModelPicker") === true;
   const alphabetical = useSetting("agentInputModelPickerAlphabetical") === true;
+  const presentation = useSetting("agentInputModelPickerLayout") === 'compact' ? 'compact' : 'carded';
   const favoriteModelValues = props.favoriteModelValues;
   const onToggleFavoriteModel = props.onToggleFavoriteModel;
   // "Use CLI settings" is not a model.
@@ -192,6 +193,7 @@ export function AgentInputEngineDetail(props: AgentInputEngineDetailProps) {
               onSelectOptionControlValue={props.onSelectModelOptionValue}
               onSelect={props.onSelectModel ?? (() => {})}
               onSubmitCustomValue={props.onSubmitCustomValue}
+              presentation={presentation}
             />,
           )
         : null,

@@ -4392,6 +4392,7 @@ export const en = {
             labels: 'Labels',
             icons: 'Icons only',
         },
+        },
         loadingIndicator: "Loading Indicator",
         loadingIndicatorStyle: "Style",
         loadingIndicatorDescription: "How spinners look while work is in progress",
@@ -7992,7 +7993,7 @@ export const en = {
 
 settingsSession: {
     composerButtons: {"title": "Composer buttons", "footer": "Switch off the buttons you do not use. They also leave the collapsed menu.", "controls": {"engine": "Agent and model", "mode": "Session mode", "goal": "Goal", "permission": "Permissions", "profile": "Profile", "env": "Environment variables", "server": "Server", "connectedServices": "Accounts (CLI Auth)", "mcp": "MCP servers", "checkout": "Branch and worktree", "automation": "Automation", "attachments": "Attach files", "linkedFiles": "Link files (@)", "files": "Files", "reviewComments": "Review comments", "storage": "Transcript storage", "providerOption": "Provider options", "shortcuts": "Shortcuts", "machine": "Machine", "path": "Folder", "resume": "Resume"}},
-    modelChip: {"title": "Model chip", "footer": "How the composer names the model that runs next.", "agentAndModelTitle": "Agent icon and model", "agentAndModelSubtitle": "The agent's icon with the model name.", "modelAndEffortTitle": "Model and effort", "modelAndEffortSubtitle": "The model name and its reasoning effort, without the icon (like the Claude app).", "compactTitle": "Compact model list", "compactSubtitle": "Leave out the status lines and the provider under each model. Star a model to list it first.", "alphabeticalTitle": "Sort models by name", "alphabeticalSubtitle": "List the models in alphabetical order. Starred models stay first, also in alphabetical order."},
+    modelChip: {"title": "Model chip", "footer": "How the composer names the model that runs next.", "agentAndModelTitle": "Agent icon and model", "agentAndModelSubtitle": "The agent's icon with the model name.", "modelAndEffortTitle": "Model and effort", "modelAndEffortSubtitle": "The model name and its reasoning effort, without the icon (like the Claude app).", "compactTitle": "Compact model list", "compactSubtitle": "Leave out the status lines and the provider under each model. Star a model to list it first.", "alphabeticalTitle": "Sort models by name", "alphabeticalSubtitle": "List the models in alphabetical order. Starred models stay first, also in alphabetical order.", "layoutTitle": "Model picker layout", "layoutSubtitle": "Choose how the model picker is displayed: cards (grid) or list (compact).", "layoutOptions": {"carded": "Cards (grid)", "compact": "List (compact)"}}}
     terminalHostTitle: 'Terminal host for new sessions',
     terminalHostNone: 'No terminal host',
     newSessionAfterSend: { title: "After sending", footer: "Choose what happens when you send from the new session composer. Hold Send to choose the other way for one message.", openTitle: "Open the session", openSubtitle: "Go to the session as soon as it starts.", startAnotherTitle: "Stay and start another", startAnotherSubtitle: "Keep it starting in the background and open a fresh draft." },

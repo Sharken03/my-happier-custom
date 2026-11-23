@@ -77,6 +77,7 @@ export type OptionPickerOverlayProps = Readonly<{
     onSelect: (value: string) => void;
     onSubmitCustomValue?: (value: string) => void | Promise<void>;
     probe?: OptionPickerProbeState;
+    presentation?: 'carded' | 'compact';
 }>;
 
 const MOBILE_SINGLE_COLUMN_WIDTH = 560;
@@ -366,7 +367,8 @@ export function OptionPickerOverlay(props: OptionPickerOverlayProps) {
             return haystack.includes(normalizedQuery);
         });
     }, [normalizedQuery, props.options, showSearch]);
-    const optionColumnCount = filteredOptions.length <= 1 || windowWidth < MOBILE_SINGLE_COLUMN_WIDTH ? 1 : 2;
+    const isCompact = props.presentation === 'compact';
+    const optionColumnCount = isCompact || filteredOptions.length <= 1 || windowWidth < MOBILE_SINGLE_COLUMN_WIDTH ? 1 : 2;
     // A long list mounts in batches, one batch per frame. A new query starts again from the first batch.
     const shownCardCount = useProgressiveRowCount(filteredOptions.length, normalizedQuery);
     const shownOptions = shownCardCount >= filteredOptions.length

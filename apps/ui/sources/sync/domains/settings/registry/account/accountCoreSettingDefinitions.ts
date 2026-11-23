@@ -201,6 +201,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    agentInputModelPickerLayout: {
+        schema: z.enum(['carded', 'compact']),
+        default: 'carded',
+        description: 'Model picker layout: carded (2-column grid) or compact (single column list)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
+    },
     agentInputModelChipStyle: {
         schema: z.enum(['agentAndModel', 'modelAndEffort']),
         default: 'agentAndModel',

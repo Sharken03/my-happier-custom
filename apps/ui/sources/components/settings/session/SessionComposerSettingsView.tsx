@@ -43,6 +43,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [modelChipStyle, setModelChipStyle] = useSettingMutable('agentInputModelChipStyle');
     const [compactModelPicker, setCompactModelPicker] = useSettingMutable('agentInputCompactModelPicker');
     const [alphabeticalModelPicker, setAlphabeticalModelPicker] = useSettingMutable('agentInputModelPickerAlphabetical');
+    const [modelPickerLayout, setModelPickerLayout] = useSettingMutable('agentInputModelPickerLayout');
     // The list of buttons is long, so it opens on demand.
     const [composerButtonsExpanded, setComposerButtonsExpanded] = React.useState(false);
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
@@ -521,6 +522,20 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     rightElement={<Switch value={alphabeticalModelPicker === true} onValueChange={setAlphabeticalModelPicker} />}
                     showChevron={false}
                     onPress={() => setAlphabeticalModelPicker(alphabeticalModelPicker !== true)}
+                />
+                <Item
+                    testID="settings-model-picker-layout"
+                    title={t('settingsSession.modelChip.layoutTitle')}
+                    subtitle={t('settingsSession.modelChip.layoutSubtitle')}
+                    icon={<Icon name="layout" size={29} color={theme.colors.accent.indigo} />}
+                    detail={modelPickerLayout === 'carded'
+                        ? t('settingsSession.modelChip.layoutOptions.carded')
+                        : t('settingsSession.modelChip.layoutOptions.compact')}
+                    onPress={() => {
+                        const order: Array<typeof modelPickerLayout> = ['carded', 'compact'];
+                        const idx = Math.max(0, order.indexOf(modelPickerLayout));
+                        setModelPickerLayout(order[(idx + 1) % order.length]!);
+                    }}
                 />
             </ItemGroup>
 
