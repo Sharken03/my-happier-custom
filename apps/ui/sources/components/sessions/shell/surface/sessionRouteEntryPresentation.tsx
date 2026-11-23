@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 
 import { useSessionScreenIsFocused } from '@/components/sessions/shell/useSessionScreenIsFocused';
 import { useSurfaceAnchorPathname } from '@/components/sessions/shell/surface/sessionSurfaceAnchorPathname';
+import { registerPreloadedSessionRoute } from '@/hooks/session/sessionRoutePreloadRegistry';
 
 /**
  * Canonical owner of "is this session route entry presented".
@@ -101,6 +102,7 @@ function WebSessionRouteEntryGate(props: Readonly<{
 }>): React.ReactElement | null {
     const { presented } = useSessionRouteEntryPresentation(props.sessionId);
     const preloaded = useIsPreloadedStackRoute();
+    useOfferPreloadedRoute(props.sessionId, preloaded);
     return presented || preloaded ? <PreloadedRouteFreeze>{props.children}</PreloadedRouteFreeze> : null;
 }
 
@@ -137,6 +139,16 @@ function PreloadedRouteFreeze(props: Readonly<{ children: React.ReactNode }>): R
             <SuspendWhile suspended={preloaded && settled}>{props.children}</SuspendWhile>
         </React.Suspense>
     );
+}
+
+/** While this screen is a preloaded route, the next open of its session shows it instead of a new route. */
+function useOfferPreloadedRoute(sessionId: string, preloaded: boolean): void {
+    const navigation = React.useContext(NavigationContext);
+    const routeKey = React.useContext(NavigationRouteContext)?.key ?? null;
+    React.useEffect(() => {
+        if (!preloaded || !navigation || !routeKey) return;
+        return registerPreloadedSessionRoute({ sessionId, routeKey, navigation });
+    }, [navigation, preloaded, routeKey, sessionId]);
 }
 
 type StackRouteRef = Readonly<{ key: string }>;
