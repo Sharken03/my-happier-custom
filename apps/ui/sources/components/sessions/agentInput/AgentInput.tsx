@@ -2567,6 +2567,26 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeSelectionOverlay,
         toggleSelectionOverlay,
     });
+
+    // Open model picker bottom sheet with current model data
+    const handleModelPress = React.useCallback(() => {
+        hapticsLight();
+        toggleSelectionOverlay('modelPicker', 'chip', undefined, {
+            sessionId: props.sessionId ?? '',
+            selectedModelId: effectiveModelPolicy.selectedModelId,
+            modelOptions: modelOptions.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+                description: opt.description,
+                costInputPerMTok: opt.costInputPerMTok,
+                costOutputPerMTok: opt.costOutputPerMTok,
+            })),
+            onSelectModel: (value: string) => {
+                props.onModelModeChange?.(value);
+            },
+            onClose: () => {},
+        });
+    }, [toggleSelectionOverlay, props.sessionId, effectiveModelPolicy.selectedModelId, modelOptions, props.onModelModeChange]);
     const engineChipLabel = React.useMemo(() => {
         // Selection IS the selection. An armed target with a model chosen names
         // that model; an armed target still on the Agent's own defaults names the
@@ -2893,6 +2913,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         agentChipAnchorRef,
         agentLabel: resolvedAgentLabel,
         engineLabel: engineChipDisplayLabel,
+        modelLabel: selectedModelLabel,
+        modelChipAnchorRef: React.createRef<any>(),
+        onModelPress: handleModelPress,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,
         machineChipAnchorRef,

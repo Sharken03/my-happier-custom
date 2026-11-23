@@ -17,6 +17,17 @@ function buildContentPopoverHandler(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
+        modelPickerData?: Readonly<{
+            sessionId: string;
+            selectedModelId: string;
+            modelOptions: ReadonlyArray<any>;
+            onSelectModel: (value: string) => void;
+            onClose: () => void;
+        }>,
+    ) => void;
+        id: AgentInputSelectionOverlayId,
+        anchor: 'chip' | 'actionMenu',
+        chipKey?: string,
     ) => void;
 }>): (() => void) | undefined {
     if (!params.popover && !params.onLegacyClick) {
@@ -59,6 +70,17 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: 'chip' | 'actionMenu',
         chipKey?: string,
+        modelPickerData?: Readonly<{
+            sessionId: string;
+            selectedModelId: string;
+            modelOptions: ReadonlyArray<any>;
+            onSelectModel: (value: string) => void;
+            onClose: () => void;
+        }>,
+    ) => void;
+        id: AgentInputSelectionOverlayId,
+        anchor: 'chip' | 'actionMenu',
+        chipKey?: string,
     ) => void;
 }>): Readonly<{
     hasAgentSelection: boolean;
@@ -68,6 +90,7 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
     handleProfilePress: () => void;
     handleEnvVarsPress: () => void;
     handleAgentPress: () => void;
+    handleModelPress: () => void;
     handleMachinePress?: () => void;
     handlePathPress?: () => void;
     handleResumePress?: () => void;
@@ -143,6 +166,17 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         params.toggleSelectionOverlay,
     ]);
 
+    const handleModelPress = React.useCallback(() => {
+        hapticsLight();
+        params.toggleSelectionOverlay('modelPicker', 'chip', undefined, {
+            sessionId: '',
+            selectedModelId: '',
+            modelOptions: [],
+            onSelectModel: () => {},
+            onClose: () => {},
+        });
+    }, [params.toggleSelectionOverlay]);
+
     const handleMachinePress = React.useMemo(() => {
         return buildContentPopoverHandler({
             overlayId: 'machine',
@@ -179,6 +213,7 @@ export function useAgentInputCoreControlHandlers(params: Readonly<{
         handleEnvVarsPress,
         handleAgentPress,
         handleMachinePress,
+        handleModelPress,
         handlePathPress,
         handleResumePress,
     };

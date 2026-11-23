@@ -9,6 +9,7 @@ import { createAbortActionButton } from '../definitions/createAbortActionButton'
 import { createEnvVarsActionChip } from '../definitions/createEnvVarsActionChip';
 import { createMachineActionChip } from '../definitions/createMachineActionChip';
 import { createActionMenuTriggerChip } from '../definitions/createActionMenuTriggerChip';
+import { createModelSelectionActionChip } from '../definitions/createModelSelectionActionChip';
 import { createPathActionChip } from '../definitions/createPathActionChip';
 import { createPermissionActionChip } from '../definitions/createPermissionActionChip';
 import { createProfileActionChip } from '../definitions/createProfileActionChip';
@@ -53,6 +54,9 @@ export function buildCoreAgentInputControlNodes(params: Readonly<{
     agentChipAnchorRef: React.RefObject<View | null>;
     agentLabel: string;
     engineLabel: string;
+    modelLabel: string;
+    modelChipAnchorRef: React.RefObject<View | null>;
+    onModelPress: () => void;
     engineChipStyle: 'agentAndModel' | 'modelAndEffort';
     onAgentPress: () => void;
     onAgentIntent?: () => void;
@@ -152,6 +156,16 @@ export function buildCoreAgentInputControlNodes(params: Readonly<{
         onIntent: params.onAgentIntent,
     }) : null;
 
+    const modelChip = params.hasAgentSelection ? createModelSelectionActionChip({
+        anchorRef: params.modelChipAnchorRef,
+        tint: params.tint,
+        showLabel: params.showChipLabels,
+        label: params.modelLabel,
+        chipStyle: params.chipStyle,
+        textStyle: params.textStyle,
+        onPress: params.onModelPress,
+    }) : null;
+
     const machineChip = params.onMachinePress ? createMachineActionChip({
         anchorRef: params.machineChipAnchorRef,
         machineName: params.machineName,
@@ -205,6 +219,7 @@ export function buildCoreAgentInputControlNodes(params: Readonly<{
         permission: permissionChip ? [permissionChip] : [],
         actionMenu: actionMenuChip ? [actionMenuChip] : [],
         engine: agentChip ? [agentChip] : [],
+        model: modelChip ? [modelChip] : [],
         mode: modeChip ? [modeChip] : [],
         profile: profileChip ? [profileChip] : [],
         env: envVarsChip ? [envVarsChip] : [],
