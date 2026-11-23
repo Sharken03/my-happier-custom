@@ -8,10 +8,12 @@ const PRELOADED = { key: 'session-p', name: 'session/[id]/index', params: { id: 
 const cleanups: Array<() => void> = [];
 
 function registerStack() {
-    const dispatch = vi.fn();
+    let state: unknown = { key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED] };
+    // The parent navigator routes the targeted RESET to the stack, which applies it.
+    const dispatch = vi.fn((action: { payload: unknown }) => { state = action.payload; });
     const navigation: PreloadedSessionRouteNavigation = {
-        getState: () => ({ key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED] }),
-        dispatch,
+        getState: () => state,
+        getParent: () => ({ dispatch }),
     };
     cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation }));
     return dispatch;

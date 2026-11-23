@@ -8,10 +8,16 @@ type StackState = Readonly<{
     preloadedRoutes?: ReadonlyArray<StackRoute>;
 }>;
 
-/** The part of the stack navigation object that a preloaded session screen hands over. */
+type StackResetAction = Readonly<{ type: 'RESET'; target: string; payload: StackState }>;
+
+/**
+ * The part of the navigation object that a preloaded session screen hands over. A preloaded
+ * screen gets a placeholder object from React Navigation: getState reads the stack, but its own
+ * dispatch throws. An action sent to the parent navigator with the stack as target reaches it.
+ */
 export type PreloadedSessionRouteNavigation = Readonly<{
     getState: () => unknown;
-    dispatch: (action: Readonly<{ type: 'RESET'; target: string; payload: StackState }>) => void;
+    getParent: () => Readonly<{ dispatch: (action: StackResetAction) => void }> | undefined;
 }>;
 
 type Registration = Readonly<{ routeKey: string; navigation: PreloadedSessionRouteNavigation }>;
@@ -52,8 +58,10 @@ export function takePreloadedSessionRoute(sessionId: string): boolean {
     // Native switches an open session in place (singular session route); keep that path.
     if (Platform.OS !== 'web' && isSessionRoute(state.routes[state.index])) return false;
 
+    const parent = registration.navigation.getParent();
+    if (!parent) return false;
     const routes = [...state.routes, preloaded];
-    registration.navigation.dispatch({
+    parent.dispatch({
         type: 'RESET',
         target: state.key,
         payload: {
@@ -63,5 +71,7 @@ export function takePreloadedSessionRoute(sessionId: string): boolean {
             preloadedRoutes: (state.preloadedRoutes ?? []).filter((route) => route.key !== preloaded.key),
         },
     });
-    return true;
+    // The stack applies the action synchronously. If it did not, the caller navigates normally.
+    const next = registration.navigation.getState() as StackState | undefined;
+    return next?.routes[next.index]?.key === preloaded.key;
 }
