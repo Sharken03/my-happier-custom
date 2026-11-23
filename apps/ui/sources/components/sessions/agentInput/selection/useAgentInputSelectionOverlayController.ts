@@ -89,11 +89,13 @@ export function useAgentInputSelectionOverlayController(params: Readonly<{
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
     toggleSelectionOverlay: (
         id: AgentInputSelectionOverlayId,
         anchor: AgentInputPopoverAnchor,
         chipKey?: string,
+        modelPickerData?: AgentInputModelPickerOverlayData,
     ) => void;
     closeSelectionOverlay: (id?: AgentInputSelectionOverlayId) => void;
     resetSelectionOverlays: () => void;
