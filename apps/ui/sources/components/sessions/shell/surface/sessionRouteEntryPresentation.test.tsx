@@ -129,6 +129,42 @@ describe('SessionRouteEntryGate (web)', () => {
         expect(transcriptMounts).toBe(1);
     });
 
+    it('keeps the preloaded tree when a navigation takes it, so the open does not mount again', async () => {
+        const { SessionRouteEntryGate, PRELOADED_ROUTE_SETTLE_MS } = await import('./sessionRouteEntryPresentation');
+        const { act } = await import('react-test-renderer');
+        let mounts = 0;
+        const firstRenderIds: number[] = [];
+        function SessionContent() {
+            const id = React.useRef(Math.random()).current;
+            firstRenderIds.push(id);
+            React.useEffect(() => {
+                mounts += 1;
+            }, []);
+            return null;
+        }
+        navigationState.pathname = '/';
+        navigationState.focused = false;
+        stackState.preloadedKeys = ['session-route-key'];
+        await renderScreen(
+            <SessionRouteEntryGate sessionId="s1">
+                <SessionContent />
+            </SessionRouteEntryGate>,
+        );
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, PRELOADED_ROUTE_SETTLE_MS + 50));
+        });
+
+        await act(async () => {
+            navigationState.pathname = '/session/s1';
+            navigationState.focused = true;
+            stackState.preloadedKeys = [];
+            for (const listener of stackState.listeners) listener();
+        });
+
+        expect(mounts).toBe(1);
+        expect(new Set(firstRenderIds).size).toBe(1);
+    });
+
     it('does not re-render a preloaded entry on store updates, and renders current data when taken', async () => {
         const { SessionRouteEntryGate } = await import('./sessionRouteEntryPresentation');
         const { act } = await import('react-test-renderer');
