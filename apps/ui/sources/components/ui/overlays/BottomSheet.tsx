@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Keyboard, Modal, Pressable, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -165,7 +165,9 @@ export function BottomSheet(props: BottomSheetProps) {
             statusBarTranslucent
             onRequestClose={close}
         >
-            <View style={styles.root} testID={testID}>
+            {/* A Modal is its own window on Android, outside the app's gesture root, so the
+                sheet's drag needs a root of its own. */}
+            <GestureHandlerRootView style={styles.root} testID={testID}>
                 <Animated.View style={[styles.backdrop, backdropStyle]}>
                     <Pressable testID="bottom-sheet-backdrop" style={styles.fill} onPress={close} />
                 </Animated.View>
@@ -185,7 +187,7 @@ export function BottomSheet(props: BottomSheetProps) {
                         </View>
                     </Animated.View>
                 </GestureDetector>
-            </View>
+            </GestureHandlerRootView>
         </Modal>
     );
 }
