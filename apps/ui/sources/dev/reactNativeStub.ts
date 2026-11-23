@@ -61,6 +61,8 @@ export const InteractionManager = {
 } as const;
 export const Keyboard = {
     addListener: () => ({ remove: () => {} }),
+    // Sheets dismiss the keyboard before they open; the stub must not throw.
+    dismiss: () => {},
 } as const;
 export const Linking = {
     canOpenURL: async () => true,
