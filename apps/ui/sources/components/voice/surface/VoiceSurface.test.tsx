@@ -334,6 +334,7 @@ describe('VoiceSurface', () => {
     voiceSettingState.current = {
       providerId: 'local_conversation',
       ui: { activityFeedEnabled: false, scopeDefault: 'global', surfaceLocation: 'auto' },
+      adapters: { local_conversation: { dictationMode: false } },
       privacy: { shareSessionSummary: true, shareFilePaths: true },
     };
     allSessionsState.current = [];
@@ -375,6 +376,7 @@ describe('VoiceSurface', () => {
     voiceSettingState.current = {
       providerId: 'local_conversation',
       ui: { activityFeedEnabled: false, scopeDefault: 'global', surfaceLocation: 'auto' },
+      adapters: { local_conversation: { dictationMode: false } },
       privacy: { shareSessionSummary: true, shareFilePaths: true },
     };
     storageState.current = {
@@ -1178,7 +1180,7 @@ describe('VoiceSurface', () => {
     expect(screen.findAllByProps({ accessibilityLabel: 'voiceAssistant.label' })).toHaveLength(0);
   });
 
-  it('shows the sidebar surface in dictation mode while a voice turn runs', async () => {
+  it('hides the sidebar surface in dictation mode while a voice turn runs', async () => {
     vi.resetModules();
     voiceSettingState.current = {
       providerId: 'local_conversation',
@@ -1199,7 +1201,7 @@ describe('VoiceSurface', () => {
 
     const screen = await renderScreen(React.createElement(VoiceSurface, { variant: 'sidebar' }));
 
-    expect(screen.findByProps({ accessibilityLabel: 'voiceAssistant.tapToEnd' }).props.disabled).toBe(false);
+    expect(screen.findAllByProps({ accessibilityLabel: 'voiceAssistant.tapToEnd' })).toHaveLength(0);
   });
 
   it('shows correct sidebar activity count and allows clearing when events exist', async () => {

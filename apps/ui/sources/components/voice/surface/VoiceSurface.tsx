@@ -178,17 +178,20 @@ function VoiceSurfaceContent(props: VoiceSurfaceProps & Readonly<{
     return scopeDefault === 'global' ? props.variant === 'sidebar' : props.variant === 'session';
   })();
 
-  // Dictation mode starts local voice from the composer microphone. An idle surface that cannot
-  // start a global voice session has no use there, so it shows only while a voice turn runs.
-  const idleDictationSurface =
+  // Dictation mode starts and stops local voice from the composer microphone, also while a turn
+  // waits for the reply or reads it aloud. A surface that cannot start a global voice session has
+  // no use there, so it stays hidden. A voice error still shows, because the composer has no
+  // place for its message.
+  const hasVoiceError = typeof snap.errorCode === 'string' && snap.errorCode.trim().length > 0;
+  const dictationSurfaceHidden =
     (providerId === 'local_direct' || providerId === 'local_conversation') &&
     !allowsGlobalStart &&
-    snap.status === 'disconnected' &&
+    !hasVoiceError &&
     isDictationModeEnabled({ voice });
 
   const showSurface = props.readingAloud || (
     providerId !== 'off' &&
-    !idleDictationSurface &&
+    !dictationSurfaceHidden &&
     locationAllowsVariant &&
     !(props.variant === 'session' && isHiddenSystemSession({ metadata: currentSessionMetadata })));
   if (!showSurface) return null;
