@@ -82,7 +82,7 @@ export function useSessionRouteEntryPresentation(
  * from the in-memory store. Native keeps its single session screen, so it always renders.
  *
  * A preloaded entry (setting sessionOpenPreloadV1, see hooks/session/sessionRoutePreload.ts) also
- * renders, on every platform: once, and then frozen, so a hidden chat does no live work. The stack
+ * renders, on every platform: until it settles, and then frozen, so a hidden chat does no live work. The stack
  * hides it until a navigation takes it, and it holds at most one.
  */
 export function SessionRouteEntryGate(props: Readonly<{
@@ -114,19 +114,27 @@ function SuspendWhile(props: Readonly<{ suspended: boolean; children: React.Reac
 }
 
 /**
- * Renders a preloaded route once, then holds it frozen until a navigation takes the route. A
- * frozen subtree keeps its state and does not re-render on store updates; it renders with
- * current data when it is shown. This is the same Suspense technique as react-freeze.
+ * Time a preloaded route renders freely before it freezes. The session view mounts in stages
+ * (the transcript list after a Deferred pass, the composer after two frames), and each stage
+ * must commit while hidden, else the costly part still renders after the tap.
+ */
+export const PRELOADED_ROUTE_SETTLE_MS = 1500;
+
+/**
+ * Renders a preloaded route until it settles, then holds it frozen until a navigation takes the
+ * route. A frozen subtree keeps its state and does not re-render on store updates; it renders
+ * with current data when it is shown. This is the same Suspense technique as react-freeze.
  */
 function PreloadedRouteFreeze(props: Readonly<{ children: React.ReactNode }>): React.ReactElement {
     const preloaded = useIsPreloadedStackRoute();
-    const [rendered, setRendered] = React.useState(false);
+    const [settled, setSettled] = React.useState(false);
     React.useEffect(() => {
-        setRendered(true);
+        const timer = setTimeout(() => setSettled(true), PRELOADED_ROUTE_SETTLE_MS);
+        return () => clearTimeout(timer);
     }, []);
     return (
         <React.Suspense fallback={null}>
-            <SuspendWhile suspended={preloaded && rendered}>{props.children}</SuspendWhile>
+            <SuspendWhile suspended={preloaded && settled}>{props.children}</SuspendWhile>
         </React.Suspense>
     );
 }

@@ -34,6 +34,7 @@ vi.mock('@react-navigation/native', async () => {
 });
 
 afterEach(() => {
+    vi.useRealTimers();
     standardCleanup();
     navigationState.pathname = '/session/s1';
     navigationState.focused = true;
@@ -90,6 +91,44 @@ describe('SessionRouteEntryGate (web)', () => {
         expect(await countMountsUnderGate('s1')).toBe(1);
     });
 
+    it('lets a preloaded entry finish its staged mount before it freezes', async () => {
+        const { SessionRouteEntryGate, PRELOADED_ROUTE_SETTLE_MS } = await import('./sessionRouteEntryPresentation');
+        const { act } = await import('react-test-renderer');
+        let transcriptMounts = 0;
+        // Like the session view: the transcript list mounts in a later pass (Deferred, 10 ms).
+        function Transcript() {
+            React.useEffect(() => {
+                transcriptMounts += 1;
+            }, []);
+            return null;
+        }
+        function SessionContent() {
+            const [ready, setReady] = React.useState(false);
+            React.useEffect(() => {
+                const timer = setTimeout(() => setReady(true), 10);
+                return () => clearTimeout(timer);
+            }, []);
+            return ready ? <Transcript /> : null;
+        }
+        navigationState.pathname = '/';
+        navigationState.focused = false;
+        stackState.preloadedKeys = ['session-route-key'];
+        await renderScreen(
+            <SessionRouteEntryGate sessionId="s1">
+                <SessionContent />
+            </SessionRouteEntryGate>,
+        );
+        // One act per stage: an async act flushes its updates only when it ends.
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        });
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, PRELOADED_ROUTE_SETTLE_MS));
+        });
+
+        expect(transcriptMounts).toBe(1);
+    });
+
     it('does not re-render a preloaded entry on store updates, and renders current data when taken', async () => {
         const { SessionRouteEntryGate } = await import('./sessionRouteEntryPresentation');
         const { act } = await import('react-test-renderer');
@@ -112,6 +151,10 @@ describe('SessionRouteEntryGate (web)', () => {
                 <SessionContent />
             </SessionRouteEntryGate>,
         );
+        const { PRELOADED_ROUTE_SETTLE_MS } = await import('./sessionRouteEntryPresentation');
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, PRELOADED_ROUTE_SETTLE_MS + 50));
+        });
         const rendersWhilePreloaded = rendered.length;
         expect(rendersWhilePreloaded).toBeGreaterThan(0);
 
