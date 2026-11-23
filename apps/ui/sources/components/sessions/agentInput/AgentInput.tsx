@@ -9,6 +9,7 @@ import {
     resolveLiveInputTextStatus,
 } from './liveInputState';
 import { isGlassComposerSurface } from './composerSurfaceStyle';
+import { resolveComposerFilledButtonColors } from './composerFilledButtons';
 import { resolveComposerSelectionRestore } from './composerSelectionRestore';
 import { COMPOSER_SURFACE_RADIUS } from './composerContentInset';
 import { Typography } from '@/constants/Typography';
@@ -2642,25 +2643,31 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             opacity: 0.7,
         },
     }), []);
+    const filledButtons = useSetting('composerFilledButtonsV1') !== false;
+    const filledButtonStyle = React.useMemo(() => (filledButtons
+        ? { backgroundColor: resolveComposerFilledButtonColors(theme.dark).fill }
+        : null), [filledButtons, theme.dark]);
+    const actionChipStyle = React.useMemo(() => [styles.actionChip, filledButtonStyle], [filledButtonStyle, styles.actionChip]);
+    const actionButtonStyle = React.useMemo(() => [styles.actionButton, filledButtonStyle], [filledButtonStyle, styles.actionButton]);
     const chipStyle = React.useCallback((pressed: boolean) => ([
-        styles.actionChip,
+        actionChipStyle,
         !showChipLabels ? actionChipTransientStyles.iconOnly : null,
         pressed ? actionChipTransientStyles.pressed : null,
     ]), [
         actionChipTransientStyles.iconOnly,
         actionChipTransientStyles.pressed,
         showChipLabels,
-        styles.actionChip,
+        actionChipStyle,
     ]);
     const chipStyleAutoHide = React.useCallback((pressed: boolean) => ([
-        styles.actionChip,
+        actionChipStyle,
         !showAutoHideChipLabels ? actionChipTransientStyles.iconOnly : null,
         pressed ? actionChipTransientStyles.pressed : null,
     ]), [
         actionChipTransientStyles.iconOnly,
         actionChipTransientStyles.pressed,
         showAutoHideChipLabels,
-        styles.actionChip,
+        actionChipStyle,
     ]);
 
     // Fade the chip rows out to the composer's own fill: the glass surface in glass
@@ -2849,7 +2856,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         chipStyleAutoHide,
         textStyle: styles.actionChipText,
         countTextStyle: styles.actionChipCountText,
-        actionButtonStyle: styles.actionButton,
+        actionButtonStyle,
         actionButtonPressedStyle: styles.actionButtonPressed,
         showPermissionChip,
         permissionChipAnchorRef,
@@ -3274,7 +3281,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 styles={{
                                     pathRow: styles.pathRow,
                                     actionButtonsLeft: styles.actionButtonsLeftScrollInline,
-                                    actionChip: styles.actionChip,
+                                    actionChip: actionChipStyle,
                                     actionChipIconOnly: actionChipTransientStyles.iconOnly,
                                     actionChipPressed: actionChipTransientStyles.pressed,
                                     actionChipText: styles.actionChipText,
@@ -3305,7 +3312,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             styles={{
                                 pathRow: styles.pathRow,
                                 actionButtonsLeft: styles.actionButtonsLeft,
-                                actionChip: styles.actionChip,
+                                actionChip: actionChipStyle,
                                 actionChipIconOnly: actionChipTransientStyles.iconOnly,
                                 actionChipPressed: actionChipTransientStyles.pressed,
                                 actionChipText: styles.actionChipText,

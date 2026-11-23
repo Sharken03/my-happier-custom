@@ -48,7 +48,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
-    const [sendButtonAccent, setSendButtonAccent] = useSettingMutable('composerSendButtonAccentV1');
+    const [filledButtons, setFilledButtons] = useSettingMutable('composerFilledButtonsV1');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
     const [newSessionDraftEntryMode, setNewSessionDraftEntryMode] = useSettingMutable('newSessionDraftEntryMode');
     const [newSessionAfterSend, setNewSessionAfterSend] = useSettingMutable('newSessionAfterSendV1');
@@ -457,14 +457,14 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     showChevron={false}
                 />
                 <Item
-                    title="Colored send button"
-                    subtitle="Orange while there is text to send or the microphone records"
+                    title="Filled composer buttons"
+                    subtitle="Gray circles around the buttons. The send button turns orange when there is text to send or the microphone records."
                     icon={<Icon name="arrow-up" size={29} color={theme.colors.accent.orange} />}
                     rightElement={
                         <Switch
-                            testID="settings-composer-sendButtonAccent-switch"
-                            value={sendButtonAccent !== false}
-                            onValueChange={setSendButtonAccent}
+                            testID="settings-composer-filledButtons-switch"
+                            value={filledButtons !== false}
+                            onValueChange={setFilledButtons}
                         />
                     }
                     showChevron={false}

@@ -323,10 +323,10 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
-    composerSendButtonAccentV1: {
+    composerFilledButtonsV1: {
         schema: z.boolean(),
         default: true,
-        description: 'Whether the composer send button shows an accent color while it can send or while the microphone records',
+        description: 'Whether the composer buttons have a gray fill and the send button turns orange while it can send or the microphone records',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },

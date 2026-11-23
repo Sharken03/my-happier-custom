@@ -11,6 +11,11 @@ import { describeMotionSpring, resolveMotionPresentation } from '@/components/ui
 import { hapticsLight } from '@/components/ui/theme/haptics';
 import { useReducedMotionPreference } from '@/hooks/ui/useReducedMotionPreference';
 import { useSetting } from '@/sync/domains/state/storage';
+import {
+    COMPOSER_SEND_ACCENT,
+    COMPOSER_SEND_ACCENT_TINT,
+    resolveComposerFilledButtonColors,
+} from '../composerFilledButtons';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 import { DeferredAnchoredTooltip } from '@/components/ui/overlays/DeferredAnchoredTooltip';
@@ -33,12 +38,6 @@ import {
 const SUBMIT_HIT_SLOP = { top: 5, bottom: 10, left: 0, right: 0 } as const;
 /** The send column at rest: the 32 dp PrimaryCircleIconButton and the 8 dp margins of shapeClip. */
 export const AGENT_INPUT_SUBMIT_COLUMN_WIDTH = 32 + 8 + 8;
-/**
- * Fill and glyph of the send button while it can send or the microphone records
- * (setting composerSendButtonAccentV1). One orange reads on light and dark themes.
- */
-const SUBMIT_ACCENT_BACKGROUND = '#D97757';
-const SUBMIT_ACCENT_TINT = '#FFFFFF';
 
 const stylesheet = StyleSheet.create(() => ({
     shapeClip: {
@@ -172,10 +171,21 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     const showStopWhenEmpty = !hasSendIntent && props.canStop === true && props.dictationMode !== false
         && !(micHoldsSubmit && props.micActive === true);
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
-    const accentEnabled = useSetting('composerSendButtonAccentV1') !== false;
-    const accented = accentEnabled
+    // Setting composerFilledButtonsV1: orange while the press sends or the microphone records,
+    // a dim orange for a send with nothing to send, and the composer's gray fill otherwise.
+    const filledButtons = useSetting('composerFilledButtonsV1') !== false;
+    const filledColors = resolveComposerFilledButtonColors(theme.dark);
+    const accented = filledButtons
         && ((props.hasSendableContent && !disabled) || props.isSending === true || (micHoldsSubmit && props.micActive === true));
-    const glyphTint = accented ? SUBMIT_ACCENT_TINT : theme.colors.button.primary.tint;
+    const dimSend = filledButtons && !accented && !micHoldsSubmit && !showStopWhenEmpty;
+    const fillColor = !filledButtons ? undefined
+        : accented ? COMPOSER_SEND_ACCENT
+        : dimSend ? filledColors.dimAccent
+        : filledColors.fill;
+    const glyphTint = !filledButtons ? theme.colors.button.primary.tint
+        : accented ? COMPOSER_SEND_ACCENT_TINT
+        : dimSend ? filledColors.dimAccentTint
+        : theme.colors.text.primary;
 
     // The armed switch only reaches the button while the button is actually a
     // send. The mic and Stop are other actions, and labelling either
@@ -263,7 +273,7 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
             <PrimaryCircleIconButton
                 testID={props.testID}
                 active={props.hasSendableContent || props.isSending || Boolean(props.micPressHandler) || showStopWhenEmpty}
-                activeColor={accented ? SUBMIT_ACCENT_BACKGROUND : undefined}
+                fillColor={fillColor}
                 loading={props.isSending || (showStopWhenEmpty && props.isStopping)}
                 disabled={disabled}
                 accessibilityLabel={
