@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Keyboard, Modal, Pressable, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, type NativeGesture } from 'react-native-gesture-handler';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -17,7 +17,16 @@ const SETTLE_DURATION_MS = 220;
 const SETTLE_SPRING = { damping: 40, stiffness: 400, overshootClamping: true } as const;
 const BACKDROP_OPACITY = 0.4;
 
-type SheetDetent = Readonly<{ height: number; top: number }>;
+type SheetDetent = Readonly<{
+    height: number;
+    top: number;
+    /**
+     * Whether the content may scroll. It may not while the sheet is below full height: there a
+     * vertical drag has to move the sheet, otherwise the list under the finger swallows it and the
+     * sheet never reaches full height.
+     */
+    scrollEnabled: boolean;
+}>;
 
 function resolveSheetSnap(translateY: number, velocityY: number, half: number, closed: number): number {
     if (velocityY < -500) return 0;
@@ -62,6 +71,9 @@ export function BottomSheet(props: BottomSheetProps) {
     const startTranslation = useSharedValue(0);
     const previousTranslation = useSharedValue(0);
     const closing = React.useRef(false);
+    // The content scrolls inside the sheet. Without this the scroll view takes every vertical
+    // drag, and the sheet can never be pulled to full height or swiped away.
+    const nativeGesture = React.useMemo<NativeGesture>(() => Gesture.Native(), []);
 
     React.useEffect(() => {
         // An open keyboard would cover the sheet and take its swipes.
@@ -82,6 +94,7 @@ export function BottomSheet(props: BottomSheetProps) {
     const pan = React.useMemo(() => Gesture.Pan()
         .activeOffsetY([-8, 8])
         .failOffsetX([-24, 24])
+        .simultaneousWithExternalGesture(nativeGesture)
         .onStart(() => {
             sheetMoves.value = false;
             previousTranslation.value = 0;
@@ -118,6 +131,7 @@ export function BottomSheet(props: BottomSheetProps) {
             close,
             closed,
             half,
+            nativeGesture,
             previousTranslation,
             sheetMoves,
             startTranslation,
@@ -125,14 +139,27 @@ export function BottomSheet(props: BottomSheetProps) {
             translateY,
         ]);
 
+    // A tap on the grabber is the quick way between the two detents when the list is under the
+    // finger and takes the drag.
+    const toggleDetent = React.useCallback(() => {
+        const target = atFull ? half : 0;
+        const nextAtFull = target <= 0;
+        setAtFull(nextAtFull);
+        translateY.value = withSpring(target, SETTLE_SPRING);
+    }, [atFull, half, setAtFull, translateY]);
+
     const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
     const backdropStyle = useAnimatedStyle(() => ({
         opacity: BACKDROP_OPACITY * (1 - translateY.value / closed),
     }));
 
     const detent = React.useMemo<SheetDetent>(
-        () => ({ height: Math.max(1, sheetHeight - insets.bottom), top: insets.top }),
-        [insets.bottom, insets.top, sheetHeight],
+        () => ({
+            height: Math.max(1, sheetHeight - insets.bottom),
+            top: insets.top,
+            scrollEnabled: atFull,
+        }),
+        [atFull, insets.bottom, insets.top, sheetHeight],
     );
 
     return (
@@ -149,10 +176,20 @@ export function BottomSheet(props: BottomSheetProps) {
                 </Animated.View>
                 <GestureDetector gesture={pan}>
                     <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]}>
-                        <View style={styles.grabber} />
-                        <View style={[styles.content, { paddingBottom: insets.bottom }]}>
-                            {children(detent)}
-                        </View>
+                        <Pressable
+                            testID="bottom-sheet-grabber"
+                            // The grabber is the drag handle; tapping it moves between the two
+                            // detents, which is the fallback when a list sits under the finger.
+                            onPress={toggleDetent}
+                            style={styles.grabberTouchTarget}
+                        >
+                            <View style={styles.grabber} />
+                        </Pressable>
+                        <GestureDetector gesture={nativeGesture}>
+                            <View style={[styles.content, { paddingBottom: insets.bottom }]}>
+                                {children(detent)}
+                            </View>
+                        </GestureDetector>
                     </Animated.View>
                 </GestureDetector>
             </View>
@@ -185,12 +222,16 @@ const styles = StyleSheet.create((theme) => ({
         borderTopRightRadius: 16,
         backgroundColor: theme.colors.surface.base,
     },
+    grabberTouchTarget: {
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        paddingTop: 8,
+        paddingBottom: 8,
+    },
     grabber: {
-        alignSelf: 'center',
         width: 36,
         height: 4,
         borderRadius: 2,
-        marginTop: 8,
         backgroundColor: theme.colors.border.default,
     },
     content: {
