@@ -104,6 +104,23 @@ describe('SessionRouteEntryGate (web)', () => {
         expect(await countMountsUnderGate('s1')).toBe(1);
     });
 
+    it('presents a preloaded entry, so the session view renders its content before the open', async () => {
+        const { useSessionRouteEntryPresentation } = await import('./sessionRouteEntryPresentation');
+        navigationState.pathname = '/';
+        navigationState.focused = false;
+        stackState.preloadedKeys = ['session-route-key'];
+        let seen: Readonly<{ surfaceFocused: boolean; presented: boolean }> | null = null;
+        function Probe() {
+            seen = useSessionRouteEntryPresentation('s1');
+            return null;
+        }
+
+        await renderScreen(<Probe />);
+
+        // Presented, but not focused: a hidden chat must not count as viewed.
+        expect(seen).toEqual({ surfaceFocused: false, presented: true });
+    });
+
     it('offers a preloaded entry to the next open of its session, and stops once it is taken', async () => {
         const { takePreloadedSessionRoute } = await import('@/hooks/session/sessionRoutePreloadRegistry');
         const { act } = await import('react-test-renderer');

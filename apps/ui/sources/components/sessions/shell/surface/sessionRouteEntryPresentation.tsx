@@ -73,7 +73,9 @@ export function useSessionRouteEntryPresentation(
         ? overrides.routeAnchor
         : isOwnedSessionRoutePathname(anchorPathname, sessionId)
             && (surfaceFocused || !isOwnedSessionRootPathname(pathname, sessionId));
-    return { surfaceFocused, presented: surfaceFocused || isRouteAnchor };
+    // A preloaded entry renders its content hidden, so a later open shows it at once.
+    const preloaded = useIsPreloadedStackRoute();
+    return { surfaceFocused, presented: surfaceFocused || isRouteAnchor || preloaded };
 }
 
 /**
@@ -101,8 +103,7 @@ function WebSessionRouteEntryGate(props: Readonly<{
     children: React.ReactNode;
 }>): React.ReactElement | null {
     const { presented } = useSessionRouteEntryPresentation(props.sessionId);
-    const preloaded = useIsPreloadedStackRoute();
-    return presented || preloaded
+    return presented
         ? <PreloadedRouteFreeze sessionId={props.sessionId}>{props.children}</PreloadedRouteFreeze>
         : null;
 }
