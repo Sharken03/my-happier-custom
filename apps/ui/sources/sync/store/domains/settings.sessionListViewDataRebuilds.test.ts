@@ -288,4 +288,16 @@ describe('settings domain: sessionListViewData rebuilds', () => {
 
         expect(get().sessionListViewData).not.toBe(initial);
     });
+    it('moves a hibernated session into Active as soon as showHibernatedInActiveList changes', () => {
+        const { get } = createHarness();
+        get().applySettingsLocal({ sessionListInactiveGroupingV1: 'project' });
+        const sectionOf = () => get().sessionListViewData?.find((item) => item.type === 'session')?.section;
+        expect(sectionOf()).toBe('inactive');
+
+        get().applySettingsLocal({ showHibernatedInActiveList: true });
+        expect(sectionOf()).toBe('active');
+
+        get().applySettingsLocal({ showHibernatedInActiveList: false });
+        expect(sectionOf()).toBe('inactive');
+    });
 });

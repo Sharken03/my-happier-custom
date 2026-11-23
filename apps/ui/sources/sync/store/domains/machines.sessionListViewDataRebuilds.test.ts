@@ -420,6 +420,68 @@ describe('machines domain: sessionListViewData rebuild gating', () => {
         expect(JSON.stringify(get().sessionListViewData)).toContain('m-new');
     });
 
+    it('keeps a hibernated session in Active when a machine update rebuilds the list', async () => {
+        mockMachineDomainBoundaries();
+
+        const { createMachinesDomain } = await import('./machines');
+
+        const machine = {
+            id: 'm1',
+            seq: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            active: true,
+            activeAt: 1,
+            revokedAt: null,
+            metadata: { displayName: 'Mac', host: 'mac.local', homeDir: '/Users/test' },
+            metadataVersion: 1,
+            daemonState: null,
+            daemonStateVersion: 0,
+        };
+        const hibernated = {
+            id: 's1',
+            seq: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            active: false,
+            activeAt: 1,
+            archivedAt: null,
+            metadata: { machineId: 'm1', path: '/Users/test/repo', homeDir: '/Users/test', host: 'mac.local' },
+            metadataVersion: 1,
+            agentState: null,
+            agentStateVersion: 0,
+            thinking: false,
+            thinkingAt: 0,
+            presence: 'offline',
+        };
+        const initialState = {
+            sessions: { s1: hibernated },
+            settings: {
+                groupInactiveSessionsByProject: true,
+                sessionListActiveGroupingV1: 'project',
+                sessionListInactiveGroupingV1: 'project',
+                showHibernatedInActiveList: true,
+            },
+            sessionListRenderables: { s1: hibernated },
+            sessionListViewData: null,
+            sessionListViewDataByServerId: {},
+            machines: {},
+            machineDisplayById: {},
+            machineListByServerId: {},
+            machineListStatusByServerId: {},
+            getProjectForSession: (sessionId: string) =>
+                sessionId === 's1' ? { key: { machineId: 'm1', path: '/Users/test/repo' } } : null,
+            profile: { id: 'account_a' },
+        };
+
+        const { get, domain } = createHarness(createMachinesDomain, initialState);
+
+        domain.applyMachines([machine] as any, true);
+
+        const row = get().sessionListViewData?.find((item: any) => item.type === 'session') as any;
+        expect(row?.section).toBe('active');
+    });
+
     it('stores source-scoped machine snapshots without replacing the active server projection', async () => {
         mockMachineDomainBoundariesForActiveServer('server_b');
 
