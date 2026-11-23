@@ -346,7 +346,7 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
     },
     composerAbortChipOnlyWithMicV1: {
         schema: z.boolean(),
-        default: false,
+        default: true,
         description: 'Whether the composer stop chip shows only when voice is on and dictation mode is off, so the send button holds the microphone and not stop',
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
