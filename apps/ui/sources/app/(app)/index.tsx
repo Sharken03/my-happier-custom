@@ -31,6 +31,10 @@ import { clearPendingSetupIntent, getPendingSetupIntent } from "@/sync/domains/p
 import { isTauriDesktop } from "@/utils/platform/tauri";
 import { isAuthenticatedRootDeepLinkRedirectAllowed } from "@/auth/routing/isAuthenticatedRootDeepLinkRedirectAllowed";
 import { buildScopedSessionRouteHref } from "@/hooks/session/sessionRouteServerScope";
+import { readLastOpenedSessionRoute, useSessionRoutePreloadAtStart } from "@/hooks/session/sessionRoutePreload";
+import { selectSessionViewShellSessionForRouteState } from "@/components/sessions/shell/sessionViewStableSession";
+import { storage, useSetting } from "@/sync/domains/state/storage";
+import { useIsFocused } from "@react-navigation/native";
 import { RemoteWelcomeDecisionPanel } from "@/components/account/auth/RemoteWelcomeDecisionPanel";
 import { UnauthenticatedSplitShell, useApplyBrandHeroSeen } from "@/components/onboarding/unauthShell";
 import {
@@ -126,6 +130,20 @@ function Authenticated() {
         // parallel.
         clearPendingSetupIntent();
     }, [router, sessionId]);
+
+    // Setting sessionOpenPreloadV1: preload the chat that was open last, once the list knows it.
+    const preloadEnabled = useSetting('sessionOpenPreloadV1') === true;
+    const lastOpened = React.useMemo(() => readLastOpenedSessionRoute(), []);
+    const lastOpenedKnown = storage((state) => lastOpened !== null && Boolean(selectSessionViewShellSessionForRouteState(
+        { sessions: state.sessions, sessionListViewDataByServerId: state.sessionListViewDataByServerId },
+        lastOpened.sessionId,
+        lastOpened.serverId,
+    )));
+    const listFocused = useIsFocused();
+    useSessionRoutePreloadAtStart({
+        target: lastOpened,
+        ready: preloadEnabled && lastOpenedKnown && listFocused && !sessionId,
+    });
 
     if (isTauriDesktop()) {
         // R11 — setup runs at the shell and never blocks the rest of the app. The Home presents it
