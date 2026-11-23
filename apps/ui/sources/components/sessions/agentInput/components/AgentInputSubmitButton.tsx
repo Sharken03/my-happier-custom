@@ -134,6 +134,8 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     micActive: boolean;
     /** Capturing audio right now: the stop glyph turns the recording color. */
     micRecording?: boolean;
+    /** Turning the captured audio into text: the button shows a spinner and waits. */
+    micBusy?: boolean;
     /**
      * The Agent the in-session picker has armed, or null for an ordinary send.
      *
@@ -168,8 +170,9 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
      * off the microphone keeps the slot, as before. Text takes it back.
      */
     const micHoldsSubmit = Boolean(props.micPressHandler) && !hasSendIntent;
+    const micOwnsSubmit = micHoldsSubmit && (props.micActive === true || props.micBusy === true);
     const showStopWhenEmpty = !hasSendIntent && props.canStop === true && props.dictationMode !== false
-        && !(micHoldsSubmit && props.micActive === true);
+        && !micOwnsSubmit;
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
     // Setting composerFilledButtonsV1: orange while the press sends or the microphone records,
     // a dim orange for a send with nothing to send, and the composer's gray fill otherwise. A voice
@@ -276,7 +279,7 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                 testID={props.testID}
                 active={props.hasSendableContent || props.isSending || Boolean(props.micPressHandler) || showStopWhenEmpty}
                 fillColor={fillColor}
-                loading={props.isSending || (showStopWhenEmpty && props.isStopping)}
+                loading={props.isSending || (showStopWhenEmpty && props.isStopping) || (micHoldsSubmit && props.micBusy === true)}
                 disabled={disabled}
                 accessibilityLabel={
                     props.hasSendableContent

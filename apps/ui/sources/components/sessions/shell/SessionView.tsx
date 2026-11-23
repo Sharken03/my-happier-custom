@@ -4976,11 +4976,14 @@ function SessionViewLoaded({
                     ? handleMicrophonePress
                     : undefined,
             // Only the local adapters answer dictation mode. The realtime provider reports `idle` for
-            // a live call, so a mode check here would take the hang-up control away from it. An
-            // error is not activity and used to keep the stop control alive forever.
+            // a live call, so a mode check here would take the hang-up control away from it. In
+            // dictation mode the microphone holds its stop control only while it captures or reads
+            // the reply aloud. While the reply is pending, the composer stops the run instead.
             isMicActive: isLocalVoiceProvider && isDictationModeEnabled({ voice } as any)
-                ? voiceSnap.status !== 'disconnected' && voiceSnap.status !== 'error'
+                ? voiceSnap.status === 'connected' && (voiceSnap.mode === 'listening' || voiceSnap.mode === 'speaking')
                 : voiceSnap.status !== 'disconnected',
+            isMicBusy: isLocalVoiceProvider && isDictationModeEnabled({ voice } as any)
+                && voiceSnap.status === 'connected' && voiceSnap.mode === 'transcribing',
             isRecording: voiceSnap.status !== 'disconnected' && voiceSnap.mode === 'listening',
         }),
         [handleMicrophonePress, voiceProviderId, isLocalVoiceProvider, voiceSnap.status, voiceSnap.mode, voice],
@@ -6547,6 +6550,7 @@ function SessionViewLoaded({
                 onMicPress={micButtonState.onMicPress}
                 isMicActive={micButtonState.isMicActive}
                 isMicRecording={micButtonState.isRecording}
+                isMicBusy={micButtonState.isMicBusy}
                 onAbort={handleAgentInputAbort}
                 inactiveStatusText={inactiveStatusText}
                 onFileViewerPress={handleAgentInputFileViewerPress}

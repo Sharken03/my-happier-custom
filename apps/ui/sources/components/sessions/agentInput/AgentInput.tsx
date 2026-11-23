@@ -285,6 +285,8 @@ interface AgentInputProps {
     isMicActive?: boolean;
     /** Voice is actually capturing audio right now, as opposed to merely holding a call open. */
     isMicRecording?: boolean;
+    /** Voice turns the captured audio into text: the microphone button shows a spinner. */
+    isMicBusy?: boolean;
     /** Dictation mode: the microphone is one action per message. While a turn runs the composer
      * button stops it instead of recording. */
     dictationMode?: boolean;
@@ -3263,6 +3265,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         micPressHandler={micPressHandler}
                         micActive={micActive}
                         micRecording={props.isMicRecording === true}
+                        micBusy={voiceEnabled && props.isMicBusy === true}
                         dictationMode={dictationModeEnabled}
                         armedContinuationTarget={props.armedContinuationTarget ?? null}
                         onSend={handleSend}

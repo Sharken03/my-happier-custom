@@ -479,6 +479,11 @@ export async function toggleLocalVoiceTurn(sessionId: string, onTranscript?: (te
     initialState.status === 'speaking' && initialState.sessionId === sessionId && !isVoiceBargeInEnabled(storage.getState().settings);
 
   if (shouldNoopWhileSpeaking) {
+    // In dictation mode the composer shows a stop control while the reply is read aloud, so the
+    // tap ends the playback. Outside it, the voice surface owns that control.
+    if (isDictationModeEnabled(storage.getState().settings as any)) {
+      await abortLocalVoiceTurn(sessionId);
+    }
     return;
   }
 
