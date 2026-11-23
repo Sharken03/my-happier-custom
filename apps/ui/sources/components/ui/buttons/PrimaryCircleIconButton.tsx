@@ -27,6 +27,8 @@ export const PrimaryCircleIconButton = React.memo(
   (
     props: Readonly<{
       active: boolean;
+      /** Solid fill for the active state; replaces the theme's primary fill and gradient. */
+      activeColor?: string;
       disabled?: boolean;
       loading?: boolean;
       testID?: string;
@@ -52,7 +54,7 @@ export const PrimaryCircleIconButton = React.memo(
     const computedDisabled = Boolean(props.disabled || props.loading || !props.onPress);
     const primary = theme.colors.button?.primary;
     const backgroundColor = props.active
-      ? (primary?.background ?? theme.colors.surface.inset ?? theme.colors.surface.base)
+      ? (props.activeColor ?? primary?.background ?? theme.colors.surface.inset ?? theme.colors.surface.base)
       : (primary?.disabled ?? theme.colors.border.default);
     const tintColor = primary?.tint ?? theme.colors.text.primary;
 
@@ -84,7 +86,7 @@ export const PrimaryCircleIconButton = React.memo(
             },
           ]}
         >
-          {props.active && primary?.gradient ? (
+          {props.active && !props.activeColor && primary?.gradient ? (
             <GradientSurface
               fallbackColor={backgroundColor}
               gradient={primary.gradient}

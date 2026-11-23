@@ -48,6 +48,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
+    const [sendButtonAccent, setSendButtonAccent] = useSettingMutable('composerSendButtonAccentV1');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
     const [newSessionDraftEntryMode, setNewSessionDraftEntryMode] = useSettingMutable('newSessionDraftEntryMode');
     const [newSessionAfterSend, setNewSessionAfterSend] = useSettingMutable('newSessionAfterSendV1');
@@ -451,6 +452,19 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                             testID="settings-composer-glassSurface-switch"
                             value={composerSurfaceStyle === 'glass'}
                             onValueChange={(next) => setComposerSurfaceStyle(next ? 'glass' : 'standard')}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Colored send button"
+                    subtitle="Orange while there is text to send or the microphone records"
+                    icon={<Icon name="arrow-up" size={29} color={theme.colors.accent.orange} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-sendButtonAccent-switch"
+                            value={sendButtonAccent !== false}
+                            onValueChange={setSendButtonAccent}
                         />
                     }
                     showChevron={false}

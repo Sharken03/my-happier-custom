@@ -10,6 +10,7 @@ import { RoundButton } from '@/components/ui/buttons/RoundButton';
 import { describeMotionSpring, resolveMotionPresentation } from '@/components/ui/motion';
 import { hapticsLight } from '@/components/ui/theme/haptics';
 import { useReducedMotionPreference } from '@/hooks/ui/useReducedMotionPreference';
+import { useSetting } from '@/sync/domains/state/storage';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 import { DeferredAnchoredTooltip } from '@/components/ui/overlays/DeferredAnchoredTooltip';
@@ -32,6 +33,12 @@ import {
 const SUBMIT_HIT_SLOP = { top: 5, bottom: 10, left: 0, right: 0 } as const;
 /** The send column at rest: the 32 dp PrimaryCircleIconButton and the 8 dp margins of shapeClip. */
 export const AGENT_INPUT_SUBMIT_COLUMN_WIDTH = 32 + 8 + 8;
+/**
+ * Fill and glyph of the send button while it can send or the microphone records
+ * (setting composerSendButtonAccentV1). One orange reads on light and dark themes.
+ */
+const SUBMIT_ACCENT_BACKGROUND = '#D97757';
+const SUBMIT_ACCENT_TINT = '#FFFFFF';
 
 const stylesheet = StyleSheet.create(() => ({
     shapeClip: {
@@ -165,6 +172,10 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     const showStopWhenEmpty = !hasSendIntent && props.canStop === true && props.dictationMode !== false
         && !(micHoldsSubmit && props.micActive === true);
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
+    const accentEnabled = useSetting('composerSendButtonAccentV1') !== false;
+    const accented = accentEnabled
+        && ((props.hasSendableContent && !disabled) || props.isSending === true || (micHoldsSubmit && props.micActive === true));
+    const glyphTint = accented ? SUBMIT_ACCENT_TINT : theme.colors.button.primary.tint;
 
     // The armed switch only reaches the button while the button is actually a
     // send. The mic and Stop are other actions, and labelling either
@@ -252,6 +263,7 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
             <PrimaryCircleIconButton
                 testID={props.testID}
                 active={props.hasSendableContent || props.isSending || Boolean(props.micPressHandler) || showStopWhenEmpty}
+                activeColor={accented ? SUBMIT_ACCENT_BACKGROUND : undefined}
                 loading={props.isSending || (showStopWhenEmpty && props.isStopping)}
                 disabled={disabled}
                 accessibilityLabel={
@@ -290,30 +302,30 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                     <Icon
                         name="arrow-up"
                         size={16}
-                        color={theme.colors.button.primary.tint}
+                        color={glyphTint}
                         style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                     />
                 ) : showStopWhenEmpty ? (
-                    <Icon name="stop" size={16} weight="fill" color={theme.colors.button.primary.tint} />
+                    <Icon name="stop" size={16} weight="fill" color={glyphTint} />
                 ) : props.micPressHandler ? (
                     props.micActive ? (
                         <Icon
                             name="stop-circle"
                             size={20}
-                            color={props.micRecording ? theme.colors.status.error : theme.colors.button.primary.tint}
+                            color={props.micRecording && !accented ? theme.colors.status.error : glyphTint}
                         />
                     ) : (
                         <Image
                             source={require('@/assets/images/icon-voice-white.png')}
                             style={{ width: 24, height: 24 }}
-                            tintColor={theme.colors.button.primary.tint}
+                            tintColor={glyphTint}
                         />
                     )
                 ) : (
                     <Icon
                         name="arrow-up"
                         size={16}
-                        color={theme.colors.button.primary.tint}
+                        color={glyphTint}
                         style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                     />
                 )}
