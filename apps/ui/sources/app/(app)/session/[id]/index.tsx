@@ -18,6 +18,7 @@ import { getTempData } from '@/utils/sessions/tempDataStore';
 import { resolveSessionRouteAuthRecoveryState } from '@/hooks/session/sessionRouteAuthRecovery';
 import { useSessionRouteServerScope } from '@/hooks/session/sessionRouteServerScope';
 import { useHydrateSessionForRoute } from '@/hooks/session/useHydrateSessionForRoute';
+import { useSessionRoutePreloadOnLeave } from '@/hooks/session/sessionRoutePreload';
 import { useActiveServerSnapshot } from '@/hooks/server/useActiveServerSnapshot';
 import { markSessionRouteEnteredForSessionUiTelemetry } from '@/sync/runtime/performance/sessionUiTelemetry';
 import {
@@ -25,6 +26,7 @@ import {
     readSessionLastMobileSurfaceFromMap,
     storage,
     useEndpointConnectivity,
+    useSetting,
     useSyncError,
 } from '@/sync/domains/state/storage';
 import { ActivitySpinner, HERO_SPINNER_SIZE } from '@/components/ui/feedback/ActivitySpinner';
@@ -161,6 +163,12 @@ function SessionRouteContent() {
     React.useLayoutEffect(() => {
         markSessionRouteEnteredForSessionUiTelemetry({ sessionId });
     }, [sessionId]);
+
+    useSessionRoutePreloadOnLeave({
+        sessionId,
+        serverId: routeScope.serverId ?? null,
+        enabled: useSetting('sessionOpenPreloadV1') === true,
+    });
 
     const routeHydrationState = useHydrateSessionForRoute(
         sessionId,

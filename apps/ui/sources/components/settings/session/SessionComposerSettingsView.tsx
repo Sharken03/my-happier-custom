@@ -52,6 +52,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [filledButtons, setFilledButtons] = useSettingMutable('composerFilledButtonsV1');
     const [abortChipOnlyWithMic, setAbortChipOnlyWithMic] = useSettingMutable('composerAbortChipOnlyWithMicV1');
     const [deferComposerOnOpen, setDeferComposerOnOpen] = useSettingMutable('sessionOpenDeferComposerV1');
+    const [preloadOnLeave, setPreloadOnLeave] = useSettingMutable('sessionOpenPreloadV1');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
     const [newSessionDraftEntryMode, setNewSessionDraftEntryMode] = useSettingMutable('newSessionDraftEntryMode');
     const [newSessionAfterSend, setNewSessionAfterSend] = useSettingMutable('newSessionAfterSendV1');
@@ -494,6 +495,19 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                             testID="settings-composer-deferOnOpen-switch"
                             value={deferComposerOnOpen !== false}
                             onValueChange={setDeferComposerOnOpen}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Keep last chat ready"
+                    subtitle="Keep the chat you just left rendered in the background, so it opens again at once"
+                    icon={<Icon name="timer" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-preloadOnLeave-switch"
+                            value={preloadOnLeave !== false}
+                            onValueChange={setPreloadOnLeave}
                         />
                     }
                     showChevron={false}
