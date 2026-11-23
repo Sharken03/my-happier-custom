@@ -25,10 +25,6 @@ function buildContentPopoverHandler(params: Readonly<{
             onClose: () => void;
         }>,
     ) => void;
-        id: AgentInputSelectionOverlayId,
-        anchor: 'chip' | 'actionMenu',
-        chipKey?: string,
-    ) => void;
 }>): (() => void) | undefined {
     if (!params.popover && !params.onLegacyClick) {
         return undefined;
