@@ -20,6 +20,8 @@ export type AgentInputChipPickerSurfaceProps = Readonly<{
     detailPaneHeaderAccessory?: React.ReactNode;
     maxHeight?: number | null;
     testID?: string;
+    /** True while the surface sits in a sheet below full height, where a drag moves the sheet. */
+    scrollLocked?: boolean;
 }>;
 
 export function AgentInputChipPickerSurface(props: AgentInputChipPickerSurfaceProps) {
@@ -57,6 +59,7 @@ export function AgentInputChipPickerSurface(props: AgentInputChipPickerSurfacePr
             testID={props.testID}
             maxHeight={props.maxHeight}
             scrollEnabled
+            scrollLocked={props.scrollLocked}
             keyboardShouldPersistTaps="handled"
         >
             {panel}

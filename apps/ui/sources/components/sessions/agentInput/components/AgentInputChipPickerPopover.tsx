@@ -48,6 +48,7 @@ export function AgentInputChipPickerPopover(props: AgentInputChipPickerPopoverPr
                         railMaxWidth={props.railMaxWidth}
                         detailPaneHeaderAccessory={props.detailPaneHeaderAccessory}
                         maxHeight={detent.height}
+                        scrollLocked={!detent.scrollEnabled}
                     />
                 )}
             </BottomSheet>
