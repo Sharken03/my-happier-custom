@@ -337,6 +337,13 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
     },
+    sessionOpenPreloadV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether the app keeps the chat the reader just left rendered in the background, so opening it again is instant (native only)',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     composerAbortChipOnlyWithMicV1: {
         schema: z.boolean(),
         default: false,
