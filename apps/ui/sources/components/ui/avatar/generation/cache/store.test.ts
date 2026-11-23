@@ -121,4 +121,27 @@ describe('avatar generation store', () => {
             vi.useRealTimers();
         }
     });
+
+    it('does not rewrite the SVG cache when the scheduled value is already stored', async () => {
+        vi.useFakeTimers();
+        const storage = new QuotaStorage(1_000_000);
+        vi.stubGlobal('localStorage', storage);
+
+        try {
+            const { scheduleAvatarXmlStoreWrite } = await import('./store');
+            scheduleAvatarXmlStoreWrite('profile-same', '<svg />');
+            await vi.runOnlyPendingTimersAsync();
+            const setItem = vi.spyOn(storage, 'setItem');
+
+            scheduleAvatarXmlStoreWrite('profile-same', '<svg />');
+            await vi.runOnlyPendingTimersAsync();
+            expect(setItem).not.toHaveBeenCalled();
+
+            scheduleAvatarXmlStoreWrite('profile-same', '<svg changed />');
+            await vi.runOnlyPendingTimersAsync();
+            expect(setItem).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
