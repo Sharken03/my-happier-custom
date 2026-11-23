@@ -8,7 +8,7 @@ import Animated, {
     withSpring,
     withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 
 const OPEN_DURATION_MS = 260;
@@ -45,7 +45,10 @@ export type BottomSheetProps = Readonly<{
 export function BottomSheet(props: BottomSheetProps) {
     const { onRequestClose, children, testID } = props;
     const { height: windowHeight } = useWindowDimensions();
-    const insets = useSafeAreaInsets();
+    // A sheet is also rendered outside the app shell (composer screens in tests, modals), where no
+    // SafeAreaProvider is above it; the insets then fall back to the screen edges.
+    const insets = React.useContext(SafeAreaInsetsContext)
+        ?? { top: 0, right: 0, bottom: 0, left: 0 };
     const sheetHeight = Math.max(1, windowHeight - insets.top);
     const half = sheetHeight * 0.5;
     const closed = sheetHeight;

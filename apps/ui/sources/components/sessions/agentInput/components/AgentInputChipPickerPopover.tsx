@@ -36,7 +36,7 @@ export function AgentInputChipPickerPopover(props: AgentInputChipPickerPopoverPr
             <BottomSheet onRequestClose={props.onRequestClose} testID="agent-input-chip-picker-sheet">
                 {(detent) => (
                     <AgentInputChipPickerSurface
-                        testID="agent-input-chip-picker-sheet-surface"
+                        testID="agent-input-chip-picker-popover"
                         title={props.title}
                         showCloseButton={props.showCloseButton}
                         options={props.options}
