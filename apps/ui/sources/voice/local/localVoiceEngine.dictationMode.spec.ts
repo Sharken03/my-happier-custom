@@ -32,7 +32,7 @@ function deferred<T>() {
  * "cancel this turn"; every other mode keeps upstream behaviour and leaves cancellation to the
  * voice surface.
  */
-async function configureDictationMode(dictationMode: boolean | undefined): Promise<void> {
+async function configureDictationMode(dictationMode: boolean | undefined, bargeInEnabled = true): Promise<void> {
     const storage = await getStorage();
     const voice = storage.getState().settings.voice;
     const localDirect = voice.adapters.local_direct;
@@ -48,7 +48,7 @@ async function configureDictationMode(dictationMode: boolean | undefined): Promi
                         ...localDirect,
                         ...(dictationMode === undefined ? {} : { dictationMode }),
                         stt: { ...localDirect.stt, useDeviceStt: true, baseUrl: null },
-                        tts: { ...localDirect.tts, autoSpeakReplies: false },
+                        tts: { ...localDirect.tts, autoSpeakReplies: false, bargeInEnabled },
                     },
                 },
             },
@@ -90,6 +90,29 @@ describe('local voice engine dictation mode', () => {
 
         sending.resolve();
         await dispatching;
+    });
+
+    it('ends the read-aloud reply on a mic tap in dictation mode without barge-in', async () => {
+        await configureDictationMode(true, false);
+        const { toggleLocalVoiceTurn, getLocalVoiceState } = await import('./localVoiceEngine');
+        const { patchLocalVoiceState } = await import('./localVoiceState');
+
+        patchLocalVoiceState({ status: 'speaking', sessionId: 's1', error: null });
+        await toggleLocalVoiceTurn('s1');
+
+        expect(getLocalVoiceState().status).toBe('idle');
+        expect(speechRecStop).not.toHaveBeenCalled();
+    });
+
+    it('keeps the read-aloud reply on a mic tap without barge-in when dictation mode is off', async () => {
+        await configureDictationMode(false, false);
+        const { toggleLocalVoiceTurn, getLocalVoiceState } = await import('./localVoiceEngine');
+        const { patchLocalVoiceState } = await import('./localVoiceState');
+
+        patchLocalVoiceState({ status: 'speaking', sessionId: 's1', error: null });
+        await toggleLocalVoiceTurn('s1');
+
+        expect(getLocalVoiceState().status).toBe('speaking');
     });
 
     it('leaves the tap to the voice surface when dictation mode is off', async () => {

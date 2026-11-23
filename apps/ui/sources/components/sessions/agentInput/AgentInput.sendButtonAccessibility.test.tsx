@@ -932,6 +932,33 @@ describe('AgentInput (send button accessibility)', () => {
         await recording.unmount();
     });
 
+    it('waits with a spinner while the dictated audio turns into text', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+
+        const screen = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onAbort={() => {}}
+                    onMicPress={() => {}}
+                    showAbortButton={true}
+                    isMicActive={false}
+                    isMicBusy={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+
+        const send = screen.findByTestId('session-composer-send');
+        if (!send) throw new Error('session-composer-send not found');
+        expect(send.props.accessibilityLabel).toBe('voiceAssistant.label');
+        expect(send.props.accessibilityState?.disabled).toBe(true);
+
+        await screen.unmount();
+    });
+
     it('lets a running turn keep the button while dictation mode is on', async () => {
         featureEnabledState.voice = true;
         const { AgentInput } = await import('./AgentInput');
