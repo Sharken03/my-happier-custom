@@ -527,7 +527,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     testID="settings-model-picker-layout"
                     title={t('settingsSession.modelChip.layoutTitle')}
                     subtitle={t('settingsSession.modelChip.layoutSubtitle')}
-                    icon={<Icon name="layout" size={29} color={theme.colors.accent.indigo} />}
+                    icon={<Icon name="squares-four" size={29} color={theme.colors.accent.indigo} />}
                     detail={modelPickerLayout === 'carded'
                         ? t('settingsSession.modelChip.layoutOptions.carded')
                         : t('settingsSession.modelChip.layoutOptions.compact')}
