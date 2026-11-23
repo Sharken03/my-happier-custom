@@ -309,29 +309,29 @@ function escapeMarkdownUnderscoresForAgentMail(text: string): string {
   const NUL = '\0';
   
   // Protect fenced code blocks first (```...``` or ~~~...~~~)
-  let protected = text.replace(/^( {0,3})([`~]{3,})([^`~]*)\n([\s\S]*?)\n\1\2/gm, (match, indent, fence, info, content) => {
+  let escaped = text.replace(/^( {0,3})([`~]{3,})([^`~]*)\n([\s\S]*?)\n\1\2/gm, (match, indent, fence, info, content) => {
     const idx = fencedBlocks.length;
     fencedBlocks.push(match);
     return `${NUL}FB${idx}${NUL}`;
   });
   
   // Protect inline code spans (`code`)
-  protected = protected.replace(/`([^`\n]+)`/g, (match, content) => {
+  escaped = escaped.replace(/`([^`\n]+)`/g, (match, content) => {
     const idx = codeSpans.length;
     codeSpans.push(match);
     return `${NUL}CS${idx}${NUL}`;
   });
   
   // Escape underscores only in prose (alphanumeric on both sides, not already escaped)
-  protected = protected.replace(/(?<!\\)(?<=[^\W_])_(?=[^\W_])/g, '\\_');
+  escaped = escaped.replace(/(?<!\\)(?<=[^\W_])_(?=[^\W_])/g, '\\_');
   
   // Restore fenced blocks - use RegExp constructor with double-escaped backslash for \d in string literal
-  protected = protected.replace(new RegExp(NUL + 'FB(\\d+)' + NUL, 'g'), (_, idx) => fencedBlocks[parseInt(idx, 10)]);
+  escaped = escaped.replace(new RegExp(NUL + 'FB(\\d+)' + NUL, 'g'), (_, idx) => fencedBlocks[parseInt(idx, 10)]);
   
   // Restore code spans
-  protected = protected.replace(new RegExp(NUL + 'CS(\\d+)' + NUL, 'g'), (_, idx) => codeSpans[parseInt(idx, 10)]);
+  escaped = escaped.replace(new RegExp(NUL + 'CS(\\d+)' + NUL, 'g'), (_, idx) => codeSpans[parseInt(idx, 10)]);
   
-  return protected;
+  return escaped;
 }
 
 type MessageViewProps = {
