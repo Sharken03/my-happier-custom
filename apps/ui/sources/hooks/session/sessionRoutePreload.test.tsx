@@ -18,7 +18,13 @@ vi.mock('@react-navigation/native', async () => {
 
 vi.mock('expo-router', () => ({ router: { prefetch: vi.fn() } }));
 
-import { preloadSessionRoute, useSessionRoutePreloadOnLeave } from './sessionRoutePreload';
+import {
+    preloadSessionRoute,
+    readLastOpenedSessionRoute,
+    resetSessionRoutePreloadAtStartForTests,
+    useSessionRoutePreloadAtStart,
+    useSessionRoutePreloadOnLeave,
+} from './sessionRoutePreload';
 
 const originalPlatform = Platform.OS;
 
@@ -27,6 +33,7 @@ describe('session route preload', () => {
         vi.useFakeTimers();
         focusState.focused = true;
         Platform.OS = 'android';
+        resetSessionRoutePreloadAtStartForTests();
     });
 
     afterEach(() => {
@@ -84,5 +91,60 @@ describe('session route preload', () => {
         await hook.unmount();
         vi.runAllTimers();
         expect(prefetch).toHaveBeenCalledWith('/session/s1?serverId=srv');
+    });
+
+    it('remembers the chat that had focus, so the next app start can preload it', async () => {
+        await renderHook(() => useSessionRoutePreloadOnLeave({
+            sessionId: 's1', serverId: 'srv', enabled: true, prefetch: vi.fn(),
+        }));
+        expect(readLastOpenedSessionRoute()).toEqual({ sessionId: 's1', serverId: 'srv' });
+    });
+
+    it('does not remember a chat when the setting is off', async () => {
+        await renderHook(() => useSessionRoutePreloadOnLeave({
+            sessionId: 's1', serverId: null, enabled: false, prefetch: vi.fn(),
+        }));
+        expect(readLastOpenedSessionRoute()).toBeNull();
+    });
+
+    it('preloads the last opened chat once, a moment after the list is ready at app start', async () => {
+        const prefetch = vi.fn();
+        const target = { sessionId: 's1', serverId: null };
+        const first = await renderHook(() => useSessionRoutePreloadAtStart({ target, ready: true, prefetch }));
+        expect(prefetch).not.toHaveBeenCalled();
+        vi.runAllTimers();
+        expect(prefetch).toHaveBeenCalledWith('/session/s1');
+        await first.unmount();
+
+        await renderHook(() => useSessionRoutePreloadAtStart({ target, ready: true, prefetch }));
+        vi.runAllTimers();
+        expect(prefetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits while the list is not ready, and cancels when it stops being ready', async () => {
+        const prefetch = vi.fn();
+        const target = { sessionId: 's1', serverId: null };
+        const hook = await renderHook(
+            (props: { ready: boolean }) => useSessionRoutePreloadAtStart({ target, ready: props.ready, prefetch }),
+            { initialProps: { ready: false } },
+        );
+        vi.runAllTimers();
+        expect(prefetch).not.toHaveBeenCalled();
+
+        await hook.rerender({ ready: true });
+        await hook.rerender({ ready: false });
+        vi.runAllTimers();
+        expect(prefetch).not.toHaveBeenCalled();
+
+        await hook.rerender({ ready: true });
+        vi.runAllTimers();
+        expect(prefetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing at app start when no chat was opened before', async () => {
+        const prefetch = vi.fn();
+        await renderHook(() => useSessionRoutePreloadAtStart({ target: null, ready: true, prefetch }));
+        vi.runAllTimers();
+        expect(prefetch).not.toHaveBeenCalled();
     });
 });
