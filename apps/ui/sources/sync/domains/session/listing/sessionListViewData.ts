@@ -368,6 +368,7 @@ function pushFolderAwareProjectSessionsToList(params: Readonly<{
     sessionFolders: NonNullable<BuildSessionListViewDataOptions['sessionFolders']>;
     sectionBySessionId?: ReadonlyMap<string, SessionListActivitySection>;
     variantBySessionId?: ReadonlyMap<string, 'default' | 'no-path'>;
+    showHibernatedInActiveList?: boolean;
 }>): void {
     const tree = buildSessionFolderTree(params.sessionFolders.folders, params.workspace);
     if (tree.rootNodes.length === 0) {
@@ -551,6 +552,7 @@ export function applySessionFoldersToSessionListViewData(
                 sessionFolders: options,
                 sectionBySessionId,
                 variantBySessionId,
+                showHibernatedInActiveList,
             });
         }
         changed = changed || out.length !== beforeLength + sessions.length;

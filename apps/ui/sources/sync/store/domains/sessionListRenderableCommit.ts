@@ -45,6 +45,7 @@ type SessionListRenderableCommitSettings = Readonly<{
     sessionListAttentionPromotionModeV1?: SessionListAttentionPromotionMode;
     sessionListWorkingPlacementModeV1?: SessionListWorkingPlacementMode;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
+    showHibernatedInActiveList?: boolean;
 }>;
 
 type ProjectLookupResult = {
