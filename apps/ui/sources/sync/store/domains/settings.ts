@@ -85,7 +85,8 @@ function shouldRebuildSessionListViewData(previous: Settings, next: Settings): b
         next.sessionListBackgroundWorkAttentionModeV1 !== previous.sessionListBackgroundWorkAttentionModeV1 ||
         next.sessionListSeparateBackgroundWork !== previous.sessionListSeparateBackgroundWork ||
         next.sessionListAttentionStandingDefaultV1 !== previous.sessionListAttentionStandingDefaultV1 ||
-        next.workspacePathDisplayModeV1 !== previous.workspacePathDisplayModeV1;
+        next.workspacePathDisplayModeV1 !== previous.workspacePathDisplayModeV1 ||
+        next.showHibernatedInActiveList !== previous.showHibernatedInActiveList;
 }
 
 function buildSettingsProjectionState<S extends SettingsDomain & SettingsDomainDependencies>(

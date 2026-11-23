@@ -473,6 +473,7 @@ export function createMachinesDomain<S extends MachinesDomain & MachinesDomainDe
                         inactiveGroupingV1: state.settings.sessionListInactiveGroupingV1,
                         sectionModeV1: state.settings.sessionListSectionModeV1,
                         workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
+                        showHibernatedInActiveList: state.settings.showHibernatedInActiveList === true,
                         getProjectForSession: state.getProjectForSession,
                     })
                     : state.sessionListViewData;
@@ -540,6 +541,7 @@ export function createMachinesDomain<S extends MachinesDomain & MachinesDomainDe
                     inactiveGroupingV1: state.settings.sessionListInactiveGroupingV1,
                     sectionModeV1: state.settings.sessionListSectionModeV1,
                     workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
+                    showHibernatedInActiveList: state.settings.showHibernatedInActiveList === true,
                     getProjectForSession: state.getProjectForSession,
                 });
                 const nextState = {

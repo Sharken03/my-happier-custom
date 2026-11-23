@@ -294,6 +294,7 @@ async function refreshServerSnapshot(entry: ManagedConcurrentServer): Promise<vo
             inactiveGroupingV1: storage.getState().settings.sessionListInactiveGroupingV1,
             sectionModeV1: storage.getState().settings.sessionListSectionModeV1,
             workspacePathDisplayModeV1: storage.getState().settings.workspacePathDisplayModeV1,
+            showHibernatedInActiveList: storage.getState().settings.showHibernatedInActiveList === true,
             serverScope: {
                 serverId: entry.id,
                 serverName: entry.serverName,
