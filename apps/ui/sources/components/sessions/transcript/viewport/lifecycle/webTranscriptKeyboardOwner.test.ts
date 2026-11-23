@@ -42,4 +42,28 @@ describe('webTranscriptKeyboardOwner', () => {
         expect(onViewportKeyboardInput).toHaveBeenCalledWith(expectedDirection);
         unregister();
     });
+
+    it('resolves each transcript scroller once per tap, not once per ancestor of the target', () => {
+        // resolveScroller reads layout (computed styles). A hidden preloaded chat stays registered,
+        // so every tap anywhere in the app pays this cost.
+        const scroller = document.createElement('div');
+        document.body.append(scroller);
+        let target: HTMLElement = document.body;
+        for (let depth = 0; depth < 8; depth += 1) {
+            const child = document.createElement('div');
+            target.append(child);
+            target = child;
+        }
+        const resolveScroller = vi.fn(() => scroller);
+        const unregister = registerWebTranscriptKeyboardOwner({
+            document,
+            onViewportKeyboardInput: vi.fn(),
+            resolveScroller,
+        });
+
+        target.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+        expect(resolveScroller).toHaveBeenCalledTimes(1);
+        unregister();
+    });
 });
