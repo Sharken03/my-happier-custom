@@ -191,6 +191,50 @@ describe('sync.ensureSessionVisibleForMessageRoute', () => {
         expect(syncInternals.sessionDataKeyEnvelopes.get(sessionId)).toBe('dek');
     });
 
+    it('prewarms a tapped session: hydrates it, then starts its transcript fetch', async () => {
+        const sessionId = 'prewarm_session';
+        const { sync } = await import('./sync');
+        const { requestSessionOpenPrewarm } = await import('./runtime/sessionOpenPrewarm');
+        const internals = sync as unknown as {
+            ensureSessionVisibleForMessageRoute: (...args: unknown[]) => Promise<unknown>;
+            getOrCreateMessagesSync: (id: string) => { invalidateCoalesced: () => void };
+        };
+        const originalEnsure = internals.ensureSessionVisibleForMessageRoute;
+        const originalMessagesSync = internals.getOrCreateMessagesSync;
+        const ensure = vi.fn(async () => ({ kind: 'available', sessionId }));
+        const invalidateCoalesced = vi.fn();
+        internals.ensureSessionVisibleForMessageRoute = ensure;
+        internals.getOrCreateMessagesSync = () => ({ invalidateCoalesced });
+        try {
+            requestSessionOpenPrewarm(sessionId, 'server-1');
+            await vi.waitFor(() => expect(invalidateCoalesced).toHaveBeenCalledTimes(1));
+            expect(ensure).toHaveBeenCalledWith(sessionId, { serverId: 'server-1' });
+        } finally {
+            internals.ensureSessionVisibleForMessageRoute = originalEnsure;
+            internals.getOrCreateMessagesSync = originalMessagesSync;
+        }
+    });
+
+    it('leaves a loaded transcript to the session view refresh', async () => {
+        const sessionId = 'prewarm_loaded_session';
+        storage.getState().applySessions([createSession({ sessionId })]);
+        storage.setState((state) => ({
+            sessionMessages: { ...state.sessionMessages, [sessionId]: { ...(state.sessionMessages[sessionId] ?? {}), isLoaded: true } as any },
+        }));
+        const { sync } = await import('./sync');
+        const internals = sync as unknown as { ensureSessionVisibleForMessageRoute: (...args: unknown[]) => Promise<unknown> };
+        const originalEnsure = internals.ensureSessionVisibleForMessageRoute;
+        const ensure = vi.fn(async () => ({ kind: 'available', sessionId }));
+        internals.ensureSessionVisibleForMessageRoute = ensure;
+        try {
+            sync.prewarmSessionOpen(sessionId, null);
+            await Promise.resolve();
+            expect(ensure).not.toHaveBeenCalled();
+        } finally {
+            internals.ensureSessionVisibleForMessageRoute = originalEnsure;
+        }
+    });
+
     it('returns a retryable result when credentials are not yet available', async () => {
         const sessionId = 'deep_link_missing_creds';
         storage.getState().applySessions([createSession({ sessionId })]);

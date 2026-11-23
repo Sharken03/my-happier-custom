@@ -321,6 +321,7 @@ import {
     type PreparedAccountSettingsForDaemonSpawn,
 } from './engine/settings/prepareAccountSettingsForDaemonSpawn';
 import { registerAccountSettingsDaemonSpawnPreparation } from './ops/accountSettingsDaemonSpawnPreparation';
+import { setSessionOpenPrewarmHandler } from '@/sync/runtime/sessionOpenPrewarm';
 import { getOfferings as getOfferingsEngine, presentPaywall as presentPaywallEngine, purchaseProduct as purchaseProductEngine, syncPurchases as syncPurchasesEngine } from './engine/purchases/syncPurchases';
 import { fetchChanges, fetchCurrentChangesCursor } from './api/session/apiChanges';
 import {
@@ -1212,6 +1213,7 @@ class Sync {
         installSyncReliabilityTelemetryGlobal(syncReliabilityTelemetry);
         installSessionRealtimeTranscriptSuppressionGlobal();
         registerAccountSettingsDaemonSpawnPreparation(this.prepareAccountSettingsForDaemonSpawn);
+        setSessionOpenPrewarmHandler(this.prewarmSessionOpen);
         this.syncJsThreadLagTelemetryRuntime();
         // Bounded transcript retention: sweep is triggered by transcript-surface
         // unmounts (registry releases) and by sessions becoming visible — never polled.
@@ -2349,6 +2351,23 @@ class Sync {
         fireAndForget(this.bootstrapSync(), { tag: 'Sync.bootstrapSync' });
     }
 
+
+        /**
+         * Starts the session and transcript fetch when the user taps a session, before its route
+         * renders. A loaded transcript is left to `onSessionVisible`, which refreshes it.
+         */
+        prewarmSessionOpen = (sessionId: string, serverId: string | null): void => {
+            if (storage.getState().sessionMessages[sessionId]?.isLoaded === true) return;
+            fireAndForget((async () => {
+                const result = await this.ensureSessionVisibleForMessageRoute(sessionId, serverId ? { serverId } : undefined);
+                if (result.kind !== 'available') return;
+                if (storage.getState().sessionMessages[sessionId]?.isLoaded === true) return;
+                if (!this.sessionViewport.get(sessionId)) this.markSessionLiveTailIntent(sessionId);
+                this.getOrCreateMessagesSync(sessionId).invalidateCoalesced();
+            })(), {
+                tag: 'Sync.prewarmSessionOpen',
+            });
+        }
 
         onSessionVisible = (sessionId: string) => {
             // Entering a Session presents its current state, not the state one frame behind.
