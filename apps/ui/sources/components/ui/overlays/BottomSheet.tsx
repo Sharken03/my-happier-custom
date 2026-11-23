@@ -51,7 +51,8 @@ export type BottomSheetProps = Readonly<{
  *
  * It opens at half height with a grabber and a dimmed backdrop. A swipe up gives full height; a
  * swipe down from half height closes it, and so does a tap on the backdrop. Below full height the
- * content must not scroll (see `SheetDetent.scrollEnabled`), so a drag on it moves the sheet.
+ * content must not scroll (see `SheetDetent.scrollEnabled`), so a drag on it moves the sheet. At full
+ * height the content scrolls, and only the grabber moves the sheet.
  */
 export function BottomSheet(props: BottomSheetProps) {
     const { onRequestClose, children, testID } = props;
@@ -90,7 +91,8 @@ export function BottomSheet(props: BottomSheetProps) {
         });
     }, [closed, onRequestClose, translateY]);
 
-    const pan = React.useMemo(() => Gesture.Pan()
+    // One drag rule, attached twice: a gesture object can sit in only one GestureDetector.
+    const makePan = React.useCallback(() => Gesture.Pan()
         .activeOffsetY([-8, 8])
         .failOffsetX([-24, 24])
         .onStart(() => {
@@ -135,6 +137,11 @@ export function BottomSheet(props: BottomSheetProps) {
             startY,
             translateY,
         ]);
+    // The grabber always drags the sheet.
+    const handlePan = React.useMemo(() => makePan(), [makePan]);
+    // A drag on the content moves the sheet only below full height. At full height the pan is off,
+    // because an active pan cancels the list's own scroll.
+    const contentPan = React.useMemo(() => makePan().enabled(!atFull), [atFull, makePan]);
 
     // A tap on the grabber is the quick way between the two detents when the list is under the
     // finger and takes the drag.
@@ -173,22 +180,23 @@ export function BottomSheet(props: BottomSheetProps) {
                 <Animated.View style={[styles.backdrop, backdropStyle]}>
                     <Pressable testID="bottom-sheet-backdrop" style={styles.fill} onPress={close} />
                 </Animated.View>
-                <GestureDetector gesture={pan}>
-                    <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]}>
+                <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetStyle]}>
+                    <GestureDetector gesture={handlePan}>
                         <Pressable
                             testID="bottom-sheet-grabber"
-                            // A drag anywhere on the sheet moves it; a tap on the grabber moves
-                            // between the two detents.
+                            // A drag moves the sheet; a tap moves between the two detents.
                             onPress={toggleDetent}
                             style={styles.grabberTouchTarget}
                         >
                             <View style={styles.grabber} />
                         </Pressable>
+                    </GestureDetector>
+                    <GestureDetector gesture={contentPan}>
                         <View style={[styles.content, { paddingBottom: insets.bottom }]}>
                             {children(detent)}
                         </View>
-                    </Animated.View>
-                </GestureDetector>
+                    </GestureDetector>
+                </Animated.View>
             </GestureHandlerRootView>
         </Modal>
     );
