@@ -49,6 +49,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
     const [filledButtons, setFilledButtons] = useSettingMutable('composerFilledButtonsV1');
+    const [abortChipOnlyWithMic, setAbortChipOnlyWithMic] = useSettingMutable('composerAbortChipOnlyWithMicV1');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
     const [newSessionDraftEntryMode, setNewSessionDraftEntryMode] = useSettingMutable('newSessionDraftEntryMode');
     const [newSessionAfterSend, setNewSessionAfterSend] = useSettingMutable('newSessionAfterSendV1');
@@ -465,6 +466,19 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                             testID="settings-composer-filledButtons-switch"
                             value={filledButtons !== false}
                             onValueChange={setFilledButtons}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Stop chip only with microphone"
+                    subtitle="Show the stop chip only when voice is on and dictation mode is off"
+                    icon={<Icon name="octagon-x" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-abortChipOnlyWithMic-switch"
+                            value={abortChipOnlyWithMic === true}
+                            onValueChange={setAbortChipOnlyWithMic}
                         />
                     }
                     showChevron={false}

@@ -1321,6 +1321,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const permissionPromptSurface = useSetting('permissionPromptSurface');
     const voiceSettingsForComposer = useSetting('voice');
     const dictationModeEnabled = props.dictationMode ?? isDictationModeEnabled({ voice: voiceSettingsForComposer } as any);
+    // Setting composerAbortChipOnlyWithMicV1: the stop chip shows only while the send button holds the microphone.
+    const abortChipOnlyWithMic = useSetting('composerAbortChipOnlyWithMicV1') === true;
+    const showAbortChip = props.showAbortButton === true
+        && (!abortChipOnlyWithMic || (voiceEnabled && !dictationModeEnabled));
     const resolvedPermissionPromptSurface = resolvePermissionPromptSurface(permissionPromptSurface);
     const showComposerPermissionCards = resolvedPermissionPromptSurface === 'composer';
     const composerPermissionRequests = React.useMemo(
@@ -2900,7 +2904,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         resumeSessionId: props.resumeSessionId,
         resumeIsChecking: props.resumeIsChecking,
         onAbort: props.onAbort,
-        showAbortButton: props.showAbortButton,
+        showAbortButton: showAbortChip,
         isAborting,
         shakerRef,
         onAbortPress: handleAbortPress,
