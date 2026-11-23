@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { NavigationContext, NavigationRouteContext } from '@react-navigation/native';
 import { usePathname } from 'expo-router';
 import { Platform } from 'react-native';
 
@@ -79,13 +80,17 @@ export function useSessionRouteEntryPresentation(
  * session subtree mounted: every mounted session view subscribes to the store, so keeping one per
  * earlier visit made each streamed update cost more the longer the app ran. Back remounts the entry
  * from the in-memory store. Native keeps its single session screen, so it always renders.
+ *
+ * A preloaded entry (setting sessionOpenPreloadV1, see hooks/session/sessionRoutePreload.ts) also
+ * renders, on every platform: once, and then frozen, so a hidden chat does no live work. The stack
+ * hides it until a navigation takes it, and it holds at most one.
  */
 export function SessionRouteEntryGate(props: Readonly<{
     sessionId: string;
     children: React.ReactNode;
 }>): React.ReactElement | null {
     if (Platform.OS !== 'web') {
-        return <>{props.children}</>;
+        return <PreloadedRouteFreeze>{props.children}</PreloadedRouteFreeze>;
     }
     return <WebSessionRouteEntryGate sessionId={props.sessionId}>{props.children}</WebSessionRouteEntryGate>;
 }
@@ -95,5 +100,57 @@ function WebSessionRouteEntryGate(props: Readonly<{
     children: React.ReactNode;
 }>): React.ReactElement | null {
     const { presented } = useSessionRouteEntryPresentation(props.sessionId);
-    return presented ? <>{props.children}</> : null;
+    const preloaded = useIsPreloadedStackRoute();
+    return presented || preloaded ? <PreloadedRouteFreeze>{props.children}</PreloadedRouteFreeze> : null;
+}
+
+const NEVER_SETTLES = new Promise<never>(() => {});
+
+function SuspendWhile(props: Readonly<{ suspended: boolean; children: React.ReactNode }>): React.ReactElement {
+    if (props.suspended) {
+        throw NEVER_SETTLES;
+    }
+    return <>{props.children}</>;
+}
+
+/**
+ * Renders a preloaded route once, then holds it frozen until a navigation takes the route. A
+ * frozen subtree keeps its state and does not re-render on store updates; it renders with
+ * current data when it is shown. This is the same Suspense technique as react-freeze.
+ */
+function PreloadedRouteFreeze(props: Readonly<{ children: React.ReactNode }>): React.ReactElement {
+    const preloaded = useIsPreloadedStackRoute();
+    const [rendered, setRendered] = React.useState(false);
+    React.useEffect(() => {
+        setRendered(true);
+    }, []);
+    return (
+        <React.Suspense fallback={null}>
+            <SuspendWhile suspended={preloaded && rendered}>{props.children}</SuspendWhile>
+        </React.Suspense>
+    );
+}
+
+type StackRouteRef = Readonly<{ key: string }>;
+type StackStateWithPreloadedRoutes = Readonly<{ preloadedRoutes?: ReadonlyArray<StackRouteRef> }>;
+
+/** True while this screen is a preloaded stack route that no navigation has taken yet. */
+export function useIsPreloadedStackRoute(): boolean {
+    const navigation = React.useContext(NavigationContext);
+    const route = React.useContext(NavigationRouteContext);
+    const routeKey = route?.key ?? null;
+    const read = React.useCallback((): boolean => {
+        if (!navigation || !routeKey) return false;
+        const state = navigation.getState() as StackStateWithPreloadedRoutes | undefined;
+        return state?.preloadedRoutes?.some((entry) => entry.key === routeKey) === true;
+    }, [navigation, routeKey]);
+    const [preloaded, setPreloaded] = React.useState(read);
+
+    React.useEffect(() => {
+        setPreloaded(read());
+        if (!navigation) return;
+        return navigation.addListener('state', () => setPreloaded(read()));
+    }, [navigation, read]);
+
+    return preloaded;
 }
