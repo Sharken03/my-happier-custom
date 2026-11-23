@@ -1299,9 +1299,10 @@ describe('AgentInput (modelOptionsOverride)', () => {
 
         expect(screen.findByTestId('agent-input-chip-picker-popover')).toBeTruthy();
         expect(screen.findByTestId('agent-input-chip-picker.option:engine:codex')).toBeNull();
-        expect(lastPopoverProps?.anchorRef).toBe(agentChip.props.ref);
-        // When the engine rail is hidden (running sessions), keep the popover narrower.
-        expect(lastPopoverProps?.maxWidthCap).toBe(570);
+        // The picker opens as a bottom sheet over the whole screen, so it no longer anchors its
+        // width to the chip it was opened from.
+        expect(screen.findByTestId('agent-input-chip-picker-sheet')).toBeTruthy();
+        expect(lastPopoverProps).toBeNull();
         expect((lastModelPickerOverlayProps?.options ?? []).map((o: any) => o.value)).toEqual(['default', 'session-model']);
 
         await act(async () => {
@@ -1499,7 +1500,7 @@ describe('AgentInput (modelOptionsOverride)', () => {
         expect(logo?.props.style.transform).toContainEqual({ scale: 0.9 });
     });
 
-    it('caps the engine popover at 570px when the rail is hidden in stacked layout', async () => {
+    it('opens the engine picker as a bottom sheet when the rail is hidden in stacked layout', async () => {
         mockWindowWidth = 520;
         lastModelPickerOverlayProps = null;
         lastPopoverProps = null;
@@ -1535,7 +1536,8 @@ describe('AgentInput (modelOptionsOverride)', () => {
         await screen.pressByTestIdAsync('agent-input-agent-chip');
 
         expect(screen.findByTestId('agent-input-chip-picker-popover')).toBeTruthy();
-        expect(lastPopoverProps?.maxWidthCap).toBe(570);
+        expect(screen.findByTestId('agent-input-chip-picker-sheet')).toBeTruthy();
+        expect(lastPopoverProps).toBeNull();
     });
 
     it('uses the collapsed settings action as a launcher for the shared engine picker when agent picker options exist', async () => {
