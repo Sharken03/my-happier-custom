@@ -3495,6 +3495,7 @@ export const es: TranslationStructure = {
       backendPromptMessage: "Introduce el ID del backend",
       instructionsPlaceholder: "Instrucciones del mensaje de commit",
     },
+    changedFilesRefresh: { title: "Archivos modificados", footer: "La lista de archivos modificados también se actualiza cuando termina una herramienta que puede cambiar archivos, no solo cuando empieza.", refreshOnToolDone: { title: "Actualizar cuando una herramienta termina" } },
     commitAttribution: {
       title: "Atribución del commit",
       footer:

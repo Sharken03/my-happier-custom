@@ -3526,6 +3526,7 @@ export const pl: TranslationStructure = {
       backendPromptMessage: "Wpisz identyfikator backendu",
       instructionsPlaceholder: "Instrukcje wiadomości commitu",
     },
+    changedFilesRefresh: { title: "Zmienione pliki", footer: "Lista zmienionych plików odświeża się także po zakończeniu narzędzia, które może zmieniać pliki, nie tylko przy jego starcie.", refreshOnToolDone: { title: "Odśwież po zakończeniu narzędzia" } },
     commitAttribution: {
       title: "Atrybucja commitu",
       footer:

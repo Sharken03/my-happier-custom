@@ -3238,6 +3238,7 @@ export const fr: TranslationStructure = {
             backendPromptMessage: 'Saisis l’id du backend',
             instructionsPlaceholder: 'Instructions pour le message de commit',
         },
+        changedFilesRefresh: { title: "Fichiers modifiés", footer: "La liste des fichiers modifiés s'actualise aussi quand un outil qui peut modifier des fichiers se termine, pas seulement au démarrage.", refreshOnToolDone: { title: "Actualiser quand un outil se termine" } },
         commitAttribution: {
             title: 'Attribution des commits',
             footer: 'Quand c’est activé, les messages de commit générés par l’IA incluent des mentions Co-Authored-By.',

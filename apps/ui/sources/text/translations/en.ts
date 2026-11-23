@@ -3239,6 +3239,7 @@ export const en = {
             backendPromptMessage: 'Enter backend id',
             instructionsPlaceholder: 'Commit message instructions',
         },
+        changedFilesRefresh: { title: "Changed files", footer: "The list of changed files also refreshes when a tool that can change files finishes, not only when it starts.", refreshOnToolDone: { title: "Refresh when a tool finishes" } },
         commitAttribution: {
             title: 'Commit attribution',
             footer: 'When enabled, AI-generated commit messages will include Co-Authored-By credits.',

@@ -3238,6 +3238,7 @@ export const de: TranslationStructure = {
             backendPromptMessage: 'Backend-ID eingeben',
             instructionsPlaceholder: 'Anweisungen für Commit-Nachrichten',
         },
+        changedFilesRefresh: { title: "Geänderte Dateien", footer: "Die Liste der geänderten Dateien wird auch aktualisiert, wenn ein Tool, das Dateien ändern kann, fertig ist, nicht nur beim Start.", refreshOnToolDone: { title: "Aktualisieren, wenn ein Tool fertig ist" } },
         commitAttribution: {
             title: 'Commit-Zuschreibung',
             footer: 'Wenn aktiviert, enthalten KI-erzeugte Commit-Nachrichten Co-Authored-By-Angaben.',

@@ -3804,6 +3804,7 @@ localTailscale: {
       backendPromptMessage: "バックエンド ID を入力",
       instructionsPlaceholder: "コミットメッセージの指示",
     },
+    changedFilesRefresh: { title: "変更されたファイル", footer: "ファイルを変更できるツールの開始時だけでなく、完了時にも変更されたファイルの一覧を更新します。", refreshOnToolDone: { title: "ツールの完了時に更新" } },
     commitAttribution: {
       title: "コミットのクレジット",
       footer:

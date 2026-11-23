@@ -3324,6 +3324,7 @@ export const ca: TranslationStructure = {
             backendPromptMessage: 'Introdueix l’identificador del backend',
             instructionsPlaceholder: 'Instruccions del missatge de commit',
         },
+        changedFilesRefresh: { title: "Fitxers canviats", footer: "La llista de fitxers canviats també s'actualitza quan acaba una eina que pot canviar fitxers, no només quan comença.", refreshOnToolDone: { title: "Actualitza quan una eina acaba" } },
         commitAttribution: {
             title: 'Atribució del commit',
             footer: 'Quan està activat, els missatges de commit generats per IA inclouran crèdits Co-Authored-By.',

@@ -3408,6 +3408,7 @@ export const zhHans: TranslationStructure = {
       backendPromptMessage: "输入后端 ID",
       instructionsPlaceholder: "提交信息指令",
     },
+    changedFilesRefresh: { title: "已更改的文件", footer: "可更改文件的工具完成时也刷新已更改文件列表，而不仅是在开始时。", refreshOnToolDone: { title: "工具完成时刷新" } },
     commitAttribution: {
       title: "提交署名",
       footer:

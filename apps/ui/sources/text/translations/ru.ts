@@ -3449,6 +3449,7 @@ export const ru: TranslationStructure = {
       backendPromptMessage: "Введите ID бэкенда",
       instructionsPlaceholder: "Инструкции для сообщения коммита",
     },
+    changedFilesRefresh: { title: "Изменённые файлы", footer: "Список изменённых файлов обновляется и при завершении инструмента, который может менять файлы, а не только при его запуске.", refreshOnToolDone: { title: "Обновлять по завершении инструмента" } },
     commitAttribution: {
       title: "Авторство коммита",
       footer:
