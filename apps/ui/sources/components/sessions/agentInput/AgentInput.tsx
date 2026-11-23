@@ -2441,7 +2441,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         resumeChipAnchorRef,
         profileChipAnchorRef,
         envVarsChipAnchorRef,
-        modelChipAnchorRef,
     } = useAgentInputSelectionAnchors();
     const [showActionMenu, setShowActionMenu] = React.useState(false);
     const statusBadgeAnchorRef = React.useRef<any>(null);
@@ -2501,9 +2500,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeEnvVarsPopover,
         activeExtraCollapsedPopoverAnchor,
         closeActiveExtraCollapsedPopoverChip,
-        showModelPicker,
-        modelPickerData,
-        closeModelPicker,
     } = buildAgentInputSelectionOverlayViewModel({
         activeSelectionOverlay,
         activeExtraCollapsedPopoverChip,
@@ -2568,26 +2564,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         closeSelectionOverlay,
         toggleSelectionOverlay,
     });
-
-    // Open model picker bottom sheet with current model data
-    const handleModelPress = React.useCallback(() => {
-        hapticsLight();
-        toggleSelectionOverlay('modelPicker', 'chip', undefined, {
-            sessionId: props.sessionId ?? '',
-            selectedModelId: effectiveModelPolicy.selectedModelId,
-            modelOptions: modelOptions.map((opt) => ({
-                value: opt.value,
-                label: opt.label,
-                description: opt.description,
-                costInputPerMTok: opt.costInputPerMTok,
-                costOutputPerMTok: opt.costOutputPerMTok,
-            })),
-            onSelectModel: (value: string) => {
-                props.onModelModeChange?.(value);
-            },
-            onClose: () => {},
-        });
-    }, [toggleSelectionOverlay, props.sessionId, effectiveModelPolicy.selectedModelId, modelOptions, props.onModelModeChange]);
     const engineChipLabel = React.useMemo(() => {
         // Selection IS the selection. An armed target with a model chosen names
         // that model; an armed target still on the Agent's own defaults names the
@@ -2914,9 +2890,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         agentChipAnchorRef,
         agentLabel: resolvedAgentLabel,
         engineLabel: engineChipDisplayLabel,
-        modelLabel: selectedModelLabel,
-        modelChipAnchorRef,
-        onModelPress: handleModelPress,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,
         machineChipAnchorRef,
@@ -3477,9 +3450,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     envVarsChipAnchorRef={envVarsChipAnchorRef}
                     envVarsPopover={props.envVarsPopover}
                     onEnvVarsPopoverRequestClose={closeEnvVarsPopover}
-                    showModelPicker={showModelPicker}
-                    modelPickerData={modelPickerData}
-                    closeModelPicker={closeModelPicker}
                 />
                 {/* CommandMenu renders autocomplete suggestions with caret-anchor fallback. */}
                 <AgentInputCommandMenu

@@ -112,10 +112,6 @@ function buildDefaultOverlayLayerFixture(): AgentInputOverlayLayerProps {
         envVarsPopoverAnchor: 'chip',
         envVarsChipAnchorRef: sharedRef,
         onEnvVarsPopoverRequestClose: () => {},
-
-        showModelPicker: false,
-        modelPickerData: null,
-        closeModelPicker: () => {},
     };
 }
 

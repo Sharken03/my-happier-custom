@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { AgentInputSelectionPopover } from '@/components/sessions/agentInput/selection/AgentInputSelectionPopover';
+import { BottomSheet } from '@/components/ui/overlays/BottomSheet';
 
 import { AgentInputChipPickerSurface } from './AgentInputChipPickerSurface';
 import type { AgentInputChipPickerOption } from './AgentInputChipPickerPanel';
@@ -21,9 +22,38 @@ export type AgentInputChipPickerPopoverProps = Readonly<{
     detailPaneHeaderAccessory?: React.ReactNode;
     maxHeightCap?: number;
     maxWidthCap?: number;
+    /**
+     * `popover` anchors the picker to the chip; `sheet` opens it as a bottom sheet over the whole
+     * screen, the same way the Tool calls route opens its sheet.
+     */
+    presentation?: 'popover' | 'sheet';
 }>;
 
 export function AgentInputChipPickerPopover(props: AgentInputChipPickerPopoverProps) {
+    if (props.presentation === 'sheet') {
+        if (!props.open) return null;
+        return (
+            <BottomSheet onRequestClose={props.onRequestClose} testID="agent-input-chip-picker-sheet">
+                {(detent) => (
+                    <AgentInputChipPickerSurface
+                        testID="agent-input-chip-picker-sheet-surface"
+                        title={props.title}
+                        showCloseButton={props.showCloseButton}
+                        options={props.options}
+                        selectedOptionId={props.selectedOptionId}
+                        onSelect={props.onSelect}
+                        onRequestClose={props.onRequestClose}
+                        applyLabel={props.applyLabel}
+                        railWidth={props.railWidth}
+                        railMaxWidth={props.railMaxWidth}
+                        detailPaneHeaderAccessory={props.detailPaneHeaderAccessory}
+                        maxHeight={detent.height}
+                    />
+                )}
+            </BottomSheet>
+        );
+    }
+
     return (
         <AgentInputSelectionPopover
             open={props.open}
