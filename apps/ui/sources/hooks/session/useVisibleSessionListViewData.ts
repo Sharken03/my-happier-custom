@@ -874,11 +874,12 @@ function useSessionListDataState(
             enabled: true,
             folders: normalizedSessionFolders,
             assignmentsBySessionKey: sessionFolderAssignmentsBySessionKey,
-        });
+        }, showHibernatedInActiveList);
     }, [
         folderTreeSourceActive,
         normalizedSessionFolders,
         sessionFolderAssignmentsBySessionKey,
+        showHibernatedInActiveList,
         storageFilteredSource,
     ]);
 

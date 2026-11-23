@@ -169,6 +169,7 @@ export function useSessionListViewState({
     const [sessionListVisibilityScopeRaw, setSessionListVisibilityScope] = useSettingMutable('sessionListVisibilityScope');
     const rememberLastProjectSessionSelections = useSetting('rememberLastProjectSessionSelections') !== false;
     const workspaceFaviconsEnabled = useSetting('workspaceFaviconsEnabled') !== false;
+    const showHibernatedInActiveList = useSetting('showHibernatedInActiveList') === true;
     const workspaceMachineSubtitlesEnabled = useSetting('workspaceMachineSubtitlesEnabled') !== false;
     const [collapsedGroupKeysV1, setCollapsedGroupKeysV1] = useCollapsedGroupKeysMutable('collapsedGroupKeysV1');
     const sessionListDensity = useSetting('sessionListDensity');
@@ -400,8 +401,8 @@ export function useSessionListViewState({
             enabled: true,
             folders: sessionFoldersV1,
             assignmentsBySessionKey: sessionFolderAssignmentsBySessionKey,
-        });
-    }, [data, folderViewEnabled, sessionFolderAssignmentsBySessionKey, sessionFoldersV1, workspaceLabelsByLabelKey]);
+        }, showHibernatedInActiveList);
+    }, [data, folderViewEnabled, sessionFolderAssignmentsBySessionKey, sessionFoldersV1, showHibernatedInActiveList, workspaceLabelsByLabelKey]);
 
     const headerFiltersActive = hasActiveSessionListHeaderFilters(headerFilters);
 
