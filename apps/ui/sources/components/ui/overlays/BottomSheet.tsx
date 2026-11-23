@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Keyboard, Modal, Pressable, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector, type NativeGesture } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -71,9 +71,6 @@ export function BottomSheet(props: BottomSheetProps) {
     const startTranslation = useSharedValue(0);
     const previousTranslation = useSharedValue(0);
     const closing = React.useRef(false);
-    // The content scrolls inside the sheet. Without this the scroll view takes every vertical
-    // drag, and the sheet can never be pulled to full height or swiped away.
-    const nativeGesture = React.useMemo<NativeGesture>(() => Gesture.Native(), []);
 
     React.useEffect(() => {
         // An open keyboard would cover the sheet and take its swipes.
@@ -94,7 +91,6 @@ export function BottomSheet(props: BottomSheetProps) {
     const pan = React.useMemo(() => Gesture.Pan()
         .activeOffsetY([-8, 8])
         .failOffsetX([-24, 24])
-        .simultaneousWithExternalGesture(nativeGesture)
         .onStart(() => {
             sheetMoves.value = false;
             previousTranslation.value = 0;
@@ -131,7 +127,6 @@ export function BottomSheet(props: BottomSheetProps) {
             close,
             closed,
             half,
-            nativeGesture,
             previousTranslation,
             sheetMoves,
             startTranslation,
@@ -185,11 +180,9 @@ export function BottomSheet(props: BottomSheetProps) {
                         >
                             <View style={styles.grabber} />
                         </Pressable>
-                        <GestureDetector gesture={nativeGesture}>
-                            <View style={[styles.content, { paddingBottom: insets.bottom }]}>
-                                {children(detent)}
-                            </View>
-                        </GestureDetector>
+                        <View style={[styles.content, { paddingBottom: insets.bottom }]}>
+                            {children(detent)}
+                        </View>
                     </Animated.View>
                 </GestureDetector>
             </View>
