@@ -39,3 +39,14 @@ describe('areSessionMetadataStabilityEqual', () => {
         expect(areSessionMetadataStabilityEqual(next, prev)).toBe(expected);
     });
 });
+
+describe('buildSessionMetadataStabilitySignature cache', () => {
+    it('reuses the signature for the same metadata object and recomputes for a new one', () => {
+        const metadata = { path: '/tmp/a', host: 'h', name: 'one' } as any;
+        const first = buildSessionMetadataStabilitySignature(metadata);
+        expect(buildSessionMetadataStabilitySignature(metadata)).toBe(first);
+        const next = buildSessionMetadataStabilitySignature({ ...metadata, name: 'two' } as any);
+        expect(next).not.toBe(first);
+        expect(next).toContain('two');
+    });
+});

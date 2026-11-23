@@ -75,8 +75,18 @@ export function buildStableJsonSignature(value: unknown): string {
     }
 }
 
+// Metadata objects are replaced, not mutated, so one signature per object is safe to reuse.
+const sessionMetadataStabilitySignatureByObject = new WeakMap<object, string>();
+
 export function buildSessionMetadataStabilitySignature(metadata: Metadata | null | undefined): string {
-    return buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    if (!metadata || typeof metadata !== 'object') {
+        return buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    }
+    const cached = sessionMetadataStabilitySignatureByObject.get(metadata);
+    if (cached !== undefined) return cached;
+    const signature = buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    sessionMetadataStabilitySignatureByObject.set(metadata, signature);
+    return signature;
 }
 
 function signatureOfMetadataEntry(key: string, value: unknown): string {
