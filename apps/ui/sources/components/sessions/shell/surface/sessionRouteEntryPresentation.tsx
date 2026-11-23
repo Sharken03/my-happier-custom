@@ -91,7 +91,7 @@ export function SessionRouteEntryGate(props: Readonly<{
     children: React.ReactNode;
 }>): React.ReactElement | null {
     if (Platform.OS !== 'web') {
-        return <PreloadedRouteFreeze>{props.children}</PreloadedRouteFreeze>;
+        return <PreloadedRouteFreeze sessionId={props.sessionId}>{props.children}</PreloadedRouteFreeze>;
     }
     return <WebSessionRouteEntryGate sessionId={props.sessionId}>{props.children}</WebSessionRouteEntryGate>;
 }
@@ -102,8 +102,9 @@ function WebSessionRouteEntryGate(props: Readonly<{
 }>): React.ReactElement | null {
     const { presented } = useSessionRouteEntryPresentation(props.sessionId);
     const preloaded = useIsPreloadedStackRoute();
-    useOfferPreloadedRoute(props.sessionId, preloaded);
-    return presented || preloaded ? <PreloadedRouteFreeze>{props.children}</PreloadedRouteFreeze> : null;
+    return presented || preloaded
+        ? <PreloadedRouteFreeze sessionId={props.sessionId}>{props.children}</PreloadedRouteFreeze>
+        : null;
 }
 
 const NEVER_SETTLES = new Promise<never>(() => {});
@@ -127,8 +128,9 @@ export const PRELOADED_ROUTE_SETTLE_MS = 1500;
  * route. A frozen subtree keeps its state and does not re-render on store updates; it renders
  * with current data when it is shown. This is the same Suspense technique as react-freeze.
  */
-function PreloadedRouteFreeze(props: Readonly<{ children: React.ReactNode }>): React.ReactElement {
+function PreloadedRouteFreeze(props: Readonly<{ sessionId: string; children: React.ReactNode }>): React.ReactElement {
     const preloaded = useIsPreloadedStackRoute();
+    useOfferPreloadedRoute(props.sessionId, preloaded);
     const [settled, setSettled] = React.useState(false);
     React.useEffect(() => {
         const timer = setTimeout(() => setSettled(true), PRELOADED_ROUTE_SETTLE_MS);

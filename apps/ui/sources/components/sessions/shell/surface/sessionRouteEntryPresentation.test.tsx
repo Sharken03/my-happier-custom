@@ -110,6 +110,23 @@ describe('SessionRouteEntryGate (web)', () => {
         expect(takePreloadedSessionRoute('s1')).toBe(false);
     });
 
+    it('offers a preloaded entry on native too', async () => {
+        const { Platform } = await import('react-native');
+        const { takePreloadedSessionRoute } = await import('@/hooks/session/sessionRoutePreloadRegistry');
+        const originalOs = Platform.OS;
+        Platform.OS = 'android';
+        try {
+            navigationState.pathname = '/';
+            navigationState.focused = false;
+            stackState.preloadedKeys = ['session-route-key'];
+            await countMountsUnderGate('s1');
+
+            expect(takePreloadedSessionRoute('s1')).toBe(true);
+        } finally {
+            Platform.OS = originalOs;
+        }
+    });
+
     it('keeps the entry mounted under its own sub-route, where it is still the visible anchor', async () => {
         navigationState.pathname = '/session/s1/message/m1';
         navigationState.focused = false;
