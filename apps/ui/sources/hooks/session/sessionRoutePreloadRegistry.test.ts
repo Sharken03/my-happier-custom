@@ -9,7 +9,7 @@ import {
 
 type Route = { key: string; name: string; params?: Record<string, string> };
 type StackState = { key: string; index: number; routes: Route[]; preloadedRoutes: Route[] };
-type ResetAction = { type: string; target?: string; payload: StackState };
+type ResetAction = Parameters<NonNullable<ReturnType<PreloadedSessionRouteNavigation["getParent"]>>["dispatch"]>[0];
 
 const LIST: Route = { key: 'index-1', name: 'index' };
 const PRELOADED: Route = { key: 'session-p', name: 'session/[id]/index', params: { id: 's1' } };
@@ -25,10 +25,10 @@ function createStack(initial: StackState, options: Readonly<{ stackHandlesReset?
     const navigation: PreloadedSessionRouteNavigation = {
         getState: () => state,
         getParent: () => ({
-            dispatch: (action: ResetAction) => {
+            dispatch: (action) => {
                 dispatched.push(action);
                 if (options.stackHandlesReset !== false && action.type === 'RESET' && action.target === state.key) {
-                    state = action.payload;
+                    state = action.payload as StackState;
                 }
             },
         }),
