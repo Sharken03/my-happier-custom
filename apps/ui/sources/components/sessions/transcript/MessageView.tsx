@@ -12,7 +12,7 @@ import { useLayoutMaxWidth } from "@/components/ui/layout/layout";
 import { ToolView } from '@/components/tools/shell/views/ToolView';
 import { ToolTimelineRow } from '@/components/tools/shell/views/ToolTimelineRow';
 import { buildMessageRouteId, resolveMessageRouteIdForDisplay } from '@/sync/domains/messages/messageRouteIds';
-import { sync } from '@/sync/sync';
+import { pressMessageOption } from '@/components/sessions/transcript/options/pressMessageOption';
 import { Option, type OptionLongPressHandler } from '@/components/markdown/MarkdownView';
 import { isCommittedMessageDiscarded } from "@/utils/sessions/discardedCommittedMessages";
 import { shouldShowTranscriptRowActions, shouldShowTranscriptRowPinAction } from '@/components/sessions/transcript/messageCopyVisibility';
@@ -678,19 +678,14 @@ function UserTextBlock(props: {
   });
 
   const handleOptionPress = React.useCallback((option: Option) => {
-    fireAndForget((async () => {
-      try {
-        if (!props.canSendMessages) {
-          Modal.alert(t('session.sharing.viewOnly'), t('session.sharing.noEditPermission'));
-          return;
-        }
-        await sync.submitMessage(props.sessionId, option.title, undefined, undefined, {
-          callerSurface: 'message_option',
-        });
-      } catch (e) {
-        Modal.alert(t('common.error'), e instanceof Error ? e.message : t('errors.failedToSendMessage'));
-      }
-    })(), { tag: 'MessageView.handleOptionPress.userMessage' });
+    fireAndForget(
+      pressMessageOption({
+        sessionId: props.sessionId,
+        title: option.title,
+        canSendMessages: props.canSendMessages,
+      }),
+      { tag: 'MessageView.handleOptionPress.userMessage' },
+    );
   }, [props.canSendMessages, props.sessionId]);
   const handleOptionLongPress = React.useCallback<OptionLongPressHandler>(async (option) => {
     const ok = await setClipboardStringSafe(option.title);
@@ -1167,19 +1162,14 @@ function AgentTextBlock(props: {
   const copyText = selectableMessage?.text ?? (isStructuredOnly ? props.message.text : markdown);
 
   const handleOptionPress = React.useCallback((option: Option) => {
-    fireAndForget((async () => {
-      try {
-        if (!props.canSendMessages) {
-          Modal.alert(t('session.sharing.viewOnly'), t('session.sharing.noEditPermission'));
-          return;
-        }
-        await sync.submitMessage(props.sessionId, option.title, undefined, undefined, {
-          callerSurface: 'message_option',
-        });
-      } catch (e) {
-        Modal.alert(t('common.error'), e instanceof Error ? e.message : t('errors.failedToSendMessage'));
-      }
-    })(), { tag: 'MessageView.handleOptionPress.agentMessage' });
+    fireAndForget(
+      pressMessageOption({
+        sessionId: props.sessionId,
+        title: option.title,
+        canSendMessages: props.canSendMessages,
+      }),
+      { tag: 'MessageView.handleOptionPress.agentMessage' },
+    );
   }, [props.canSendMessages, props.sessionId]);
   const handleOptionLongPress = React.useCallback<OptionLongPressHandler>(async (option) => {
     const ok = await setClipboardStringSafe(option.title);

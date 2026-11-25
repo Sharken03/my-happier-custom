@@ -30,6 +30,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const popoverBoundaryRef = React.useRef<any>(null);
     const [messageSendMode, setMessageSendMode] = useSettingMutable('sessionMessageSendMode');
     const [busySteerSendPolicy, setBusySteerSendPolicy] = useSettingMutable('sessionBusySteerSendPolicy');
+    const [queueMessageOptions, setQueueMessageOptions] = useSettingMutable('sessionMessageOptionsQueueV1');
     const [nonSteerableSendPrompt, setNonSteerableSendPrompt] = useSettingMutable('sessionNonSteerableSendPrompt');
     const [pendingQueueDrainMode, setPendingQueueDrainMode] = useSettingMutable('sessionPendingQueueDrainMode');
     const [pendingQueueDeliveryTiming, setPendingQueueDeliveryTiming] = useSettingMutable('sessionPendingQueueDeliveryTiming');
@@ -179,7 +180,9 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
             subtitle: t('settingsSession.messageSending.pendingDeliveryTiming.afterRuntimeIdleSubtitle'),
         },
     ];
-    const pendingQueueMayBeUsed = messageSendMode === 'server_pending' || busySteerSendPolicy === 'server_pending';
+    const pendingQueueMayBeUsed = messageSendMode === 'server_pending'
+        || busySteerSendPolicy === 'server_pending'
+        || queueMessageOptions !== false;
 
     return (
         <ItemList ref={popoverBoundaryRef} style={{ paddingTop: 0 }}>
@@ -360,6 +363,23 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     ))}
                 </ItemGroup>
             ) : null}
+
+            <ItemGroup title="Message options">
+                <Item
+                    testID="settings-message-options-queue"
+                    title="Queue options"
+                    subtitle="A tapped option waits until the current task is done"
+                    icon={<Icon name="stack-simple" size={29} color={theme.colors.accent.blue} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-message-options-queue-switch"
+                            value={queueMessageOptions !== false}
+                            onValueChange={setQueueMessageOptions}
+                        />
+                    }
+                    showChevron={false}
+                />
+            </ItemGroup>
 
             <ItemGroup title={t('settingsSession.messageSending.nonSteerablePromptTitle')} footer={t('settingsSession.messageSending.nonSteerablePromptFooter')}>
                 {nonSteerablePromptOptions.map((option) => (

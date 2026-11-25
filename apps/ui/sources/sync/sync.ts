@@ -3430,6 +3430,9 @@ class Sync {
         }
 
         const port = this.createSessionSubmitPort();
+        // A pressed option is a separate task: it waits for the running turn and does not steer it.
+        const queuesMessageOption = options?.callerSurface === 'message_option'
+            && state.settings.sessionMessageOptionsQueueV1 !== false;
 
         const result = await submitSessionUserMessage(port, {
             sessionId,
@@ -3437,8 +3440,8 @@ class Sync {
             text,
             displayText,
             metaOverrides,
-            configuredMode: state.settings.sessionMessageSendMode,
-            busySteerSendPolicy: state.settings.sessionBusySteerSendPolicy,
+            configuredMode: queuesMessageOption ? 'server_pending' : state.settings.sessionMessageSendMode,
+            busySteerSendPolicy: queuesMessageOption ? 'server_pending' : state.settings.sessionBusySteerSendPolicy,
             sessionInactiveResumePolicy: state.settings.sessionInactiveResumePolicy,
             permissionModeApplyTiming: state.settings.sessionPermissionModeApplyTiming,
             // Programmatic path: never prompt here; 'ask' still hardens the decision (queue).

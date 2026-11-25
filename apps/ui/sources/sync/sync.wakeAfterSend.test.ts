@@ -324,7 +324,10 @@ describe('sync.sendMessage wake-after-send', () => {
         );
     });
 
-    it('uses the canonical pending wake after action acknowledgement without direct execution authorization', async () => {
+    it.each([
+        ['sync_submit_message'],
+        ['message_option'],
+    ] as const)('uses the canonical pending wake after action acknowledgement without direct execution authorization (%s)', async (callerSurface) => {
         getServerFeaturesSnapshotMock.mockResolvedValue({
             status: 'ready',
             features: {
@@ -340,7 +343,7 @@ describe('sync.sendMessage wake-after-send', () => {
                 },
             },
         });
-        const sessionId = 's_pending_submit_wake';
+        const sessionId = `s_pending_submit_wake_${callerSurface}`;
         storage.getState().applyMachines([createMachine({ id: 'm1', active: true })], true);
         storage.getState().applySessions([{
             ...createPlainSession({ sessionId }),
@@ -401,7 +404,7 @@ describe('sync.sendMessage wake-after-send', () => {
             });
         });
 
-        await sync.submitMessage(sessionId, 'hello pending');
+        await sync.submitMessage(sessionId, 'hello pending', undefined, undefined, { callerSurface });
 
         expect(apiSocket.request).toHaveBeenCalledWith(
             `/v2/sessions/${sessionId}/pending`,
@@ -417,6 +420,86 @@ describe('sync.sendMessage wake-after-send', () => {
             codexBackendMode: 'appServer',
             initialTranscriptAfterSeq: 12,
         });
+    });
+
+    it.each([
+        { name: 'queues a pressed message option', callerSurface: 'message_option', queueOptions: true, expectedAction: 'enqueue' },
+        { name: 'steers with a pressed message option when the option queue is off', callerSurface: 'message_option', queueOptions: false, expectedAction: 'steer_if_active' },
+        { name: 'steers with a written message', callerSurface: 'session_composer', queueOptions: true, expectedAction: 'steer_if_active' },
+    ] as const)('$name while a steerable agent works', async ({ callerSurface, queueOptions, expectedAction }) => {
+        getServerFeaturesSnapshotMock.mockResolvedValue({
+            status: 'ready',
+            features: {
+                capabilities: {
+                    compatibility: { pendingInput: { currentPendingInputProtocolVersion: 1 } },
+                    session: { pendingInput: { protocolVersion: 1 } },
+                },
+                features: {
+                    sharing: {
+                        pendingQueueV2: { enabled: true },
+                        pendingDeliveryState: { enabled: true },
+                    },
+                },
+            },
+        });
+        const sessionId = `s_busy_${callerSurface}_${String(queueOptions)}`;
+        const now = Date.now();
+        storage.getState().applySettings({
+            ...storage.getState().settings,
+            sessionMessageSendMode: 'agent_queue',
+            sessionBusySteerSendPolicy: 'steer_immediately',
+            sessionMessageOptionsQueueV1: queueOptions,
+        }, 1);
+        storage.getState().applySessions([{
+            ...createPlainSession({ sessionId }),
+            active: true,
+            thinking: true,
+            thinkingAt: now,
+            pendingVersion: 0,
+            pendingCount: 0,
+            agentState: {
+                capabilities: { inFlightSteerSupported: true, inFlightSteerAvailable: true },
+            } as any,
+        }]);
+
+        const { sync } = await import('./sync');
+        vi.spyOn(TokenStorage, 'getCredentialsForServerUrl').mockResolvedValue({
+            token: tokenForSub('sync-wake-after-send-test-account'),
+            secret: Buffer.from(new Uint8Array(32).fill(7)).toString('base64url'),
+        });
+        (sync as any).encryption = {
+            getSessionEncryption: () => null,
+            getMachineEncryption: () => ({}),
+        };
+        const postedActions: unknown[] = [];
+        vi.spyOn(apiSocket, 'request').mockImplementation(async (path, init) => {
+            const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+            if (init?.method === 'POST' && String(path) === `/v2/sessions/${sessionId}/pending`) {
+                postedActions.push(body.requestedAction);
+            }
+            return Response.json({
+                didWrite: true,
+                requestedAction: body.requestedAction,
+                pending: {
+                    localId: body.localId,
+                    content: body.content,
+                    requestedAction: body.requestedAction,
+                    status: 'queued',
+                    position: 0,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    discardedAt: null,
+                    discardedReason: null,
+                    authorAccountId: 'sync-wake-after-send-test-account',
+                },
+                pendingCount: 1,
+                pendingVersion: 1,
+            });
+        });
+
+        await sync.submitMessage(sessionId, 'Run the next task', undefined, undefined, { callerSurface });
+
+        expect(postedActions).toEqual([{ v: 1, kind: expectedAction }]);
     });
 
     it('rejects submitMessage pending intent on old CLI without direct delivery', async () => {

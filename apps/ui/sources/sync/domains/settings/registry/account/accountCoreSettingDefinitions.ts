@@ -448,6 +448,13 @@ export const ACCOUNT_CORE_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    sessionMessageOptionsQueueV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether a pressed message option waits in the pending queue while the agent works',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
     sessionNonSteerableSendPrompt: {
         schema: SessionNonSteerableSendPromptSchema,
         default: 'ask',
