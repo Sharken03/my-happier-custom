@@ -12,7 +12,8 @@ export function createAgyAcpBackend(options: CatalogDefinedAcpBackendOptions) {
   // The agy CLI's own ACP server (`agy acp`, the HAPPIER_AGY_ACP_COMMAND launch) also answers
   // `agy -p /quota`, so a message for a used-up quota group can move to the other group.
   const agyCli = options.launch?.args.includes('acp') ? options.launch.command : null;
-  options = { ...options, sessionModelAdapter: agySessionModelAdapter,
+  // agy ends the running session/prompt when a second one arrives and goes on with both requests.
+  options = { ...options, sessionModelAdapter: agySessionModelAdapter, steerByPromptHandoff: true,
     ...(agyCli ? { beforePrompt: createAgyQuotaGuard({ read: () => readAgyQuota(agyCli) }) } : {}),
     isAuthenticationSetupFailure:({ code, data }) =>
     code === -32000 && data !== null && typeof data === 'object' && !Array.isArray(data)

@@ -77,6 +77,7 @@ export interface CreateAcpBackendOptions {
   /** Provider-owned projection/application for model metadata not standardized by ACP. */
   sessionModelAdapter?: AcpSessionModelAdapter;
   beforePrompt?: AcpBackendOptions['beforePrompt'];
+  steerByPromptHandoff?: AcpBackendOptions['steerByPromptHandoff'];
   sessionModesEnabled?: AcpBackendOptions['sessionModesEnabled'];
   initialSessionModeId?: AcpBackendOptions['initialSessionModeId'];
 
@@ -130,6 +131,7 @@ export function createAcpBackend(options: CreateAcpBackendOptions): AcpBackend {
     extensionHandlers: options.extensionHandlers,
     sessionModelAdapter: options.sessionModelAdapter,
     beforePrompt: options.beforePrompt,
+    steerByPromptHandoff: options.steerByPromptHandoff,
     sessionModesEnabled: options.sessionModesEnabled,
     initialSessionModeId: options.initialSessionModeId,
     declaredSessionLoadSupport: options.declaredSessionLoadSupport,

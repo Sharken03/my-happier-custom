@@ -186,6 +186,12 @@ export type AcpPromptFinalResponseEvidence =
       kind: 'accepted_without_exact_final_response';
     }>;
 
+/** One session/prompt request of the current turn that the agent has not answered. */
+type OpenTurnPrompt = Readonly<{
+  response: Promise<PromptResponse>;
+  emitUsage: (promptResponse: PromptResponse | unknown) => void;
+}>;
+
 export type AcpPromptSubmissionEvidence =
   | AcpPromptFinalResponseEvidence
   | Readonly<{
@@ -825,6 +831,13 @@ export interface AcpBackendOptions {
   /** Provider-owned in-flight steer extension. Omit to retain the ACP session/prompt contract. */
   inFlightSteer?: AcpInFlightSteerAdapter;
 
+  /**
+   * For agents without a steer command that end the running session/prompt when a second one
+   * arrives and continue its work under the second. The turn then stays open until no prompt of
+   * the turn is open.
+   */
+  steerByPromptHandoff?: boolean;
+
   /** Provider-owned projection for non-standard prompt usage fields and accounting semantics. */
   promptUsageAdapter?: AcpPromptUsageAdapter;
 
@@ -1026,6 +1039,8 @@ export class AcpBackend implements AgentBackend {
     generation: number;
     settled: Promise<void>;
   }> | null = null;
+  /** In dispatch order. More than one entry only with `steerByPromptHandoff`. */
+  private readonly openTurnPrompts = new Map<symbol, OpenTurnPrompt>();
 
   /** Transport handler for agent-specific behavior */
   private readonly transport: TransportHandler;
@@ -1205,6 +1220,7 @@ export class AcpBackend implements AgentBackend {
   /** Start a new response generation with its admitted policy, retiring timers and settlement state from the prior turn. */
   private beginResponseTurn(permissionContext?: AcpPermissionCallContext): void {
     this.turnGeneration++;
+    this.openTurnPrompts.clear();
     this.closedTurnGeneration = null;
     this.promptCompletionSettlement = null;
     this.dispatchedPromptTurnGeneration = null;
@@ -3298,11 +3314,16 @@ export class AcpBackend implements AgentBackend {
     promptResponse: PromptResponse | unknown,
     turnGeneration: number,
     emitPromptUsage: (promptResponse: PromptResponse | unknown) => void,
+    openPrompt?: symbol,
   ): boolean {
     if (this.disposed) return true;
     if (turnGeneration !== this.turnGeneration) return true;
     if (this.isTurnGenerationClosed(turnGeneration)) return true;
 
+    if (openPrompt && this.releaseTurnPrompt(openPrompt)) {
+      emitPromptUsage(promptResponse);
+      return true;
+    }
     if (this.pendingPromptResponseTurnGeneration === turnGeneration) {
       this.pendingPromptResponseTurnGeneration = null;
     }
@@ -3322,6 +3343,28 @@ export class AcpBackend implements AgentBackend {
 
     this.finalizeTurnOutcome(mapStopReasonToAcpTurnOutcome(stopReason));
     return true;
+  }
+
+  /** Forget a settled prompt of the current turn; true when another prompt of the turn is still open. */
+  private releaseTurnPrompt(openPrompt: symbol): boolean {
+    this.openTurnPrompts.delete(openPrompt);
+    return this.openTurnPrompts.size > 0;
+  }
+
+  /** Make a dispatched prompt part of the ownership boundary. A handed over prompt stays in it until it settles. */
+  private trackActivePromptRpc(turnGeneration: number, response: Promise<PromptResponse>): void {
+    const previous = this.activePromptRpc?.settled;
+    const settled = response.then(() => undefined, () => undefined);
+    const activePromptRpc = {
+      generation: turnGeneration,
+      settled: previous ? Promise.all([previous, settled]).then(() => undefined) : settled,
+    };
+    this.activePromptRpc = activePromptRpc;
+    void activePromptRpc.settled.then(() => {
+      if (this.activePromptRpc === activePromptRpc) {
+        this.activePromptRpc = null;
+      }
+    });
   }
 
   private abortPendingPermissionsForCurrentTurn(reason: string): void {
@@ -3519,15 +3562,21 @@ export class AcpBackend implements AgentBackend {
       permissionMode: this.options.getPermissionMode?.() ?? this.options.permissionMode ?? 'default',
     }) : undefined);
     const turnGeneration = this.turnGeneration;
+    const openPrompt = Symbol('acp-open-turn-prompt');
 
     type PromptErrorDisposition =
       | 'failed'
+      | 'ignored_after_handoff'
       | 'ignored_after_closed_turn';
     let promptErrorHandled = false;
     const handlePromptError = (error: unknown): PromptErrorDisposition => {
       if (turnGeneration !== this.turnGeneration || this.isTurnGenerationClosed(turnGeneration)) {
         logger.debug('[AcpBackend] Ignoring prompt error after turn generation closed:', error);
         return 'ignored_after_closed_turn';
+      }
+      if (this.releaseTurnPrompt(openPrompt)) {
+        logger.debug('[AcpBackend] Ignoring prompt error after a steer took over the turn:', error);
+        return 'ignored_after_handoff';
       }
       logger.debug('[AcpBackend] Error sending prompt:', error);
 
@@ -3674,16 +3723,8 @@ export class AcpBackend implements AgentBackend {
         await this.catchUpProviderTurns();
         return response;
       });
-      const activePromptRpc = {
-        generation: turnGeneration,
-        settled: promptPromise.then(() => undefined, () => undefined),
-      };
-      this.activePromptRpc = activePromptRpc;
-      void activePromptRpc.settled.then(() => {
-        if (this.activePromptRpc === activePromptRpc) {
-          this.activePromptRpc = null;
-        }
-      });
+      this.openTurnPrompts.set(openPrompt, { response: promptPromise, emitUsage: emitPromptUsage });
+      this.trackActivePromptRpc(turnGeneration, promptPromise);
       const finalResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = Promise.race([
         promptPromise,
         ...(privateCompletionResponse ? [privateCompletionResponse] : []),
@@ -3760,11 +3801,14 @@ export class AcpBackend implements AgentBackend {
         this.pendingPromptResponseTurnGeneration = turnGeneration;
         void promptPromise
           .then((res) => {
-            const completedTurn = this.handlePromptResponseForTurn(res, turnGeneration, emitPromptUsage);
+            const completedTurn = this.handlePromptResponseForTurn(res, turnGeneration, emitPromptUsage, openPrompt);
             if (!completedTurn) scheduleNoUpdateCompletionIfNeeded();
           })
           .catch(() => {
-            if (this.pendingPromptResponseTurnGeneration === turnGeneration) {
+            if (
+              this.pendingPromptResponseTurnGeneration === turnGeneration
+              && !this.releaseTurnPrompt(openPrompt)
+            ) {
               this.pendingPromptResponseTurnGeneration = null;
               this.idleStatusDeferredUntilPromptResponse = false;
             }
@@ -3804,7 +3848,7 @@ export class AcpBackend implements AgentBackend {
 
       // Best-effort: emit token usage when the ACP agent reports it in the PromptResponse.
       // ACP standardizes per-turn usage under `usage` (RFC: session-usage).
-      if (this.handlePromptResponseForTurn(promptResponse, turnGeneration, emitPromptUsage)) {
+      if (this.handlePromptResponseForTurn(promptResponse, turnGeneration, emitPromptUsage, openPrompt)) {
         return {
           kind: 'exact_final_response',
           response: promptResponse as PromptResponse,
@@ -3832,6 +3876,12 @@ export class AcpBackend implements AgentBackend {
       if (!promptErrorHandled) handlePromptError(error);
       throw toAcpPromptSubmissionPhaseError('effect_may_have_occurred', error);
     }
+  }
+
+  /** With prompt handoff a steer needs an open prompt to take over, so it waits until the first one is sent. */
+  isInFlightSteerOpen(): boolean {
+    if (this.options.steerByPromptHandoff !== true) return true;
+    return this.waitingForResponse && this.openTurnPrompts.size > 0;
   }
 
   async sendSteerPrompt(
@@ -3866,6 +3916,7 @@ export class AcpBackend implements AgentBackend {
     const turnGeneration = this.turnGeneration;
     // Native extensions may queue input between turns; projection must not outlive a turn that was open.
     const turnWasClosed = this.isTurnGenerationClosed(turnGeneration);
+    const handsOver = this.options.steerByPromptHandoff === true;
     const { metadata, ...deliveryIdentity } = options ?? {};
     const content = await buildAcpPromptContentBlocks({
       cwd: this.options.cwd,
@@ -3878,6 +3929,7 @@ export class AcpBackend implements AgentBackend {
       || this.acpSessionId !== normalizedSessionId
       || this.turnGeneration !== turnGeneration
       || (!turnWasClosed && this.isTurnGenerationClosed(turnGeneration))
+      || !this.isInFlightSteerOpen()
     ) {
       throw toAcpPromptSubmissionPhaseError(
         'rejected_before_effect',
@@ -3909,24 +3961,49 @@ export class AcpBackend implements AgentBackend {
     // This method is used for in-flight steering while a primary prompt is already running.
     const transportWriteReceipt = this.createAcpPromptTransportWriteReceipt(this.acpSessionId);
     const transportWriteSentinel = Symbol('acp-steer-transport-write');
+    const steeredPrompt = handsOver ? [...this.openTurnPrompts.values()].at(-1) : undefined;
+    const openPrompt = Symbol('acp-open-turn-prompt');
     const promptPromise = connection.peer.prompt(promptRequest);
-    const finalResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = promptPromise
+    if (steeredPrompt) {
+      this.openTurnPrompts.set(openPrompt, { response: promptPromise, emitUsage: steeredPrompt.emitUsage });
+      this.trackActivePromptRpc(turnGeneration, promptPromise);
+      this.pendingPromptResponseTurnGeneration = turnGeneration;
+    }
+    const promptResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = promptPromise
       .then((response): AcpPromptExactFinalResponseEvidence => {
-        this.handlePromptResponseForTurn(response, turnGeneration, () => {});
+        this.handlePromptResponseForTurn(
+          response,
+          turnGeneration,
+          steeredPrompt?.emitUsage ?? (() => {}),
+          steeredPrompt && openPrompt,
+        );
         return { kind: 'exact_final_response', response };
       })
       .catch((error: unknown) => {
-        if (!this.disposed && this.waitingForResponse) {
+        const turnContinues = steeredPrompt !== undefined
+          && (turnGeneration !== this.turnGeneration || this.releaseTurnPrompt(openPrompt));
+        if (!this.disposed && this.waitingForResponse && !turnContinues) {
           const normalizedError = error instanceof Error ? error : new Error(String(error));
           this.failPendingResponseWait(normalizedError);
           this.emit({ type: 'status', status: 'error', detail: normalizedError.message, error: normalizedError });
         }
         throw toAcpPromptSubmissionPhaseError('effect_may_have_occurred', error);
       });
+    // The agent has taken the steer when it ends the steered prompt. Waiting for the steer's own
+    // response would leave it unconfirmed, and the next steer behind it, until the turn ends.
+    const finalResponseEvidence: Promise<AcpPromptFinalResponseEvidence> = steeredPrompt
+      ? Promise.race([
+          promptResponseEvidence,
+          steeredPrompt.response.then(
+            (): AcpPromptFinalResponseEvidence => ({ kind: 'accepted_without_exact_final_response' }),
+            () => promptResponseEvidence,
+          ),
+        ])
+      : promptResponseEvidence;
     // The compatibility method intentionally returns after transport custody. Keep the exact
     // response evidence safe until an evidence-aware runtime elects to observe it.
     void finalResponseEvidence.catch(() => {});
-    let outcome: AcpPromptExactFinalResponseEvidence | typeof transportWriteSentinel;
+    let outcome: AcpPromptFinalResponseEvidence | typeof transportWriteSentinel;
     try {
       outcome = await Promise.race([
         finalResponseEvidence,

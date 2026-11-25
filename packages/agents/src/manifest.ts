@@ -601,6 +601,10 @@ export const AGENTS_CORE = {
         // The managed `agy_acp_server` ACP transport never shares session identity with it
         // until a real create → list/load round trip proves equivalence.
         localControl: { supported: true, topology: 'exclusive', attachStrategy: 'tmux' },
+        runtimeInput: {
+            inFlightSteerSupported: true,
+            terminalPromptInjectionSupported: false,
+        },
         tools: { delivery: 'native_mcp', support: 'supported' },
         media: {
             acceptsImageInput: 'experimental',

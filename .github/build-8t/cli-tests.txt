@@ -38,3 +38,4 @@ src/backends/pi/rpc/piExtensionDisplayState.test.ts
 src/backends/pi/rpc/PiRpcBackend.extensionUiRequest.test.ts
 src/daemon/memory/memoryWorker.test.ts
 src/rpc/handlers/capabilities.prewarm.test.ts
+src/agent/acp/__tests__/AcpBackend.steerByPromptHandoff.test.ts

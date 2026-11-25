@@ -17,6 +17,10 @@ describe('agent runtime input capability', () => {
       inFlightSteerSupported: true,
       terminalPromptInjectionSupported: false,
     });
+    expect(Reflect.get(AGENTS_CORE.agy, 'runtimeInput')).toEqual({
+      inFlightSteerSupported: true,
+      terminalPromptInjectionSupported: false,
+    });
   });
 
   it('re-exports the shared in-flight steer helper from the package root', () => {
