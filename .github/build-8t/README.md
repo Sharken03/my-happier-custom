@@ -38,6 +38,39 @@ a `modules` entry is only usable by the exact tree that produced it, so a lockfi
 change makes the previous entry unreachable forever — those are what gets deleted. Scopes are
 part of the cache identity, so pruning one workflow's scope can never remove another's live entry.
 
+## Is the Gradle cache worth its ~80-100 s and 2.9 GB?
+
+Measured 26/11-2026, same commit, `gh workflow run build-app.yml -f gradle_cache=false` against the
+normal push run:
+
+| | with cache | without cache (`cache-disabled`) |
+|---|---|---|
+| `Setup Gradle (with cache)` | 104 s | 5 s |
+| `Gradle assembleRelease` | 271 s | **failed after 45 s** |
+| result | published (the 403 below is unrelated) | `Could not resolve com.google.code.gson:gson:2.9.1 … Received status code 429` |
+
+So the comparison is not "80 s of restore versus N minutes of assembla": without the cache the
+build has to pull every Maven and plugin dependency in one burst and Maven Central rate-limits it,
+so the build cannot complete at all on a 2-CPU runner. Keep the cache. A cold Gradle build is not
+a slower build here, it is a broken one.
+
+The `gradle_cache` dispatch input stays as the lever to re-measure this (push runs always keep the
+cache). Two things to know when using it:
+
+- **Do not dispatch while a push run is queued for the same ref.** `cancel-in-progress: false`
+  keeps the *running* build, but GitHub replaces any *pending* run in the group with the newer
+  one — a dispatch therefore cancels a queued push run (it happened to `45719164446`).
+- A cache that is disabled also means the *modules* cache shows its real miss cost in the same
+  run: 346 s, against 63 s for a manifest hit.
+
+## Publish 403
+
+`gh release create` answered `HTTP 403: Resource not accessible by integration` three times in a
+row on run `45717579607` (26/11-2026), losing a completed 20-minute APK to the artifact path. The
+token had `contents: write`; the same workflow published minutes earlier and later. The retry loop
+in `publish/action.yml` spans 30 s + 60 s, which is short for a GitHub API incident — widening it
+is the obvious next lever if it recurs.
+
 ## The install action: why a hit no longer runs yarn
 
 `.github/actions/install-yarn-dependencies/action.yml`
