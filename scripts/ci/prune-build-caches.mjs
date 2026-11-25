@@ -55,11 +55,19 @@ export function planPrune(entries, options) {
     const deletions = [];
     const kept = [];
     for (const group of groups.values()) {
-        const ordered = [...group.entries].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+        const createdAt = (entry) => {
+            const parsed = Date.parse(entry.createdAt);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const ordered = [...group.entries].sort((a, b) => (createdAt(b) ?? Infinity) - (createdAt(a) ?? Infinity));
         ordered.forEach((entry, index) => {
-            const ageDays = (now - Date.parse(entry.createdAt)) / DAY_MS;
+            const created = createdAt(entry);
+            const ageDays = created === null ? null : (now - created) / DAY_MS;
             if (index < group.limit) {
                 kept.push({ ...entry, reason: 'newest in its group' });
+            } else if (ageDays === null) {
+                // An entry with no readable timestamp is never provably old, so it stays.
+                kept.push({ ...entry, reason: 'no usable createdAt' });
             } else if (ageDays < minAgeDays) {
                 kept.push({ ...entry, reason: `younger than ${minAgeDays} d` });
             } else {

@@ -4,12 +4,32 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import YAML from 'yaml';
-
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-function pushConfig(name) {
-    return YAML.parse(readFileSync(join(repoRoot, '.github', 'workflows', name), 'utf8')).on.push;
+/**
+ * The `paths` list of a trigger, read without a YAML dependency (this file must run with
+ * nothing but the repository's own tooling). Workflow files are machine-written, so a
+ * line scan under the `paths:` key is exact enough for string-level assertions.
+ */
+function pushPaths(name) {
+    const lines = readFileSync(join(repoRoot, '.github', 'workflows', name), 'utf8').split('\n');
+    const start = lines.findIndex((line) => /^\s+paths:\s*$/.test(line));
+    assert.notEqual(start, -1, `${name} has no paths list`);
+    const indent = lines[start].match(/^\s+/)[0].length;
+    const patterns = [];
+    for (const line of lines.slice(start + 1)) {
+        // The lists carry explanatory comments between patterns; they must not end the scan.
+        if (line.trim() === '' || /^\s*#/.test(line)) continue;
+        const match = /^(\s+)-\s+"(.*)"\s*$/.exec(line);
+        if (!match || match[1].length <= indent) break;
+        patterns.push(match[2]);
+    }
+    assert.ok(patterns.length > 0, `${name} has an empty paths list`);
+    return patterns;
+}
+
+function hasPathsIgnore(name) {
+    return /^\s+paths-ignore:\s*$/m.test(readFileSync(join(repoRoot, '.github', 'workflows', name), 'utf8'));
 }
 
 const isExclusion = (pattern) => pattern.startsWith('!');
@@ -22,7 +42,7 @@ const isExclusion = (pattern) => pattern.startsWith('!');
  */
 for (const workflow of ['build-app.yml', 'build-cli.yml']) {
     test(`${workflow}: exclusions come after every positive pattern`, () => {
-        const paths = pushConfig(workflow).paths;
+        const paths = pushPaths(workflow);
         assert.ok(Array.isArray(paths) && paths.length > 0, 'the trigger is an include list');
         const firstExclusion = paths.findIndex(isExclusion);
         assert.notEqual(firstExclusion, -1, 'markdown must be excluded somewhere');
@@ -35,7 +55,7 @@ for (const workflow of ['build-app.yml', 'build-cli.yml']) {
 }
 
 test('build-app.yml: the test lists no APK build reads are carved out', () => {
-    const paths = pushConfig('build-app.yml').paths;
+    const paths = pushPaths('build-app.yml');
     for (const list of ['ui-tests.txt', 'cli-tests.txt', 'protocol-tests.txt']) {
         assert.ok(paths.includes(`!.github/build-8t/${list}`), `${list} only feeds the other workflows`);
     }
@@ -43,7 +63,7 @@ test('build-app.yml: the test lists no APK build reads are carved out', () => {
 });
 
 test('build-app.yml: a markdown-only change matches no pattern, so no run starts', () => {
-    const paths = pushConfig('build-app.yml').paths;
+    const paths = pushPaths('build-app.yml');
     // Mirror the documented evaluation: later patterns win, so replay in order.
     const decide = (file) => paths.reduce((included, pattern) => {
         const negated = isExclusion(pattern);
@@ -64,7 +84,8 @@ test('build-app.yml: a markdown-only change matches no pattern, so no run starts
 });
 
 test('build-web.yml: it keeps an ignore list, so markdown alone cannot start an export', () => {
-    const push = pushConfig('build-web.yml');
-    assert.equal(push.paths, undefined, 'switching to `paths` without the ordering rule reintroduces the bug');
-    assert.ok(push['paths-ignore'].includes('**/*.md'));
+    assert.ok(hasPathsIgnore('build-web.yml'),
+        'switching to `paths` without the ordering rule reintroduces the markdown bug');
+    const source = readFileSync(join(repoRoot, '.github', 'workflows', 'build-web.yml'), 'utf8');
+    assert.match(source, /^\s+- "\*\*\/\*\.md"$/m, 'markdown must stay ignored');
 });

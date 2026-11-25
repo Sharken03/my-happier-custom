@@ -77,6 +77,12 @@ jobs:
       - name: Report disk
         run: df -h /
 
+      # The fork's own CI scripts: the cache manifest the install action verifies, the
+      # retention planner, and the trigger-path guards. Pure node:test, ~2 s, no typecheck.
+      - name: Run the fork CI script tests
+        if: ${{ matrix.task == 'typecheck' }}
+        run: node --test scripts/ci/*.test.mjs scripts/pipeline/ci/workflow_dependency_cache.contract.test.mjs
+
       - name: Typecheck apps/ui
         if: ${{ matrix.task == 'typecheck' }}
         working-directory: apps/ui

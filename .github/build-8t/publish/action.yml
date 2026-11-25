@@ -87,4 +87,11 @@ runs:
       # covers the families it does not: a modules entry is bound to the exact install tree
       # that produced it, so a lockfile rotation leaves the old one unreachable forever,
       # and at ~1.6 GB per scope those entries are what fills the 10 GB budget (15/11-2026).
+      #
+      # Housekeeping is best effort: the release is already published at this point, the
+      # Gradle group is shared by all three workflows, and a delete another publish performed
+      # a moment earlier answers 404. Failing the run over that would report a released build
+      # as broken, so a prune failure only warns. Nothing is lost by not pruning; a live entry
+      # is never a prune target.
+      continue-on-error: true
       run: node scripts/ci/prune-build-caches.mjs

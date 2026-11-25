@@ -84,3 +84,14 @@ test('freed bytes report what a dry run would reclaim', () => {
     assert.equal(plan.deletions.length, 1);
     assert.equal(plan.freedBytes, 1500 * 1024 * 1024);
 });
+
+test('an entry without a usable timestamp is kept, never treated as infinitely old', () => {
+    const entries = [
+        entry(1, `${MODULES_UI}-${hash(1)}`, 1),
+        { id: 2, key: `${MODULES_UI}-${hash(2)}`, createdAt: undefined, sizeInBytes: 1024 },
+        { id: 3, key: `${MODULES_UI}-${hash(3)}`, createdAt: 'not a date', sizeInBytes: 1024 },
+    ];
+    const plan = planPrune(entries, { now, minAgeDays: 7, keepModules: 1, keepGradle: 1 });
+    assert.deepEqual(plan.deletions, [], 'no timestamp means no proof that the entry is stale');
+    assert.deepEqual(plan.kept.map((k) => k.id).sort(), [1, 2, 3]);
+});
