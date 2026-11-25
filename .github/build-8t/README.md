@@ -67,9 +67,17 @@ cache). Two things to know when using it:
 
 `gh release create` answered `HTTP 403: Resource not accessible by integration` three times in a
 row on run `45717579607` (26/11-2026), losing a completed 20-minute APK to the artifact path. The
-token had `contents: write`; the same workflow published minutes earlier and later. The retry loop
-in `publish/action.yml` spans 30 s + 60 s, which is short for a GitHub API incident — widening it
-is the obvious next lever if it recurs.
+token had `contents: write`; the same workflow published minutes earlier and later.
+
+The retry is now minutes long instead of 90 s: `scripts/ci/publish-retry.mjs` classifies the failure
+and returns the next delay (30, 60, 120, 240 s — five tries, ~7.5 min of waiting), or refuses at
+once for a 4xx that cannot improve (401, 404, 422, `already_exists`). An unrecognised `gh` message is
+retried, because the tag is deleted before every try, so a wrong guess costs a sleep rather than a
+malformed release. The four sleeps fit the APK job's 90-minute budget with ~60 min to spare.
+
+A misconfigured `permissions:` block would produce the same 403 wording, so it would now be retried
+for ~7.5 min before failing. All three workflows grant `contents: write`; if a publish starts
+failing consistently, check that block before the incident theory.
 
 ## The install action: why a hit no longer runs yarn
 
