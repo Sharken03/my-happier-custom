@@ -3,7 +3,7 @@ name: Build CLI
 # Private build of the Happier CLI (@happier-dev/cli) from this branch, as the npm tarball that
 # upstream publishes. The 8T installs it with happy/server/update-happier-cli --tarball <url>
 # instead of the npm release, so CLI changes of the fork (chat folders, Android locks) reach the
-# daemon. Each run publishes one prerelease (8t-cli-<short sha>-<run number>) and keeps the newest 3.
+# daemon. Each run publishes one prerelease (8t-cli-<short sha>-<run number>) and keeps the newest 5.
 
 on:
   push:
@@ -11,7 +11,6 @@ on:
       - sharken/8t
     paths:
       - "apps/cli/**"
-      - "!**/*.md"
       - ".github/build-8t/cli-tests.txt"
       - ".github/build-8t/protocol-tests.txt"
       - "packages/agents/**"
@@ -23,6 +22,9 @@ on:
       - "package.json"
       - "yarn.lock"
       - ".github/workflows/build-cli.yml"
+      # Exclusions last: GitHub applies `paths` in order, so a positive pattern after an
+      # exclusion re-includes the excluded files.
+      - "!**/*.md"
   workflow_dispatch:
 
 concurrency:

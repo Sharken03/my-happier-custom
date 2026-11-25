@@ -8,10 +8,16 @@ changing a trigger, a cache key, or the install action.
 
 | workflow | trigger shape | notes |
 |---|---|---|
-| `build-app.yml` | include list (`apps/ui/**`, `packages/**`, manifests, `.github/actions/**`, `.github/build-8t/**` minus the two test lists and `protocol-tests.txt`) | an APK run costs 15-50 min, so anything that cannot reach the APK must be carved out |
+| `build-app.yml` | include list (`apps/ui/**`, `packages/**`, manifests, `.github/actions/**`, `.github/build-8t/**`) with every exclusion last (`ui-tests.txt`, `cli-tests.txt`, `protocol-tests.txt`, `apps/ui/public/**`, markdown) | an APK run costs 15-50 min, so anything that cannot reach the APK must be carved out |
 | `build-web.yml` | `paths-ignore` list | still fires for `docs/`, `apps/stack/`, `dagger/`, `scripts/` pushes; tightening it to an include list is the next known saving |
 | `build-cli.yml` | include list (`apps/cli/**`, six `packages/*`, manifests) | misses `.github/actions/**`, `.node-version`, `scripts/postinstall/**` — shared-action breakage is found later |
 | `typecheck.yml` | any `typecheck/**` branch, or dispatch | two jobs, each installing; `save-cache` can never be true for the normal trigger |
+
+**Order of `paths` matters.** GitHub evaluates an include list in order, so a positive pattern
+placed after an exclusion re-includes what the exclusion removed. On 26/11-2026 a push that only
+added `.github/build-8t/README.md` started a full APK build, because `.github/build-8t/**` was
+listed after `!**/*.md`. Every exclusion now sits at the end of the list, and
+`scripts/ci/build-trigger-paths.test.mjs` fails if a positive pattern is added after one.
 
 `concurrency` groups are per workflow, so the web export never cancels the APK build.
 `build-app` uses `cancel-in-progress: false` on purpose: a cancelled APK loses up to an hour and

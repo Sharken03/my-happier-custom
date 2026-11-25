@@ -1,13 +1,14 @@
 name: Publish prerelease
 description: >
   Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
-  newest 5 prereleases of that kind, and keep only the newest Metro and ccache cache of that kind. The web
+  newest 5 prereleases of that kind, keep only the newest Metro and ccache cache of that kind, and prune
+  superseded dependency and Gradle caches (scripts/ci/prune-build-caches.mjs). The web
   export and the APK publish separately, so a failed or cancelled APK build does not hold back
   the web export. Needs GH_TOKEN with contents: write and actions: write.
 
 inputs:
   kind:
-    description: "'web' or 'app'; part of the tag and of the Metro cache key prefix"
+    description: "'web', 'app' or 'cli'; part of the tag and of the Metro cache key prefix"
     required: true
   path:
     description: Folder with the files to publish
@@ -77,3 +78,13 @@ runs:
           gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
             while read -r id; do gh cache delete "$id"; done
         done
+    - name: Prune superseded dependency and Gradle caches
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      # The publish step above already keeps one Metro and one ccache entry per kind. This
+      # covers the families it does not: a modules entry is bound to the exact install tree
+      # that produced it, so a lockfile rotation leaves the old one unreachable forever,
+      # and at ~1.6 GB per scope those entries are what fills the 10 GB budget (15/11-2026).
+      run: node scripts/ci/prune-build-caches.mjs

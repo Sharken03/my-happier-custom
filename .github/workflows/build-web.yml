@@ -2,7 +2,7 @@ name: Build web
 
 # Private build of the Happier web UI for the OnePlus 8T, with the self-hosted relay in
 # HAPPIER_8T_SERVER_URL as the default server. Each run publishes one prerelease
-# (8t-web-<short sha>-<run number>) and keeps the newest 3. The web export and the APK are
+# (8t-web-<short sha>-<run number>) and keeps the newest 5. The web export and the APK are
 # separate workflows, so one does not wait for, block or cancel the other.
 
 on:
