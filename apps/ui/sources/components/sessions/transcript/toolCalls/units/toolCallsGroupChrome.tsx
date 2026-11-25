@@ -329,6 +329,9 @@ const chromeStyles = StyleSheet.create((theme) => ({
     },
     title: {
         flexGrow: 1,
+        // Native text does not shrink by default. Without this, a long summary pushes the icons out of the row.
+        flexShrink: 1,
+        minWidth: 0,
         color: theme.colors.text.secondary,
         fontSize: 13,
         ...Typography.default('semiBold'),

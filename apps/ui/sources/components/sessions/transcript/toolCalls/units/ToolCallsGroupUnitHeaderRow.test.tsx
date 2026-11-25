@@ -346,6 +346,25 @@ describe('ToolCallsGroupUnitHeaderRow', () => {
         expect(withoutImages.findByTestId('transcript-tool-calls-header-images')).toBeNull();
     });
 
+    it('lets a long summary shrink to one line, so the status icon and caret stay in the row', async () => {
+        const screen = await renderHeaderRow({
+            toolMessages: [
+                createToolCallMessageFixture({ id: 'm1', createdAt: 1, tool: { name: 'Bash', state: 'completed', input: { command: 'ls' } } as any }),
+            ],
+        });
+
+        const header = screen.findByTestId('transcript-tool-calls-header') as any;
+        const summary = header.findAll((node: any) =>
+            typeof node.type === 'string' && node.props.numberOfLines === 1,
+        )[0];
+        expect(summary).toBeDefined();
+        // Native text does not shrink by default, unlike text in a browser.
+        const style = flattenStyleProp(summary.props.style);
+        expect(style.flexShrink).toBe(1);
+        expect(style.minWidth).toBe(0);
+        expect(style.flexGrow).toBe(1);
+    });
+
     it('renders nothing for an empty group', async () => {
         const screen = await renderHeaderRow({ toolMessages: [] });
         expect(screen.findByTestId('transcript-tool-calls-header')).toBeNull();
