@@ -31,6 +31,11 @@ on:
       - "!.github/build-8t/protocol-tests.txt"
       - "!**/*.md"
   workflow_dispatch:
+    inputs:
+      gradle_cache:
+        description: "Restore the Gradle cache (turn off to measure what it is worth)"
+        type: boolean
+        default: true
 
 # A newer push waits for the running build instead of cancelling it (a cancelled build loses up to
 # an hour); GitHub keeps only the newest waiting run.
@@ -209,6 +214,11 @@ jobs:
           cache-provider: basic
           # Only sharken/8t (the default branch) writes the Gradle cache; other branches read it.
           cache-read-only: ${{ github.ref != 'refs/heads/sharken/8t' }}
+          # A dispatch can skip the cache to measure what restoring it is worth: it costs ~80 s
+          # here and holds ~2.9 GB of the 10 GB repository budget, which only pays off if the
+          # assemble step is more than that slower without it. Push runs always use the cache
+          # (they have no inputs, and the event check keeps a null input from disabling it).
+          cache-disabled: ${{ github.event_name == 'workflow_dispatch' && inputs.gradle_cache == false }}
 
       # The last fallback restores a cache from another lockfile or patch set. That is safe:
       # Metro keys each file by its content and the transform config, so changed files miss.

@@ -9,16 +9,30 @@ on:
   push:
     branches:
       - sharken/8t
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "termux/**"
-      - ".github/workflows/build-app.yml"
-      - ".github/build-8t/app.local.cjs"
-      - ".github/workflows/build-cli.yml"
-      - "apps/cli/**"
-      - ".github/build-8t/cli-tests.txt"
-      - "apps/server/**"
+    # Only what the web export consumes. An ignore list let pushes that touch docs, apps/stack,
+    # dagger or CI scripts start a full export; measured over the last eight runs, two of them
+    # (25 %) could not have changed the bundle.
+    paths:
+      - "apps/ui/**"
+      - "packages/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".yarnrc*"
+      - ".node-version"
+      - "patches/**"
+      - "scripts/postinstall/**"
+      - "scripts/pipeline/expo/**"
+      - "scripts/pipeline/release/build-ui-web-bundle.mjs"
+      - "apps/ui/tools/**"
+      - ".github/actions/**"
+      - ".github/build-8t/ui-tests.txt"
+      - ".github/build-8t/free-disk/**"
+      - ".github/build-8t/publish/**"
+      - ".github/workflows/build-web.yml"
+      # Exclusions last: GitHub applies `paths` in order, so a positive pattern placed after an
+      # exclusion re-includes the excluded files (see .github/build-8t/README.md).
+      - "!apps/ui/public/**"
+      - "!**/*.md"
   workflow_dispatch:
 
 concurrency:

@@ -21,6 +21,14 @@ on:
       - "packages/transfers/**"
       - "package.json"
       - "yarn.lock"
+      - ".yarnrc*"
+      - ".node-version"
+      - "scripts/postinstall/**"
+      # The CLI build installs through the shared action, so a change to it must exercise this
+      # build rather than be found later by whichever workflow happens to fire.
+      - ".github/actions/**"
+      - ".github/build-8t/free-disk/**"
+      - ".github/build-8t/publish/**"
       - ".github/workflows/build-cli.yml"
       # Exclusions last: GitHub applies `paths` in order, so a positive pattern after an
       # exclusion re-includes the excluded files.
