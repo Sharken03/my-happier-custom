@@ -48,9 +48,24 @@ runs:
           packages/*/node_modules
         # Exact keys only: never restore a tree installed for another lockfile,
         # patch set, Node runtime, libc ABI, architecture, or install scope.
-        key: modules-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime.outputs.node }}-${{ steps.runtime.outputs.libc }}-${{ steps.runtime.outputs.tree }}-${{ steps.runtime.outputs.scope }}-${{ hashFiles('yarn.lock', '.yarnrc*', '.node-version', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'apps/*/modules/*/package.json', 'apps/*/patches/**', 'packages/*/patches/**', 'scripts/postinstall/**', 'apps/ui/tools/**', 'apps/cli/scripts/postinstall/**') }}
-    - name: Drop restored workspace bundle copies
+        key: modules-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime.outputs.node }}-${{ steps.runtime.outputs.libc }}-${{ steps.runtime.outputs.tree }}-${{ steps.runtime.outputs.scope }}-${{ hashFiles('yarn.lock', '.yarnrc*', '.node-version', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'apps/*/modules/*/package.json', 'apps/*/patches/**', 'packages/*/patches/**', 'scripts/postinstall/**', 'apps/ui/tools/**', 'apps/cli/scripts/postinstall/**', 'scripts/ci/dependency-cache-manifest.mjs') }}
+    - name: Verify the restored modules cache manifest
+      id: cache-manifest
       if: steps.dependencies.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        set -uo pipefail
+        # A structural fingerprint of the saved tree, not a yarn install: yarn v1 never
+        # reports this workspace repo's restored tree as up to date, so its check would
+        # re-link everything (~5 min) on every hit. Exit 2 means the entry predates the
+        # manifest; the cache key covers this script, so that cannot happen after a change.
+        #
+        # `|| true` is load-bearing: the runner shell keeps `-e`, so without it exit 1 on a
+        # real mismatch would fail the job instead of routing it to the repair path.
+        node scripts/ci/dependency-cache-manifest.mjs verify --github-output || true
+
+    - name: Drop restored workspace bundle copies
+      if: steps.dependencies.outputs.cache-hit == 'true' && steps.cache-manifest.outputs.matches != 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -59,7 +74,7 @@ runs:
         # predate the current source, and app sources resolve it before the workspace package.
         # Removing it leaves the tree a fresh install produces; third-party packages stay cached.
         rm -rf apps/*/node_modules/@happier-dev
-    - name: Verify restored dependencies and refresh workspace setup
+    - name: Restore the workspace setup (and repair the tree only if the manifest did not match)
       if: steps.dependencies.outputs.cache-hit == 'true'
       shell: bash
       env:
@@ -67,15 +82,19 @@ runs:
         # Same registry pin as yarn-install-with-retry.sh: dodge yarnpkg.com 5xx throttling.
         # (Composite-action env keys are case-insensitive, so only one of the two casings.)
         npm_config_registry: https://registry.npmjs.org/
-      # Same flags as the installer and the save-time verification, never --offline:
-      # yarn v1 cannot short-circuit to "Already up-to-date" under mismatched flags and
-      # then demands registry tarballs (it fails in ~1 s and the fallback silently pays a
-      # full re-link). Direct run, not the retry wrapper, so the log shows which of the
-      # two cases happened. If the tree is broken the fallback still repairs it.
       run: |
         set -euo pipefail
-        if ! yarn install ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive; then
-          echo "::warning::Installed dependency tree failed verification; repairing with the canonical installer"
+        if [ "${{ steps.cache-manifest.outputs.matches }}" = "true" ]; then
+          # The restored tree is byte-for-byte the post-install snapshot that was saved:
+          # same folders, same symlink targets, same .yarn-integrity. yarn install would
+          # rebuild exactly this and cost minutes, so only the postinstall outputs that
+          # live outside node_modules are refreshed below.
+          echo "Restored modules tree matches its saved manifest; skipping yarn install."
+        elif yarn install ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive; then
+          echo "Repaired the restored modules tree without the canonical installer retry."
+        else
+          echo "::warning::Restored modules tree failed verification; repairing with the canonical installer. "
+          echo "::warning::This cache entry stays stale: delete it with gh cache delete and let the next miss recreate it."
           bash scripts/ci/yarn-install-with-retry.sh ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive
         fi
         # Yarn's no-op install does not regenerate outputs outside node_modules.
@@ -92,29 +111,16 @@ runs:
       run: |
         set -euo pipefail
         bash scripts/ci/yarn-install-with-retry.sh ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive
-    # A tree is cached only if yarn itself reports it up-to-date right after this install.
-    # The restore-time check must never need the repair path; if this verification cannot
-    # pass, the cache would serve a tree that every future restore pays ~5 minutes to repair,
-    # so the save is skipped (with a loud warning) instead of poisoning the modules cache.
-    - name: Verify the installed tree before saving the modules cache
-      id: verify-before-save
-      if: steps.dependencies.outputs.cache-hit != 'true'
+    # The manifest is what a hit costs: one directory walk instead of a full install.
+    # It has to be written after the install and before the save, so the cached tree and
+    # the fingerprint travel together; a failure here skips the save rather than caching
+    # a tree that no later run can verify.
+    - name: Write the modules cache manifest
+      if: steps.dependencies.outputs.cache-hit != 'true' && inputs.save-cache != 'false'
       shell: bash
-      env:
-        ONNXRUNTIME_NODE_INSTALL_CUDA: skip
-        # Same registry pin as yarn-install-with-retry.sh: dodge yarnpkg.com 5xx throttling.
-        # (Composite-action env keys are case-insensitive, so only one of the two casings.)
-        npm_config_registry: https://registry.npmjs.org/
-      run: |
-        set -euo pipefail
-        if yarn install ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive; then
-          echo 'save=true' >> "$GITHUB_OUTPUT"
-        else
-          echo "::warning::Freshly installed dependency tree failed the up-to-date verification; skipping the modules cache save"
-          echo 'save=false' >> "$GITHUB_OUTPUT"
-        fi
+      run: node scripts/ci/dependency-cache-manifest.mjs write
     - name: Save installed dependencies
-      if: steps.dependencies.outputs.cache-hit != 'true' && inputs.save-cache != 'false' && steps.verify-before-save.outputs.save == 'true'
+      if: steps.dependencies.outputs.cache-hit != 'true' && inputs.save-cache != 'false'
       uses: actions/cache/save@v4
       with:
         path: |
