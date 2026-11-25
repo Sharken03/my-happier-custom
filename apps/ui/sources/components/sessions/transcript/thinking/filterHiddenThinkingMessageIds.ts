@@ -41,3 +41,9 @@ export function filterHiddenThinkingMessageIds(params: Readonly<{
         forkBoundaryBeforeMessageIds: visibleBoundaries ?? boundaries,
     };
 }
+
+/** The messages the transcript shows, with the same rule as `filterHiddenThinkingMessageIds`. */
+export function filterHiddenThinkingMessages(messages: readonly Message[], thinkingDisplayMode: unknown): readonly Message[] {
+    if (thinkingDisplayMode !== 'hidden') return messages;
+    return messages.filter((message) => !isHiddenThinkingMessage(message));
+}
