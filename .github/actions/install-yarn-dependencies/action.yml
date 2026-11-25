@@ -65,8 +65,8 @@ runs:
       env:
         ONNXRUNTIME_NODE_INSTALL_CUDA: skip
         # Same registry pin as yarn-install-with-retry.sh: dodge yarnpkg.com 5xx throttling.
+        # (Composite-action env keys are case-insensitive, so only one of the two casings.)
         npm_config_registry: https://registry.npmjs.org/
-        NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
       # Same flags as the installer and the save-time verification, never --offline:
       # yarn v1 cannot short-circuit to "Already up-to-date" under mismatched flags and
       # then demands registry tarballs (it fails in ~1 s and the fallback silently pays a
@@ -87,8 +87,8 @@ runs:
       env:
         ONNXRUNTIME_NODE_INSTALL_CUDA: skip
         # Same registry pin as yarn-install-with-retry.sh: dodge yarnpkg.com 5xx throttling.
+        # (Composite-action env keys are case-insensitive, so only one of the two casings.)
         npm_config_registry: https://registry.npmjs.org/
-        NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
       run: |
         set -euo pipefail
         bash scripts/ci/yarn-install-with-retry.sh ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive
@@ -103,8 +103,8 @@ runs:
       env:
         ONNXRUNTIME_NODE_INSTALL_CUDA: skip
         # Same registry pin as yarn-install-with-retry.sh: dodge yarnpkg.com 5xx throttling.
+        # (Composite-action env keys are case-insensitive, so only one of the two casings.)
         npm_config_registry: https://registry.npmjs.org/
-        NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
       run: |
         set -euo pipefail
         if yarn install ${{ inputs.args }} --network-timeout 600000 --prefer-offline --non-interactive; then
