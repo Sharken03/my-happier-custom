@@ -477,7 +477,7 @@ import {
     type PendingMessageComposerSemanticDraftSnapshot as ComposerSemanticDraftSnapshot,
 } from './pendingMessageComposerEditSnapshot';
 import { useSessionViewedLifecycle } from './view/useSessionViewedLifecycle';
-import { DeferredComposerSlot } from './view/DeferredComposerSlot';
+import { readRememberedComposerHeight, rememberComposerHeight, useDeferredComposerAfterOpen } from './view/useDeferredComposerAfterOpen';
 import { useSessionSurfaceActivation } from './view/useSessionSurfaceActivation';
 import { resolveSessionAuthSurfaceState, type SessionAuthSurfaceState } from './sessionAuthSurfaceState';
 import { useSessionRuntimeStatusSource } from './useSessionRuntimeStatusSource';
@@ -2554,6 +2554,7 @@ function SessionViewLoaded({
     const composerTextStore = useComposerTextStore(() => '');
     const realtimeStatus = useRealtimeStatus();
     const deferComposerOnOpen = useSetting('sessionOpenDeferComposerV1') === true;
+    const composerReady = useDeferredComposerAfterOpen(sessionId, deferComposerOnOpen);
     const transcriptMessageSelectionEnabled = useSetting('transcriptMessageSelectionEnabled');
     const transcriptMessageSendToSessionEnabled = useSetting('transcriptMessageSendToSessionEnabled');
     const transcriptMessageSendToSessionTemplate = useSetting('transcriptMessageSendToSessionTemplate');
@@ -6318,8 +6319,12 @@ function SessionViewLoaded({
         if (resolved.kind !== 'send') return;
         void sendComposerText(resolved.text, composerMessage, sendOptions);
     });
-    const input = !shouldShowInput ? null : (
-        <DeferredComposerSlot sessionId={sessionId} enabled={deferComposerOnOpen}>
+    const input = !shouldShowInput ? null : !composerReady ? (
+        // Placeholder with the last composer height, so the transcript does not move when the
+        // composer mounts (setting sessionOpenDeferComposerV1).
+        <View style={{ height: readRememberedComposerHeight() }} />
+    ) : (
+        <View onLayout={(event) => rememberComposerHeight(event.nativeEvent.layout.height)}>
             {voiceEnabled && voiceProviderId !== 'off' && !isHiddenSystemSessionSession ? <VoiceSurface variant="session" sessionId={sessionId} /> : null}
             {authSurfaceState && !authRecoveryBanner.collapsed ? (
                 <ComposerAuxiliaryFrame>
@@ -6570,7 +6575,7 @@ function SessionViewLoaded({
                     multiple
                 />
             ) : null}
-        </DeferredComposerSlot>
+        </View>
     );
 
     const transcriptSelectionToolbar = transcriptMessageSelectionEnabled === true ? (

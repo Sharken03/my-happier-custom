@@ -55,7 +55,6 @@ import {
     resolveTranscriptFirstPaintFallbackDelayMs,
     resolveTranscriptFirstPaintPresentation,
 } from '@/components/sessions/transcript/paint/transcriptFirstPaintPresentation';
-import { notifyTranscriptContentRevealed } from '@/components/sessions/transcript/paint/transcriptContentRevealSignal';
 import type { SessionOpenLatch } from '@/components/sessions/transcript/viewport/sessionOpen/sessionOpenLatch';
 import type { SessionOpenLatchEffect } from '@/components/sessions/transcript/viewport/sessionOpen/types';
 import type { EntryRestoreOwner } from '@/components/sessions/transcript/viewport/entryRestore/entryRestoreOwner';
@@ -1020,8 +1019,6 @@ export function useTranscriptFirstPaintState(deps: TranscriptFirstPaintStateDeps
         const record = revealedPaintedContentRef.current;
         if (record.revealed || record.generation !== renderedRevealRecordGeneration) return;
         revealedPaintedContentRef.current = { ...record, revealed: true };
-        // Work held back until the reader can see the rows (the deferred composer) starts now.
-        notifyTranscriptContentRevealed(record.sessionId);
     });
     const showFirstPaintPlaceholder = presentation.covered;
     const showRouteHydrationFirstPaintPlaceholder =
