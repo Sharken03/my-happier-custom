@@ -1,4 +1,5 @@
 import type { AgentMessage } from '@/agent/core';
+import { isHiddenPiSubagentNotice } from '../piSubagentNoticeVisibility';
 import { extractAcpMediaContentBlocks } from '@/agent/acp/media/extractAcpMediaContentBlocks';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -83,6 +84,7 @@ function extractAssistantText(message: unknown): string | null {
 function extractDisplayedCustomText(message: unknown): string | null {
   const record = asRecord(message);
   if (!record || record.role !== 'custom' || record.display !== true) return null;
+  if (isHiddenPiSubagentNotice(record.customType)) return null;
   if (typeof record.content === 'string') return record.content;
   if (!Array.isArray(record.content)) return null;
   const parts: string[] = [];

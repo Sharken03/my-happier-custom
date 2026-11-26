@@ -309,6 +309,15 @@ describe('mapPiSessionToDirectMessages', () => {
     expect(items[0]!.raw).toEqual({ role: 'user', content: { type: 'text', text: 'injected context' } });
   });
 
+  it('skips pi-subagents notices in history by default', () => {
+    const entries = [
+      entry({ type: 'custom_message', id: 'notice01', parentId: null, customType: 'subagent_control_notice', content: 'reviewer needs attention', display: true }),
+      entry({ type: 'custom_message', id: 'inbox001', parentId: 'notice01', customType: 'agent-inbox', content: 'From another agent', display: true }),
+    ];
+    const items = mapPiSessionToDirectMessages({ entries, fileRelPath: FILE_REL });
+    expect(ids(items)).toEqual([`pi:${FILE_REL}:inbox001`]);
+  });
+
   it('strips inline image bytes from tool results while preserving visible content order', () => {
     const entries = [entry({
       type: 'message', id: 'tool0001', parentId: null,

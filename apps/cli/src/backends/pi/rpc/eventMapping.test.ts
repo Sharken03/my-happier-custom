@@ -132,6 +132,23 @@ describe('mapPiRpcEventToAgentMessages', () => {
     })).toEqual([{ type: 'user-message', text: 'part one\npart two' }]);
   });
 
+  it('hides pi-subagents notices unless HAPPIER_PI_SHOW_SUBAGENT_NOTICES=1', () => {
+    const event = {
+      type: 'message_end',
+      message: { role: 'custom', customType: 'subagent_supervisor_request', content: 'Subagent needs a supervisor decision.', display: true },
+    };
+    const previous = process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+    try {
+      delete process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+      expect(mapPiRpcEventToAgentMessages(event)).toEqual([]);
+      process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES = '1';
+      expect(mapPiRpcEventToAgentMessages(event)).toEqual([{ type: 'user-message', text: 'Subagent needs a supervisor decision.' }]);
+    } finally {
+      if (previous === undefined) delete process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+      else process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES = previous;
+    }
+  });
+
   it('keeps a hidden custom message hidden', () => {
     expect(mapPiRpcEventToAgentMessages({
       type: 'message_end',
