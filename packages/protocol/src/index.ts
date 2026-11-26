@@ -3768,9 +3768,11 @@ export {
   PiChatChangesFileSchema,
   PiChatChangesListRequestSchema,
   PiChatChangesListResponseSchema,
+  PiChatChangesRepoFileSchema,
   type PiChatChangesDiffRequest,
   type PiChatChangesDiffResponse,
   type PiChatChangesFile,
+  type PiChatChangesRepoFile,
   type PiChatChangesListRequest,
   type PiChatChangesListResponse,
 } from './piChatChanges.js';

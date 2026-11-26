@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { lazySchema } from './lazySchema.js';
 
 /**
- * Pi chat changes: files a Pi chat (and its subagents) changed outside any git repository.
+ * Pi chat changes: files a Pi chat (and its subagents) changed outside any git repository, and
+ * files they changed in a git repository other than the chat's own.
  * A Pi extension keeps a copy of each file as it was before the chat's first change; the Pi
  * session answers `pi.chatChanges.list` and `pi.chatChanges.diff` from that store.
  */
@@ -28,10 +29,27 @@ export const PiChatChangesFileSchema = lazySchema(() => z.object({
 }));
 export type PiChatChangesFile = z.infer<typeof PiChatChangesFileSchema>;
 
+/**
+ * A file the chat changed in a git repository other than its own. The store keeps no copy:
+ * the app reads status and diff from git in `repoRoot`.
+ */
+export const PiChatChangesRepoFileSchema = lazySchema(() => z.object({
+  path: z.string(),
+  repoRoot: z.string(),
+  /** Time of the last change, in ms. */
+  updatedAt: z.number(),
+}));
+export type PiChatChangesRepoFile = z.infer<typeof PiChatChangesRepoFileSchema>;
+
 const PiChatChangesErrorSchema = lazySchema(() => z.object({ ok: z.literal(false), error: z.string() }));
 
 export const PiChatChangesListResponseSchema = lazySchema(() => z.discriminatedUnion('ok', [
-  z.object({ ok: z.literal(true), files: z.array(PiChatChangesFileSchema) }),
+  z.object({
+    ok: z.literal(true),
+    files: z.array(PiChatChangesFileSchema),
+    /** Absent from a CLI that does not know other repositories. */
+    repoFiles: z.array(PiChatChangesRepoFileSchema).optional(),
+  }),
   PiChatChangesErrorSchema,
 ]));
 export type PiChatChangesListResponse = z.infer<typeof PiChatChangesListResponseSchema>;

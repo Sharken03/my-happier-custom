@@ -9,6 +9,7 @@ import {
   type PiChatChangesDiffResponse,
   type PiChatChangesFile,
   type PiChatChangesListResponse,
+  type PiChatChangesRepoFile,
 } from '@happier-dev/protocol';
 import { SESSION_RPC_METHODS } from '@happier-dev/protocol/rpc';
 import { countReplacementLines } from '@happier-dev/protocol/tools/v2';
@@ -25,6 +26,8 @@ import { logger } from '@/ui/logger';
  */
 
 const ENTRY_FILE_PATTERN = /^[0-9a-f]{64}\.json$/;
+/** A path in a git repo other than the chat's own. The store has no copy of it. */
+const REPO_ENTRY_FILE_PATTERN = /^[0-9a-f]{64}\.repo\.json$/;
 
 type StoreEntry = Readonly<{ path: string; created: boolean; tooLarge: boolean; updatedAt: number }>;
 
@@ -95,6 +98,19 @@ function parseEntry(raw: string): StoreEntry | null {
   };
 }
 
+/** A record of a path in another git repo, or null when it is not complete. */
+function parseRepoEntry(raw: string): PiChatChangesRepoFile | null {
+  let value: Record<string, unknown> | null;
+  try {
+    value = JSON.parse(raw) as Record<string, unknown> | null;
+  } catch {
+    return null;
+  }
+  if (!value || typeof value.path !== 'string' || !value.path) return null;
+  if (typeof value.repoRoot !== 'string' || !value.repoRoot) return null;
+  return { path: value.path, repoRoot: value.repoRoot, updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : 0 };
+}
+
 async function resolveChatFolder(opts: PiChatChangesHandlerOptions): Promise<string> {
   const sessionFile = opts.getSessionFile();
   if (!sessionFile) throw new Error('pi_session_file_unknown');
@@ -140,7 +156,12 @@ async function listChanges(opts: PiChatChangesHandlerOptions): Promise<PiChatCha
       updatedAt: entry.updatedAt,
     });
   }
-  return { ok: true, files };
+  const repoFiles: PiChatChangesRepoFile[] = [];
+  for (const name of names.filter((n) => REPO_ENTRY_FILE_PATTERN.test(n)).sort()) {
+    const entry = parseRepoEntry(await readFile(join(folder, name), 'utf8'));
+    if (entry) repoFiles.push(entry);
+  }
+  return repoFiles.length > 0 ? { ok: true, files, repoFiles } : { ok: true, files };
 }
 
 async function diffChange(opts: PiChatChangesHandlerOptions, path: string): Promise<PiChatChangesDiffResponse> {
@@ -174,7 +195,10 @@ function failure(method: string, error: unknown): Readonly<{ ok: false; error: s
   return { ok: false, error: message };
 }
 
-/** Registers the Pi-only session RPCs that list and diff the chat's changes outside git. */
+/**
+ * Registers the Pi-only session RPCs that list and diff the chat's changes outside git. The list
+ * also names the paths in other git repos; the app gets their diff from git.
+ */
 export function registerPiChatChangesHandlers(rpc: RpcHandlerRegistrar, opts: PiChatChangesHandlerOptions): void {
   rpc.registerHandler(SESSION_RPC_METHODS.PI_CHAT_CHANGES_LIST, async (raw: unknown): Promise<PiChatChangesListResponse> => {
     if (!PiChatChangesListRequestSchema.safeParse(raw ?? {}).success) return { ok: false, error: 'invalid_request' };

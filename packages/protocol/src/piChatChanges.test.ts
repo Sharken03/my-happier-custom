@@ -36,6 +36,10 @@ describe('Pi chat changes RPC contract', () => {
     };
     expect(PiChatChangesListResponseSchema.parse({ ok: true, files: [file] })).toEqual({ ok: true, files: [file] });
     expect(PiChatChangesListResponseSchema.parse({ ok: false, error: 'x' })).toEqual({ ok: false, error: 'x' });
+    const repoFile = { path: '/r/ops/turns', repoRoot: '/r', updatedAt: 3 };
+    expect(PiChatChangesListResponseSchema.parse({ ok: true, files: [], repoFiles: [repoFile] }))
+      .toEqual({ ok: true, files: [], repoFiles: [repoFile] });
+    expect(PiChatChangesListResponseSchema.safeParse({ ok: true, files: [], repoFiles: [{ path: '/a' }] }).success).toBe(false);
     expect(PiChatChangesListResponseSchema.safeParse({ ok: true, files: [{ path: '/a' }] }).success).toBe(false);
   });
 

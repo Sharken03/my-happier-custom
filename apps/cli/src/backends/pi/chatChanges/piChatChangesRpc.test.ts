@@ -44,6 +44,13 @@ async function recordChange(path: string, opts: { before?: string | Buffer; crea
   if (opts.before !== undefined) await writeFile(join(folder, `${key}.before`), opts.before);
 }
 
+/** Writes a record for a path in another git repo, the way the Pi extension does. */
+async function recordRepoChange(path: string, repoRoot: string, updatedAt = 2): Promise<void> {
+  const folder = join(storeRoot, ROOT_ID);
+  await mkdir(folder, { recursive: true });
+  await writeFile(join(folder, `${keyOf(path)}.repo.json`), JSON.stringify({ v: 1, path, repoRoot, firstChangedAt: 1, updatedAt }));
+}
+
 async function call(method: string, data: unknown): Promise<any> {
   const handler = handlers.get(method);
   if (!handler) throw new Error(`no handler for ${method}`);
@@ -145,6 +152,27 @@ describe('pi.chatChanges.list', () => {
     expect(result.files).toEqual([expect.objectContaining({ path, created: true, added: 1 })]);
   });
 
+  it('lists paths in other git repos as repoFiles, not as files', async () => {
+    const outside = join(filesDir, 'new.txt');
+    await writeFile(outside, 'a\n');
+    await recordChange(outside, { created: true });
+    const repoRoot = join(base, 'other');
+    const inRepo = join(repoRoot, 'ops', 'turns');
+    await recordRepoChange(inRepo, repoRoot, 7);
+
+    const result = await list();
+    expect(result.files).toEqual([expect.objectContaining({ path: outside })]);
+    expect(result.repoFiles).toEqual([{ path: inRepo, repoRoot, updatedAt: 7 }]);
+  });
+
+  it('leaves out repoFiles when there are none, and skips a bad repo record', async () => {
+    const folder = join(storeRoot, ROOT_ID);
+    await mkdir(folder, { recursive: true });
+    await writeFile(join(folder, `${keyOf('/x')}.repo.json`), '{"v":1,"path":"/x"}');
+
+    expect(await list()).toEqual({ ok: true, files: [] });
+  });
+
   it('fails when the session file is not known', async () => {
     sessionFile = null;
     expect(await list()).toEqual({ ok: false, error: expect.any(String) });
@@ -182,6 +210,16 @@ describe('pi.chatChanges.diff', () => {
     await recordChange(big, { tooLarge: true });
     await writeFile(big, 'a\n');
     expect(await diff(big)).toEqual(expect.objectContaining({ ok: true, before: null, tooLarge: true }));
+  });
+
+  it('refuses a path in another git repo, because git has its diff', async () => {
+    const repoRoot = join(base, 'other');
+    const inRepo = join(repoRoot, 'a.txt');
+    await mkdir(repoRoot, { recursive: true });
+    await writeFile(inRepo, 'a\n');
+    await recordRepoChange(inRepo, repoRoot);
+
+    expect(await diff(inRepo)).toEqual({ ok: false, error: 'path_not_in_chat_changes' });
   });
 
   it('refuses a path that is not in the list', async () => {
