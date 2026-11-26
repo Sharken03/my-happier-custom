@@ -7,5 +7,7 @@
       android:grantUriPermissions="true">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/happier_download_paths" />
     </provider>
+    <!-- Diagnostic build only: adb drives the Hermes sampling profiler (HermesProfileReceiver.kt). -->
+    <receiver android:name="dev.happier.fileactions.HermesProfileReceiver" android:exported="true" />
   </application>
 </manifest>
