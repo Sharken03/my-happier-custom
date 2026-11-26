@@ -31,7 +31,6 @@ import {
     useSessionListPaneSourceScopeKey,
 } from '@/components/sessions/shell/surface/sessionListPaneRetention';
 import { useNewSessionDraftProjections } from '@/components/sessions/shell/NewSessionDraftsSection';
-import { useSetting } from '@/sync/domains/state/storage';
 import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 
 const stylesheet = StyleSheet.create((theme) => ({
