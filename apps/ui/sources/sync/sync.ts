@@ -321,7 +321,8 @@ import {
     type PreparedAccountSettingsForDaemonSpawn,
 } from './engine/settings/prepareAccountSettingsForDaemonSpawn';
 import { registerAccountSettingsDaemonSpawnPreparation } from './ops/accountSettingsDaemonSpawnPreparation';
-import { setSessionOpenPrewarmHandler } from '@/sync/runtime/sessionOpenPrewarm';
+import { setSessionOpenPrewarmHandler, type SessionOpenPrewarmOptions } from '@/sync/runtime/sessionOpenPrewarm';
+import { warmSessionOpenDerivedState } from '@/sync/runtime/sessionOpenDerivedStateWarmup';
 import { getOfferings as getOfferingsEngine, presentPaywall as presentPaywallEngine, purchaseProduct as purchaseProductEngine, syncPurchases as syncPurchasesEngine } from './engine/purchases/syncPurchases';
 import { fetchChanges, fetchCurrentChangesCursor } from './api/session/apiChanges';
 import {
@@ -2355,15 +2356,27 @@ class Sync {
         /**
          * Starts the session and transcript fetch when the user taps a session, before its route
          * renders. A loaded transcript is left to `onSessionVisible`, which refreshes it.
+         * A background prewarm (no tap waiting) also fills the caches the session screen reads
+         * on open (warmSessionOpenDerivedState).
          */
-        prewarmSessionOpen = (sessionId: string, serverId: string | null): void => {
-            if (storage.getState().sessionMessages[sessionId]?.isLoaded === true) return;
+        prewarmSessionOpen = (sessionId: string, serverId: string | null, options?: SessionOpenPrewarmOptions): void => {
+            const warmDerivedState = () => {
+                if (options?.background === true) {
+                    warmSessionOpenDerivedState(storage.getState().sessions[sessionId]?.metadata);
+                }
+            };
+            if (storage.getState().sessionMessages[sessionId]?.isLoaded === true) {
+                warmDerivedState();
+                return;
+            }
             fireAndForget((async () => {
                 const result = await this.ensureSessionVisibleForMessageRoute(sessionId, serverId ? { serverId } : undefined);
                 if (result.kind !== 'available') return;
-                if (storage.getState().sessionMessages[sessionId]?.isLoaded === true) return;
-                if (!this.sessionViewport.get(sessionId)) this.markSessionLiveTailIntent(sessionId);
-                this.getOrCreateMessagesSync(sessionId).invalidateCoalesced();
+                if (storage.getState().sessionMessages[sessionId]?.isLoaded !== true) {
+                    if (!this.sessionViewport.get(sessionId)) this.markSessionLiveTailIntent(sessionId);
+                    this.getOrCreateMessagesSync(sessionId).invalidateCoalesced();
+                }
+                warmDerivedState();
             })(), {
                 tag: 'Sync.prewarmSessionOpen',
             });

@@ -13,7 +13,8 @@ describe('session open prewarm', () => {
         const navigate = vi.fn(() => { order.push('navigate'); });
         const push = vi.fn(() => { order.push('navigate'); });
         navigateToSessionRoute({ router: { navigate, push }, sessionId: 'session-a', serverId: 'server-1' });
-        expect(prewarm).toHaveBeenCalledWith('session-a', 'server-1');
+        // A tap is not a background prewarm: no options.
+        expect(prewarm).toHaveBeenCalledWith('session-a', 'server-1', undefined);
         expect(order).toEqual(['prewarm', 'navigate']);
     });
 

@@ -16,6 +16,11 @@ vi.mock('react-native', async () => {
     );
 });
 
+const warmSessionOpenDerivedState = vi.hoisted(() => vi.fn());
+vi.mock('@/sync/runtime/sessionOpenDerivedStateWarmup', () => ({
+    warmSessionOpenDerivedState,
+}));
+
 vi.mock('@/log', () => ({
     log: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -209,6 +214,36 @@ describe('sync.ensureSessionVisibleForMessageRoute', () => {
             requestSessionOpenPrewarm(sessionId, 'server-1');
             await vi.waitFor(() => expect(invalidateCoalesced).toHaveBeenCalledTimes(1));
             expect(ensure).toHaveBeenCalledWith(sessionId, { serverId: 'server-1' });
+        } finally {
+            internals.ensureSessionVisibleForMessageRoute = originalEnsure;
+            internals.getOrCreateMessagesSync = originalMessagesSync;
+        }
+    });
+
+    it('warms the derived open state of a background prewarm, but not of a tap', async () => {
+        const sessionId = 'prewarm_background_session';
+        const metadata = { path: '/repo', host: 'host' } as any;
+        storage.getState().applySessions([{ ...createSession({ sessionId }), metadata }]);
+        const { sync } = await import('./sync');
+        const { requestSessionOpenPrewarm } = await import('./runtime/sessionOpenPrewarm');
+        const internals = sync as unknown as {
+            ensureSessionVisibleForMessageRoute: (...args: unknown[]) => Promise<unknown>;
+            getOrCreateMessagesSync: (id: string) => { invalidateCoalesced: () => void };
+        };
+        const originalEnsure = internals.ensureSessionVisibleForMessageRoute;
+        const originalMessagesSync = internals.getOrCreateMessagesSync;
+        const invalidateCoalesced = vi.fn();
+        internals.ensureSessionVisibleForMessageRoute = vi.fn(async () => ({ kind: 'available', sessionId }));
+        internals.getOrCreateMessagesSync = () => ({ invalidateCoalesced });
+        warmSessionOpenDerivedState.mockClear();
+        try {
+            requestSessionOpenPrewarm(sessionId, null);
+            await vi.waitFor(() => expect(invalidateCoalesced).toHaveBeenCalledTimes(1));
+            expect(warmSessionOpenDerivedState).not.toHaveBeenCalled();
+
+            requestSessionOpenPrewarm(sessionId, null, { background: true });
+            await vi.waitFor(() => expect(invalidateCoalesced).toHaveBeenCalledTimes(2));
+            expect(warmSessionOpenDerivedState).toHaveBeenCalledWith(metadata);
         } finally {
             internals.ensureSessionVisibleForMessageRoute = originalEnsure;
             internals.getOrCreateMessagesSync = originalMessagesSync;

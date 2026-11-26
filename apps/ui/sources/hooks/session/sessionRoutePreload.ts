@@ -35,6 +35,11 @@ export const MAX_START_DATA_PREWARMS = 5;
 export const START_DATA_PREWARM_STAGGER_MS = 500;
 let startDataPrewarmTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** No tap waits on a start data prewarm, so it may also warm the session screen's derived state. */
+function backgroundSessionOpenPrewarm(sessionId: string, serverId: string | null): void {
+    requestSessionOpenPrewarm(sessionId, serverId, { background: true });
+}
+
 function stopStartDataPrewarms(): void {
     if (startDataPrewarmTimer === null) return;
     clearTimeout(startDataPrewarmTimer);
@@ -164,7 +169,7 @@ export function useSessionRoutePreloadAtStart(params: Readonly<{
         const queue = (latest.dataPrewarmTargets ?? [])
             .filter((target) => target.sessionId !== topSessionId)
             .slice(0, MAX_START_DATA_PREWARMS);
-        const prewarm = latest.prewarm ?? requestSessionOpenPrewarm;
+        const prewarm = latest.prewarm ?? backgroundSessionOpenPrewarm;
         const warmNext = () => {
             startDataPrewarmTimer = null;
             const next = queue.shift();
