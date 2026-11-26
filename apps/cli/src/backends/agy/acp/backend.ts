@@ -3,6 +3,7 @@ import { findConnectedServiceChildSelection } from '@/daemon/connectedServices/c
 
 import { agySessionModelAdapter } from './modelControls';
 import { createAgyQuotaGuard, readAgyQuota } from './quotaModelSwitch';
+import { AgyTransport } from './transport';
 
 // ACP 1.3.0 lets these inherited values override the selected account's endpoint/project.
 const ACCOUNT_ENDPOINT_OVERRIDES = ['AGY_ACP_CCPA_BASE_URL', 'AGY_ACP_CCPA_PROJECT'] as const;
@@ -14,6 +15,7 @@ export function createAgyAcpBackend(options: CatalogDefinedAcpBackendOptions) {
   const agyCli = options.launch?.args.includes('acp') ? options.launch.command : null;
   // agy ends the running session/prompt when a second one arrives and goes on with both requests.
   options = { ...options, sessionModelAdapter: agySessionModelAdapter, steerByPromptHandoff: true,
+    transportHandler: new AgyTransport(),
     ...(agyCli ? { beforePrompt: createAgyQuotaGuard({ read: () => readAgyQuota(agyCli) }) } : {}),
     isAuthenticationSetupFailure:({ code, data }) =>
     code === -32000 && data !== null && typeof data === 'object' && !Array.isArray(data)

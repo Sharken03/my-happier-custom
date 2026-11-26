@@ -22,6 +22,8 @@ export type CatalogDefinedAcpBackendOptions = AgentFactoryOptions & Readonly<{
   beforePrompt?: AcpBackendOptions['beforePrompt'];
   steerByPromptHandoff?: AcpBackendOptions['steerByPromptHandoff'];
   initialSessionModeId?: AcpBackendOptions['initialSessionModeId'];
+  /** A provider-owned transport; the catalog transport profile applies when it is absent. */
+  transportHandler?: AcpBackendOptions['transportHandler'];
   launch?: Readonly<{ command: string; args: readonly string[] }>;
 }>;
 
@@ -61,7 +63,7 @@ export function createCatalogDefinedAcpBackend(
     permissionMode: options.permissionMode,
     getPermissionMode: options.getPermissionMode,
     providerTurnSource: options.providerTurnSource,
-    transportHandler: resolveAcpCatalogTransportHandler(config.transportProfile, agentId),
+    transportHandler: options.transportHandler ?? resolveAcpCatalogTransportHandler(config.transportProfile, agentId),
     declaredSessionLoadSupport: config.supportsLoadSession,
   });
 
