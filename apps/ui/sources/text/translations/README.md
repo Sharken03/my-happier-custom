@@ -31,7 +31,9 @@ Building only writes the locale file. Registering it is three edits, each a deli
 | File | Edit |
 |---|---|
 | `../_all.ts` | add the code to `SupportedLanguage` and its `nativeName` (the language picker is data-driven off this — no UI change needed) |
-| `../i18n.ts` | import it and add a **thunk** to `TRANSLATION_TREE_BY_LANGUAGE`, so only the active language is materialised |
+| `../i18n.ts` | nothing — the tree map moved |
+| `../localeTrees.ts` | import it and add a **thunk** to `TRANSLATION_TREE_BY_LANGUAGE`, so only the active language is materialised (native and tests) |
+| `../localeTrees.web.ts` | add a **loader** to `LOCALE_LOADERS` (`() => import('./translations/<code>').then((module) => module.<binding>)`), so the web export fetches it as its own chunk; the map is a total `Record`, so a missing loader is a typecheck error |
 | `../i18n.integrity.test.ts` | add it to the locale lists, so it is held to the same completeness bar as every other language |
 
 The tooling lives in `apps/ui/tools/i18n/`. It rewrites only the *interior* of string and template

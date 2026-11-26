@@ -1,46 +1,10 @@
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES, getLanguageEnglishName, getLanguageNativeName, type SupportedLanguage } from './_all';
 import type { TranslationStructure, Translations } from './_types';
 import { getDeviceLocales } from './deviceLocales';
-import { ca } from './translations/ca';
-import { de } from './translations/de';
 import { en } from './translations/en';
-import { es } from './translations/es';
-import { fr } from './translations/fr';
-import { it } from './translations/it';
-import { ja } from './translations/ja';
-import { pl } from './translations/pl';
-import { pt } from './translations/pt';
-import { ru } from './translations/ru';
-import { zhHans } from './translations/zh-Hans';
-import { zhHant } from './translations/zh-Hant';
+import { ensureLocaleTree, getLocaleTree } from './localeTrees';
 
 export { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES, getLanguageEnglishName, getLanguageNativeName, type SupportedLanguage };
-
-/**
- * Locale trees are ~0.5 MB of source each and only one of them is ever the active language, yet
- * every one of them used to be materialized before the app could paint.
- *
- * Metro runs with `inlineRequires` enabled (`apps/ui/metro.config.js`), which moves an imported
- * binding's `require` to the place the binding is referenced — but a module-scope `{ en, ru, ... }`
- * map is itself such a reference, so importing `t()` evaluated all ten locale modules at import
- * time. Referencing each tree from inside a thunk defers its `require` to the first lookup for that
- * language, which in practice means the active language and the English fallback. Where inline
- * requires are not applied (vitest), the thunks are ordinary closures and behaviour is unchanged.
- */
-const TRANSLATION_TREE_BY_LANGUAGE = {
-    en: () => en,
-    ru: () => ru,
-    pl: () => pl,
-    es: () => es,
-    fr: () => fr,
-    it: () => it,
-    pt: () => pt,
-    ca: () => ca,
-    de: () => de,
-    'zh-Hans': () => zhHans,
-    'zh-Hant': () => zhHant,
-    ja: () => ja,
-} satisfies Record<SupportedLanguage, () => TranslationStructure>;
 
 type TranslationFunction = (params: never) => string;
 type TranslationLeaf = string | TranslationFunction;
@@ -122,9 +86,18 @@ function resolveActiveLanguage(): SupportedLanguage {
     return preferredLanguageOverride ?? resolveLanguageFromDeviceLocales();
 }
 
-function getTranslationTree(language: SupportedLanguage): Translations {
-    const loadTranslationTree = TRANSLATION_TREE_BY_LANGUAGE[language];
-    return loadTranslationTree ? loadTranslationTree() : en;
+function getTranslationTree(language: SupportedLanguage): TranslationStructure {
+    return getLocaleTree(language);
+}
+
+/**
+ * Loads the active language's tree when the platform ships it as a chunk: the web export keeps
+ * English in the entry chunk and fetches the reader's language separately. Boot awaits this, bounded,
+ * so the first paint is already in that language; a load that misses the deadline leaves the app on
+ * English and stays in flight for the next lookup.
+ */
+export async function ensureActiveTranslations(): Promise<void> {
+    await ensureLocaleTree(resolveActiveLanguage());
 }
 
 function getValueAtPath(root: TranslationNode, key: string): unknown {
@@ -171,6 +144,9 @@ export function setPreferredLanguageFromSettings(value: unknown): void {
         const trimmed = value.trim();
         if (trimmed && isSupportedLanguage(trimmed)) {
             preferredLanguageOverride = trimmed;
+            // The account language can arrive after boot (settings sync late): start the chunk then,
+            // so the next paint is already in that language.
+            void ensureLocaleTree(trimmed);
             return;
         }
     }

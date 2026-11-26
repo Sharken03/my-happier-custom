@@ -1,4 +1,5 @@
 import type { AuthCredentials } from '@/auth/storage/tokenStorage';
+import { ensureActiveTranslations } from '@/text/i18n';
 import { withTimeout } from '@/utils/timing/time';
 
 /**
@@ -23,6 +24,14 @@ export const APP_BOOT_CREDENTIAL_RESOLUTION_TIMEOUT_MS = 8_000;
  * and paints cold, never that boot waits.
  */
 export const APP_BOOT_WARM_CACHE_KEY_TIMEOUT_MS = 3_000;
+
+/**
+ * The web export keeps the English tree in the entry chunk and fetches the reader's language as its
+ * own chunk (see `text/localeTrees.web.ts`). Missing this deadline means the first paint is in
+ * English and the chunk's text appears at the next paint. The wait happens before the first paint,
+ * so the bound is what keeps a stalled fetch from holding the splash screen for longer than this.
+ */
+export const APP_BOOT_TRANSLATIONS_TIMEOUT_MS = 1_500;
 
 export type AppBootReadyState = Readonly<{
     credentials: AuthCredentials | null;
@@ -49,6 +58,7 @@ export type AppBootSequence = Readonly<{
     fontLoadTimeoutMs?: number;
     credentialResolutionTimeoutMs?: number;
     warmCacheKeyTimeoutMs?: number;
+    translationsTimeoutMs?: number;
 }>;
 
 type CredentialOutcome = Readonly<{ credentials: AuthCredentials | null }>;
@@ -70,6 +80,24 @@ async function restoreSyncWithoutBlockingBoot(
     } catch (error) {
         // Preserve app usability even if sync restore fails during boot.
         console.error('Failed to restore sync during init, continuing startup:', error);
+    }
+}
+
+/**
+ * Sync restore is what publishes the account's language setting, so the locale chunk can only be
+ * requested after it. Waiting here means the first paint is already in the reader's language; the
+ * deadline keeps a stalled fetch from holding the splash screen, and the fetch stays in flight for
+ * the next paint. A no-op on native and for English.
+ */
+async function loadTranslationsForBoot(sequence: AppBootSequence): Promise<void> {
+    try {
+        await withTimeout(
+            ensureActiveTranslations(),
+            sequence.translationsTimeoutMs ?? APP_BOOT_TRANSLATIONS_TIMEOUT_MS,
+            'translations',
+        );
+    } catch (error) {
+        console.error('Translations missed their boot deadline, painting in English:', error);
     }
 }
 
@@ -164,6 +192,8 @@ export async function runAppBootSequence(sequence: AppBootSequence): Promise<voi
         await warmCacheGate;
         await restoreSyncWithoutBlockingBoot(sequence, initialCredentials);
     }
+    // Outside the credentialed branch: a signed-out first visit still reads in its own language.
+    await loadTranslationsForBoot(sequence);
     await fontGate;
     sequence.onReady({ credentials: initialCredentials, authGeneration: 0 });
 
@@ -174,5 +204,6 @@ export async function runAppBootSequence(sequence: AppBootSequence): Promise<voi
     const deferredCredentials = (await credentialsResolved)?.credentials ?? null;
     if (!deferredCredentials) return;
     await restoreSyncWithoutBlockingBoot(sequence, deferredCredentials);
+    await loadTranslationsForBoot(sequence);
     sequence.onReady({ credentials: deferredCredentials, authGeneration: 1 });
 }

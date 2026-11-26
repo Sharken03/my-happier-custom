@@ -233,10 +233,12 @@ yarn i18n:locale:verify  -- --translations /tmp/<code>.json
 yarn i18n:locale:build   -- --locale <code> --translations /tmp/<code>.json
 ```
 
-Then register the locale in three places: `_all.ts` (the code and its `nativeName`), `i18n.ts` (a
-thunk in `TRANSLATION_TREE_BY_LANGUAGE`, so only the active language is materialised) and
-`i18n.integrity.test.ts` (the locale lists, so it is held to the same completeness bar as every
-other language). The language picker is data-driven off `SUPPORTED_LANGUAGES` and needs no change.
+Then register the locale in four places: `_all.ts` (the code and its `nativeName`), `localeTrees.ts`
+(a thunk in `TRANSLATION_TREE_BY_LANGUAGE`, so only the active language is materialised on native),
+`localeTrees.web.ts` (a loader in `LOCALE_LOADERS`, so the web export fetches the language as its own
+chunk instead of shipping all twelve) and `i18n.integrity.test.ts` (the locale lists, so it is held to
+the same completeness bar as every other language). The language picker is data-driven off
+`SUPPORTED_LANGUAGES` and needs no change.
 
 The tools are in `apps/ui/tools/i18n/`. They rewrite only the interior of string and template
 literals — never the surrounding structure — and `localeLiterals.test.ts` pins that with a
