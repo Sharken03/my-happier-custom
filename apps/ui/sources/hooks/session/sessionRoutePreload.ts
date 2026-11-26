@@ -7,7 +7,7 @@ import { buildScopedSessionRouteHref } from './sessionRouteServerScope';
 
 /**
  * Keeps the chat the reader just left mounted in the background (setting sessionOpenPreloadV1).
- * At app start it also preloads the chat that was open last (useSessionRoutePreloadAtStart).
+ * At app start it also preloads the chat at the top of the list (useSessionRoutePreloadAtStart).
  *
  * On native, Back pops the session screen and unmounts it. On web, an entry that is no longer
  * presented unmounts its content (SessionRouteEntryGate). Either way the next open of the same
@@ -18,8 +18,6 @@ import { buildScopedSessionRouteHref } from './sessionRouteServerScope';
  */
 
 const PRELOAD_AFTER_LEAVE_DELAY_MS = 600;
-// App start is busy (sync, list render). The preload waits until that settles.
-const PRELOAD_AT_START_DELAY_MS = 2000;
 const LAST_OPENED_KEY = 'session-open-preload.last-opened.v1';
 
 const lastOpenedStore = new MMKV({ id: 'session-open-preload' });
@@ -106,10 +104,14 @@ export function useSessionRoutePreloadOnLeave(params: Readonly<{
 }
 
 /**
- * Preloads the chat that was open last, once per app start, so that the first open of it after
- * a start is as fast as a repeat open. The caller sets ready when the setting is on, the chat is
- * known to the session list and the list screen has focus. The preload waits a moment after
- * that and is cancelled if ready turns false first.
+ * Preloads the chat at the top of the list, once per app start, so that the first open after a
+ * start is as fast as a repeat open. The caller sets ready when the setting is on, the list has a
+ * chat to offer and the list screen has focus.
+ *
+ * It fires as soon as ready is true, with no extra delay: measured on the 8T, a start preload that
+ * waited 2 s was still rendering its hidden chat when the reader tapped, so the tap paid the full
+ * cost anyway. A preload that misses the tap costs nothing but the hidden render, whichever chat
+ * was tapped — but a tap before it fires cancels it, which is why waiting is the worse trade.
  */
 export function useSessionRoutePreloadAtStart(params: Readonly<{
     target: LastOpenedSessionRoute | null;
@@ -122,16 +124,13 @@ export function useSessionRoutePreloadAtStart(params: Readonly<{
 
     React.useEffect(() => {
         if (!active || preloadAtStartDone) return;
-        const timer = setTimeout(() => {
-            const latest = latestRef.current;
-            if (preloadAtStartDone || !latest.target) return;
-            preloadAtStartDone = true;
-            preloadSessionRoute({
-                sessionId: latest.target.sessionId,
-                serverId: latest.target.serverId,
-                prefetch: latest.prefetch,
-            });
-        }, PRELOAD_AT_START_DELAY_MS);
-        return () => clearTimeout(timer);
+        const latest = latestRef.current;
+        if (!latest.target) return;
+        preloadAtStartDone = true;
+        preloadSessionRoute({
+            sessionId: latest.target.sessionId,
+            serverId: latest.target.serverId,
+            prefetch: latest.prefetch,
+        });
     }, [active]);
 }

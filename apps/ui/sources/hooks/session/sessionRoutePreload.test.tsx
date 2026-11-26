@@ -107,12 +107,11 @@ describe('session route preload', () => {
         expect(readLastOpenedSessionRoute()).toBeNull();
     });
 
-    it('preloads the last opened chat once, a moment after the list is ready at app start', async () => {
+    it('preloads the chat at the top of the list once, as soon as the list is ready at app start', async () => {
         const prefetch = vi.fn();
         const target = { sessionId: 's1', serverId: null };
         const first = await renderHook(() => useSessionRoutePreloadAtStart({ target, ready: true, prefetch }));
-        expect(prefetch).not.toHaveBeenCalled();
-        vi.runAllTimers();
+        // No delay: waiting for the app start to settle let the reader's tap arrive first.
         expect(prefetch).toHaveBeenCalledWith('/session/s1');
         await first.unmount();
 
@@ -121,7 +120,7 @@ describe('session route preload', () => {
         expect(prefetch).toHaveBeenCalledTimes(1);
     });
 
-    it('waits while the list is not ready, and cancels when it stops being ready', async () => {
+    it('waits while the list has no chat to offer, and preloads once it does', async () => {
         const prefetch = vi.fn();
         const target = { sessionId: 's1', serverId: null };
         const hook = await renderHook(
@@ -132,10 +131,10 @@ describe('session route preload', () => {
         expect(prefetch).not.toHaveBeenCalled();
 
         await hook.rerender({ ready: true });
-        await hook.rerender({ ready: false });
-        vi.runAllTimers();
-        expect(prefetch).not.toHaveBeenCalled();
+        expect(prefetch).toHaveBeenCalledTimes(1);
 
+        // A later list rebuild must not preload the same chat again.
+        await hook.rerender({ ready: false });
         await hook.rerender({ ready: true });
         vi.runAllTimers();
         expect(prefetch).toHaveBeenCalledTimes(1);

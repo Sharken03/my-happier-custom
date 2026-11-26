@@ -5,6 +5,9 @@ import { useIsFocused } from '@react-navigation/native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SessionGettingStartedGuidance } from '@/components/sessions/guidance/SessionGettingStartedGuidance';
 import { useSessionListStorageKind } from '@/components/sessions/model/useSessionListStorageKind';
+import { useSessionRoutePreloadAtStart, readLastOpenedSessionRoute } from '@/hooks/session/sessionRoutePreload';
+import { resolveTopSessionPreloadTarget } from '@/hooks/session/resolveTopSessionPreloadTarget';
+import { useSetting } from '@/sync/domains/state/storage';
 import { SessionsListStorageChrome } from '@/components/sessions/shell/SessionsListStorageChrome';
 import {
     useVisibleSessionListPaneState,
@@ -218,6 +221,24 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
     const displayPaneState = retainedDisplayPaneState
         ?? (paneStateMatchesStorageKind && paneStateMatchesSource ? paneState : EMPTY_SESSIONS_LIST_PANE_STATE);
     const { sessionListViewData, visibleSessionCount, hasHiddenInactiveSessions } = displayPaneState;
+    // Setting sessionOpenPreloadV1: preload the chat at the top of the drawn list (pinned and
+    // attention bands included, because this is the data the list renders), as soon as the list has
+    // one. It fires at once instead of after a 2 s wait: measured on the 8T, a tap inside that
+    // window cancelled the wait and paid the full ~1.5 s open anyway. Dropping the wait also moved
+    // the one-per-app-start call here, from the route, where it targeted only the chat last opened.
+    const preloadEnabled = useSetting('sessionOpenPreloadV1') === true;
+    const topSessionTarget = React.useMemo(
+        () => resolveTopSessionPreloadTarget(sessionListViewData),
+        [sessionListViewData],
+    );
+    // Read once, lazily: a useRef initializer argument would re-read persisted state on every render.
+    const [lastOpenedTarget] = React.useState(() => readLastOpenedSessionRoute());
+    // An open chat keeps this wrapper mounted behind it; isFocused plus the route's session id says
+    // whether the list is the surface the reader is on.
+    useSessionRoutePreloadAtStart({
+        target: topSessionTarget ?? lastOpenedTarget,
+        ready: preloadEnabled && isFocused && !routeActiveSessionId,
+    });
     const styles = stylesheet;
     // An empty Archived scope still renders the list, so its header keeps the visibility menu.
     const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
