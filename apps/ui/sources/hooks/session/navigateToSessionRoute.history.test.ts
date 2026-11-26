@@ -14,17 +14,11 @@ describe('session route history', () => {
         for (const sessionId of ['history-a', 'history-b', 'history-a']) {
             navigateToSessionRoute({ router: state.router, sessionId });
         }
-        const calls = spies.push.mock.calls as unknown as Array<[string, { dangerouslySingular?: () => string | undefined }]>;
-        expect(calls.map((call) => call[0])).toEqual([
-            '/session/history-a',
-            '/session/history-b',
-            '/session/history-a',
+        expect(spies.push.mock.calls).toEqual([
+            ['/session/history-a'],
+            ['/session/history-b'],
+            ['/session/history-a'],
         ]);
-        // A visit must not use the per-chat id the preloads rely on: a push carrying it moves an
-        // earlier visit of the same chat instead of appending one, which loses its history entry.
-        for (const call of calls) {
-            expect(call[1].dangerouslySingular?.()).toBeUndefined();
-        }
         expect(spies.navigate).not.toHaveBeenCalled();
     });
 

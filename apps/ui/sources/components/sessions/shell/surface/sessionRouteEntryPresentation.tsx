@@ -86,7 +86,7 @@ export function useSessionRouteEntryPresentation(
  *
  * A preloaded entry (setting sessionOpenPreloadV1, see hooks/session/sessionRoutePreload.ts) also
  * renders, on every platform: until it settles, and then frozen, so a hidden chat does no live work. The stack
- * hides it until a navigation takes it, and holds up to MAX_PRELOADED_SESSION_ROUTES of them, one per chat.
+ * hides it until a navigation takes it, and it holds at most one.
  */
 export function SessionRouteEntryGate(props: Readonly<{
     sessionId: string;
@@ -147,21 +147,11 @@ function PreloadedRouteFreeze(props: Readonly<{ sessionId: string; children: Rea
 /** While this screen is a preloaded route, the next open of its session shows it instead of a new route. */
 function useOfferPreloadedRoute(sessionId: string, preloaded: boolean): void {
     const navigation = React.useContext(NavigationContext);
-    const route = React.useContext(NavigationRouteContext);
-    const routeKey = route?.key ?? null;
-    // The route's own server scope, so two servers that hold the same session id register apart.
-    const serverId = readRouteServerIdParam(route?.params);
+    const routeKey = React.useContext(NavigationRouteContext)?.key ?? null;
     React.useEffect(() => {
         if (!preloaded || !navigation || !routeKey) return;
-        return registerPreloadedSessionRoute({ sessionId, serverId, routeKey, navigation });
-    }, [navigation, preloaded, routeKey, serverId, sessionId]);
-}
-
-function readRouteServerIdParam(params: unknown): string | null {
-    if (!params || typeof params !== 'object') return null;
-    const serverId = (params as { serverId?: unknown }).serverId;
-    const value = typeof serverId === 'string' ? serverId : '';
-    return value.trim() || null;
+        return registerPreloadedSessionRoute({ sessionId, routeKey, navigation });
+    }, [navigation, preloaded, routeKey, sessionId]);
 }
 
 type StackRouteRef = Readonly<{ key: string }>;

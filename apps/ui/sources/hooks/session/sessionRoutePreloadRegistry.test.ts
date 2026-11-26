@@ -2,9 +2,7 @@ import { Platform } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-    dropPreloadedSessionRoutes,
     registerPreloadedSessionRoute,
-    sessionRoutePreloadKey,
     takePreloadedSessionRoute,
     type PreloadedSessionRouteNavigation,
 } from './sessionRoutePreloadRegistry';
@@ -110,79 +108,5 @@ describe('preloaded session route registry', () => {
         cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation: stack.navigation }));
 
         expect(takePreloadedSessionRoute('s1')).toBe(false);
-    });
-
-    it('keeps the same session id of two servers apart, so one server does not take the other\'s chat', () => {
-        const otherServer: Route = { key: 'session-p-b', name: 'session/[id]/index', params: { id: 's1', serverId: 'b' } };
-        const stack = createStack({
-            key: 'stack-1',
-            index: 0,
-            routes: [LIST],
-            preloadedRoutes: [{ ...PRELOADED, params: { id: 's1', serverId: 'a' } }, otherServer],
-        });
-        cleanups.push(registerPreloadedSessionRoute({
-            sessionId: 's1', serverId: 'a', routeKey: 'session-p', navigation: stack.navigation,
-        }));
-        cleanups.push(registerPreloadedSessionRoute({
-            sessionId: 's1', serverId: 'b', routeKey: 'session-p-b', navigation: stack.navigation,
-        }));
-
-        expect(sessionRoutePreloadKey({ sessionId: 's1', serverId: 'a' }))
-            .not.toBe(sessionRoutePreloadKey({ sessionId: 's1', serverId: 'b' }));
-        expect(takePreloadedSessionRoute('s1', 'b')).toBe(true);
-        expect(stack.getState().routes.map((route) => route.key)).toEqual([LIST.key, 'session-p-b']);
-        expect(stack.getState().preloadedRoutes.map((route) => route.key)).toEqual(['session-p']);
-    });
-
-    it('reaches a route that registered without a server when the open knows the server', () => {
-        const stack = createStack({ key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED] });
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation: stack.navigation }));
-
-        expect(takePreloadedSessionRoute('s1', 'srv')).toBe(true);
-    });
-});
-
-describe('dropping a preloaded session route', () => {
-    beforeEach(() => {
-        Platform.OS = 'android';
-    });
-
-    afterEach(() => {
-        while (cleanups.length > 0) cleanups.pop()?.();
-    });
-
-    it('prunes only the hidden route of the chat that left the list', () => {
-        const keep: Route = { key: 'session-k', name: 'session/[id]/index', params: { id: 's2' } };
-        const stack = createStack({ key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED, keep] });
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation: stack.navigation }));
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's2', routeKey: 'session-k', navigation: stack.navigation }));
-
-        expect(dropPreloadedSessionRoutes([{ sessionId: 's1', serverId: null }])).toBe(true);
-        expect(stack.getState().preloadedRoutes.map((route) => route.key)).toEqual(['session-k']);
-        // The presented route does not move: a drop is not a navigation.
-        expect(stack.getState().routes).toEqual([LIST]);
-        expect(stack.getState().index).toBe(0);
-    });
-
-    it('drops several chats in one action, so five preloads prune back to one', () => {
-        const second: Route = { key: 'session-q', name: 'session/[id]/index', params: { id: 's3' } };
-        const stack = createStack({ key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED, second] });
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation: stack.navigation }));
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's3', routeKey: 'session-q', navigation: stack.navigation }));
-
-        expect(dropPreloadedSessionRoutes([
-            { sessionId: 's1', serverId: null },
-            { sessionId: 's3', serverId: null },
-        ])).toBe(true);
-        expect(stack.dispatched).toHaveLength(1);
-        expect(stack.getState().preloadedRoutes).toEqual([]);
-    });
-
-    it('does nothing for a chat that holds no preloaded route', () => {
-        const stack = createStack({ key: 'stack-1', index: 0, routes: [LIST], preloadedRoutes: [PRELOADED] });
-        cleanups.push(registerPreloadedSessionRoute({ sessionId: 's1', routeKey: 'session-p', navigation: stack.navigation }));
-
-        expect(dropPreloadedSessionRoutes([{ sessionId: 's2', serverId: null }])).toBe(false);
-        expect(stack.dispatched).toEqual([]);
     });
 });

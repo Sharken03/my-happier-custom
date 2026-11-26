@@ -16,7 +16,6 @@ vi.mock('expo-router', async () => {
     return createExpoRouterMock({ pathname: () => navigationState.pathname }).module;
 });
 const stackState = vi.hoisted(() => ({ preloadedKeys: [] as string[], listeners: new Set<() => void>(), dispatched: [] as unknown[], takenKey: null as string | null }));
-const routeState = vi.hoisted(() => ({ params: {} as Record<string, unknown> }));
 
 vi.mock('@react-navigation/native', async () => {
     const ReactModule = await import('react');
@@ -48,11 +47,7 @@ vi.mock('@react-navigation/native', async () => {
     return {
         useIsFocused: () => navigationState.focused,
         NavigationContext: ReactModule.createContext(navigation),
-        NavigationRouteContext: ReactModule.createContext({
-            key: 'session-route-key',
-            // Read at render time: a test may set the route's own scope after the mock is built.
-            get params() { return routeState.params; },
-        }),
+        NavigationRouteContext: ReactModule.createContext({ key: 'session-route-key' }),
     };
 });
 
@@ -65,7 +60,6 @@ afterEach(() => {
     stackState.listeners.clear();
     stackState.dispatched = [];
     stackState.takenKey = null;
-    routeState.params = {};
 });
 
 async function countMountsUnderGate(sessionId: string): Promise<number> {
@@ -160,25 +154,6 @@ describe('SessionRouteEntryGate (web)', () => {
             expect(takePreloadedSessionRoute('s1')).toBe(true);
         } finally {
             Platform.OS = originalOs;
-        }
-    });
-
-    it('registers a preloaded entry under the route\'s own server, so two servers stay apart', async () => {
-        const { Platform } = await import('react-native');
-        const { takePreloadedSessionRoute } = await import('@/hooks/session/sessionRoutePreloadRegistry');
-        const originalOs = Platform.OS;
-        Platform.OS = 'android';
-        try {
-            navigationState.pathname = '/';
-            navigationState.focused = false;
-            stackState.preloadedKeys = ['session-route-key'];
-            routeState.params = { serverId: 'srv' };
-            await countMountsUnderGate('s1');
-
-            expect(takePreloadedSessionRoute('s1', 'srv')).toBe(true);
-        } finally {
-            Platform.OS = originalOs;
-            routeState.params = {};
         }
     });
 
