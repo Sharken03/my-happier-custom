@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@/dev/testkit';
 import type { EntryRestoreOwner } from '@/components/sessions/transcript/viewport/entryRestore/entryRestoreOwner';
 import type { SessionOpenLatch } from '@/components/sessions/transcript/viewport/sessionOpen/sessionOpenLatch';
+import { subscribeTranscriptContentRevealed } from '@/components/sessions/transcript/paint/transcriptContentRevealSignal';
 
 import {
     useTranscriptFirstPaintState,
@@ -1072,6 +1073,35 @@ describe('revealed transcript content is never re-covered', () => {
         await hook.rerender({ ...keyedDeps, firstListPaintObserved: true });
         expect(hook.getCurrent().showFirstPaintPlaceholder).toBe(true);
 
+        await hook.unmount();
+    });
+});
+
+describe('transcript reveal signal', () => {
+    it('signals once per session entry when its painted rows are first shown', async () => {
+        const revealed: string[] = [];
+        const unsubscribe = subscribeTranscriptContentRevealed((sessionId) => revealed.push(sessionId));
+        const coveredDeps = createDeps({
+            entryAnchorForRender: null,
+            firstListPaintObserved: false,
+            platformOS: 'web',
+            rendererKind: 'legendList',
+        });
+        const hook = await renderHook(
+            (deps: TranscriptFirstPaintStateDeps) => useTranscriptFirstPaintState(deps),
+            { initialProps: coveredDeps },
+        );
+        expect(hook.getCurrent().showFirstPaintPlaceholder).toBe(true);
+        expect(revealed).toEqual([]);
+
+        await hook.rerender({ ...coveredDeps, firstListPaintObserved: true });
+        expect(hook.getCurrent().showFirstPaintPlaceholder).toBe(false);
+        expect(revealed).toEqual(['session-a']);
+
+        await hook.rerender({ ...coveredDeps, firstListPaintObserved: true, itemCount: 11 });
+        expect(revealed).toEqual(['session-a']);
+
+        unsubscribe();
         await hook.unmount();
     });
 });
