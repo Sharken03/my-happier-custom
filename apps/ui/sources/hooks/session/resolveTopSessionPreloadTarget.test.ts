@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { SessionListViewItem } from '@/sync/domains/session/listing/sessionListViewData';
 
-import { resolveTopSessionPreloadTarget } from './resolveTopSessionPreloadTarget';
+import { resolveSessionPreloadTargets } from './resolveTopSessionPreloadTarget';
+
+function resolveTopSessionPreloadTarget(rows: readonly SessionListViewItem[] | null | undefined) {
+    return resolveSessionPreloadTargets(rows, 1)[0] ?? null;
+}
 
 function sessionRow(id: string, serverId?: string, metadata: unknown = { path: '/tmp' }): SessionListViewItem {
     return {
@@ -49,5 +53,18 @@ describe('resolveTopSessionPreloadTarget', () => {
         expect(resolveTopSessionPreloadTarget(undefined)).toBeNull();
         expect(resolveTopSessionPreloadTarget([])).toBeNull();
         expect(resolveTopSessionPreloadTarget([headerRow()])).toBeNull();
+    });
+});
+
+describe('resolveSessionPreloadTargets', () => {
+    it('takes the first chat rows in list order, up to the limit, with the same skips as the top row', () => {
+        const hidden = sessionRow('sys', undefined, { hiddenSystemSession: true });
+        const rows = [headerRow(), sessionRow('s1'), hidden, sessionRow('s2', 'srv'), sessionRow('s3'), sessionRow('s4')];
+        expect(resolveSessionPreloadTargets(rows, 3)).toEqual([
+            { sessionId: 's1', serverId: null },
+            { sessionId: 's2', serverId: 'srv' },
+            { sessionId: 's3', serverId: null },
+        ]);
+        expect(resolveSessionPreloadTargets(null, 3)).toEqual([]);
     });
 });

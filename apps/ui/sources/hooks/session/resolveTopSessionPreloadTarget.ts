@@ -13,16 +13,20 @@ export type SessionPreloadTarget = Readonly<{ sessionId: string; serverId: strin
  * attention and working bands are honoured without this helper rebuilding the list.
  *
  * Headers, folders and hidden system sessions are skipped: only a row that opens a chat qualifies.
+ * Returns the first `limit` such rows in list order; the first one is the top row.
  */
-export function resolveTopSessionPreloadTarget(
+export function resolveSessionPreloadTargets(
     rows: readonly SessionListViewItem[] | null | undefined,
-): SessionPreloadTarget | null {
+    limit: number,
+): SessionPreloadTarget[] {
+    const targets: SessionPreloadTarget[] = [];
     for (const row of rows ?? []) {
+        if (targets.length >= limit) break;
         if (row.type !== 'session') continue;
         if (!isUserFacingSession(row.session)) continue;
         const sessionId = String(row.session.id ?? '').trim();
         if (!sessionId) continue;
-        return { sessionId, serverId: row.serverId ?? null };
+        targets.push({ sessionId, serverId: row.serverId ?? null });
     }
-    return null;
+    return targets;
 }

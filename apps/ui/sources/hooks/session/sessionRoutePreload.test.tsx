@@ -22,6 +22,7 @@ import {
     preloadSessionRoute,
     readLastOpenedSessionRoute,
     resetSessionRoutePreloadAtStartForTests,
+    START_DATA_PREWARM_STAGGER_MS,
     useSessionRoutePreloadAtStart,
     useSessionRoutePreloadOnLeave,
 } from './sessionRoutePreload';
@@ -158,4 +159,48 @@ describe('session route preload', () => {
         vi.runAllTimers();
         expect(prefetch).not.toHaveBeenCalled();
     });
+
+    it('warms the data of the next rows one at a time after the top chat, without preloading their routes', async () => {
+        const prefetch = vi.fn();
+        const prewarm = vi.fn();
+        await renderHook(() => useSessionRoutePreloadAtStart({
+            target: { sessionId: 's1', serverId: null },
+            dataPrewarmTargets: [{ sessionId: 's2', serverId: 'srv' }, { sessionId: 's3', serverId: null }],
+            ready: true,
+            prefetch,
+            prewarm,
+        }));
+        expect(prefetch).toHaveBeenCalledTimes(1);
+        expect(prewarm).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(START_DATA_PREWARM_STAGGER_MS);
+        expect(prewarm).toHaveBeenCalledTimes(1);
+        expect(prewarm).toHaveBeenLastCalledWith('s2', 'srv');
+
+        vi.advanceTimersByTime(START_DATA_PREWARM_STAGGER_MS);
+        expect(prewarm).toHaveBeenLastCalledWith('s3', null);
+        vi.runAllTimers();
+        expect(prewarm).toHaveBeenCalledTimes(2);
+        expect(prefetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops warming the next rows once a chat is opened', async () => {
+        const prewarm = vi.fn();
+        await renderHook(() => useSessionRoutePreloadAtStart({
+            target: { sessionId: 's1', serverId: null },
+            dataPrewarmTargets: [{ sessionId: 's2', serverId: null }, { sessionId: 's3', serverId: null }],
+            ready: true,
+            prefetch: vi.fn(),
+            prewarm,
+        }));
+        vi.advanceTimersByTime(START_DATA_PREWARM_STAGGER_MS);
+        expect(prewarm).toHaveBeenCalledTimes(1);
+
+        await renderHook(() => useSessionRoutePreloadOnLeave({
+            sessionId: 's3', serverId: null, enabled: true, prefetch: vi.fn(),
+        }));
+        vi.runAllTimers();
+        expect(prewarm).toHaveBeenCalledTimes(1);
+    });
 });
+

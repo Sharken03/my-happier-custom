@@ -5,8 +5,8 @@ import { useIsFocused } from '@react-navigation/native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SessionGettingStartedGuidance } from '@/components/sessions/guidance/SessionGettingStartedGuidance';
 import { useSessionListStorageKind } from '@/components/sessions/model/useSessionListStorageKind';
-import { useSessionRoutePreloadAtStart, readLastOpenedSessionRoute } from '@/hooks/session/sessionRoutePreload';
-import { resolveTopSessionPreloadTarget } from '@/hooks/session/resolveTopSessionPreloadTarget';
+import { MAX_START_DATA_PREWARMS, useSessionRoutePreloadAtStart, readLastOpenedSessionRoute } from '@/hooks/session/sessionRoutePreload';
+import { resolveSessionPreloadTargets } from '@/hooks/session/resolveTopSessionPreloadTarget';
 import { useSetting } from '@/sync/domains/state/storage';
 import { SessionsListStorageChrome } from '@/components/sessions/shell/SessionsListStorageChrome';
 import {
@@ -226,8 +226,10 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
     // window cancelled the wait and paid the full ~1.5 s open anyway. Dropping the wait also moved
     // the one-per-app-start call here, from the route, where it targeted only the chat last opened.
     const preloadEnabled = useSetting('sessionOpenPreloadV1') === true;
-    const topSessionTarget = React.useMemo(
-        () => resolveTopSessionPreloadTarget(sessionListViewData),
+    // The top row is preloaded as a hidden route; the next MAX_START_DATA_PREWARMS rows get only
+    // their data (session and transcript), so a tap on them skips both loading spinners.
+    const sessionPreloadTargets = React.useMemo(
+        () => resolveSessionPreloadTargets(sessionListViewData, 1 + MAX_START_DATA_PREWARMS),
         [sessionListViewData],
     );
     // Read once, lazily: a useRef initializer argument would re-read persisted state on every render.
@@ -235,7 +237,8 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
     // An open chat keeps this wrapper mounted behind it; isFocused plus the route's session id says
     // whether the list is the surface the reader is on.
     useSessionRoutePreloadAtStart({
-        target: topSessionTarget ?? lastOpenedTarget,
+        target: sessionPreloadTargets[0] ?? lastOpenedTarget,
+        dataPrewarmTargets: sessionPreloadTargets.slice(1),
         ready: preloadEnabled && isFocused && !routeActiveSessionId,
     });
     const styles = stylesheet;

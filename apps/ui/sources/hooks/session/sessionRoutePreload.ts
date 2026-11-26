@@ -3,6 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { MMKV } from 'react-native-mmkv';
 
+import { requestSessionOpenPrewarm } from '@/sync/runtime/sessionOpenPrewarm';
+
 import { buildScopedSessionRouteHref } from './sessionRouteServerScope';
 
 /**
@@ -22,6 +24,22 @@ const LAST_OPENED_KEY = 'session-open-preload.last-opened.v1';
 
 const lastOpenedStore = new MMKV({ id: 'session-open-preload' });
 let preloadAtStartDone = false;
+
+/**
+ * How many rows after the top one get their data warmed at app start (see useSessionRoutePreloadAtStart).
+ * Only one chat is kept rendered in the background: a second hidden route reorders the native screens
+ * when it is taken, which left a white, frozen screen on the 8T (build 347).
+ */
+export const MAX_START_DATA_PREWARMS = 5;
+/** Spacing between two start data prewarms, so the top chat's hidden render and the list stay smooth. */
+export const START_DATA_PREWARM_STAGGER_MS = 500;
+let startDataPrewarmTimer: ReturnType<typeof setTimeout> | null = null;
+
+function stopStartDataPrewarms(): void {
+    if (startDataPrewarmTimer === null) return;
+    clearTimeout(startDataPrewarmTimer);
+    startDataPrewarmTimer = null;
+}
 
 export type LastOpenedSessionRoute = Readonly<{ sessionId: string; serverId: string | null }>;
 
@@ -43,6 +61,7 @@ function rememberOpenedSessionRoute(route: LastOpenedSessionRoute): void {
 
 export function resetSessionRoutePreloadAtStartForTests(): void {
     preloadAtStartDone = false;
+    stopStartDataPrewarms();
     lastOpenedStore.delete(LAST_OPENED_KEY);
 }
 
@@ -82,8 +101,10 @@ export function useSessionRoutePreloadOnLeave(params: Readonly<{
 
     useFocusEffect(React.useCallback(() => {
         hadFocusRef.current = true;
-        // A chat that was opened preloads itself on leave, so the start preload is not needed.
+        // A chat that was opened preloads itself on leave, so the start preload is not needed, and
+        // the start data prewarms would only compete with the open.
         preloadAtStartDone = true;
+        stopStartDataPrewarms();
         const latest = latestRef.current;
         if (latest.enabled) rememberOpenedSessionRoute({ sessionId: latest.sessionId, serverId: latest.serverId });
     }, []));
@@ -112,11 +133,18 @@ export function useSessionRoutePreloadOnLeave(params: Readonly<{
  * waited 2 s was still rendering its hidden chat when the reader tapped, so the tap paid the full
  * cost anyway. A preload that misses the tap costs nothing but the hidden render, whichever chat
  * was tapped — but a tap before it fires cancels it, which is why waiting is the worse trade.
+ *
+ * The next rows (dataPrewarmTargets) get only their data: the session and its transcript, through
+ * the same prewarm a tap starts. Without it, a tap on such a row first shows the route spinner while
+ * the session hydrates, then the transcript spinner while the messages load (about 1.5 s on the 8T).
+ * They go one at a time and stop when a chat opens.
  */
 export function useSessionRoutePreloadAtStart(params: Readonly<{
     target: LastOpenedSessionRoute | null;
+    dataPrewarmTargets?: readonly LastOpenedSessionRoute[];
     ready: boolean;
     prefetch?: PrefetchHref;
+    prewarm?: (sessionId: string, serverId: string | null) => void;
 }>): void {
     const latestRef = React.useRef(params);
     latestRef.current = params;
@@ -132,5 +160,19 @@ export function useSessionRoutePreloadAtStart(params: Readonly<{
             serverId: latest.target.serverId,
             prefetch: latest.prefetch,
         });
+        const topSessionId = latest.target.sessionId;
+        const queue = (latest.dataPrewarmTargets ?? [])
+            .filter((target) => target.sessionId !== topSessionId)
+            .slice(0, MAX_START_DATA_PREWARMS);
+        const prewarm = latest.prewarm ?? requestSessionOpenPrewarm;
+        const warmNext = () => {
+            startDataPrewarmTimer = null;
+            const next = queue.shift();
+            if (!next) return;
+            prewarm(next.sessionId, next.serverId);
+            if (queue.length > 0) startDataPrewarmTimer = setTimeout(warmNext, START_DATA_PREWARM_STAGGER_MS);
+        };
+        stopStartDataPrewarms();
+        if (queue.length > 0) startDataPrewarmTimer = setTimeout(warmNext, START_DATA_PREWARM_STAGGER_MS);
     }, [active]);
 }
