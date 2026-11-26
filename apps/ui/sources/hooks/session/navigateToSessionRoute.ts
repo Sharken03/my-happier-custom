@@ -52,10 +52,17 @@ export function navigateToSessionRoute(params: Readonly<{
     });
     // Start the session and transcript fetch now, so the network overlaps the route render.
     requestSessionOpenPrewarm(params.sessionId, targetServerId || null);
-    if (!params.query && takePreloadedSessionRoute(params.sessionId)) {
+    if (!params.query && takePreloadedSessionRoute(params.sessionId, targetServerId || null)) {
         // The stack already rendered this session as a preloaded route; it is now shown as is.
     } else if (Platform.OS === 'web') {
-        params.router.push(href);
+        // The session screen has a per-chat id so that several preloaded chats can be kept at once
+        // (app/(app)/_layout.tsx). A visit must not use it: a push carrying that id moves an earlier
+        // visit of the same chat instead of appending, and web keeps every visit for Back/Forward.
+        params.router.push(href, {
+            dangerouslySingular() {
+                return undefined;
+            },
+        });
     } else {
         params.router.navigate(href, {
             dangerouslySingular() {

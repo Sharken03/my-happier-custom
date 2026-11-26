@@ -48,6 +48,29 @@ const SESSION_COCKPIT_SURFACE_STACK_SCREEN_OPTIONS = {
     headerShown: false,
 } as const;
 const UNAUTH_SHELL_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
+
+/**
+ * Identity of a session screen: one stack route per chat.
+ *
+ * The stack drops a preloaded route of the same name that has no id, so a second preloaded chat
+ * used to replace the first — only one hidden chat could be kept warm, although each hidden one
+ * turns a ~1.45 s open into a ~0.55 s one (measured on the 8T).
+ *
+ * The id is the chat alone, deliberately without the server in the query: the preload registry keeps
+ * the server separately, and a deep link arrives as `session/<id>` while an in-app open adds
+ * `?serverId=…`. Two ids for one chat would make the router append a second session entry for the
+ * same screen (Back would return to the same chat). The cost is that the same chat id on two
+ * servers shares one hidden route; that is rarer than a deep link, and the registry then simply
+ * asks for a normal navigation.
+ *
+ * A real open passes its own `dangerouslySingular` ('session'), and an action-level id shadows this
+ * one, so the session stack still holds a single session entry and web keeps one entry per visit
+ * (#764): a preload is the only caller that reaches this id.
+ */
+function resolveSessionScreenSingularId(name: string, params: Record<string, string | string[] | undefined>): string {
+    const sessionId = typeof params.id === 'string' ? params.id : '';
+    return `${name}|${sessionId}`;
+}
 const NEW_SESSION_HEADER_TITLE_TYPOGRAPHY = Typography.header();
 
 type ModalRouteNavigation = Readonly<{
@@ -337,6 +360,7 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
             />
             <Stack.Screen
                 name="session/[id]/index"
+                dangerouslySingular={resolveSessionScreenSingularId}
                 options={SESSION_COCKPIT_SURFACE_STACK_SCREEN_OPTIONS}
             />
             <Stack.Screen
