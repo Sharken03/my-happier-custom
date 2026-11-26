@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { SessionRightPanelGitCommitTab } from '@/components/sessions/panes/git/SessionRightPanelGitCommitTab';
-import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
+import {
+    countOtherRepositoryFiles,
+    ExternalRepositoryChangesList,
+    useExternalRepositoryChanges,
+} from './externalChanges/SessionExternalRepositoryChanges';
 import { PiChatChangesSection } from './piChatChanges/PiChatChangesSection';
 import { addPiChatChangeCounts, NO_PI_CHAT_CHANGES } from './piChatChanges/piChatChanges';
 import type { PiChatChangesFile } from '@happier-dev/protocol';
@@ -235,17 +239,19 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
         );
     }, [copyFeedback, props.scmCommitStrategy, props.scmSnapshot, props.scmWriteEnabled, props.sessionId, props.sessionPath, revealInTree]);
 
+    const externalChanges = useExternalRepositoryChanges({
+        sessionId: props.sessionId,
+        sessionChangeSet,
+        scmSnapshot: props.scmSnapshot,
+        extraPaths: props.piRepoPaths,
+    });
+    const otherRepositoryCount = countOtherRepositoryFiles(externalChanges);
     const externalChangesFooter = React.useMemo(() => (
         <>
-            <SessionExternalRepositoryChanges
-                sessionId={props.sessionId}
-                sessionChangeSet={sessionChangeSet}
-                scmSnapshot={props.scmSnapshot}
-                extraPaths={props.piRepoPaths}
-            />
+            <ExternalRepositoryChangesList sessionId={props.sessionId} changes={externalChanges} />
             <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
         </>
-    ), [piChatChanges, props.piRepoPaths, props.scmSnapshot, props.sessionId, sessionChangeSet]);
+    ), [externalChanges, piChatChanges, props.sessionId]);
 
     const scmStatusFiles = React.useMemo(
         () => addPiChatChangeCounts(changed.scmStatusFiles, piChatChanges),
@@ -264,6 +270,7 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
         <SessionRightPanelGitCommitTab
             listFooter={externalChangesFooter}
             outsideRepositoryCount={piChatChanges.length}
+            otherRepositoryCount={otherRepositoryCount}
             theme={props.theme}
             sessionId={props.sessionId}
             sessionPath={props.sessionPath}

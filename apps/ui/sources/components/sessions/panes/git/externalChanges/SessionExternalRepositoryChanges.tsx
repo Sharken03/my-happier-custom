@@ -32,40 +32,45 @@ const NO_GROUPS: readonly ExternalRepositoryGroup<ExternalChange>[] = [];
 const NO_PATHS: readonly string[] = [];
 const NO_CHANGED_PATHS: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 
-/**
- * "Other repositories" below the chat's own changes: the files the chat's tool calls changed
- * outside its repository, grouped by the repository that holds each one, with the working-tree
- * diff on tap (the agent's own edit when the working tree no longer has the change, or outside git).
- * The files come from the session change set, from the transcript's file-changing tool calls (for
- * agents without a change set, such as ACP agents) and from `extraPaths` (Pi subagents' edits).
- */
-export const SessionExternalRepositoryChanges = React.memo(function SessionExternalRepositoryChanges(props: Readonly<{
+export type ExternalRepositoryChangesInput = Readonly<{
     sessionId: string;
     sessionChangeSet: SessionChangeSet | null;
     scmSnapshot: ScmWorkingSnapshot | null;
     /** More absolute paths the chat changed, for example in Pi subagents. */
     extraPaths?: readonly string[];
-}>) {
-    const { theme } = useUnistyles();
-    const { messages } = useSessionMessages(props.sessionId);
+}>;
+
+export type ExternalRepositoryChanges = Readonly<{
+    groups: readonly ExternalRepositoryGroup<ExternalChange>[];
+    /** Per repository root, the paths its working tree has changed now. */
+    changedPathsByRoot: ReadonlyMap<string, ReadonlySet<string>>;
+}>;
+
+/**
+ * The files the chat's tool calls changed outside its repository, grouped by the repository that
+ * holds each one. The files come from the session change set, from the transcript's file-changing
+ * tool calls (for agents without a change set, such as ACP agents) and from `extraPaths` (Pi
+ * subagents' edits).
+ */
+export function useExternalRepositoryChanges(input: ExternalRepositoryChangesInput): ExternalRepositoryChanges {
+    const { sessionId, sessionChangeSet, scmSnapshot } = input;
+    const { messages } = useSessionMessages(sessionId);
     const toolCallPaths = React.useMemo(() => deriveToolCallChangedPaths(messages), [messages]);
-    const extraPaths = props.extraPaths ?? NO_PATHS;
+    const extraPaths = input.extraPaths ?? NO_PATHS;
     const externalFiles = React.useMemo(() => {
-        const projection = deriveSessionWorkingTreeProjection({ sessionChangeSet: props.sessionChangeSet, snapshot: props.scmSnapshot });
-        const repo = props.scmSnapshot?.repo;
+        const projection = deriveSessionWorkingTreeProjection({ sessionChangeSet, snapshot: scmSnapshot });
+        const repo = scmSnapshot?.repo;
         return mergeExternalChangedFiles({
             changeSetFiles: (projection?.unmatchedSessionFiles ?? []).filter((file) => isAbsoluteFilePath(file.filePath)),
             extraPaths: [...toolCallPaths, ...extraPaths],
             ownRootPath: repo?.isRepo && repo.rootPath ? repo.rootPath : null,
         });
-    }, [extraPaths, props.scmSnapshot, props.sessionChangeSet, toolCallPaths]);
+    }, [extraPaths, scmSnapshot, sessionChangeSet, toolCallPaths]);
     const filesKey = externalFiles.map((file) => file.filePath).join('\n');
 
     const [groups, setGroups] = React.useState<readonly ExternalRepositoryGroup<ExternalChange>[]>(NO_GROUPS);
-    // Per repository root, the paths its working tree has changed now. A listed file outside it was
-    // committed or undone since the agent changed it.
+    // A listed file outside its root's changed paths was committed or undone since the agent changed it.
     const [changedPathsByRoot, setChangedPathsByRoot] = React.useState(NO_CHANGED_PATHS);
-    const { sessionId } = props;
     React.useEffect(() => {
         if (externalFiles.length === 0) {
             setGroups(NO_GROUPS);
@@ -89,6 +94,30 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filesKey, sessionId]);
 
+    return React.useMemo(() => ({ groups, changedPathsByRoot }), [changedPathsByRoot, groups]);
+}
+
+/** The number of listed files that are in another git repository (files outside git not included). */
+export function countOtherRepositoryFiles(changes: ExternalRepositoryChanges): number {
+    let count = 0;
+    for (const group of changes.groups) {
+        if (group.rootPath) count += group.files.length;
+    }
+    return count;
+}
+
+/**
+ * "Other repositories" below the chat's own changes: the groups of `useExternalRepositoryChanges`,
+ * with the working-tree diff on tap (the agent's own edit when the working tree no longer has the
+ * change, or outside git).
+ */
+export const ExternalRepositoryChangesList = React.memo(function ExternalRepositoryChangesList(props: Readonly<{
+    sessionId: string;
+    changes: ExternalRepositoryChanges;
+}>) {
+    const { theme } = useUnistyles();
+    const { sessionId } = props;
+    const { groups, changedPathsByRoot } = props.changes;
     if (groups.length === 0) return null;
     return (
         <View style={styles.container} testID="session-external-repository-changes">
@@ -111,6 +140,13 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
             ))}
         </View>
     );
+});
+
+
+/** The hook and the list in one, for a pane that does not need the count. */
+export const SessionExternalRepositoryChanges = React.memo(function SessionExternalRepositoryChanges(props: ExternalRepositoryChangesInput) {
+    const changes = useExternalRepositoryChanges(props);
+    return <ExternalRepositoryChangesList sessionId={props.sessionId} changes={changes} />;
 });
 
 type DiffState = Readonly<{ kind: 'loading' }> | Readonly<{ kind: 'ready'; unifiedDiff: string | null; notInWorkingTree: boolean }>;

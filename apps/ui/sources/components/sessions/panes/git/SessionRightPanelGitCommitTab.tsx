@@ -65,6 +65,8 @@ export type SessionRightPanelGitCommitTabProps = Readonly<{
     listFooter?: React.ReactElement | null;
     /** Files listed in `listFooter` that lie outside the repository; the header counts them. */
     outsideRepositoryCount?: number;
+    /** Files listed in `listFooter` that lie in other git repositories; the branch summary shows them apart. */
+    otherRepositoryCount?: number;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -147,6 +149,7 @@ export const SessionRightPanelGitCommitTab = React.memo((props: SessionRightPane
                 onOpenStashDetails={props.onOpenStashDetails}
                 listFooter={props.listFooter}
                 outsideRepositoryCount={props.outsideRepositoryCount}
+                otherRepositoryCount={props.otherRepositoryCount}
             />
             {showCommitComposer ? (
                 <View style={footerStyle}>
@@ -293,6 +296,8 @@ type CommitChangesSurfaceProps = Readonly<{
     listFooter?: React.ReactElement | null;
     /** Files listed in `listFooter` that lie outside the repository; the header counts them. */
     outsideRepositoryCount?: number;
+    /** Files listed in `listFooter` that lie in other git repositories; the branch summary shows them apart. */
+    otherRepositoryCount?: number;
     onToggleSelectionForFile: (file: ScmFileStatus) => void;
     renderFileActions: (file: ScmFileStatus) => React.ReactNode;
     renderFileTrailingActions: (file: ScmFileStatus) => React.ReactNode;
@@ -559,6 +564,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
                         scmSnapshot={props.scmSnapshot}
                         scmWriteEnabled={props.scmWriteEnabled}
                         disabled={branchActionsDisabled}
+                        otherRepositoryCount={props.otherRepositoryCount}
                     />
                 ) : null}
                 <View
@@ -772,7 +778,7 @@ const CommitChangesSurface = React.memo((props: CommitChangesSurfaceProps) => {
                 data={virtualizedChangedFiles}
                 keyExtractor={virtualizedKeyExtractor}
                 ListHeaderComponent={headerContent}
-                ListEmptyComponent={outsideRepositoryCount > 0 ? null : emptyChangedFilesContent}
+                ListEmptyComponent={outsideRepositoryCount + (props.otherRepositoryCount ?? 0) > 0 ? null : emptyChangedFilesContent}
                 ListFooterComponent={props.listFooter ?? null}
                 contentContainerStyle={commitChangedFilesListContentContainerStyle}
                 renderItem={renderVirtualizedRow}

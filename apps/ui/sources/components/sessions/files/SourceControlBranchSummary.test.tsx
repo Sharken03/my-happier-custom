@@ -68,6 +68,30 @@ describe('SourceControlBranchSummary', () => {
         expect(octiconsRenderMock).toHaveBeenCalledTimes(initialIconRenderCount);
     });
 
+    it('shows the other repositories count apart, only when above 0', async () => {
+        const { SourceControlBranchSummary } = await import('./SourceControlBranchSummary');
+        const scmStatusFiles = {
+            branch: 'main',
+            upstream: null,
+            ahead: 0,
+            behind: 0,
+            includedFiles: [],
+            pendingFiles: [],
+            totalIncluded: 1,
+            totalPending: 2,
+        } as any;
+
+        const withCount = await renderScreen(
+            <SourceControlBranchSummary theme={branchSummaryTheme} scmStatusFiles={scmStatusFiles} variant="rail" otherRepositoryCount={4} />,
+        );
+        expect(withCount.tree.root.findAll((node) => node.props.accessibilityLabel?.endsWith(': 4'))).toHaveLength(1);
+
+        const without = await renderScreen(
+            <SourceControlBranchSummary theme={branchSummaryTheme} scmStatusFiles={scmStatusFiles} variant="rail" />,
+        );
+        expect(without.tree.root.findAll((node) => typeof node.props.accessibilityLabel === 'string')).toHaveLength(2);
+    });
+
     it('renders the branch menu trigger in rail mode even when write operations are disabled', async () => {
         const { SourceControlBranchSummary } = await import('./SourceControlBranchSummary');
 

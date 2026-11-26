@@ -21,6 +21,8 @@ type SourceControlBranchSummaryProps = {
     scmSnapshot?: ScmWorkingSnapshot | null;
     scmWriteEnabled?: boolean;
     disabled?: boolean;
+    /** Files the chat changed in other git repositories. Shown apart from the repository's counts, when above 0. */
+    otherRepositoryCount?: number;
 };
 
 function readThemeToken(theme: any, path: readonly string[]): unknown {
@@ -67,6 +69,7 @@ function areSourceControlBranchSummaryPropsEqual(
         && previous.scmSnapshot === next.scmSnapshot
         && previous.scmWriteEnabled === next.scmWriteEnabled
         && previous.disabled === next.disabled
+        && (previous.otherRepositoryCount ?? 0) === (next.otherRepositoryCount ?? 0)
         && areBranchSummaryThemeTokensEqual(previous.theme, next.theme)
         && areScmStatusFileSummariesEqual(previous.scmStatusFiles, next.scmStatusFiles);
 }
@@ -138,6 +141,7 @@ function SourceControlBranchSummaryImpl({
     scmSnapshot,
     scmWriteEnabled,
     disabled,
+    otherRepositoryCount = 0,
 }: SourceControlBranchSummaryProps) {
     const ahead = Number(scmStatusFiles.ahead ?? 0);
     const behind = Number(scmStatusFiles.behind ?? 0);
@@ -227,6 +231,7 @@ function SourceControlBranchSummaryImpl({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                         <InlineStat label={includedLabel} value={staged} iconName="plus-square" theme={theme} />
                         <InlineStat label={pendingLabel} value={unstaged} iconName="pencil-simple" theme={theme} />
+                        {otherRepositoryCount > 0 ? <InlineStat label={t('files.otherRepositoriesTitle')} value={otherRepositoryCount} iconName="folder" theme={theme} /> : null}
                         {showTracking ? <InlineStat label={t('files.branchSummary.ahead')} value={ahead} iconName="arrow-up" theme={theme} /> : null}
                         {showTracking ? <InlineStat label={t('files.branchSummary.behind')} value={behind} iconName="arrow-down" theme={theme} /> : null}
                     </View>
@@ -264,6 +269,9 @@ function SourceControlBranchSummaryImpl({
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <StatPill label={includedLabel} value={staged} iconName="plus-square" theme={theme} />
                 <StatPill label={pendingLabel} value={unstaged} iconName="pencil-simple" theme={theme} />
+                {otherRepositoryCount > 0 ? (
+                    <StatPill label={t('files.otherRepositoriesTitle')} value={otherRepositoryCount} iconName="folder" theme={theme} />
+                ) : null}
                 {showTracking && (
                     <StatPill label={t('files.branchSummary.ahead')} value={ahead} iconName="arrow-up" theme={theme} />
                 )}
