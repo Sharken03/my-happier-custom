@@ -7,7 +7,7 @@ import { SessionGettingStartedGuidance } from '@/components/sessions/guidance/Se
 import { useSessionListStorageKind } from '@/components/sessions/model/useSessionListStorageKind';
 import { MAX_START_DATA_PREWARMS, useSessionRoutePreloadAtStart, readLastOpenedSessionRoute } from '@/hooks/session/sessionRoutePreload';
 import { resolveSessionPreloadTargets } from '@/hooks/session/resolveTopSessionPreloadTarget';
-import { useSetting } from '@/sync/domains/state/storage';
+import { useIsDataReady, useSetting } from '@/sync/domains/state/storage';
 import { SessionsListStorageChrome } from '@/components/sessions/shell/SessionsListStorageChrome';
 import {
     useVisibleSessionListPaneState,
@@ -234,12 +234,21 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
     );
     // Read once, lazily: a useRef initializer argument would re-read persisted state on every render.
     const [lastOpenedTarget] = React.useState(() => readLastOpenedSessionRoute());
+    // The list can show before the sync bootstrap has its credentials and a fresh session list
+    // (isDataReady). A prewarm that starts then gets a retryable result and gives up, and the hidden
+    // route freezes before its session loads. Measured on a phone: the top chat and the next rows
+    // still opened as slowly as unwarmed chats, also 25 s after start. So the start preload waits.
+    const syncDataReady = useIsDataReady();
     // An open chat keeps this wrapper mounted behind it; isFocused plus the route's session id says
     // whether the list is the surface the reader is on.
     useSessionRoutePreloadAtStart({
         target: sessionPreloadTargets[0] ?? lastOpenedTarget,
         dataPrewarmTargets: sessionPreloadTargets.slice(1),
-        ready: preloadEnabled && isFocused && !routeActiveSessionId,
+        ready: preloadEnabled
+            && syncDataReady
+            && sessionListViewData !== null
+            && isFocused
+            && !routeActiveSessionId,
     });
     const styles = stylesheet;
     // An empty Archived scope still renders the list, so its header keeps the visibility menu.
