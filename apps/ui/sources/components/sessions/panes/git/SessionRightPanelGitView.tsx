@@ -285,7 +285,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
     }, [activeGitSubTab, displayActiveGitSubTab, setActiveGitSubTab]);
 
     // Pi chats: files changed outside git, read again on each git snapshot refresh while shown.
-    const piChatChanges = usePiChatChanges({
+    const { files: piChatChanges, repoPaths: piRepoPaths } = usePiChatChanges({
         sessionId: props.sessionId,
         enabled: Boolean(effectiveScmSnapshot) && (effectiveScmSnapshot?.repo.isRepo !== true || displayActiveGitSubTab !== 'history'),
         refreshKey: effectiveScmSnapshot?.fetchedAt ?? null,
@@ -604,6 +604,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
                     sessionId={props.sessionId}
                     sessionChangeSet={sessionChangeSet}
                     scmSnapshot={effectiveScmSnapshot}
+                    extraPaths={piRepoPaths}
                 />
                 <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
             </ScrollView>
@@ -666,6 +667,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             openFileInDetailsPinned={openFileInDetailsPinned}
             showBranchSummary={displayActiveGitSubTab === 'commit'}
             piChatChanges={piChatChanges}
+            piRepoPaths={piRepoPaths}
         />
     );
 

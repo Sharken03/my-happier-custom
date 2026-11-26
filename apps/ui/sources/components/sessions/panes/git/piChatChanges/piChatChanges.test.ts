@@ -6,7 +6,9 @@ import type { ScmStatusFiles } from '@/scm/scmStatusFiles';
 import {
     addPiChatChangeCounts,
     NO_PI_CHAT_CHANGES,
+    NO_PI_REPO_PATHS,
     readPiChatChangesFiles,
+    readPiChatChangesList,
     samePiChatChangesFiles,
     toPiChatChangeRow,
 } from './piChatChanges';
@@ -46,6 +48,21 @@ describe('readPiChatChangesFiles', () => {
 
     it('returns the shared empty list when the chat changed nothing', () => {
         expect(readPiChatChangesFiles({ ok: true, files: [] })).toBe(NO_PI_CHAT_CHANGES);
+    });
+});
+
+describe('readPiChatChangesList', () => {
+    it('returns the files and the paths in other git repos', () => {
+        const repoFiles = [{ path: '/r/ops/turns', repoRoot: '/r', updatedAt: 3 }];
+        expect(readPiChatChangesList({ ok: true, files: [], repoFiles })).toEqual({ files: NO_PI_CHAT_CHANGES, repoPaths: ['/r/ops/turns'] });
+    });
+
+    it('gives the shared empty paths when the CLI sends no repoFiles', () => {
+        expect(readPiChatChangesList({ ok: true, files: [] })?.repoPaths).toBe(NO_PI_REPO_PATHS);
+    });
+
+    it('returns null for an error response', () => {
+        expect(readPiChatChangesList({ ok: false, error: 'x' })).toBeNull();
     });
 });
 

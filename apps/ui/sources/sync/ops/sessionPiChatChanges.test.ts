@@ -17,7 +17,7 @@ describe('sessionPiChatChanges', () => {
 
     it('lists the files through the session RPC', async () => {
         sessionRpcMock.mockResolvedValue({ ok: true, files: [listedFile] });
-        await expect(sessionPiChatChangesList('s1')).resolves.toEqual([listedFile]);
+        await expect(sessionPiChatChangesList('s1')).resolves.toEqual({ files: [listedFile], repoPaths: [] });
         expect(sessionRpcMock).toHaveBeenCalledWith({
             sessionId: 's1',
             method: SESSION_RPC_METHODS.PI_CHAT_CHANGES_LIST,

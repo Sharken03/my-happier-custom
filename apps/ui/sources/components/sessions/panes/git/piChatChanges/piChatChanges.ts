@@ -3,17 +3,37 @@ import { PiChatChangesListResponseSchema, type PiChatChangesFile } from '@happie
 import type { ScmFileStatus, ScmStatusFiles } from '@/scm/scmStatusFiles';
 
 /**
- * Files a Pi chat changed outside any git repository ("Outside the repository" in Changed files).
+ * Files a Pi chat changed outside any git repository ("Outside the repository" in Changed files),
+ * and the paths it changed in other git repositories ("Other repositories").
  * The Pi session lists them through `pi.chatChanges.list`; other sessions have no such files.
  */
 
 export const NO_PI_CHAT_CHANGES: readonly PiChatChangesFile[] = Object.freeze([]);
 
-/** The files of a list response, or null when the call failed or the response is not valid. */
-export function readPiChatChangesFiles(response: unknown): readonly PiChatChangesFile[] | null {
+export const NO_PI_REPO_PATHS: readonly string[] = Object.freeze([]);
+
+/** A list response: the files outside git, and the paths the chat changed in other git repos. */
+export type PiChatChangesList = Readonly<{
+    files: readonly PiChatChangesFile[];
+    repoPaths: readonly string[];
+}>;
+
+export const NO_PI_CHAT_CHANGES_LIST: PiChatChangesList = Object.freeze({ files: NO_PI_CHAT_CHANGES, repoPaths: NO_PI_REPO_PATHS });
+
+/** The parts of a list response, or null when the call failed or the response is not valid. */
+export function readPiChatChangesList(response: unknown): PiChatChangesList | null {
     const parsed = PiChatChangesListResponseSchema.safeParse(response);
     if (!parsed.success || !parsed.data.ok) return null;
-    return parsed.data.files.length > 0 ? parsed.data.files : NO_PI_CHAT_CHANGES;
+    const repoPaths = (parsed.data.repoFiles ?? []).map((file) => file.path);
+    return {
+        files: parsed.data.files.length > 0 ? parsed.data.files : NO_PI_CHAT_CHANGES,
+        repoPaths: repoPaths.length > 0 ? repoPaths : NO_PI_REPO_PATHS,
+    };
+}
+
+/** The files of a list response, or null when the call failed or the response is not valid. */
+export function readPiChatChangesFiles(response: unknown): readonly PiChatChangesFile[] | null {
+    return readPiChatChangesList(response)?.files ?? null;
 }
 
 /** A row for the existing SCM change row: created files show as added, gone files as deleted. */
@@ -59,4 +79,10 @@ export function samePiChatChangesFiles(a: readonly PiChatChangesFile[], b: reado
             && file.removed === other.removed
             && file.updatedAt === other.updatedAt;
     });
+}
+
+export function samePiChatChangesList(a: PiChatChangesList, b: PiChatChangesList): boolean {
+    return samePiChatChangesFiles(a.files, b.files)
+        && a.repoPaths.length === b.repoPaths.length
+        && a.repoPaths.every((path, index) => path === b.repoPaths[index]);
 }

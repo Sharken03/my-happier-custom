@@ -178,6 +178,59 @@ function collectPathsFromDiffFiles(input: unknown): string[] {
     return out;
 }
 
+/**
+ * The paths one tool call changes, from its name and input. `hasUnknownMutations` is true when
+ * the call can change files but names no paths (for example a shell command).
+ */
+export function extractToolCallMutation(name: string, toolInput: unknown): Readonly<{
+    paths: readonly string[];
+    hasUnknownMutations: boolean;
+}> {
+    const toolKind = resolveMutationToolKindFromToolCall(name, toolInput);
+
+    if (resolveNormalizedMutationToolNameFromToolCall(name, toolInput) === 'diff' && hasWorkspaceMutationSignal(toolInput)) {
+        const diffPaths = collectPathsFromDiffFiles(toolInput);
+        return { paths: diffPaths, hasUnknownMutations: diffPaths.length === 0 };
+    }
+
+    if (toolKind === 'single-path') {
+        const paths: string[] = [];
+        const path = readStringField(toolInput, FILE_PATH_FIELD_KEYS);
+        if (path) paths.push(path);
+        paths.push(...collectPathsFromStringArrayField(toolInput, 'file_paths'));
+        return { paths, hasUnknownMutations: false };
+    }
+
+    if (toolKind === 'patch') {
+        const paths = [
+            ...collectPathsFromChangeList(toolInput, 'changes'),
+            ...collectPathsFromChangeMap(toolInput, 'changes'),
+        ];
+        const singlePath = readStringField(toolInput, FILE_PATH_FIELD_KEYS);
+        if (singlePath) paths.push(singlePath);
+        paths.push(...collectPathsFromStringArrayField(toolInput, 'file_paths'));
+        return { paths, hasUnknownMutations: false };
+    }
+
+    if (toolKind === 'path-pair') {
+        return { paths: collectStringFields(toolInput, PATH_PAIR_FIELD_KEYS), hasUnknownMutations: false };
+    }
+
+    if (toolKind === 'opaque-executor' || toolKind === 'unknown') {
+        // Best-effort only: shell commands can mutate any files, but extracting paths is brittle.
+        return { paths: [], hasUnknownMutations: true };
+    }
+
+    if (toolKind === 'container') {
+        return { paths: [], hasUnknownMutations: false };
+    }
+
+    // Unknown tools: if we can't safely extract paths, mark unknown mutations only when
+    // the tool is plausibly mutating (heuristic: it has an input with a command string).
+    const command = readStringField(toolInput, ['command', 'cmd']);
+    return { paths: [], hasUnknownMutations: Boolean(command) };
+}
+
 export function extractWorkspaceMutationsFromNormalizedMessages(input: Readonly<{
     messages: readonly NormalizedMessage[];
 }>): WorkspaceMutationExtractionResult {
@@ -193,67 +246,9 @@ export function extractWorkspaceMutationsFromNormalizedMessages(input: Readonly<
             const type = (part as any).type;
             if (type === 'tool-call') {
                 const name = typeof (part as any).name === 'string' ? String((part as any).name) : '';
-                const toolInput = (part as any).input as unknown;
-                const toolKind = resolveMutationToolKindFromToolCall(name, toolInput);
-
-                if (resolveNormalizedMutationToolNameFromToolCall(name, toolInput) === 'diff' && hasWorkspaceMutationSignal(toolInput)) {
-                    const diffPaths = collectPathsFromDiffFiles(toolInput);
-                    for (const path of diffPaths) {
-                        paths.add(path);
-                    }
-                    if (diffPaths.length === 0) {
-                        hasUnknownMutations = true;
-                    }
-                    continue;
-                }
-
-                if (toolKind === 'single-path') {
-                    const path = readStringField(toolInput, FILE_PATH_FIELD_KEYS);
-                    if (path) paths.add(path);
-                    for (const extraPath of collectPathsFromStringArrayField(toolInput, 'file_paths')) {
-                        paths.add(extraPath);
-                    }
-                    continue;
-                }
-
-                if (toolKind === 'patch') {
-                    for (const path of collectPathsFromChangeList(toolInput, 'changes')) {
-                        paths.add(path);
-                    }
-                    for (const path of collectPathsFromChangeMap(toolInput, 'changes')) {
-                        paths.add(path);
-                    }
-                    const singlePath = readStringField(toolInput, FILE_PATH_FIELD_KEYS);
-                    if (singlePath) paths.add(singlePath);
-                    for (const path of collectPathsFromStringArrayField(toolInput, 'file_paths')) {
-                        paths.add(path);
-                    }
-                    continue;
-                }
-
-                if (toolKind === 'path-pair') {
-                    for (const path of collectStringFields(toolInput, PATH_PAIR_FIELD_KEYS)) {
-                        paths.add(path);
-                    }
-                    continue;
-                }
-
-                if (toolKind === 'opaque-executor' || toolKind === 'unknown') {
-                    // Best-effort only: shell commands can mutate any files, but extracting paths is brittle.
-                    hasUnknownMutations = true;
-                    continue;
-                }
-
-                if (toolKind === 'container') {
-                    continue;
-                }
-
-                // Unknown tools: if we can't safely extract paths, mark unknown mutations only when
-                // the tool is plausibly mutating (heuristic: it has an input with a command string).
-                const command = readStringField(toolInput, ['command', 'cmd']);
-                if (command) {
-                    hasUnknownMutations = true;
-                }
+                const mutation = extractToolCallMutation(name, (part as any).input as unknown);
+                for (const path of mutation.paths) paths.add(path);
+                if (mutation.hasUnknownMutations) hasUnknownMutations = true;
                 continue;
             }
 

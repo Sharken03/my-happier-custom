@@ -10,12 +10,15 @@ import { Text } from '@/components/ui/text/Text';
 import { Typography } from '@/constants/Typography';
 import { deriveSessionWorkingTreeProjection } from '@/sync/domains/session/changes/derivation/deriveSessionWorkingTreeProjection';
 import type { ScmWorkingSnapshot } from '@/sync/domains/state/storageTypes';
+import { useSessionMessages } from '@/sync/domains/state/storage';
 import { sessionScmDiffFile, sessionScmStatusSnapshot } from '@/sync/ops';
 import { t } from '@/text';
 
 import {
+    deriveToolCallChangedPaths,
     groupByRepository,
     isAbsoluteFilePath,
+    mergeExternalChangedFiles,
     resolveAgentChangeView,
     resolveRepositoryRoots,
     workingTreeChangedPaths,
@@ -23,27 +26,42 @@ import {
     type ExternalRepositoryGroup,
 } from './externalRepositoryChanges';
 
-const NO_GROUPS: readonly ExternalRepositoryGroup<SessionChangeSetFile>[] = [];
+type ExternalChange = SessionChangeSetFile | null;
+
+const NO_GROUPS: readonly ExternalRepositoryGroup<ExternalChange>[] = [];
+const NO_PATHS: readonly string[] = [];
 const NO_CHANGED_PATHS: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 
 /**
  * "Other repositories" below the chat's own changes: the files the chat's tool calls changed
  * outside its repository, grouped by the repository that holds each one, with the working-tree
  * diff on tap (the agent's own edit when the working tree no longer has the change, or outside git).
+ * The files come from the session change set, from the transcript's file-changing tool calls (for
+ * agents without a change set, such as ACP agents) and from `extraPaths` (Pi subagents' edits).
  */
 export const SessionExternalRepositoryChanges = React.memo(function SessionExternalRepositoryChanges(props: Readonly<{
     sessionId: string;
     sessionChangeSet: SessionChangeSet | null;
     scmSnapshot: ScmWorkingSnapshot | null;
+    /** More absolute paths the chat changed, for example in Pi subagents. */
+    extraPaths?: readonly string[];
 }>) {
     const { theme } = useUnistyles();
+    const { messages } = useSessionMessages(props.sessionId);
+    const toolCallPaths = React.useMemo(() => deriveToolCallChangedPaths(messages), [messages]);
+    const extraPaths = props.extraPaths ?? NO_PATHS;
     const externalFiles = React.useMemo(() => {
         const projection = deriveSessionWorkingTreeProjection({ sessionChangeSet: props.sessionChangeSet, snapshot: props.scmSnapshot });
-        return (projection?.unmatchedSessionFiles ?? []).filter((file) => isAbsoluteFilePath(file.filePath));
-    }, [props.scmSnapshot, props.sessionChangeSet]);
+        const repo = props.scmSnapshot?.repo;
+        return mergeExternalChangedFiles({
+            changeSetFiles: (projection?.unmatchedSessionFiles ?? []).filter((file) => isAbsoluteFilePath(file.filePath)),
+            extraPaths: [...toolCallPaths, ...extraPaths],
+            ownRootPath: repo?.isRepo && repo.rootPath ? repo.rootPath : null,
+        });
+    }, [extraPaths, props.scmSnapshot, props.sessionChangeSet, toolCallPaths]);
     const filesKey = externalFiles.map((file) => file.filePath).join('\n');
 
-    const [groups, setGroups] = React.useState<readonly ExternalRepositoryGroup<SessionChangeSetFile>[]>(NO_GROUPS);
+    const [groups, setGroups] = React.useState<readonly ExternalRepositoryGroup<ExternalChange>[]>(NO_GROUPS);
     // Per repository root, the paths its working tree has changed now. A listed file outside it was
     // committed or undone since the agent changed it.
     const [changedPathsByRoot, setChangedPathsByRoot] = React.useState(NO_CHANGED_PATHS);
@@ -64,7 +82,7 @@ export const SessionExternalRepositoryChanges = React.memo(function SessionExter
         }).then((roots) => {
             if (cancelled) return;
             setChangedPathsByRoot(changedPaths);
-            setGroups(groupByRepository(externalFiles.map((file) => ({ filePath: file.filePath, change: file })), roots));
+            setGroups(groupByRepository(externalFiles, roots));
         });
         return () => { cancelled = true; };
         // filesKey stands for externalFiles: the same paths need no new lookups.
@@ -100,7 +118,7 @@ type DiffState = Readonly<{ kind: 'loading' }> | Readonly<{ kind: 'ready'; unifi
 function ExternalChangedFileRow(props: Readonly<{
     sessionId: string;
     rootPath: string | null;
-    file: ExternalChangedFile<SessionChangeSetFile>;
+    file: ExternalChangedFile<ExternalChange>;
     /** False when the repository's working tree does not have the file changed now. */
     inWorkingTree: boolean;
 }>) {
@@ -125,7 +143,7 @@ function ExternalChangedFileRow(props: Readonly<{
     }, [diff, expanded, file.displayPath, rootPath, sessionId]);
 
     const change = file.change;
-    const agentView = resolveAgentChangeView(change);
+    const agentView = change ? resolveAgentChangeView(change) : ({ kind: 'none' } as const);
     return (
         <View>
             <Pressable

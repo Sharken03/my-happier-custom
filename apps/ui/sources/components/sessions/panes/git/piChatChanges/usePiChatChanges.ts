@@ -1,14 +1,14 @@
 import * as React from 'react';
-import type { PiChatChangesFile } from '@happier-dev/protocol';
 import { resolveAgentIdFromSessionMetadata } from '@happier-dev/agents';
 
 import { getStorage } from '@/sync/domains/state/storageStore';
 import { sessionPiChatChangesList } from '@/sync/ops/sessionPiChatChanges';
 
-import { NO_PI_CHAT_CHANGES, samePiChatChangesFiles } from './piChatChanges';
+import { NO_PI_CHAT_CHANGES_LIST, samePiChatChangesList, type PiChatChangesList } from './piChatChanges';
 
 /**
- * The files a Pi chat changed outside git, for the open git pane.
+ * The files a Pi chat changed outside git, and the paths it changed in other git repos, for the
+ * open git pane.
  * It asks once when `enabled` becomes true, again each time `refreshKey` changes (the git
  * snapshot's fetch time), and keeps re-polling on its own interval so changed files show up
  * even when the repo has no commits or no git changes (then `fetchedAt` never updates and
@@ -23,21 +23,21 @@ export function usePiChatChanges(params: Readonly<{
     sessionId: string;
     enabled: boolean;
     refreshKey: number | null;
-}>): readonly PiChatChangesFile[] {
+}>): PiChatChangesList {
     const { sessionId, enabled, refreshKey } = params;
     const isPi = getStorage()((state) => resolveAgentIdFromSessionMetadata(state.sessions[sessionId]?.metadata ?? null) === 'pi');
-    const [state, setState] = React.useState<Readonly<{ sessionId: string; files: readonly PiChatChangesFile[] }>>(
-        () => ({ sessionId, files: NO_PI_CHAT_CHANGES }),
+    const [state, setState] = React.useState<Readonly<{ sessionId: string; list: PiChatChangesList }>>(
+        () => ({ sessionId, list: NO_PI_CHAT_CHANGES_LIST }),
     );
 
     const fetch = React.useCallback(() => {
         if (!isPi) return;
-        void sessionPiChatChangesList(sessionId).then((files) => {
-            if (!files) return;
+        void sessionPiChatChangesList(sessionId).then((list) => {
+            if (!list) return;
             setState((previous) => (
-                previous.sessionId === sessionId && samePiChatChangesFiles(previous.files, files)
+                previous.sessionId === sessionId && samePiChatChangesList(previous.list, list)
                     ? previous
-                    : { sessionId, files }
+                    : { sessionId, list }
             ));
         });
     }, [isPi, sessionId]);
@@ -76,5 +76,5 @@ export function usePiChatChanges(params: Readonly<{
         };
     }, [isPi, fetch]);
 
-    return isPi && enabled && state.sessionId === sessionId ? state.files : NO_PI_CHAT_CHANGES;
+    return isPi && enabled && state.sessionId === sessionId ? state.list : NO_PI_CHAT_CHANGES_LIST;
 }

@@ -66,6 +66,8 @@ export type SessionRightPanelGitCommitTabContentProps = Readonly<{
     openFileInDetailsPinned: (fullPath: string) => void;
     /** Pi chats: files changed outside git, from the git view. */
     piChatChanges?: readonly PiChatChangesFile[];
+    /** Pi chats: paths changed in other git repos, from the git view. */
+    piRepoPaths?: readonly string[];
 }>;
 
 export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRightPanelGitCommitTabContentProps) => {
@@ -239,10 +241,11 @@ export const SessionRightPanelGitCommitTabContent = React.memo((props: SessionRi
                 sessionId={props.sessionId}
                 sessionChangeSet={sessionChangeSet}
                 scmSnapshot={props.scmSnapshot}
+                extraPaths={props.piRepoPaths}
             />
             <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
         </>
-    ), [piChatChanges, props.scmSnapshot, props.sessionId, sessionChangeSet]);
+    ), [piChatChanges, props.piRepoPaths, props.scmSnapshot, props.sessionId, sessionChangeSet]);
 
     const scmStatusFiles = React.useMemo(
         () => addPiChatChangeCounts(changed.scmStatusFiles, piChatChanges),

@@ -1,5 +1,8 @@
 import { hasUnifiedDiffLineChanges } from '@happier-dev/protocol';
 
+import { extractToolCallMutation } from '@/scm/refresh/workspaceMutationDetection/extractWorkspaceMutations';
+import type { Message } from '@/sync/domains/messages/messageTypes';
+
 /**
  * Files a chat changed outside its own repository (the session change set's unmatched files),
  * grouped by the git repository that holds each one, as Happy's per-chat changes did. The app
@@ -120,3 +123,46 @@ export function workingTreeChangedPaths(entries: ReadonlyArray<Readonly<{ path: 
     }
     return paths;
 }
+
+/**
+ * The absolute paths that the transcript's tool calls changed, in first-seen order. Child calls
+ * (subagents) count too. A failed call changed nothing; a relative path has no known base here.
+ */
+export function deriveToolCallChangedPaths(messages: readonly Message[]): string[] {
+    const paths = new Set<string>();
+    const visit = (list: readonly Message[]) => {
+        for (const message of list) {
+            if (message.kind !== 'tool-call') continue;
+            if (message.tool.state !== 'error') {
+                for (const path of extractToolCallMutation(message.tool.name, message.tool.input).paths) {
+                    if (isAbsoluteFilePath(path)) paths.add(path);
+                }
+            }
+            if (message.children.length > 0) visit(message.children);
+        }
+    };
+    visit(messages);
+    return [...paths];
+}
+
+/**
+ * The change set's files outside the own repository, plus the extra paths (from tool calls and
+ * from Pi's chat changes) that are not in it yet and not inside the own repository root.
+ * An extra path has no agent change of its own (`change: null`).
+ */
+export function mergeExternalChangedFiles<TChange extends Readonly<{ filePath: string }>>(input: Readonly<{
+    changeSetFiles: readonly TChange[];
+    extraPaths: readonly string[];
+    ownRootPath: string | null;
+}>): Array<Readonly<{ filePath: string; change: TChange | null }>> {
+    const merged: Array<Readonly<{ filePath: string; change: TChange | null }>> = input.changeSetFiles.map((change) => ({ filePath: change.filePath, change }));
+    const seen = new Set(merged.map((file) => file.filePath));
+    for (const path of input.extraPaths) {
+        if (seen.has(path) || !isAbsoluteFilePath(path)) continue;
+        if (input.ownRootPath && pathInside(path, input.ownRootPath) !== null) continue;
+        seen.add(path);
+        merged.push({ filePath: path, change: null });
+    }
+    return merged;
+}
+

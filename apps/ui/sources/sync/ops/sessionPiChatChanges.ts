@@ -1,22 +1,24 @@
 import {
     PiChatChangesDiffResponseSchema,
     type PiChatChangesDiffResponse,
-    type PiChatChangesFile,
 } from '@happier-dev/protocol';
 import { SESSION_RPC_METHODS } from '@happier-dev/protocol/rpc';
 
-import { readPiChatChangesFiles } from '@/components/sessions/panes/git/piChatChanges/piChatChanges';
+import { readPiChatChangesList, type PiChatChangesList } from '@/components/sessions/panes/git/piChatChanges/piChatChanges';
 import { sessionRpcWithPreferredSessionScope } from '@/sync/runtime/orchestration/serverScopedRpc/sessionRpcWithPreferredSessionScope';
 
-/** The files a Pi chat changed outside git, or null when the call fails (also for non-Pi sessions). */
-export async function sessionPiChatChangesList(sessionId: string): Promise<readonly PiChatChangesFile[] | null> {
+/**
+ * The files a Pi chat changed outside git and the paths it changed in other git repos, or null
+ * when the call fails (also for non-Pi sessions).
+ */
+export async function sessionPiChatChangesList(sessionId: string): Promise<PiChatChangesList | null> {
     try {
         const response = await sessionRpcWithPreferredSessionScope<unknown, Record<string, never>>({
             sessionId,
             method: SESSION_RPC_METHODS.PI_CHAT_CHANGES_LIST,
             payload: {},
         });
-        return readPiChatChangesFiles(response);
+        return readPiChatChangesList(response);
     } catch {
         return null;
     }
