@@ -75,9 +75,15 @@ once for a 4xx that cannot improve (401, 404, 422, `already_exists`). An unrecog
 retried, because the tag is deleted before every try, so a wrong guess costs a sleep rather than a
 malformed release. The four sleeps fit the APK job's 90-minute budget with ~60 min to spare.
 
-A misconfigured `permissions:` block would produce the same 403 wording, so it would now be retried
-for ~7.5 min before failing. All three workflows grant `contents: write`; if a publish starts
-failing consistently, check that block before the incident theory.
+A misconfigured `permissions:` block would produce the same 403 wording, so the publish step probes
+`GET /repos/{repo}` → `permissions.push` before it starts: an explicit `false` fails the step at once
+with the reason, while a missing field (some token types) is ignored so a valid publish is never
+blocked. The probe cannot distinguish an incident from a revoked scope mid-run — the 403 itself is
+still retried, which is the intent.
+
+`already_exists` is only a real conflict when this step did *not* just fail to delete its own
+half-created release: the helper receives `--cleanup-failed` in that case and retries instead of
+failing fast, so a transient delete failure no longer costs the build.
 
 ## The install action: why a hit no longer runs yarn
 

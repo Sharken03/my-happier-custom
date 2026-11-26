@@ -11,7 +11,7 @@
  * failure, a malformed tag) must fail immediately instead of blocking a 2-CPU runner for seven
  * more minutes.
  *
- * Usage: node scripts/ci/publish-retry.mjs --attempt N --error-log PATH
+ * Usage: node scripts/ci/publish-retry.mjs --attempt N --error-log PATH [--cleanup-failed]
  * Prints the seconds to wait. Exit 1 with a reason when it must not be retried.
  * Env: PUBLISH_MAX_TRIES (5), PUBLISH_BASE_DELAY_SECONDS (30), PUBLISH_MAX_DELAY_SECONDS (300)
  */
@@ -43,9 +43,13 @@ const PERMANENT_PATTERNS = [
 
 /**
  * @param {string} log stderr of the failed `gh release create`
+ * @param {{ cleanupFailed?: boolean }} [options] true when removing a half-created release failed
  * @returns {'transient' | 'permanent' | 'unknown'}
  */
-export function classifyPublishError(log) {
+export function classifyPublishError(log, options = {}) {
+    // `already_exists` means the tag is still there. When our own cleanup delete just failed, that
+    // is our leftover and the next try is right; without that context it is a real conflict.
+    if (options.cleanupFailed && /already_exists/.test(log)) return 'transient';
     if (PERMANENT_PATTERNS.some((pattern) => pattern.test(log))) return 'permanent';
     if (TRANSIENT_PATTERNS.some((pattern) => pattern.test(log))) return 'transient';
     // gh errors that say nothing recognisable are treated as transient once: a publish is
@@ -89,7 +93,7 @@ function main(argv) {
     }
 
     const log = logPath ? readLog(logPath) : '';
-    const kind = classifyPublishError(log);
+    const kind = classifyPublishError(log, { cleanupFailed: argv.includes('--cleanup-failed') });
     if (kind === 'permanent') {
         process.stderr.write('publish-retry: the error is not transient, so a retry cannot help\n');
         return 1;

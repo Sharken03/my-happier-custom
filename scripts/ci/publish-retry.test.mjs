@@ -11,12 +11,12 @@ import { classifyPublishError, nextDelaySeconds } from './publish-retry.mjs';
 
 const script = join(resolve(dirname(fileURLToPath(import.meta.url))), 'publish-retry.mjs');
 
-function runCli(log, attempt, env = {}) {
+function runCli(log, attempt, env = {}, extraArgs = []) {
     const directory = mkdtempSync(join(tmpdir(), 'publish-retry-'));
     try {
         const logPath = join(directory, 'error.log');
         writeFileSync(logPath, log);
-        return spawnSync(process.execPath, [script, '--attempt', String(attempt), '--error-log', logPath], {
+        return spawnSync(process.execPath, [script, '--attempt', String(attempt), '--error-log', logPath, ...extraArgs], {
             encoding: 'utf8',
             env: { ...process.env, ...env },
         });
@@ -89,4 +89,14 @@ test('the backoff spans minutes, and stops at the configured try count', () => {
 test('the schedule stays tunable from the workflow env', () => {
     const result = runCli('HTTP 503: Service Unavailable', 2, { PUBLISH_BASE_DELAY_SECONDS: '10', PUBLISH_MAX_DELAY_SECONDS: '15' });
     assert.equal(result.stdout.trim(), '15', 'the cap wins over the doubled base');
+});
+
+test('already_exists is a real conflict only when our own cleanup did not fail', () => {
+    const log = 'HTTP 422: Validation Failed (https://api.github.com/repos/x/y/releases)\n  already_exists';
+    // Our delete of the half-created release failed, so the tag that already exists is our own.
+    assert.equal(classifyPublishError(log, { cleanupFailed: true }), 'transient');
+    assert.equal(runCli(log, 1, {}, ['--cleanup-failed']).status, 0);
+    // Without that context it is someone else's tag and retrying will not help.
+    assert.equal(classifyPublishError(log), 'permanent');
+    assert.equal(runCli(log, 1).status, 1);
 });
