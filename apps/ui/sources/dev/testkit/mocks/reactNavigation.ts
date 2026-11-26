@@ -4,6 +4,17 @@ export type CreateReactNavigationNativeMockOptions = Readonly<{
     isFocused?: boolean;
 }>;
 
+/**
+ * The navigation contexts without a navigator: screens read no navigation object and no route.
+ * For test files that write their own `@react-navigation/native` mock.
+ */
+export function createReactNavigationContextMocks() {
+    return {
+        NavigationContext: React.createContext<unknown>(undefined),
+        NavigationRouteContext: React.createContext<unknown>(undefined),
+    };
+}
+
 export function createReactNavigationNativeMock(options: CreateReactNavigationNativeMockOptions = {}) {
     const isFocused = options.isFocused ?? true;
     const navigation = { goBack: () => {} };
@@ -12,9 +23,7 @@ export function createReactNavigationNativeMock(options: CreateReactNavigationNa
         CommonActions: {
             setParams: (params: Record<string, unknown>) => ({ type: 'SET_PARAMS', payload: { params } }),
         },
-        // No navigator in tests: screens read no navigation object and no route.
-        NavigationContext: React.createContext<unknown>(undefined),
-        NavigationRouteContext: React.createContext<unknown>(undefined),
+        ...createReactNavigationContextMocks(),
         useIsFocused: () => isFocused,
         useNavigation: () => navigation,
         useFocusEffect: (effect: () => void | (() => void)) => {

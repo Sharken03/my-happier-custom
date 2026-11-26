@@ -129,7 +129,8 @@ vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-vi.mock('@react-navigation/native', () => ({
+vi.mock('@react-navigation/native', async () => ({
+    ...(await import('@/dev/testkit/mocks/reactNavigation')).createReactNavigationContextMocks(),
     useFocusEffect: () => {},
   useIsFocused: () => true,
 }));
@@ -337,6 +338,8 @@ vi.mock('@/sync/sync', async (importOriginal) => {
         refreshSessionMessages: (...args: any[]) => refreshSessionMessagesSpy(...args),
         onSessionVisible: () => {},
         markSessionLiveTailIntent: () => {},
+        // Attachment uploads hold a user request lease so the socket stays open.
+        acquireUserRequestLease: () => () => {},
         sendMessage: (...args: any[]) => sendMessageSpy(...args),
         enqueuePendingMessage: (...args: any[]) => enqueuePendingMessageSpy(...args),
         updatePendingMessage: (...args: any[]) => updatePendingMessageSpy(...args),

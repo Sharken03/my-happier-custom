@@ -258,7 +258,8 @@ installSessionShellCommonModuleMocks({
 vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, bottom: safeAreaState.bottom, left: 0, right: 0 }),
 }));
-vi.mock('@react-navigation/native', () => ({
+vi.mock('@react-navigation/native', async () => ({
+    ...(await import('@/dev/testkit/mocks/reactNavigation')).createReactNavigationContextMocks(),
     useFocusEffect: () => {},
     useIsFocused: () => true,
 }));
