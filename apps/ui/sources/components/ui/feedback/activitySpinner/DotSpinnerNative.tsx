@@ -84,7 +84,7 @@ export function DotSpinnerNative(props: Readonly<{
     const frames = getDotSpinnerFrames(styleId, timing);
     const animate = motion === 'animate' && !hidden;
     const breathe = motion === 'breathe' && !hidden;
-    const clock = useDotSpinnerCycleClock(frames.cycleMs, animate);
+    const clock = useDotSpinnerCycleClock(frames.cycleMs, frames.frameCount, animate);
     const breath = useDotSpinnerBreathClock(breathe);
     const drives = React.useMemo(() => driveDots(frames, ink, clock, !animate), [animate, clock, frames, ink]);
     const layerOpacity = React.useMemo(

@@ -179,6 +179,9 @@ const settingsAppearanceTranslationExtension = {
       darkModern: 'Dark Modern',
       catppuccinLatte: 'Catppuccin Latte',
       githubLight: 'GitHub Light',
+      claudeCode: 'Claude Dark',
+      claudeCodeDarker: 'Claude Darker',
+      claudeCodeLight: 'Claude Light',
     },
     readOnlyPreset: 'Read-only preset',
     clonePreset: 'Clone preset',
@@ -798,6 +801,7 @@ export const ru: TranslationStructure = {
     details: "Детали",
     fieldStatus: "Статус",
     fieldAction: "Действие",
+    fieldFailureReason: "Причина ошибки",
     approve: "Подтвердить",
     reject: "Отклонить",
     loadError: "Не удалось загрузить подтверждение.",
@@ -2514,7 +2518,7 @@ export const ru: TranslationStructure = {
           renewal: "Продление",
           renewalOn: "Включено",
           renewalOff: "Выключено",
-          renewalUnknown: "Неизвестно",
+          active: "Активна",
           renews: ({ date }: { date: string }) => `Продление ${date}`,
           ends: ({ date }: { date: string }) => `Окончание ${date}`,
           renewsInDays: ({ days }: { days: number }) => `Продление через ${days} дн.`,
@@ -2680,6 +2684,12 @@ export const ru: TranslationStructure = {
       refreshA11y: "Обновить использование и лимиты",
       usageCaption: "Использование",
       resetsCaption: "Сбросы квоты",
+      credits: {
+        title: "Кредиты",
+        balance: ({ balance }: { balance: string }) => `${balance} кредитов`,
+        spent: "Не осталось",
+        includedUsed: "Включённые лимиты исчерпаны · доступны кредиты",
+      },
       usedDetail: ({ used, limit }: { used: string; limit: string }) => `${used}/${limit} использовано`,
       capacity: ({ percent }: { percent: number }) => `${percent}% ёмкости`,
       memberEnabledLabel: "Включено в пуле",
@@ -3439,6 +3449,7 @@ export const ru: TranslationStructure = {
       backendPromptMessage: "Введите ID бэкенда",
       instructionsPlaceholder: "Инструкции для сообщения коммита",
     },
+    changedFilesRefresh: { title: "Изменённые файлы", footer: "Список изменённых файлов обновляется и при завершении инструмента, который может менять файлы, а не только при его запуске.", refreshOnToolDone: { title: "Обновлять по завершении инструмента" } },
     commitAttribution: {
       title: "Авторство коммита",
       footer:
@@ -3550,7 +3561,7 @@ export const ru: TranslationStructure = {
     trayOpenInHappier: 'Открыть в Happier',
     traySettings: 'Настройки…',
     trayStartAtLogin: 'Запускать при входе',
-    trayStopAndQuit: 'Остановить фоновые службы и выйти',
+    trayStopAndQuit: 'Выйти из Happier (остановить фоновые службы)',
     trayStart: 'Запустить',
     trayRestart: 'Перезапустить',
     trayStop: 'Остановить',
@@ -4557,6 +4568,10 @@ export const ru: TranslationStructure = {
     feedback: "Отклик",
     haptics: "Тактильный отклик",
     hapticsDescription: "Использовать тактильный отклик для действий и изменения порядка на этом устройстве.",
+    permissionHaptics: "Вибрация при запросах разрешения",
+    permissionHapticsDescription: "Вибрировать, когда агент запрашивает ваше разрешение.",
+    connectionBanner: "Баннер подключения",
+    connectionBannerDescription: "Показывать короткое уведомление вверху, пока соединение с сервером восстанавливается.",
     backdropBlur: "Размытие фона",
     backdropBlurDescription:
       "Использовать размытие фона за модальными окнами и меню. Отключите, чтобы повысить производительность браузера.",
@@ -4808,6 +4823,8 @@ export const ru: TranslationStructure = {
     expChannelBridgesSubtitle: "Подключайте Telegram и другие чаты к сессиям Happier (экспериментально)",
     expMemorySearch: "Поиск по памяти",
     expMemorySearchSubtitle: "Включить экраны и настройки локального поиска по памяти",
+    expMcpServers: "MCP-серверы",
+    expMcpServersSubtitle: "Показывать чип MCP и настройки MCP-серверов",
     expSessionsDirect: "Прямые сессии",
     expSessionsDirectSubtitle: "Показывать и открывать в боковой панели прямые сессии провайдера",
     expSessionsFolders: "Папки сессий",
@@ -4836,6 +4853,8 @@ export const ru: TranslationStructure = {
       commandPaletteDisabled: "Быстрый доступ к командам отключён",
       hideInactiveSessions: "Скрывать неактивные сессии",
       hideInactiveSessionsSubtitle: "Показывать в списке только активные чаты",
+      showArchivedSessionsLink: "Показывать ссылку на архив",
+      showArchivedSessionsLinkSubtitle: "Показывать ссылку на архивные и неактивные сессии внизу списка",
       hiddenInactiveSessionsEmptyStateTitle: "Сейчас нет активных сессий",
       hiddenInactiveSessionsEmptyStateSubtitle: "Неактивные сессии скрыты в этом списке",
       hiddenInactiveSessionsSectionTitle: "Неактивные сессии",
@@ -5161,6 +5180,7 @@ export const ru: TranslationStructure = {
       customPathTitle: "Пользовательский путь",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `Показаны первые ${count} элементов`,
       recentTitle: "Недавние",
+      newChatOwnFolder: "Новый чат (своя папка)",
       favoritesTitle: "Избранное",
       suggestedTitle: "Рекомендуемые",
       allTitle: "Все",
@@ -5940,6 +5960,7 @@ export const ru: TranslationStructure = {
     thisComputerRelayConnected: 'Подключено',
     thisComputerRelayOffline: 'Не в сети',
     thisComputerRelayNeedsAttention: 'Требует внимания',
+    recoveryBanner: { reconnecting: "Переподключение…", reconnected: "Подключено снова" },
     thisComputerSetUpFor: ({ relay }: { relay: string }) => `Настроено для ${relay}`,
     labels: {
       server: "Сервер",
@@ -6129,6 +6150,25 @@ export const ru: TranslationStructure = {
     },
     toolCalls: "Вызовы инструментов",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} ещё…`,
+    toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+        if (kind === 'commands') return running ? 'Running' : 'Ran';
+        if (kind === 'reads') return running ? 'Reading' : 'Read';
+        if (kind === 'searches') return running ? 'Searching' : 'Searched';
+        if (kind === 'edits') return running ? 'Editing' : 'Edited';
+        if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+        if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+        return toolName;
+    },
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `команды: ${count}`,
+        reads: ({ count }: { count: number }) => `прочитано файлов: ${count}`,
+        searches: ({ count }: { count: number }) => `поиски: ${count}`,
+        edits: ({ count }: { count: number }) => `изменено файлов: ${count}`,
+        web: ({ count }: { count: number }) => `веб-страницы: ${count}`,
+        agents: ({ count }: { count: number }) => `агенты: ${count}`,
+        other: ({ count }: { count: number }) => `инструменты: ${count}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Ведёт эту сессию.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Последний раз использовался в этой сессии.`,
@@ -6873,6 +6913,7 @@ export const ru: TranslationStructure = {
     },
 
         voiceSurface: {
+          recording: "Запись…",
           start: "Старт",
           stop: "Стоп",
           selectSessionToStart: "Выберите сессию, чтобы запустить голос",
@@ -7231,6 +7272,8 @@ export const ru: TranslationStructure = {
     payloadTruncated: "Большая нагрузка обрезана для производительности.",
     showFullPayload: "Показать полную нагрузку",
     showLessPayload: "Показать меньше",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {
@@ -7445,7 +7488,7 @@ export const ru: TranslationStructure = {
         dismiss: 'Закрыть вопрос',
         dismissed: 'Вопрос закрыт',
         submissionFailures: {
-            unconfirmed: "Ответы отправлены Claude, но подтверждение ещё не получено. Повторите попытку, чтобы проверить, или откройте терминал Claude.",
+            unconfirmed: "Happier не удалось подтвердить ваш ответ. Повторите попытку или откройте терминал Claude, чтобы проверить его.",
             update: "Обновите Happier CLI и повторите попытку.",
             reconnect: "Переподключите этот сеанс и повторите попытку.",
             retry: "Не удалось принять ответ. Проверьте его и повторите попытку.",
@@ -7716,6 +7759,10 @@ export const ru: TranslationStructure = {
     attributionLegendDirectOnly: "прямая = из операций этой сессии",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count} ${plural({ count, one: "выведенный файл оставлен", few: "выведенных файла оставлены", many: "выведенных файлов оставлены" })} в изменениях только репозитория.`,
+    otherRepositoriesTitle: "Другие репозитории",
+    outsideGitTitle: "Вне git",
+    externalChangeNotInWorkingTree: "Сейчас не изменено в рабочем дереве (закоммичено или отменено): это правка агента.",
+    externalChangeNoDiff: "Нет диффа: вызов инструмента агентом не содержал изменённый текст.",
     noSessionAttributedChanges:
       "Изменения, привязанные к сессии, не обнаружены.",
     noLatestTurnChanges:
@@ -7851,11 +7898,20 @@ export const ru: TranslationStructure = {
         binaryFile: "Бинарный файл",
         videoPreview: 'Предпросмотр видео',
         imagePreviewTooLarge: "Предпросмотр изображения слишком большой для отображения",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} из ${total}`,
+            share: 'Поделиться изображением',
+            save: 'Сохранить изображение',
+            edit: 'Пометить изображение',
+            undo: 'Отменить',
+            penColor: 'Цвет пера',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Открыть сгенерированное изображение ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Открыть прикрепленное изображение ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Открыть изображение артефакта инструмента ${name}`,
           imageUnavailable: 'Изображение недоступно',
+          imageCountA11y: ({ count }: { count: number }) => `Изображений: ${count}`,
         },
         cannotDisplayBinary: "Невозможно отобразить содержимое бинарного файла",
         diff: "Различия",
@@ -8334,6 +8390,8 @@ export const ru: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Кнопки редактора", "footer": "Выключите кнопки, которыми вы не пользуетесь. Они исчезнут и из свёрнутого меню.", "controls": {"engine": "Агент и модель", "mode": "Режим сессии", "goal": "Цель", "permission": "Разрешения", "profile": "Профиль", "env": "Переменные окружения", "server": "Сервер", "connectedServices": "Аккаунты (CLI Auth)", "mcp": "MCP-серверы", "checkout": "Ветка и worktree", "automation": "Автоматизация", "attachments": "Прикрепить файлы", "linkedFiles": "Связать файлы (@)", "files": "Файлы", "reviewComments": "Комментарии к ревью", "storage": "Хранение транскрипта", "providerOption": "Параметры провайдера", "shortcuts": "Ярлыки", "machine": "Машина", "path": "Папка", "resume": "Возобновить"}},
+    modelChip: {"title": "Чип модели", "footer": "Как редактор называет модель, которая запустится следующей.", "agentAndModelTitle": "Значок агента и модель", "agentAndModelSubtitle": "Значок агента с названием модели.", "modelAndEffortTitle": "Модель и усилие", "modelAndEffortSubtitle": "Название модели и его уровень рассуждения, без значка (как в приложении Claude).", "compactTitle": "Компактный список моделей", "compactSubtitle": "Без строк состояния и провайдера под каждой моделью. Отметьте модель звёздочкой, чтобы она была первой.", "alphabeticalTitle": "Сортировать модели по названию", "alphabeticalSubtitle": "Показывает модели в алфавитном порядке. Модели со звёздочкой идут первыми, тоже по алфавиту.", "layoutTitle": "Вид выбора модели", "layoutSubtitle": "Выберите, как показывать выбор модели: карточки (сетка) или список (компактный).", "layoutOptions": {"carded": "Карточки (сетка)", "compact": "Список (компактный)"}},
     terminalHostTitle: 'Терминальный хост для новых сеансов',
     terminalHostNone: 'Без терминального хоста',
     newSessionAfterSend: { title: "После отправки", footer: "Выберите, что происходит при отправке из редактора новой сессии. Удерживайте «Отправить», чтобы выбрать другой вариант для одного сообщения.", openTitle: "Открыть сессию", openSubtitle: "Перейти к сессии сразу после запуска.", startAnotherTitle: "Остаться и начать ещё одну", startAnotherSubtitle: "Продолжить запуск в фоне и открыть новый черновик." },
@@ -8425,6 +8483,8 @@ settingsSession: {
 	        activeColorAttentionOnlySubtitle: 'Использовать активный цвет только для сессий, требующих вашего внимания.',
 	        activeColorAllActiveTitle: 'Все активные сессии',
 	        activeColorAllActiveSubtitle: 'Использовать активный цвет для каждой активной подключенной сессии.',
+	        highlightAttentionTitle: "Выделять сессии с новым",
+	        highlightAttentionSubtitle: "Строка с новым ответом, запросом или ошибкой сохраняет тёмный жирный заголовок, даже если агент не в сети.",
 	        folderSortModeTitle: 'Порядок папок',
 	        folderSortModeSubtitle: 'Выберите, как папки и сессии располагаются в списке.',
 	        folderSortModeFoldersFirstTitle: 'Сначала папки',
@@ -8512,6 +8572,8 @@ settingsSession: {
     inputBehavior: {
         keepFocusTitle: "Сохранять фокус в редакторе после отправки",
         keepFocusSubtitle: "Оставаться в поле сообщения, чтобы сразу написать следующее.",
+        typeToFocusTitle: "Печатать откуда угодно",
+        typeToFocusSubtitle: "Начните печатать вне текстового поля, чтобы перейти в поле сообщения.",
         title: 'Поведение ввода',
         footer: 'Настройте отправку по Enter и поведение истории сообщений.',
         enterToSendEnabledNativeSubtitle: 'Нажмите Enter, чтобы отправить',
@@ -8624,6 +8686,8 @@ settingsSession: {
         customResumePromptPlaceholder: "Продолжай с того места, где остановился.",
       },
       providerUsageGauge: {
+          numberTitle: "Число в центре колец",
+          numberSubtitle: "Выберите лимит для числа внутри колец. Если он недоступен, используется самый ограничивающий лимит.",
         title: "Использование провайдера",
         footer:
           "Выберите индикаторы редактора для всех аккаунтов. Они учитывают лимиты использования, выбранные в каждом пуле. Избранные лимиты добавляют индикаторы активного аккаунта.",
@@ -8737,6 +8801,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Действия с сообщениями',
           groupFooter: 'Настройте выбор сообщений и действия пересылки в стенограмме.',
+          copyOnly: { title: "Только копирование", subtitle: "Ваши сообщения: долгое нажатие — «Копировать сообщение» и «Выделить текст». Ответы: один значок копирования. Скрывает закрепление, ответвление и выбор." },
+          messageMenu: { copy: "Копировать сообщение", selectText: "Выделить текст" },
           selectionEnabled: {
             title: 'Включить выбор сообщений',
             subtitle: 'Показывать значок выбора под сообщениями, чтобы копировать или пересылать их массово',
@@ -8758,6 +8824,13 @@ settingsSession: {
             plain: 'Обычный текст',
           },
         },
+        markdownImages: {
+            groupTitle: "Изображения в ответах",
+            groupFooter: "Показывать markdown-изображения с доверенных хостов. Изображения с других хостов остаются скрытыми. Каждое изображение загружается с хоста при открытии чата.",
+            enabled: { title: "Показывать изображения с разрешённых хостов", subtitle: "Строка ответа, которая содержит только изображение, показывается как картинка" },
+            sharedImages: { title: "Показывать изображения от агента", subtitle: "Изображение, которое показывает агент, занимает всю ширину чата" },
+            hosts: { title: "Разрешённые хосты", subtitle: "Один хост на строку, например happy.example.org. Показываются только https-ссылки на эти точные хосты." },
+        },
         layout: {
           linearTitle: "Линейный",
           linearSubtitle: "Показывать сообщения как плоский список.",
@@ -8770,9 +8843,16 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Фон групп вызовов",
         toolCallsGroupBackgroundSubtitle:
           "Показывать фон за группами вызовов в режиме ленты инструментов.",
+        toolCallsGroupBottomCollapseTitle: 'Свернуть внизу',
+        toolCallsGroupBottomCollapseSubtitle: 'Показывает кнопку «Свернуть» внизу развёрнутой группы вызовов инструментов.',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
+        toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Вид инструментов",
         toolAppearanceSubtitle:
           "Настройте, как инструменты выглядят в стенограмме.",
+        workingQuill: { title: "Перо во время работы", subtitle: "Пока агент работает, в строке состояния перо пишет на странице вместо мигающей точки." },
+        userBubbleNarrow: { title: "Узкие пузыри сообщений", subtitle: "Ваши сообщения занимают не более 80% ширины и стоят справа, как в приложении Claude." },
         motionTitle: "Анимации",
         motionFooter: "Управляйте анимациями в стенограмме.",
         motionPickerTitle: "Анимации",
@@ -8798,6 +8878,14 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `Новая активность: ${count}. К низу`,
           jumpToBottomSubtitle:
             "Показывать кнопку, когда вы прокрутили вверх и пришла новая активность.",
+          jumpToBottomShowCountTitle: 'Показывать число новых элементов',
+          jumpToBottomShowCountSubtitle: 'Число на кнопке перехода вниз',
+          jumpToBottomPositionTitle: "Положение кнопки перехода вниз",
+          jumpToBottomPositionBottomCenter: "По центру внизу",
+          jumpToBottomPositionBottomRight: "Справа внизу",
+          chatFontTitle: "Шрифт чата",
+          chatFontDefault: "Стандартный (Inter)",
+          chatFontDmSans: "DM Sans",
             advancedScrollTitle: "Расширенная прокрутка…",
           advancedScrollSubtitle: "Настройте пороги и счётчики.",
           advancedTitle: "Расширенные…",
@@ -9591,6 +9679,12 @@ settingsSession: {
       conversationModeSubtitle:
         "Напрямую в сессию, или через медиатор с явным коммитом",
       conversation: {
+        dictationMode: {
+          title: "Режим диктовки",
+          footer: "Микрофон — одно действие на сообщение; кнопка композера останавливает текущий ответ.",
+          enableTitle: "Включить режим диктовки",
+          enableSubtitle: "Композер останавливает текущий ответ вместо записи.",
+        },
         mode: {
           voiceAgentSubtitle:
             "Использовать голосового агента (явный коммит, контроль инструментов).",
@@ -10886,6 +10980,9 @@ settingsSession: {
     switchedToMode: ({ mode }: { mode: string }) =>
       `Переключено в режим ${mode}`,
     discarded: "Отброшено",
+    readAloudA11y: "Прочитать вслух",
+    stopReadAloudA11y: "Остановить чтение вслух",
+    readAloudFailed: "Не удалось прочитать это сообщение вслух. Проверьте настройки голоса.",
     recoveredHistory: "Восстановленная история",
     unknownEvent: "Неизвестное событие",
     contextCompactionStarted: "Сжатие контекста...",
@@ -11028,6 +11125,13 @@ settingsSession: {
       codeCopied: "Код скопирован",
       copyFailed: "Ошибка копирования",
       mermaidRenderFailed: "Не удалось отобразить диаграмму mermaid",
+      table: {
+          open: "Открыть таблицу",
+          copyCsv: "Копировать как CSV",
+          copyMarkdown: "Копировать как Markdown",
+          csvLabel: "CSV",
+          viewerTitle: "Таблица",
+      },
       diffLabel: "Дифф",
       codeLabel: "Код",
 

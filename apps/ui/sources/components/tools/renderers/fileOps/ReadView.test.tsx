@@ -11,7 +11,7 @@ import { findTestInstanceByTypeWithProps } from '@/dev/testkit/render/renderScre
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('@/components/ui/media/CodeView', () => ({
-    CodeView: ({ code }: any) => React.createElement('CodeView', { code }),
+    CodeView: (props: any) => React.createElement('CodeView', props),
 }));
 
 vi.mock('../../shell/presentation/ToolSectionView', () => ({
@@ -77,5 +77,31 @@ describe('ReadView', () => {
         );
         expect(findTestInstanceByTypeWithProps(malformedTree, 'CodeView' as any, {})).toBeUndefined();
         expect(normalizedHostText(malformedTree)).toContain('Details unavailable');
+    });
+
+    it('passes the language inferred from the read path to CodeView', async () => {
+        const tree = await renderView(
+            makeCompletedTool('Read', { file_path: '/tmp/src/a.ts' }, { content: 'const x = 1;' }),
+        );
+        const codeNode = findTestInstanceByTypeWithProps(tree, 'CodeView' as any, { language: 'typescript' });
+        expect(codeNode).toBeTruthy();
+    });
+
+    it('passes the language inferred from Gemini-style locations to CodeView', async () => {
+        const tree = await renderView(
+            makeCompletedTool('read', { locations: [{ path: '/tmp/style.css' }] }, { content: 'a { color: red; }' }),
+        );
+        const codeNode = findTestInstanceByTypeWithProps(tree, 'CodeView' as any, { language: 'css' });
+        expect(codeNode).toBeTruthy();
+    });
+
+    it('leaves the language unset when the path has no known extension', async () => {
+        const tree = await renderView(
+            makeCompletedTool('Read', { file_path: '/tmp/notes' }, { content: 'hello' }),
+        );
+        const codeNode = findTestInstanceByTypeWithProps(tree, 'CodeView' as any, {});
+        expect(codeNode).toBeTruthy();
+        if (!codeNode) throw new Error('CodeView not found');
+        expect(codeNode.props.language).toBeUndefined();
     });
 });

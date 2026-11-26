@@ -14,7 +14,9 @@ import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useSettingMutable } from '@/sync/domains/state/storage';
 import type { TranscriptMessageTimestampDisplayMode } from '@/sync/domains/settings/registry/account/accountTranscriptToolSettingDefinitions';
+import type { Settings } from '@/sync/domains/settings/settings';
 import { Icon } from '@/components/ui/icons/Icon';
+import { TranscriptMarkdownImagesSettingsGroup } from './TranscriptMarkdownImagesSettingsGroup';
 import {
     resolveToolViewDetailLevelDefaultForChromeMode,
     resolveToolViewExpandedDetailLevelDefaultForChromeMode,
@@ -38,6 +40,20 @@ function clampInt(value: number, bounds: Readonly<{ min: number; max: number }>)
     return Math.min(bounds.max, Math.max(bounds.min, Math.trunc(value)));
 }
 
+// English only, as the setting titles (see ALLOW_SAME_STRING_KEYS in tools/i18n/translationAudit.ts).
+const TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS = [
+    { id: 'inline', title: 'Inline', subtitle: 'Show the calls in the transcript.' },
+    { id: 'list', title: 'List', subtitle: 'Show one line per call, as Claude Code on the web. Tap a line to see its details.' },
+    { id: 'sheet', title: 'Sheet', subtitle: 'Show a group as one line. Tap it to open the calls in a sheet.' },
+] as const satisfies readonly { id: Settings['transcriptToolCallsGroupOpenMode']; title: string; subtitle: string }[];
+
+// The app and the web client read their own setting (transcriptToolCallsGroupOpenMode and
+// transcriptToolCallsGroupOpenModeWeb); both live on the account, so each row is the same everywhere.
+const TOOL_CALLS_GROUP_OPEN_MODE_TITLES = {
+    app: 'settingsSession.transcript.toolCallsGroupOpenInSheetTitle',
+    web: 'settingsSession.transcript.toolCallsGroupOpenInSheetWebTitle',
+} as const;
+
 export const TranscriptSettingsView = React.memo(function TranscriptSettingsView() {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -48,8 +64,14 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
     const [transcriptTurnToolCallsGroupStrategy, setTranscriptTurnToolCallsGroupStrategy] = useSettingMutable('transcriptTurnToolCallsGroupStrategy');
     const [transcriptToolCallsCollapsedPreviewCount, setTranscriptToolCallsCollapsedPreviewCount] = useSettingMutable('transcriptToolCallsCollapsedPreviewCount');
     const [transcriptToolCallsGroupShowBackground, setTranscriptToolCallsGroupShowBackground] = useSettingMutable('transcriptToolCallsGroupShowBackground');
+    const [transcriptToolCallsGroupBottomCollapse, setTranscriptToolCallsGroupBottomCollapse] = useSettingMutable('transcriptToolCallsGroupBottomCollapse');
+    const [transcriptToolCallsGroupOpenMode, setTranscriptToolCallsGroupOpenMode] = useSettingMutable('transcriptToolCallsGroupOpenMode');
+    const [transcriptToolCallsGroupOpenModeWeb, setTranscriptToolCallsGroupOpenModeWeb] = useSettingMutable('transcriptToolCallsGroupOpenModeWeb');
     const [transcriptMessageTimestampDisplayMode, setTranscriptMessageTimestampDisplayMode] = useSettingMutable('transcriptMessageTimestampDisplayMode');
     const [transcriptMessageSelectionEnabled, setTranscriptMessageSelectionEnabled] = useSettingMutable('transcriptMessageSelectionEnabled');
+    const [transcriptMessageActionsCopyOnly, setTranscriptMessageActionsCopyOnly] = useSettingMutable('transcriptMessageActionsCopyOnly');
+    const [composerWorkingQuillMarkEnabled, setComposerWorkingQuillMarkEnabled] = useSettingMutable('composerWorkingQuillMarkEnabled');
+    const [transcriptUserBubbleNarrow, setTranscriptUserBubbleNarrow] = useSettingMutable('transcriptUserBubbleNarrow');
     const [transcriptMessageSendToSessionEnabled, setTranscriptMessageSendToSessionEnabled] = useSettingMutable('transcriptMessageSendToSessionEnabled');
     const [transcriptMessageSendToSessionTemplate, setTranscriptMessageSendToSessionTemplate] = useSettingMutable('transcriptMessageSendToSessionTemplate');
     const [transcriptBulkCopyFormat, setTranscriptBulkCopyFormat] = useSettingMutable('transcriptBulkCopyFormat');
@@ -70,6 +92,10 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
 
     const [transcriptScrollPinEnabled, setTranscriptScrollPinEnabled] = useSettingMutable('transcriptScrollPinEnabled');
     const [transcriptScrollJumpToBottomEnabled, setTranscriptScrollJumpToBottomEnabled] = useSettingMutable('transcriptScrollJumpToBottomEnabled');
+    const [transcriptJumpToBottomPosition, setTranscriptJumpToBottomPosition] = useSettingMutable('transcriptJumpToBottomPosition');
+    const [transcriptScrollJumpToBottomShowCount, setTranscriptScrollJumpToBottomShowCount] = useSettingMutable('transcriptScrollJumpToBottomShowCount');
+    const [transcriptInitialFillToUserMessage, setTranscriptInitialFillToUserMessage] = useSettingMutable('transcriptInitialFillToUserMessageV1');
+    const [transcriptChatFont, setTranscriptChatFont] = useSettingMutable('transcriptChatFont');
 
     // Code & Diffs settings (moved from Appearance)
     const [showLineNumbers, setShowLineNumbers] = useSettingMutable('showLineNumbers');
@@ -78,6 +104,8 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
 
     const [openGroupingMenu, setOpenGroupingMenu] = React.useState(false);
     const [openTimestampMenu, setOpenTimestampMenu] = React.useState(false);
+    const [openChatFontMenu, setOpenChatFontMenu] = React.useState(false);
+    const [openJumpToBottomPositionMenu, setOpenJumpToBottomPositionMenu] = React.useState(false);
     const [openBulkCopyFormatMenu, setOpenBulkCopyFormatMenu] = React.useState(false);
     const [openThinkingDisplayMenu, setOpenThinkingDisplayMenu] = React.useState(false);
     const [openToolChromeMenu, setOpenToolChromeMenu] = React.useState(false);
@@ -351,6 +379,31 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     }}
                 />
                 <DropdownMenu
+                    open={openChatFontMenu}
+                    onOpenChange={setOpenChatFontMenu}
+                    variant="selectable"
+                    search={false}
+                    selectedId={transcriptChatFont === 'dm-sans' ? 'dm-sans' : 'default'}
+                    showCategoryTitles={false}
+                    matchTriggerWidth={true}
+                    connectToTrigger={true}
+                    rowKind="item"
+                    popoverBoundaryRef={popoverBoundaryRef}
+                    itemTrigger={{
+                        title: t('settingsSession.transcript.chatFontTitle'),
+                        icon: <Icon name="text-aa" size={29} color={theme.colors.text.secondary} />,
+                        itemProps: { testID: 'settings-session-transcript-chat-font' },
+                    }}
+                    items={[
+                        { id: 'default', title: t('settingsSession.transcript.chatFontDefault') },
+                        { id: 'dm-sans', title: t('settingsSession.transcript.chatFontDmSans') },
+                    ]}
+                    onSelect={(id) => {
+                        setTranscriptChatFont(id === 'dm-sans' ? 'dm-sans' : 'default');
+                        setOpenChatFontMenu(false);
+                    }}
+                />
+                <DropdownMenu
                     open={openTimestampMenu}
                     onOpenChange={setOpenTimestampMenu}
                     variant="selectable"
@@ -382,9 +435,26 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                         setOpenTimestampMenu(false);
                     }}
                 />
+                <Item
+                    testID="settings-session-transcript-user-bubble-narrow"
+                    title={t('settingsSession.transcript.userBubbleNarrow.title')}
+                    subtitle={t('settingsSession.transcript.userBubbleNarrow.subtitle')}
+                    icon={<Icon name="chat-circle-dots" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={<Switch value={transcriptUserBubbleNarrow === true} onValueChange={setTranscriptUserBubbleNarrow} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptUserBubbleNarrow(!(transcriptUserBubbleNarrow === true))}
+                />
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.transcript.messageActions.groupTitle')} footer={t('settingsSession.transcript.messageActions.groupFooter')}>
+                <Item
+                    testID="settings-session-transcript-message-actions-copy-only"
+                    title={t('settingsSession.transcript.messageActions.copyOnly.title')}
+                    subtitle={t('settingsSession.transcript.messageActions.copyOnly.subtitle')}
+                    rightElement={<Switch value={transcriptMessageActionsCopyOnly === true} onValueChange={setTranscriptMessageActionsCopyOnly} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptMessageActionsCopyOnly(!(transcriptMessageActionsCopyOnly === true))}
+                />
                 <Item
                     testID="settings-session-transcript-message-selection-enabled"
                     title={t('settingsSession.transcript.messageActions.selectionEnabled.title')}
@@ -468,6 +538,8 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                     }}
                 />
             </ItemGroup>
+
+            <TranscriptMarkdownImagesSettingsGroup />
 
             <ItemGroup title={t('settingsSession.thinking.title')} footer={t('settingsSession.thinking.footer')}>
                 <DropdownMenu
@@ -667,6 +739,77 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                                     showChevron={false}
                                     onPress={() => setTranscriptToolCallsGroupShowBackground((transcriptToolCallsGroupShowBackground !== true) as any)}
                                 />
+
+                                <Item
+                                    title={t('settingsSession.transcript.toolCallsGroupBottomCollapseTitle')}
+                                    subtitle={t('settingsSession.transcript.toolCallsGroupBottomCollapseSubtitle')}
+                                    icon={<Icon name="caret-up" size={29} color={theme.colors.text.secondary} />}
+                                    testID="settings-session-transcript-tool-calls-group-bottom-collapse"
+                                    rightElement={
+                                        <Switch
+                                            value={transcriptToolCallsGroupBottomCollapse === true}
+                                            onValueChange={(v) => setTranscriptToolCallsGroupBottomCollapse(Boolean(v))}
+                                        />
+                                    }
+                                    showChevron={false}
+                                    onPress={() => setTranscriptToolCallsGroupBottomCollapse(transcriptToolCallsGroupBottomCollapse !== true)}
+                                />
+
+                                <DropdownMenu
+                                    open={openToolDetailMenu === 'transcriptToolCallsGroupOpenMode'}
+                                    onOpenChange={(next) => setOpenToolDetailMenu(next ? 'transcriptToolCallsGroupOpenMode' : null)}
+                                    variant="selectable"
+                                    search={false}
+                                    selectedId={transcriptToolCallsGroupOpenMode}
+                                    showCategoryTitles={false}
+                                    matchTriggerWidth={true}
+                                    connectToTrigger={true}
+                                    rowKind="item"
+                                    popoverBoundaryRef={popoverBoundaryRef}
+                                    itemTrigger={{
+                                        title: t(TOOL_CALLS_GROUP_OPEN_MODE_TITLES.app),
+                                        icon: <Icon name="caret-right" size={29} color={theme.colors.text.secondary} />,
+                                        subtitle: TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === transcriptToolCallsGroupOpenMode)?.title,
+                                    }}
+                                    items={TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.map((opt) => ({
+                                        id: opt.id,
+                                        title: opt.title,
+                                        subtitle: opt.subtitle,
+                                    }))}
+                                    onSelect={(id) => {
+                                        const option = TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === id);
+                                        if (option) setTranscriptToolCallsGroupOpenMode(option.id);
+                                        setOpenToolDetailMenu(null);
+                                    }}
+                                />
+
+                                <DropdownMenu
+                                    open={openToolDetailMenu === 'transcriptToolCallsGroupOpenModeWeb'}
+                                    onOpenChange={(next) => setOpenToolDetailMenu(next ? 'transcriptToolCallsGroupOpenModeWeb' : null)}
+                                    variant="selectable"
+                                    search={false}
+                                    selectedId={transcriptToolCallsGroupOpenModeWeb}
+                                    showCategoryTitles={false}
+                                    matchTriggerWidth={true}
+                                    connectToTrigger={true}
+                                    rowKind="item"
+                                    popoverBoundaryRef={popoverBoundaryRef}
+                                    itemTrigger={{
+                                        title: t(TOOL_CALLS_GROUP_OPEN_MODE_TITLES.web),
+                                        icon: <Icon name="caret-right" size={29} color={theme.colors.text.secondary} />,
+                                        subtitle: TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === transcriptToolCallsGroupOpenModeWeb)?.title,
+                                    }}
+                                    items={TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.map((opt) => ({
+                                        id: opt.id,
+                                        title: opt.title,
+                                        subtitle: opt.subtitle,
+                                    }))}
+                                    onSelect={(id) => {
+                                        const option = TOOL_CALLS_GROUP_OPEN_MODE_OPTIONS.find((opt) => opt.id === id);
+                                        if (option) setTranscriptToolCallsGroupOpenModeWeb(option.id);
+                                        setOpenToolDetailMenu(null);
+                                    }}
+                                />
                             </>
                         ) : null}
                     </>
@@ -841,6 +984,14 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                 />
 
                 <Item
+                    testID="settings-session-transcript-working-quill"
+                    title={t('settingsSession.transcript.workingQuill.title')}
+                    subtitle={t('settingsSession.transcript.workingQuill.subtitle')}
+                    rightElement={<Switch value={composerWorkingQuillMarkEnabled === true} onValueChange={setComposerWorkingQuillMarkEnabled} />}
+                    showChevron={false}
+                    onPress={() => setComposerWorkingQuillMarkEnabled(!(composerWorkingQuillMarkEnabled === true))}
+                />
+                <Item
                     title={t('settingsSession.transcript.advancedMotionTitle')}
                     subtitle={t('settingsSession.transcript.advancedMotionSubtitle')}
                     icon={<Icon name="sliders-horizontal" size={29} color={theme.colors.text.secondary} />}
@@ -879,6 +1030,58 @@ export const TranscriptSettingsView = React.memo(function TranscriptSettingsView
                         if (transcriptScrollPinEnabled !== true) return;
                         setTranscriptScrollJumpToBottomEnabled((transcriptScrollJumpToBottomEnabled !== true) as any);
                     }}
+                />
+
+                <Item
+                    title={t('settingsSession.transcript.jumpToBottomShowCountTitle')}
+                    subtitle={t('settingsSession.transcript.jumpToBottomShowCountSubtitle')}
+                    icon={<Icon name="list-numbers" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-session-transcript-jump-to-bottom-show-count"
+                            value={transcriptScrollJumpToBottomShowCount !== false}
+                            onValueChange={(v) => setTranscriptScrollJumpToBottomShowCount(Boolean(v) as any)}
+                        />
+                    }
+                    showChevron={false}
+                    onPress={() => setTranscriptScrollJumpToBottomShowCount((transcriptScrollJumpToBottomShowCount === false) as any)}
+                />
+
+                <DropdownMenu
+                    open={openJumpToBottomPositionMenu}
+                    onOpenChange={setOpenJumpToBottomPositionMenu}
+                    variant="selectable"
+                    search={false}
+                    selectedId={transcriptJumpToBottomPosition as any}
+                    showCategoryTitles={false}
+                    matchTriggerWidth={true}
+                    connectToTrigger={true}
+                    rowKind="item"
+                    popoverBoundaryRef={popoverBoundaryRef}
+                    itemTrigger={{
+                        title: t('settingsSession.transcript.jumpToBottomPositionTitle'),
+                        icon: <Icon name="arrow-down" size={29} color={theme.colors.text.secondary} />,
+                        itemProps: { testID: 'settings-session-transcript-jump-to-bottom-position' },
+                    }}
+                    items={[
+                        { id: 'bottom-center', title: t('settingsSession.transcript.jumpToBottomPositionBottomCenter') },
+                        { id: 'bottom-right', title: t('settingsSession.transcript.jumpToBottomPositionBottomRight') },
+                    ]}
+                    onSelect={(id) => {
+                        setTranscriptJumpToBottomPosition(id as any);
+                        setOpenJumpToBottomPositionMenu(false);
+                    }}
+                />
+
+                {/* Plain English, so no locale file changes. */}
+                <Item
+                    testID="settings-transcript-initialFillToUserMessage"
+                    title="Open at your last message"
+                    subtitle="On phones, load older pages until your last message is loaded"
+                    icon={<Icon name="chat-circle-dots" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={transcriptInitialFillToUserMessage} onValueChange={setTranscriptInitialFillToUserMessage} />}
+                    showChevron={false}
+                    onPress={() => setTranscriptInitialFillToUserMessage(!transcriptInitialFillToUserMessage)}
                 />
 
                 <Item

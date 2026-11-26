@@ -17,11 +17,33 @@ export const PiBridgeSessionConfigSchema = lazySchema(() => z.object({
   sessionId: z.string().min(1),
   directTools: z.array(PiBridgeToolDescriptorSchema),
   promptAddition: z.string(),
+  /**
+   * `text` goes out once as a hidden message after the first user message, unless the model has
+   * already called `toolName`. Absent means no reminder.
+   */
+  sessionTitleReminder: z.object({
+    text: z.string().min(1),
+    toolName: z.string().min(1),
+  }).strict().optional(),
+  /**
+   * Pi's session name follows the Happier title, so tools that list Pi sessions show it.
+   * `title` is the title at spawn; a call of `toolName` sets a new one. Absent means no sync.
+   */
+  sessionName: z.object({
+    title: z.string().min(1).optional(),
+    toolName: z.string().min(1),
+  }).strict().optional(),
   launch: z.object({
     filePath: z.string().min(1),
     argPrefix: z.array(z.string()),
     env: z.record(z.string(), z.string()),
   }).strict(),
+  /**
+   * Pi's file descriptor of a pipe on which the host serves the tool calls itself
+   * (PI_BRIDGE_HOST_TOOLS_FD). Absent means the extension starts `happier tools serve` from
+   * `launch`, which also stays the fallback when the pipe fails.
+   */
+  hostToolsFd: z.number().int().min(3).optional(),
 }).strict());
 
 export type PiBridgeSessionConfig = z.infer<typeof PiBridgeSessionConfigSchema>;

@@ -1,7 +1,10 @@
 import * as React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { act } from 'react-test-renderer';
 
 import { renderScreen } from '@/dev/testkit';
+import { storage } from '@/sync/domains/state/storage';
 
 vi.mock('react-native', async (importOriginal) => {
     const actual = await importOriginal<typeof import('react-native')>();
@@ -47,6 +50,50 @@ describe('NewSessionModelSelectionContent', () => {
         vi.clearAllMocks();
     });
 
+    afterEach(() => {
+        storage.getState().applySettingsLocal({ agentInputModelPickerAlphabetical: false });
+    });
+
+    it('sorts favorites and all models by name when the alphabetical setting is on', async () => {
+        storage.getState().applySettingsLocal({ agentInputModelPickerAlphabetical: true });
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+        const favorite = (modelId: string, modelLabel: string) => ({
+            backendTargetKey: 'agent:codex',
+            providerAgentId: 'codex',
+            builtInAgentId: 'codex',
+            configuredBackendId: null,
+            modelId,
+            modelLabel,
+            backendLabel: 'Codex',
+            addedAtMs: 1,
+        });
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'default', label: 'Default', description: 'Use CLI settings' },
+                    { value: 'z', label: 'Zeta', description: '' },
+                    { value: 'g10', label: 'GPT 6.10', description: '' },
+                    { value: 'a', label: 'alpha', description: '' },
+                    { value: 'g2', label: 'GPT 6.2', description: '' },
+                    { value: 'm', label: 'Mu', description: '' },
+                ]}
+                selectedModelId="default"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={[favorite('z', 'Zeta'), favorite('m', 'Mu')]}
+                onSelectModel={vi.fn()}
+                onFavoriteModelSelectionsChange={vi.fn()}
+            />,
+        );
+
+        const ids = screen.findAllByType('Item' as any)
+            .map((item) => String(item.props.testID ?? ''))
+            .filter((id) => id.startsWith('new-session-model:'))
+            .map((id) => id.slice('new-session-model:'.length));
+        expect(ids).toEqual(['m', 'z', 'default', 'a', 'g2', 'g10']);
+    });
+
     it('renders favorite models first and does not duplicate them in all models', async () => {
         const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
 
@@ -83,6 +130,84 @@ describe('NewSessionModelSelectionContent', () => {
         const items = screen.findAllByType('Item' as any);
         expect(items.filter((item) => item.props.testID === 'new-session-model:gpt-5.5')).toHaveLength(1);
         expect(items.filter((item) => item.props.testID === 'new-session-model:gpt-5.4')).toHaveLength(1);
+    });
+
+    it('shows the price level in a fixed column and hides it for free and unpriced models', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                    { value: 'free-model', label: 'Free', description: 'No charge', costInputPerMTok: 0, costOutputPerMTok: 0 },
+                    { value: 'unpriced-model', label: 'Unpriced', description: 'No catalog price' },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        const priceTexts = screen.findAllByType('Text' as any)
+            .map((node) => node.props.children)
+            .filter((child) => typeof child === 'string' && /^\$+$/.test(child));
+        expect(priceTexts).toEqual(['$$$']);
+
+        // Free and unpriced rows still render their column, so the star and the check mark
+        // never move; they simply have no symbol in it.
+        const priceColumns = screen.findAllByType('View' as any)
+            .filter((node) => node.props.style && Number(node.props.style.width) === 44);
+        expect(priceColumns).toHaveLength(3);
+    });
+
+    it('announces a price level instead of the dollar signs', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                    { value: 'free-model', label: 'Free', description: 'No charge', costInputPerMTok: 0, costOutputPerMTok: 0 },
+                    { value: 'unpriced-model', label: 'Unpriced', description: 'No catalog price' },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        const labels = screen.findAllByType('View' as any)
+            .map((node) => node.props.accessibilityLabel)
+            .filter((label) => typeof label === 'string');
+        expect(labels).toEqual(['Cost: 3/4']);
+    });
+
+    it('shows the price level in the compact dropdown too', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={[
+                    { value: 'paid-model', label: 'Paid', description: 'Mid tier', costInputPerMTok: 8, costOutputPerMTok: 40 },
+                ]}
+                selectedModelId="paid-model"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        // The double does not mount dropdown items, so the row element is checked for the
+        // price it will render; the rendering itself is pinned by the expanded-list case.
+        const dropdown = screen.findByType('DropdownMenu' as any);
+        expect(dropdown.props.items[0]?.rightElement?.props?.model).toMatchObject({
+            id: 'paid-model',
+            costInputPerMTok: 8,
+            costOutputPerMTok: 40,
+        });
     });
 
     it('keeps stale favorite models removable without making them selectable', async () => {
@@ -183,8 +308,11 @@ describe('NewSessionModelSelectionContent', () => {
             />,
         );
 
-        const menu = screen.root.findByType('DropdownMenu' as any);
-        const favoriteControl = menu.props.items[0]?.rightElement;
+        // The compact row keeps a price column, so the favorite action lives inside the
+        // row's rightElement rather than being the rightElement itself. The DropdownMenu
+        // double does not mount its items, so the action is read from the element tree.
+        const compactMenu = screen.root.findByType('DropdownMenu' as any);
+        const favoriteControl = compactMenu.props.items[0]?.rightElement?.props?.favoriteAction;
         expect(favoriteControl?.props?.disabled).toBe(false);
 
         favoriteControl?.props?.onPress?.({ stopPropagation: vi.fn() });
@@ -199,6 +327,38 @@ describe('NewSessionModelSelectionContent', () => {
                 backendLabel: 'Codex',
             }),
         ]);
+    });
+
+    it('disables the compact favorite action when no change handler can record it', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+
+        const screen = await renderScreen(
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={[{ value: 'gpt-5.5', label: 'GPT-5.5', description: 'Deep' }]}
+                selectedModelId="gpt-5.5"
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={[
+                    {
+                        backendTargetKey: 'agent:codex',
+                        providerAgentId: 'codex',
+                        builtInAgentId: 'codex',
+                        configuredBackendId: null,
+                        modelId: 'gpt-5.5',
+                        modelLabel: 'GPT-5.5',
+                        backendLabel: 'Codex',
+                        addedAtMs: 1,
+                    },
+                ]}
+                onSelectModel={vi.fn()}
+            />,
+        );
+
+        // The favorites-category row and the all-models row must agree: no handler, no action.
+        const menu = screen.root.findByType('DropdownMenu' as any);
+        expect(menu.props.items[0]?.category).toBe('Favorites');
+        expect(menu.props.items[0]?.rightElement?.props?.favoriteAction?.props?.disabled).toBe(true);
     });
 
     it('does not render favorite actions for the CLI settings model in list or dropdown mode', async () => {
@@ -236,7 +396,9 @@ describe('NewSessionModelSelectionContent', () => {
         );
 
         const menu = compact.root.findByType('DropdownMenu' as any);
-        expect(menu.props.items[0]?.rightElement).toBeUndefined();
+        // A row without a favorite action still carries the price column, so the star's
+        // absence is asserted on the action itself.
+        expect(menu.props.items[0]?.rightElement?.props?.favoriteAction).toBeUndefined();
     });
 
     it('shows the selected model as the compact dropdown trigger subtitle', async () => {
@@ -262,5 +424,38 @@ describe('NewSessionModelSelectionContent', () => {
         expect(menu.props.itemTrigger.subtitle).toBe('Use CLI settings');
         expect(menu.props.itemTrigger.showSelectedDetail).toBe(false);
         expect(menu.props.itemTrigger.showSelectedSubtitle).toBe(false);
+    });
+
+    it('keeps the compact dropdown items when the wizard renders again with the same models', async () => {
+        const { NewSessionModelSelectionContent } = await import('./NewSessionModelSelectionContent');
+        const modelOptions = [
+            { value: 'default', label: 'Use CLI settings', description: 'Use the model configured in the CLI' },
+            { value: 'gpt-5.4', label: 'GPT-5.4', description: 'Fast' },
+        ] as const;
+        const favoriteModelSelections: never[] = [];
+        const onSelectModel = vi.fn();
+        const onFavoriteModelSelectionsChange = vi.fn();
+        const element = (selectedModelId: string) => (
+            <NewSessionModelSelectionContent
+                presentation="compact"
+                modelOptions={modelOptions}
+                selectedModelId={selectedModelId as any}
+                selectedIndicatorColor="#0af"
+                selectedBackendEntry={codexEntry as any}
+                favoriteModelSelections={favoriteModelSelections}
+                onSelectModel={onSelectModel}
+                onFavoriteModelSelectionsChange={onFavoriteModelSelectionsChange}
+            />
+        );
+
+        const screen = await renderScreen(element('default'));
+        const firstItems = screen.root.findByType('DropdownMenu' as any).props.items;
+        await act(async () => {
+            screen.tree.update(element('gpt-5.4'));
+        });
+
+        const menu = screen.root.findByType('DropdownMenu' as any);
+        expect(menu.props.selectedId).toBe('gpt-5.4');
+        expect(menu.props.items).toBe(firstItems);
     });
 });

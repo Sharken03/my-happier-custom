@@ -34,6 +34,8 @@ export function useNewSessionPromptAutomationState(params: Readonly<{
     persistedDraftEntryIntent: string | null | undefined;
     hydratedTempAuthoringDraft: TempAuthoringDraftLike;
     hydratedPersistedAuthoringDraft: PersistedAuthoringDraftLike;
+    /** Called when the user first edits the prompt of this screen instance. */
+    onFirstUserEdit?: () => void;
 }>): Readonly<{
     promptStore: NewSessionPromptStore;
     setSessionPrompt: React.Dispatch<React.SetStateAction<string>>;
@@ -55,8 +57,13 @@ export function useNewSessionPromptAutomationState(params: Readonly<{
     // clobber live typing — re-applying a stale snapshot resets the native input's text,
     // selection, and scroll mid-keystroke. Mirrors hasUserEditedAutomationDraftRef below.
     const hasUserEditedSessionPromptRef = React.useRef(false);
+    const onFirstUserEditRef = React.useRef(params.onFirstUserEdit);
+    onFirstUserEditRef.current = params.onFirstUserEdit;
     const setSessionPrompt = React.useCallback<React.Dispatch<React.SetStateAction<string>>>((next) => {
-        hasUserEditedSessionPromptRef.current = true;
+        if (!hasUserEditedSessionPromptRef.current) {
+            hasUserEditedSessionPromptRef.current = true;
+            onFirstUserEditRef.current?.();
+        }
         promptStore.setPrompt(next);
     }, [promptStore]);
     const hasUserEditedSessionPrompt = React.useCallback(

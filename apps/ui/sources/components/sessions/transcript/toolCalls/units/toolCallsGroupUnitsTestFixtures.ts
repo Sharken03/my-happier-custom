@@ -24,6 +24,7 @@ export function createTranscriptSessionCommonPropsFixture(overrides?: Readonly<{
             transcriptMessageTimestampDisplayMode: 'always',
             transcriptMessageSelectionEnabled: false,
             transcriptMessageSendToSessionEnabled: false,
+            transcriptMessageActionsCopyOnly: false,
             transcriptStreamingMarkdownRenderingEnabled: true,
             transcriptStreamingPartialOutputEnabled: true,
             transcriptStreamingSettleDelayMs: 0,
@@ -35,6 +36,7 @@ export function createTranscriptSessionCommonPropsFixture(overrides?: Readonly<{
             toolViewTimelineChromeMode: 'activity_feed',
             transcriptToolCallsCollapsedPreviewCount: 3,
             transcriptToolCallsGroupShowBackground: false,
+            transcriptToolCallsGroupOpenMode: 'inline',
             ...(overrides?.toolChromeCommon ?? {}),
         },
         toolRouteCommon: {

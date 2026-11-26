@@ -1,0 +1,263 @@
+import { EventEmitter } from 'node:events';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { createPrewarmedRunnerSlot } from './prewarmedRunner';
+import {
+  HAPPIER_RUNNER_PREWARM_ENV_KEY,
+  awaitPrewarmedRunnerAssignment,
+} from './prewarmedRunnerAssignment';
+
+function fakeChild() {
+  const child = new EventEmitter() as EventEmitter & {
+    stdin: PassThrough; exitCode: number | null; pid: number; written: () => string;
+  };
+  const chunks: Buffer[] = [];
+  child.stdin = new PassThrough();
+  child.stdin.on('data', (chunk: Buffer) => chunks.push(chunk));
+  child.exitCode = null;
+  child.pid = 4242;
+  child.written = () => Buffer.concat(chunks).toString('utf8');
+  return child;
+}
+
+const BASE = { filePath: '/bin/node', baseArgs: ['--no-warnings', '/cli/index.mjs'], cwd: '/home' };
+const ENV = { PATH: '/bin', HAPPIER_HOME_DIR: '/h' };
+
+describe('prewarmed runner slot', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setup(enabled = true, persistence: Readonly<{ statePath?: string; baseEnv?: Record<string, string> }> = {}) {
+    const children: ReturnType<typeof fakeChild>[] = [];
+    const spawnChild = vi.fn((_file: string, _args: readonly string[], _options: unknown) => {
+      const child = fakeChild();
+      children.push(child);
+      return child as never;
+    });
+    const logDebug = vi.fn();
+    const slot = createPrewarmedRunnerSlot({ spawnChild, ttlMs: 60_000, isEnabled: () => enabled, logDebug, ...persistence });
+    return { slot, spawnChild, children, logDebug };
+  }
+
+  it('prewarms after a daemon restart from the launch the previous daemon remembered', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'prewarm-state-'));
+    try {
+      const statePath = join(dir, 'launch.json');
+      const daemonEnv = { PATH: '/bin', HOME: '/home' };
+      const launchEnv = { PATH: '/bin', HAPPIER_HOME_DIR: '/h', HAPPIER_SESSION_ATTACH_FILE: '/a.json' };
+
+      const before = setup(true, { statePath, baseEnv: daemonEnv });
+      before.slot.rememberLaunch({ ...BASE, filePath: process.execPath, env: launchEnv });
+      expect(statSync(statePath).mode & 0o777).toBe(0o600);
+
+      const after = setup(true, { statePath, baseEnv: daemonEnv });
+      after.slot.prewarm();
+
+      expect(after.spawnChild).toHaveBeenCalledTimes(1);
+      const [file, args, options] = after.spawnChild.mock.calls[0]! as [string, string[], { env: Record<string, string>; cwd: string }];
+      expect(file).toBe(process.execPath);
+      expect(args).toEqual(BASE.baseArgs);
+      expect(options.cwd).toBe(BASE.cwd);
+      expect(options.env).toEqual({ PATH: '/bin', HAPPIER_HOME_DIR: '/h', [HAPPIER_RUNNER_PREWARM_ENV_KEY]: '1' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('starts no process before an ordinary launch was remembered, or when disabled', () => {
+    const off = setup(false);
+    off.slot.rememberLaunch({ ...BASE, env: ENV });
+    off.slot.prewarm();
+    expect(off.spawnChild).not.toHaveBeenCalled();
+
+    const on = setup();
+    on.slot.prewarm();
+    expect(on.spawnChild).not.toHaveBeenCalled();
+  });
+
+  it('prewarms one process from the remembered launch and hands it the next launch', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/old.json' } });
+    slot.prewarm();
+    slot.prewarm();
+
+    expect(spawnChild).toHaveBeenCalledTimes(1);
+    const [file, args, options] = spawnChild.mock.calls[0]! as [string, string[], { env: Record<string, string>; cwd: string }];
+    expect(file).toBe('/bin/node');
+    expect(args).toEqual(BASE.baseArgs);
+    expect(options.cwd).toBe('/home');
+    expect(options.env).toEqual({ ...ENV, [HAPPIER_RUNNER_PREWARM_ENV_KEY]: '1' });
+
+    const taken = slot.take({
+      filePath: '/bin/node',
+      baseArgs: BASE.baseArgs,
+      userArgs: ['pi', '--started-by', 'daemon'],
+      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json', HAPPIER_SESSION_MCP_SELECTION_JSON: '{}' },
+      cwd: '/work',
+    });
+
+    expect(taken).toBe(children[0]);
+    expect(JSON.parse(children[0]!.written())).toEqual({
+      args: ['pi', '--started-by', 'daemon'],
+      env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/new.json', HAPPIER_SESSION_MCP_SELECTION_JSON: '{}' },
+      cwd: '/work',
+    });
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+    // The slot is empty again: the process is a session runner now.
+    expect(slot.take({ filePath: '/bin/node', baseArgs: BASE.baseArgs, userArgs: [], env: ENV, cwd: '/w' })).toBeNull();
+  });
+
+  it('refuses a launch whose program, flags or other environment differ', () => {
+    const { slot, children, logDebug } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    const launch = { filePath: '/bin/node', baseArgs: BASE.baseArgs, userArgs: ['pi'], env: ENV, cwd: '/work' };
+
+    expect(slot.take({ ...launch, env: { ...ENV, PROFILE_VALUE: 'x' } })).toBeNull();
+    // The refusal names the keys, never their values.
+    expect(logDebug).toHaveBeenCalledWith(expect.any(String), { differingKeys: ['PROFILE_VALUE'] });
+    expect(slot.take({ ...launch, env: { PATH: '/bin' } })).toBeNull();
+    expect(slot.take({ ...launch, baseArgs: ['/cli/other.mjs'] })).toBeNull();
+    expect(slot.take({ ...launch, filePath: '/bin/other' })).toBeNull();
+    expect(slot.take({ ...launch, userArgs: ['--runtime-context', 'abc', 'pi'] })).toBeNull();
+    expect(children[0]!.written()).toBe('');
+    // The refused process is still there for a launch that fits.
+    expect(slot.take(launch)).toBe(children[0]);
+  });
+
+  it('replaces a waiting process when the remembered launch changes', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    const newArgs = ['--no-warnings', '/cli/v2/index.mjs'];
+    const launch = { filePath: '/bin/node', baseArgs: newArgs, userArgs: ['pi'], env: ENV, cwd: '/work' };
+
+    expect(slot.take(launch)).toBeNull();
+    slot.rememberLaunch({ ...BASE, baseArgs: newArgs, env: ENV });
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+    slot.prewarm();
+
+    expect(spawnChild).toHaveBeenCalledTimes(2);
+    expect(slot.take(launch)).toBe(children[1]);
+  });
+
+  it('keeps a waiting process when the same launch is remembered again', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    slot.rememberLaunch({ ...BASE, cwd: '/elsewhere', env: { ...ENV, HAPPIER_SESSION_ATTACH_FILE: '/a.json' } });
+    slot.prewarm();
+
+    expect(spawnChild).toHaveBeenCalledTimes(1);
+    expect(children[0]!.stdin.writableEnded).toBe(false);
+  });
+
+  it('lets an unused process end after the time limit and after it exits', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    vi.advanceTimersByTime(60_000);
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+    expect(children[0]!.written()).toBe('');
+    expect(slot.take({ filePath: '/bin/node', baseArgs: BASE.baseArgs, userArgs: ['pi'], env: ENV, cwd: '/w' })).toBeNull();
+
+    slot.prewarm();
+    expect(spawnChild).toHaveBeenCalledTimes(2);
+    children[1]!.exitCode = 1;
+    children[1]!.emit('exit', 1, null);
+    expect(slot.take({ filePath: '/bin/node', baseArgs: BASE.baseArgs, userArgs: ['pi'], env: ENV, cwd: '/w' })).toBeNull();
+  });
+
+  it('keeps a waiting process for a new time limit when a prewarm is asked again', () => {
+    const { slot, spawnChild, children } = setup();
+    slot.rememberLaunch({ ...BASE, env: ENV });
+    slot.prewarm();
+    vi.advanceTimersByTime(40_000);
+    slot.prewarm();
+    vi.advanceTimersByTime(40_000);
+
+    expect(spawnChild).toHaveBeenCalledTimes(1);
+    expect(children[0]!.stdin.writableEnded).toBe(false);
+    // An empty line tells the process to wait its own time limit again.
+    expect(children[0]!.written()).toBe('\n');
+
+    vi.advanceTimersByTime(20_000);
+    expect(children[0]!.stdin.writableEnded).toBe(true);
+  });
+});
+
+describe('prewarmed runner assignment', () => {
+  function fakeProcess() {
+    return {
+      stdin: new PassThrough(),
+      env: { PATH: '/bin', STALE: '1', [HAPPIER_RUNNER_PREWARM_ENV_KEY]: '1' } as NodeJS.ProcessEnv,
+      argv: ['/bin/node', '/cli/index.mjs'],
+      chdir: vi.fn(),
+    };
+  }
+
+  it('applies the launch it gets: arguments, environment and directory', async () => {
+    const proc = fakeProcess();
+    const pending = awaitPrewarmedRunnerAssignment(proc);
+    proc.stdin.end(`${JSON.stringify({ args: ['pi', '--started-by', 'daemon'], env: { PATH: '/bin', NEW: '2' }, cwd: '/work' })}\n`);
+
+    await expect(pending).resolves.toBe(true);
+    expect(proc.argv).toEqual(['/bin/node', '/cli/index.mjs', 'pi', '--started-by', 'daemon']);
+    expect(proc.env).toEqual({ PATH: '/bin', NEW: '2' });
+    expect(proc.chdir).toHaveBeenCalledWith('/work');
+  });
+
+  it('reports no launch when none comes within its time limit', async () => {
+    vi.useFakeTimers();
+    try {
+      const proc = fakeProcess();
+      let settled: boolean | null = null;
+      void awaitPrewarmedRunnerAssignment(proc, { maxWaitMs: 1_000 }).then((value) => { settled = value; });
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits its whole time limit again after each empty line, then applies the launch', async () => {
+    vi.useFakeTimers();
+    try {
+      const proc = fakeProcess();
+      let settled: boolean | null = null;
+      void awaitPrewarmedRunnerAssignment(proc, { maxWaitMs: 1_000 }).then((value) => { settled = value; });
+
+      await vi.advanceTimersByTimeAsync(800);
+      proc.stdin.write('\n');
+      await vi.advanceTimersByTimeAsync(800);
+      expect(settled).toBeNull();
+
+      proc.stdin.write(`${JSON.stringify({ args: ['pi'], env: { PATH: '/bin' }, cwd: '/work' })}\n`);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(true);
+      expect(proc.chdir).toHaveBeenCalledWith('/work');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports no launch when its input closes empty or holds no valid launch', async () => {
+    const closed = fakeProcess();
+    const pendingClosed = awaitPrewarmedRunnerAssignment(closed);
+    closed.stdin.end();
+    await expect(pendingClosed).resolves.toBe(false);
+
+    const invalid = fakeProcess();
+    const pendingInvalid = awaitPrewarmedRunnerAssignment(invalid);
+    invalid.stdin.end('{"args":"pi"}\n');
+    await expect(pendingInvalid).resolves.toBe(false);
+    expect(invalid.chdir).not.toHaveBeenCalled();
+  });
+});

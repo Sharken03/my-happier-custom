@@ -44,8 +44,10 @@ import {
 import {
     normalizeSessionListOrderingSectionMode,
     normalizeSessionListOrderingModeV1,
+    normalizeSessionListVisibilityScope,
     type SessionListOrderingSectionMode,
     type SessionListOrderingModeV1,
+    type SessionListVisibilityScope,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import type { SessionListStorageFilter } from '@/sync/domains/session/sessionStorageKind';
 import { normalizeSessionFolders } from '@/sync/domains/session/folders';
@@ -83,6 +85,7 @@ export type VisibleSessionListViewDataOptions = Readonly<{
 
 type SessionListDataState = Readonly<{
     hideInactiveSessions: boolean;
+    sessionListVisibilityScope: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionAttentionStandingPolicy: SessionAttentionStandingPolicy;
     sessionListAttentionPromotionMode: SessionListAttentionPromotionMode;
@@ -102,6 +105,7 @@ type SessionListDataState = Readonly<{
     normalizedWorkspaceOrder: SessionWorkspaceOrderV1;
     folderSource: SessionListViewItem[] | null;
     sessionFoldersEnabled: boolean;
+    showHibernatedInActiveList: boolean;
 }>;
 
 function collectVisibleSessionIdsByServer(items: ReadonlyArray<SessionListViewItem> | null): Record<string, string[]> {
@@ -204,6 +208,7 @@ function buildVisibleSessionListIndexForState(
         source: sourceIndex,
         resolveSessionRow: buildSessionRowResolver(state.folderSource),
         hideInactiveSessions,
+        sessionListVisibilityScope: state.sessionListVisibilityScope,
         pinnedSessionKeysV1: state.pinnedSessionKeysV1,
         sessionListGroupOrderV1: state.normalizedGroupOrder,
         sessionWorkspaceOrderV1: state.normalizedWorkspaceOrder,
@@ -379,6 +384,7 @@ type VisibleSessionListComputation = Readonly<{
 type RetainedVisibleSessionListProjection = Readonly<{
     folderSource: SessionListViewItem[];
     hideInactiveSessions: boolean;
+    sessionListVisibilityScope: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionAttentionStandingPolicy: SessionAttentionStandingPolicy;
     sessionListAttentionPromotionMode: SessionListAttentionPromotionMode;
@@ -501,6 +507,7 @@ function canReuseRetainedVisibleSessionListProjection(params: Readonly<{
     if (!cached || !folderSource || !areRetainedSessionListSourcesEquivalent(cached.folderSource, folderSource)) return false;
     if (cached.validUntilMs !== null && params.nowMs >= cached.validUntilMs) return false;
     return cached.hideInactiveSessions === params.state.hideInactiveSessions
+        && cached.sessionListVisibilityScope === params.state.sessionListVisibilityScope
         && areStringListsEqual(cached.pinnedSessionKeysV1, params.state.pinnedSessionKeysV1)
         && areAttentionStandingPoliciesEqual(cached.sessionAttentionStandingPolicy, params.state.sessionAttentionStandingPolicy)
         && cached.sessionListAttentionPromotionMode === params.state.sessionListAttentionPromotionMode
@@ -637,6 +644,7 @@ function useVisibleSessionListComputation(
         retainedVisibleSessionListProjections.set(computation.visible, {
             folderSource: state.folderSource,
             hideInactiveSessions: state.hideInactiveSessions,
+            sessionListVisibilityScope: state.sessionListVisibilityScope,
             pinnedSessionKeysV1: state.pinnedSessionKeysV1,
             sessionAttentionStandingPolicy: state.sessionAttentionStandingPolicy,
             sessionListAttentionPromotionMode: state.sessionListAttentionPromotionMode,
@@ -793,6 +801,7 @@ function useSessionListDataState(
     const activeData = useSessionListViewData();
     const openApprovalSessionIdList = useOpenApprovalSessionIds();
     const hideInactiveSessions = useSetting('hideInactiveSessions') === true;
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const sessionListWorkingPlacementMode = normalizeSessionListWorkingPlacementMode(useSetting('sessionListWorkingPlacementModeV1'));
     const backgroundWorkAttentionMode = normalizeSessionListBackgroundWorkAttentionMode(useSetting('sessionListBackgroundWorkAttentionModeV1'));
     const sessionListFolderSortModeV1 = normalizeSessionListFolderSortModeV1(useLocalSetting('sessionListFolderSortModeV1'));
@@ -800,6 +809,7 @@ function useSessionListDataState(
     const sessionListSectionModeV1 = normalizeSessionListOrderingSectionMode(useSetting('sessionListSectionModeV1'));
     const sessionFoldersEnabled = useFeatureEnabled('sessions.folders');
     const sessionFolderViewModeV1 = useSetting('sessionFolderViewModeV1');
+    const showHibernatedInActiveList = useSetting('showHibernatedInActiveList') === true;
     const selection = useResolvedActiveServerSelection();
     const organizationProjection = useSessionOrganizationProjection(selection.activeServerId);
     const organizationListViewState = React.useMemo(() => buildSessionOrganizationListViewState({
@@ -864,11 +874,12 @@ function useSessionListDataState(
             enabled: true,
             folders: normalizedSessionFolders,
             assignmentsBySessionKey: sessionFolderAssignmentsBySessionKey,
-        });
+        }, showHibernatedInActiveList);
     }, [
         folderTreeSourceActive,
         normalizedSessionFolders,
         sessionFolderAssignmentsBySessionKey,
+        showHibernatedInActiveList,
         storageFilteredSource,
     ]);
 
@@ -940,6 +951,7 @@ function useSessionListDataState(
 
     return React.useMemo(() => ({
         hideInactiveSessions,
+        sessionListVisibilityScope,
         pinnedSessionKeysV1,
         sessionAttentionStandingPolicy,
         sessionListAttentionPromotionMode,
@@ -959,10 +971,12 @@ function useSessionListDataState(
         normalizedGroupOrder,
         normalizedWorkspaceOrder,
         sessionFoldersEnabled,
+        showHibernatedInActiveList,
     }), [
         attentionSource,
         folderSource,
         hideInactiveSessions,
+        sessionListVisibilityScope,
         normalizedGroupOrder,
         normalizedWorkspaceOrder,
         pinnedSessionKeysV1,
@@ -974,6 +988,7 @@ function useSessionListDataState(
         sessionListOrderingModeV1,
         sessionListSectionModeV1,
         sessionFoldersEnabled,
+        showHibernatedInActiveList,
         selectedServerIdsKey,
         selection.activeServerId,
         selection.enabled,

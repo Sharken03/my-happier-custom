@@ -2183,6 +2183,19 @@ export function useTranscriptScrollObservationHost(
     const onEndReached = React.useCallback(() => {
         observePaginationEdgeReachedNudge(deps.resolveViewportReachedEdge('end'));
     }, [deps.resolveViewportReachedEdge, observePaginationEdgeReachedNudge]);
+    // A native list at the genuine top emits no scroll frames, and onStartReached fires again only
+    // after the list leaves its start zone. When an older page grows only an existing row, the
+    // reader stays there, so a drag that begins with the first row reached re-observes the edge.
+    const onScrollBeginDrag = React.useCallback(() => {
+        recordNativeListDragEscapeIntent();
+        if (deps.platformOS === 'web' || deps.readItemsToOlderEdge?.() !== 0) return;
+        observePaginationEdgeReachedNudge('older');
+    }, [
+        deps.platformOS,
+        deps.readItemsToOlderEdge,
+        observePaginationEdgeReachedNudge,
+        recordNativeListDragEscapeIntent,
+    ]);
 
     return React.useMemo(() => ({
         adoptNativeFollowingForTrustedBottomArrival,
@@ -2196,7 +2209,7 @@ export function useTranscriptScrollObservationHost(
         onMomentumScrollBegin: recordNativeMomentumScrollBeginIntent,
         onMomentumScrollEnd: recordNativeMomentumScrollEndSettle,
         onScroll,
-        onScrollBeginDrag: recordNativeListDragEscapeIntent,
+        onScrollBeginDrag,
         onScrollEndDrag: recordNativeListDragEndIntent,
         onStartReached,
         platformInteractionProps,
@@ -2210,10 +2223,10 @@ export function useTranscriptScrollObservationHost(
         onEndReached,
         onLayout,
         onScroll,
+        onScrollBeginDrag,
         onStartReached,
         platformInteractionProps,
         recordNativeListDragEndIntent,
-        recordNativeListDragEscapeIntent,
         recordNativeMomentumScrollBeginIntent,
         recordNativeMomentumScrollEndSettle,
     ]);

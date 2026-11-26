@@ -196,6 +196,8 @@ describe('W-1 · an offscreen shape change must not displace the anchored row', 
     ): number {
         const estimate = estimateTranscriptRowHeightFromCache({ reconciler, signature: row.signature })
             ?? estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
                 getMessageById: () => null,
                 item: row.item,
@@ -275,12 +277,16 @@ describe('estimateTranscriptRowHeightFromContent', () => {
 
     it('scales a text message estimate with its content instead of a flat scalar', () => {
         const short = estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => agentText('m1', 'hello'),
             item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
         });
         const giant = estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => agentText('m1', 'x'.repeat(14_000)),
@@ -291,6 +297,140 @@ describe('estimateTranscriptRowHeightFromContent', () => {
         // undercounted a live transcript by 53% (reopen capture 2026-07-23).
         expect(giant).toBeGreaterThan(3_000);
         expect(giant).toBeGreaterThan(short as number);
+    });
+
+    // Device capture 2026-11-12 (Android 8T and OnePlus 13, 360 dp, Inter and DM Sans, text
+    // sizes Default and Large, 140 user bubbles): the bubble wraps at its own text width with a
+    // glyph advance of 0.5 em; 89% of the bubbles then land within 5% of the painted height.
+    it('wraps a user bubble at its text width', () => {
+        const userText = (text: string): Message => ({
+            kind: 'user-text',
+            id: 'u1',
+            localId: null,
+            createdAt: 1,
+            text,
+        } as Message);
+        const estimate = (transcriptContentWidthPx: number, uiFontScale = 1, platformIsWeb = false) => estimateTranscriptRowHeightFromContent({
+            platformIsWeb,
+            toolCallsGroupChromeVariant: 'feed_background',
+            uiFontScale,
+            transcriptContentWidthPx,
+            getMessageById: () => userText(`${'x'.repeat(100)}\n${'y'.repeat(10)}`),
+            item: { kind: 'message', id: 'i1', messageId: 'u1' } as TranscriptRowShellItem,
+        });
+        // 360 px content: a 300 px text column holds 37 glyphs at 8 px, so 3 + 1 lines.
+        expect(estimate(360)).toBe(38 + 4 * 24);
+        // 720 px content: a 660 px column holds 82 glyphs, so 2 + 1 lines.
+        expect(estimate(720)).toBe(38 + 3 * 24);
+        // Text size 1.25: 10 px glyphs, 30 glyphs per line at 360 px, so 4 + 1 lines of 30 px.
+        expect(estimate(360, 1.25)).toBe(38 + 5 * 30);
+        // The calibration is native only: web keeps the flat 72-glyph model (1 + 2 lines).
+        expect(estimate(360, 1, true)).toBe(38 + 3 * 24);
+    });
+
+    // Device capture 2026-11-12 (8T portrait 179 px, OnePlus 13 landscape 155 px): a bubble with a
+    // legacy attachment paints the text without its `[attachments]` block, plus the image row
+    // (2 px + an 84 px tile before the image loads + 7 px). The old estimate sized the block's
+    // paths as text: 302 px.
+    it('sizes a user bubble with an attachment as its painted text and image row', () => {
+        const message = {
+            kind: 'user-text',
+            id: 'u1',
+            localId: null,
+            createdAt: 1,
+            text: 'look at this\n\nAttachments:\n[attachments]\n- shot.png (/home/me/.happier/uploads/'
+                + 'a'.repeat(120) + '/shot.png)\n[/attachments]',
+            meta: {
+                happier: {
+                    kind: 'attachments.v1',
+                    payload: { attachments: [{ name: 'shot.png', path: '/uploads/shot.png', mimeType: 'image/png', sizeBytes: 10 }] },
+                },
+            },
+        } as unknown as Message;
+        const estimate = estimateTranscriptRowHeightFromContent({
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            uiFontScale: 1,
+            transcriptContentWidthPx: 792,
+            getMessageById: () => message,
+            item: { kind: 'message', id: 'i1', messageId: 'u1' } as TranscriptRowShellItem,
+        });
+        expect(estimate).toBe(38 + 24 + 2 + 84 + 7);
+    });
+
+    // The transcript markdown paints its lines at 24 px times the in-app text size
+    // (`useEnrichedMarkdownStyle`). Device capture 2026-11-12 (Android, 360 dp, text size Large):
+    // the unscaled estimate was off by a median 23% on replies and 32% on user bubbles.
+    it('paints text lines at the in-app text size', () => {
+        const estimate = (uiFontScale: number) => estimateTranscriptRowHeightFromContent({
+            transcriptContentWidthPx: 0,
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            uiFontScale,
+            getMessageById: () => agentText('m1', 'one line\nsecond line'),
+            item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+        }) as number;
+        // Same chrome; the 2 lines paint at 30 px instead of 24 px.
+        expect(estimate(1.25) - estimate(1)).toBe(2 * (30 - 24));
+    });
+
+    /**
+     * Device capture 2026-11-11 (Android, Legend): an older page of 30 rows went in at 14 084 px
+     * because each hidden thinking row was sized as its full text; the next scroll measured them
+     * and the content height dropped by 17 600 px. Measured rows: hidden 1 px, collapsed inline
+     * (plain chrome) 41 px, Reasoning tool card 69 px.
+     */
+    describe('thinking messages', () => {
+        const thinkingMessage = { ...agentText('m1', 'x'.repeat(14_000)), isThinking: true } as Message;
+        const estimateThinking = (thinking: Parameters<typeof estimateTranscriptRowHeightFromContent>[0]['thinking']) => (
+            estimateTranscriptRowHeightFromContent({
+                transcriptContentWidthPx: 0,
+                uiFontScale: 1,
+                platformIsWeb: false,
+                toolCallsGroupChromeVariant: 'feed_background',
+                thinking,
+                getMessageById: () => thinkingMessage,
+                item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+            })
+        );
+        const collapsed = () => false;
+        const expanded = (messageId: string) => messageId === 'm1';
+
+        it('sizes a hidden thinking message as the empty row it paints', () => {
+            expect(estimateThinking({ displayMode: 'hidden', inlineChrome: 'plain', isExpanded: expanded })).toBe(1);
+        });
+
+        it('sizes a collapsed inline thinking message as its one-line row', () => {
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'plain', isExpanded: collapsed })).toBe(41);
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'card', isExpanded: collapsed })).toBe(57);
+        });
+
+        it('prefers the collapsed height this device measured over the calibration', () => {
+            const measured = { inlineChrome: 'plain' as const, isExpanded: collapsed, measuredCollapsedRowPx: 53 };
+            expect(estimateThinking({ displayMode: 'inline', ...measured })).toBe(53);
+            expect(estimateThinking({ displayMode: 'tool', ...measured })).toBe(53);
+            expect(estimateThinking({ displayMode: 'inline', ...measured, isExpanded: expanded })).toBeGreaterThan(3_000);
+        });
+
+        it('keeps the text estimate for an expanded inline thinking message', () => {
+            expect(estimateThinking({ displayMode: 'inline', inlineChrome: 'plain', isExpanded: expanded })).toBeGreaterThan(3_000);
+        });
+
+        it('sizes a thinking message shown as a tool card as the card', () => {
+            expect(estimateThinking({ displayMode: 'tool', inlineChrome: 'plain', isExpanded: collapsed })).toBe(69);
+        });
+    });
+
+    it('keeps the text estimate for a visible reply when thinking is hidden', () => {
+        expect(estimateTranscriptRowHeightFromContent({
+            transcriptContentWidthPx: 0,
+            uiFontScale: 1,
+            platformIsWeb: false,
+            toolCallsGroupChromeVariant: 'feed_background',
+            thinking: { displayMode: 'hidden', inlineChrome: 'plain', isExpanded: () => false },
+            getMessageById: () => agentText('m1', 'x'.repeat(14_000)),
+            item: { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem,
+        })).toBeGreaterThan(3_000);
     });
 
     /**
@@ -306,6 +446,8 @@ describe('estimateTranscriptRowHeightFromContent', () => {
      */
     it('estimates the tool-group cap rows at their measured heights so accumulation leaves no gap', () => {
         const estimateFor = (item: TranscriptRowShellItem) => estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => null,
@@ -326,6 +468,8 @@ describe('estimateTranscriptRowHeightFromContent', () => {
 
     it('returns undefined for unknown item shapes so the renderer fallback applies', () => {
         const estimate = estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
             toolCallsGroupChromeVariant: 'feed_background',
             getMessageById: () => null,
@@ -372,6 +516,8 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
         item: TranscriptRowShellItem,
         toolCallsGroupChromeVariant: 'cards' | 'feed' | 'feed_background',
     ) => estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
         getMessageById: () => null,
         item,
@@ -382,6 +528,8 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
 
     it('estimates compact desktop disclosure rows without the native touch-height reservation', () => {
         const estimate = (kind: string, variant: 'feed' | 'feed_background') => estimateTranscriptRowHeightFromContent({
+            transcriptContentWidthPx: 0,
+            uiFontScale: 1,
             platformIsWeb: true, getMessageById: () => null,
             item: toolUnitItem(kind, false), toolCallsGroupChromeVariant: variant,
         });
@@ -398,6 +546,24 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
         }
     });
 
+
+    it('estimates the Android plain-feed header at its 48 px touch target', () => {
+        // The header chrome paints `minHeight: 48` on Android and 44 elsewhere. A 44 px estimate
+        // placed a new group 4 px short, and the correction after the first measure moved the list.
+        const header = toolUnitItem('tool-group-header', false);
+        const estimate = (platformIsAndroid: boolean) => estimateTranscriptRowHeightFromContent({
+            transcriptContentWidthPx: 0,
+            uiFontScale: 1,
+            platformIsWeb: false,
+            platformIsAndroid,
+            getMessageById: () => null,
+            item: header,
+            toolCallsGroupChromeVariant: 'feed',
+        });
+
+        expect(estimate(true)).toBe(48);
+        expect(estimate(false)).toBe(44);
+    });
 
     it('keeps the feed variants on their measured single-line caps', () => {
         expect(estimateFor(toolUnitItem('tool-group-tool', false), 'feed')).toBe(MEASURED_FEED_TOOL_ROW_PX);
@@ -497,6 +663,8 @@ describe('P · a tool row is sized by the chrome it actually paints', () => {
     const messageItem = { kind: 'message', id: 'i1', messageId: 'm1' } as TranscriptRowShellItem;
     const estimateMessageFor = (variant: 'cards' | 'feed' | 'feed_background') => (
         estimateTranscriptRowHeightFromContent({
+        transcriptContentWidthPx: 0,
+        uiFontScale: 1,
         platformIsWeb: false,
             getMessageById: () => toolMessage,
             item: messageItem,

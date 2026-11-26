@@ -13,11 +13,11 @@ import {
     writeMarkdownRenderSegmentsCache,
 } from './markdownRenderSegmentsCache';
 import { normalizeLooseListContinuations } from './normalizeLooseListContinuations';
+import { readStandaloneMarkdownRemoteImage } from './markdownRemoteImages';
 
 type LocatedMarkdownBlockSource = MarkdownBlockSource & Readonly<{
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
 }>;
 
@@ -26,39 +26,77 @@ type PendingEnrichedGroup = Readonly<{
     markdown: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
 }>;
 
 type DraftMarkdownRenderSegment =
     | Omit<Extract<MarkdownRenderSegment, { type: 'enriched-markdown' }>, 'first' | 'last'>
     | Omit<Extract<MarkdownRenderSegment, { type: 'special-block' }>, 'first' | 'last'>
+    | Omit<Extract<MarkdownRenderSegment, { type: 'remote-image' }>, 'first' | 'last'>
     | Omit<Extract<MarkdownRenderSegment, { type: 'container-block' }>, 'first' | 'last'>;
 
-function hashMarkdownSource(source: string): string {
-    let hash = 2166136261;
-    for (let index = 0; index < source.length; index++) {
-        hash ^= source.charCodeAt(index);
-        hash = Math.imul(hash, 16777619);
-    }
-    return (hash >>> 0).toString(36);
-}
-
 function locateSources(markdown: string, sources: readonly MarkdownBlockSource[]): LocatedMarkdownBlockSource[] {
-    let cursor = 0;
+    // indexOf finds each line break once, natively; a per-character loop is slow on Hermes.
     let line = 1;
+    let nextBreak = markdown.indexOf('\n');
+    const countBreaksBefore = (position: number) => {
+        while (nextBreak >= 0 && nextBreak < position) {
+            line++;
+            nextBreak = markdown.indexOf('\n', nextBreak + 1);
+        }
+    };
     return sources.map((source) => {
-        while (cursor < source.sourceStart) if (markdown.charCodeAt(cursor++) === 10) line++;
+        countBreaksBefore(source.sourceStart);
         const startLine = line;
-        const end = source.sourceStart + source.source.length;
-        while (cursor < end) if (markdown.charCodeAt(cursor++) === 10) line++;
+        countBreaksBefore(source.sourceStart + source.source.length);
         return {
             ...source,
             sourceLength: source.source.length,
-            sourceHash: hashMarkdownSource(source.source),
             sourceRange: { startLine, endLine: line },
         };
     });
+}
+
+/**
+ * An agent often writes an image on its own line inside a paragraph (single line breaks). Such a
+ * paragraph is split at those lines: the text lines around an image stay one paragraph each, and
+ * each allowed image line becomes its own block, which the loop then paints as a remote image.
+ */
+function splitParagraphsAtRemoteImageLines(
+    sources: readonly MarkdownBlockSource[],
+    hosts: readonly string[],
+): MarkdownBlockSource[] {
+    const result: MarkdownBlockSource[] = [];
+    for (const source of sources) {
+        if (source.blockType !== 'Paragraph' || source.container || source.codeBlock || source.incompleteKind
+            || !source.source.includes('\n') || !source.source.includes('![')) {
+            result.push(source);
+            continue;
+        }
+        const pieces: MarkdownBlockSource[] = [];
+        let textStart = -1;
+        let textEnd = 0;
+        const pushText = () => {
+            if (textStart < 0) return;
+            const text = source.source.slice(textStart, textEnd);
+            if (text.trim()) pieces.push({ ...source, source: text, sourceStart: source.sourceStart + textStart });
+            textStart = -1;
+        };
+        let offset = 0;
+        for (const line of source.source.split('\n')) {
+            if (readStandaloneMarkdownRemoteImage(line, hosts)) {
+                pushText();
+                pieces.push({ ...source, source: line, sourceStart: source.sourceStart + offset });
+            } else {
+                if (textStart < 0) textStart = offset;
+                textEnd = offset + line.length;
+            }
+            offset += line.length + 1;
+        }
+        pushText();
+        result.push(...(pieces.length > 1 ? pieces : [source]));
+    }
+    return result;
 }
 
 function isSpecialSource(source: LocatedMarkdownBlockSource): boolean {
@@ -97,7 +135,6 @@ function buildGroup(markdown: string, sources: readonly LocatedMarkdownBlockSour
         markdown: groupMarkdown,
         sourceStart,
         sourceLength,
-        sourceHash: hashMarkdownSource(groupMarkdown),
         sourceRange: { startLine: firstSource.sourceRange.startLine, endLine: lastSource.sourceRange.endLine },
     };
 }
@@ -124,7 +161,6 @@ function buildEnrichedSegment(source: LocatedMarkdownBlockSource, nextSegmentKey
         key: nextSegmentKey(),
         sourceStart: source.sourceStart,
         sourceLength: source.sourceLength,
-        sourceHash: source.sourceHash,
         sourceRange: source.sourceRange,
         markdown: source.source,
         renderMarkdown: withReferenceDefinitions(source.source, source.referenceDefinitions),
@@ -136,8 +172,16 @@ export function splitMarkdownRenderSegments(params: Readonly<{
     streamingMode: 'static' | 'streaming';
     streamingRepair?: 'sync' | 'prepared';
     splitEnrichedSourceRanges?: boolean;
+    /** Allowed image hosts; empty or absent while the setting is off. */
+    remoteImageHosts?: readonly string[];
 }>): MarkdownRenderSegment[] {
-    if (params.streamingMode === 'static' && params.splitEnrichedSourceRanges !== true) {
+    const remoteImageHosts = params.remoteImageHosts ?? [];
+    // The static cache is keyed on the markdown only. A text with an image can split another way
+    // once hosts are allowed, so it skips the cache; every other text splits as before.
+    const cacheable = params.streamingMode === 'static'
+        && params.splitEnrichedSourceRanges !== true
+        && (remoteImageHosts.length === 0 || !params.markdown.includes('!['));
+    if (cacheable) {
         const cached = readStaticSegmentCache(params.markdown);
         if (cached) return cached;
     }
@@ -146,7 +190,11 @@ export function splitMarkdownRenderSegments(params: Readonly<{
         ? preprocessStreamingMarkdown(params.markdown)
         : params.markdown;
     const renderMarkdown = normalizeLooseListContinuations(repairedMarkdown);
-    const locatedSources = locateSources(renderMarkdown, splitMarkdownIntoBlockSources(renderMarkdown));
+    const blockSources = splitMarkdownIntoBlockSources(renderMarkdown);
+    const locatedSources = locateSources(
+        renderMarkdown,
+        remoteImageHosts.length > 0 ? splitParagraphsAtRemoteImageLines(blockSources, remoteImageHosts) : blockSources,
+    );
     const segments: DraftMarkdownRenderSegment[] = [];
     let pendingEnrichedSources: LocatedMarkdownBlockSource[] = [];
     let segmentOrdinal = 0;
@@ -166,7 +214,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
             key: nextSegmentKey(),
             sourceStart: group.sourceStart,
             sourceLength: group.sourceLength,
-            sourceHash: group.sourceHash,
             sourceRange: group.sourceRange,
             markdown: group.markdown,
             renderMarkdown: withReferenceDefinitions(group.markdown, group.sources[0]?.referenceDefinitions ?? ''),
@@ -174,6 +221,23 @@ export function splitMarkdownRenderSegments(params: Readonly<{
     };
 
     for (const source of locatedSources) {
+        const remoteImage = remoteImageHosts.length > 0 && !source.container && !source.codeBlock && !source.incompleteKind
+            ? readStandaloneMarkdownRemoteImage(source.source, remoteImageHosts)
+            : null;
+        if (remoteImage) {
+            flushPendingEnrichedSources();
+            segments.push({
+                type: 'remote-image',
+                key: nextSegmentKey(),
+                sourceStart: source.sourceStart,
+                sourceLength: source.sourceLength,
+                sourceRange: source.sourceRange,
+                markdown: source.source,
+                url: remoteImage.url,
+                alt: remoteImage.alt,
+            });
+            continue;
+        }
         if (!isSpecialSource(source)) {
             if (params.splitEnrichedSourceRanges === true) {
                 flushPendingEnrichedSources();
@@ -191,7 +255,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
                 key: nextSegmentKey(),
                 sourceStart: source.sourceStart,
                 sourceLength: source.sourceLength,
-                sourceHash: source.sourceHash,
                 sourceRange: source.sourceRange,
                 markdown: source.source,
                 container: source.container,
@@ -203,7 +266,6 @@ export function splitMarkdownRenderSegments(params: Readonly<{
             key: nextSegmentKey(),
             sourceStart: source.sourceStart,
             sourceLength: source.sourceLength,
-            sourceHash: source.sourceHash,
             sourceRange: source.sourceRange,
             markdown: source.source,
             blocks: parseMarkdownBlockSource(source),
@@ -212,7 +274,7 @@ export function splitMarkdownRenderSegments(params: Readonly<{
 
     flushPendingEnrichedSources();
     const result = applyFirstLast(segments);
-    if (params.streamingMode === 'static' && params.splitEnrichedSourceRanges !== true) {
+    if (cacheable) {
         writeStaticSegmentCache(params.markdown, result);
     }
     return result;

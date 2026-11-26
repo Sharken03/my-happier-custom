@@ -49,6 +49,13 @@ const focusState = vi.hoisted(() => ({
     listeners: new Set<() => void>(),
 }));
 const draftListState = vi.hoisted(() => ({ count: 0 }));
+const dataReadyState = vi.hoisted(() => ({
+    ready: true,
+    listeners: new Set<() => void>(),
+}));
+const preloadAtStartState = vi.hoisted(() => ({
+    readyValues: [] as boolean[],
+}));
 installSessionShellCommonModuleMocks({
     reactNative: async () => {
         const { createReactNativeWebMock } = await import('@/dev/testkit/mocks/reactNative');
@@ -84,9 +91,20 @@ installSessionShellCommonModuleMocks({
         }).module;
     },
     storage: async () => {
-        const { createStorageModuleStub } = await import('@/dev/testkit/mocks/storage');
+        const { createStorageModuleStub, createUseSettingMock } = await import('@/dev/testkit/mocks/storage');
         return createStorageModuleStub({
             useActiveServerAccountScope: () => accountScopeState.scope,
+            useSetting: createUseSettingMock({ values: { sessionOpenPreloadV1: true } }),
+            useIsDataReady: () => React.useSyncExternalStore(
+                (listener) => {
+                    dataReadyState.listeners.add(listener);
+                    return () => {
+                        dataReadyState.listeners.delete(listener);
+                    };
+                },
+                () => dataReadyState.ready,
+                () => dataReadyState.ready,
+            ),
         });
     },
 });
@@ -98,6 +116,15 @@ vi.mock('@/sync/domains/state/storage', async () => {
     return createStorageModuleStub({
         useActiveServerAccountScope: () => accountScopeState.scope,
     });
+});
+vi.mock('@/hooks/session/sessionRoutePreload', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/hooks/session/sessionRoutePreload')>();
+    return {
+        ...actual,
+        useSessionRoutePreloadAtStart: (params: Readonly<{ ready: boolean }>) => {
+            preloadAtStartState.readyValues.push(params.ready);
+        },
+    };
 });
 vi.mock('@/hooks/session/useVisibleSessionListViewData', () => ({
     useVisibleSessionListViewData: (storageKind?: string) => {
@@ -220,6 +247,9 @@ describe('SessionsListWrapper (empty state)', () => {
         focusState.isFocused = true;
         focusState.listeners.clear();
         draftListState.count = 0;
+        dataReadyState.ready = true;
+        dataReadyState.listeners.clear();
+        preloadAtStartState.readyValues = [];
         const { resetSessionListPaneRetentionForTests } = await import('./surface/sessionListPaneRetention');
         resetSessionListPaneRetentionForTests();
     });
@@ -227,6 +257,36 @@ describe('SessionsListWrapper (empty state)', () => {
     afterEach(() => {
         vi.useRealTimers();
         standardCleanup();
+    });
+
+    it('holds the app-start preload until the sync data is ready, then lets it start', async () => {
+        dataReadyState.ready = false;
+
+        const screen = await renderSessionsListWrapper();
+
+        expect(preloadAtStartState.readyValues.length).toBeGreaterThan(0);
+        expect(preloadAtStartState.readyValues.every((ready) => ready === false)).toBe(true);
+
+        await act(async () => {
+            dataReadyState.ready = true;
+            for (const listener of [...dataReadyState.listeners]) listener();
+        });
+        await flushHookEffects();
+
+        expect(preloadAtStartState.readyValues.at(-1)).toBe(true);
+
+        await screen.unmount();
+    });
+
+    it('holds the app-start preload while the list has no data yet', async () => {
+        sessionListState.data = null;
+
+        const screen = await renderSessionsListWrapper();
+
+        expect(preloadAtStartState.readyValues.length).toBeGreaterThan(0);
+        expect(preloadAtStartState.readyValues.every((ready) => ready === false)).toBe(true);
+
+        await screen.unmount();
     });
 
     it('renders getting started guidance when there are no sessions', async () => {

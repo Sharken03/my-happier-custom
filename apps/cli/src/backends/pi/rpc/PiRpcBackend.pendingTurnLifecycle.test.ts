@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -783,6 +784,34 @@ describe('PiRpcBackend pending turn lifecycle', () => {
     } finally {
       await backend.dispose();
       await firstTurn.promise.catch(() => undefined);
+    }
+  });
+
+  it('closes in-flight steering from Pi agent_end until the turn settles or Pi starts again', async () => {
+    // Pi queues a steer without starting a run when its run has ended, so a steer sent
+    // after agent_end waits until the next prompt and then arrives twice with it.
+    const workDir = makeTempDir('happier-pi-rpc-steer-window-');
+    tempDirs.push(workDir);
+    const backend = createBackend({
+      workDir,
+      scriptPath: writeFakePiRpcScript(workDir, 'fake-pi-rpc-steer-window.js', ''),
+    });
+    const backendWithPrivate = backend as unknown as PrivatePendingTurnBackend & PrivateEventBackend;
+    const turn = backendWithPrivate.createPendingTurn(10_000);
+    turn.promise.catch(() => undefined);
+
+    try {
+      backendWithPrivate.handleEvent({ type: 'agent_start' });
+      expect(backend.isInFlightSteerOpen()).toBe(true);
+
+      backendWithPrivate.handleEvent({ type: 'agent_end', messages: [] });
+      expect(backend.isInFlightSteerOpen()).toBe(false);
+
+      backendWithPrivate.handleEvent({ type: 'agent_start' });
+      expect(backend.isInFlightSteerOpen()).toBe(true);
+    } finally {
+      await backend.dispose();
+      await turn.promise.catch(() => undefined);
     }
   });
 
@@ -2043,4 +2072,83 @@ describe('PiRpcBackend pending turn lifecycle', () => {
       await backend.dispose();
     }
   });
+
+  it('reports the files a turn edited as a canonical Diff with absolute paths', async () => {
+    const workDir = makeTempDir('happier-pi-rpc-turn-changes-');
+    tempDirs.push(workDir);
+    const fakeScript = writeFakePiRpcScript(
+      workDir,
+      'fake-pi-rpc-turn-changes.js',
+      `
+      out({ type: 'agent_start' });
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'edit-1', toolName: 'edit', args: { path: 'notes.md', edits: [{ oldText: 'old line', newText: 'new line' }] } }), 5);
+      setTimeout(() => out({ type: 'tool_execution_end', toolCallId: 'edit-1', toolName: 'edit', result: { content: [{ type: 'text', text: 'ok' }] } }), 10);
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'write-1', toolName: 'write', args: { path: '/elsewhere/repo/new.ts', content: 'x' } }), 15);
+      setTimeout(() => out({ type: 'tool_execution_end', toolCallId: 'write-1', toolName: 'write', result: { content: [{ type: 'text', text: 'ok' }] } }), 20);
+      setTimeout(() => out({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'done' }] } }), 25);
+      setTimeout(() => out({ type: 'agent_end' }), 30);
+`,
+    );
+    const backend = createBackend({ workDir, scriptPath: fakeScript });
+    const messages: AgentMessage[] = [];
+    backend.onMessage((message) => messages.push(message));
+
+    try {
+      const session = await backend.startSession();
+      await backend.sendPrompt(session.sessionId, 'edit two files');
+      const diffCalls = messages.filter((message) => message.type === 'tool-call' && message.toolName === 'Diff');
+      expect(diffCalls).toHaveLength(1);
+      const diffCall = diffCalls[0] as Extract<AgentMessage, { type: 'tool-call' }>;
+      const files = (diffCall.args as { files?: Array<{ file_path?: string }> }).files ?? [];
+      expect(files.map((file) => file.file_path).sort()).toEqual([join(workDir, 'notes.md'), '/elsewhere/repo/new.ts'].sort());
+    } finally {
+      await backend.dispose();
+    }
+  });
+
+  it('reports a file a bash command changed in a git repository', async () => {
+    const workDir = makeTempDir('happier-pi-rpc-shell-changes-');
+    tempDirs.push(workDir);
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: workDir, stdio: 'ignore' });
+    writeFileSync(join(workDir, 'a.txt'), 'one\n');
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'test');
+    git('add', 'a.txt');
+    git('commit', '-q', '-m', 'init');
+    const target = join(workDir, 'a.txt');
+    const fakeScript = writeFakePiRpcScript(
+      workDir,
+      'fake-pi-rpc-shell-changes.js',
+      `
+      out({ type: 'agent_start' });
+      setTimeout(() => out({ type: 'tool_execution_start', toolCallId: 'bash-1', toolName: 'bash', args: { command: "sed -i 's/one/uno/' ${target}" } }), 5);
+      setTimeout(() => { require('node:fs').writeFileSync(${JSON.stringify(target)}, 'uno\\n'); out({ type: 'tool_execution_end', toolCallId: 'bash-1', toolName: 'bash', result: { content: [{ type: 'text', text: '' }] } }); }, 10);
+      setTimeout(() => out({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'done' }] } }), 15);
+      setTimeout(() => out({ type: 'agent_end' }), 20);
+`,
+    );
+    const backend = createBackend({ workDir, scriptPath: fakeScript });
+    const messages: AgentMessage[] = [];
+    backend.onMessage((message) => messages.push(message));
+
+    try {
+      const session = await backend.startSession();
+      await backend.sendPrompt(session.sessionId, 'change a file with bash');
+      const diffFiles = async () => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const diffCall = messages.find((message) => message.type === 'tool-call' && message.toolName === 'Diff') as
+            | Extract<AgentMessage, { type: 'tool-call' }>
+            | undefined;
+          if (diffCall) return ((diffCall.args as { files?: Array<{ file_path?: string }> }).files ?? []).map((file) => file.file_path);
+          await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+        }
+        return [];
+      };
+      expect(await diffFiles()).toEqual([target]);
+    } finally {
+      await backend.dispose();
+    }
+  });
 });
+

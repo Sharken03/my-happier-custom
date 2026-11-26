@@ -123,7 +123,7 @@ export type NewSessionSimplePanelProps = Readonly<{
     handlePermissionModeChange: React.ComponentProps<typeof AgentInput>['onPermissionModeChange'];
     modelMode: React.ComponentProps<typeof AgentInput>['modelMode'];
     setModelMode: React.ComponentProps<typeof AgentInput>['onModelModeChange'];
-    modelOptions: ReadonlyArray<{ value: string; label: string; description: string }>;
+    modelOptions: ReadonlyArray<{ value: string; label: string; description: string; costInputPerMTok?: number; costOutputPerMTok?: number }>;
     modelOptionsProbe?: React.ComponentProps<typeof AgentInput>['modelOptionsOverrideProbe'];
     acpSessionModeOptions?: ReadonlyArray<Readonly<{ id: string; name: string; description?: string }>>;
     acpSessionModeProbe?: React.ComponentProps<typeof AgentInput>['acpSessionModeOptionsOverrideProbe'];
@@ -150,6 +150,12 @@ export type NewSessionSimplePanelProps = Readonly<{
     targetServerId?: string | null;
     attachmentFlowId?: string | null;
     resumePersistedLaunchKey?: string | null;
+
+    // Voice props for the new-session composer
+    onMicPress?: () => void;
+    isMicActive?: boolean;
+    isMicRecording?: boolean;
+    dictationMode?: boolean;
 }>;
 
 /**
@@ -561,6 +567,7 @@ function NewSessionSimplePanelComposer({
                         machinePopover={props.machinePopover}
                         onMachineClick={undefined}
                         currentPath={props.selectedPath}
+                        currentPathHomeDir={props.selectedMachineHomeDir ?? null}
                         onPathClick={undefined}
                         pathPopover={props.pathPopover}
                         resumeSessionId={props.showResumePicker ? props.resumeSessionId : undefined}
@@ -569,6 +576,10 @@ function NewSessionSimplePanelComposer({
                         resumeIsChecking={props.isResumeSupportChecking}
                         contentPaddingHorizontal={0}
                         maxWidthCap={null}
+                        onMicPress={props.onMicPress}
+                        isMicActive={props.isMicActive}
+                        isMicRecording={props.isMicRecording}
+                        dictationMode={props.dictationMode}
                         {...(props.useProfiles
                             ? {
                                 profileId: props.selectedProfileId,

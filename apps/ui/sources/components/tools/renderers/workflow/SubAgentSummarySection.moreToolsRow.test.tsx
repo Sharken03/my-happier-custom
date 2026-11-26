@@ -205,3 +205,29 @@ describe('SubAgentSummarySection (+N more tools row)', () => {
         expect(pushSpy).toHaveBeenCalledWith('/session/s1/message/msg-task-1');
     });
 });
+
+describe('SubAgentSummarySection (async launch answer)', () => {
+    it('hides the launch answer of an async pi-subagents run and shows its tasks', async () => {
+        const { SubAgentSummarySection } = await import('./SubAgentSummarySection');
+
+        const tool = makeToolCall({
+            name: 'SubAgent',
+            state: 'completed',
+            input: { workflow: 'parallel', args: { tasks: [{ agent: 'worker', task: 'Map the image' }] } },
+            result: { content: 'Detached. Return control now.', details: { asyncId: 'run-1', results: [] } },
+        });
+
+        const { tree } = await renderScreen(<SubAgentSummarySection
+            tool={tool}
+            metadata={null}
+            messages={[]}
+            detailLevel="summary"
+            sessionId="s1"
+            messageId="msg-pi-1"
+        />);
+
+        const texts = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children as string);
+        expect(texts).toContain('worker: Map the image');
+        expect(texts.some((text) => text.includes('Detached'))).toBe(false);
+    });
+});

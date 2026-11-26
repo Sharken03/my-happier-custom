@@ -35,7 +35,9 @@ import {
     normalizeSessionListOrderingModeV1,
     resolveEffectiveSessionListOrderingModeForGroup,
     resolveEffectiveSessionListFolderSortMode,
+    normalizeSessionListVisibilityScope,
     type SessionListOrderingSectionMode,
+    type SessionListVisibilityScope,
 } from './sessionListOrderingRules';
 import { normalizeSessionListKeyParts } from './sessionListKeyNormalization';
 import { normalizeTrimmedStringArrayWithSharedEmpty } from './normalizeTrimmedStringArrayWithSharedEmpty';
@@ -55,6 +57,7 @@ export type ComputeVisibleSessionListIndexParams = Readonly<{
     source: ReadonlyArray<SessionListIndexItem> | null;
     resolveSessionRow: (serverId: string | null | undefined, sessionId: string) => SessionListRenderableSession | null;
     hideInactiveSessions: boolean;
+    sessionListVisibilityScope?: SessionListVisibilityScope;
     pinnedSessionKeysV1: ReadonlyArray<string>;
     sessionListGroupOrderV1: Readonly<Record<string, ReadonlyArray<string> | undefined>>;
     sessionWorkspaceOrderV1?: SessionWorkspaceOrderV1;
@@ -206,6 +209,7 @@ function hasGroupOrderingOverrides(
 function canReturnSourceForNoop(params: Readonly<{
     orderingMode: SessionListOrderingModeV1;
     hideInactiveSessions: boolean;
+    sessionListVisibilityScope: SessionListVisibilityScope;
     pinnedSessionKeys: ReadonlyArray<string>;
     presentationEnabled: boolean;
     hasOrderingOverrides: boolean;
@@ -214,6 +218,7 @@ function canReturnSourceForNoop(params: Readonly<{
 }>): boolean {
     return params.orderingMode === 'custom'
         && !params.hideInactiveSessions
+        && params.sessionListVisibilityScope !== 'archived'
         && params.pinnedSessionKeys.length === 0
         && !params.presentationEnabled
         && !params.hasOrderingOverrides
@@ -352,6 +357,9 @@ function computeVisibleSessionListIndexUnmeasured(
 
     const orderingMode = normalizeSessionListOrderingModeV1(params.sessionListOrderingModeV1);
     const sectionMode = normalizeSessionListOrderingSectionMode(params.sessionListSectionModeV1);
+    const visibilityScope = normalizeSessionListVisibilityScope(params.sessionListVisibilityScope);
+    // Archived sessions are always inactive, so the Archived scope ignores hideInactiveSessions.
+    const hideInactiveSessions = params.hideInactiveSessions && visibilityScope !== 'archived';
     const sourceTelemetry = inspectVisibleSessionListOrderingState({ source, orderingMode, sectionMode });
     if (telemetrySink) {
         telemetrySink.sourceTelemetry = sourceTelemetry;
@@ -379,7 +387,8 @@ function computeVisibleSessionListIndexUnmeasured(
 
     if (canReturnSourceForNoop({
         orderingMode,
-        hideInactiveSessions: params.hideInactiveSessions,
+        hideInactiveSessions,
+        sessionListVisibilityScope: visibilityScope,
         pinnedSessionKeys,
         presentationEnabled,
         hasOrderingOverrides,
@@ -399,7 +408,8 @@ function computeVisibleSessionListIndexUnmeasured(
         && orderedByGroup === source
         && canReturnSourceForNoop({
             orderingMode,
-            hideInactiveSessions: params.hideInactiveSessions,
+            hideInactiveSessions,
+            sessionListVisibilityScope: visibilityScope,
             pinnedSessionKeys,
             presentationEnabled,
             hasOrderingOverrides: false,
@@ -417,7 +427,8 @@ function computeVisibleSessionListIndexUnmeasured(
     if (
         orderingMode !== 'custom'
         && ordered === source
-        && !params.hideInactiveSessions
+        && !hideInactiveSessions
+        && visibilityScope !== 'archived'
         && pinnedSessionKeys.length === 0
         && !presentationEnabled
         && !attentionPromotionEnabled
@@ -431,7 +442,7 @@ function computeVisibleSessionListIndexUnmeasured(
 
     if (
         orderingMode === 'custom'
-        && params.hideInactiveSessions
+        && hideInactiveSessions
         && pinnedSessionKeys.length === 0
         && !presentationEnabled
         && !attentionPromotionEnabled
@@ -446,17 +457,19 @@ function computeVisibleSessionListIndexUnmeasured(
         return source as SessionListIndexItem[];
     }
 
-    const orderedWithoutArchived = ordered.filter((item) => {
+    // Active shows sessions that are not archived; Archived shows only archived sessions.
+    const orderedByScope = ordered.filter((item) => {
         if (item.type !== 'session') return true;
         const row = resolveSessionRowForIndexItem(item, params.resolveSessionRow);
-        return row?.archivedAt == null;
+        const isArchived = row?.archivedAt != null;
+        return visibilityScope === 'archived' ? isArchived : !isArchived;
     });
 
     const {
         ordered: orderedWithPinnedFlags,
         missingPinnedSessionKeys,
     } = applyPinnedSessionListIndexFlags({
-        ordered: orderedWithoutArchived,
+        ordered: orderedByScope,
         pinnedSessionKeys,
         trackMissingPinnedSessionKeys: telemetrySink != null,
     });
@@ -523,7 +536,7 @@ function computeVisibleSessionListIndexUnmeasured(
             nowMs: placementNowMs,
         })
         : remainderAfterWorking;
-    const remainderFiltered = params.hideInactiveSessions
+    const remainderFiltered = hideInactiveSessions
         ? filterHiddenInactiveSessionListIndexItems(remainderAfterAttention, params.resolveSessionRow)
         : remainderAfterAttention;
 
@@ -539,7 +552,7 @@ function computeVisibleSessionListIndexUnmeasured(
     // only a row standing purely by the account default is hidden here, like
     // any other inactive row.
     const attentionItems = attentionPromotion
-        ? (params.hideInactiveSessions
+        ? (hideInactiveSessions
             ? filterHiddenInactiveSessionListIndexItems(attentionPromotion.attentionItems, params.resolveSessionRow)
             : attentionPromotion.attentionItems)
         : [];

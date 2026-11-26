@@ -15,11 +15,13 @@ import {
 } from '@/utils/navigation/createSocialStackScreenOptions';
 import { ActivityBadgeRuntime } from '@/activity/badges/ActivityBadgeRuntime';
 import { ActivityLocalNotificationRuntime } from '@/activity/notifications/runtime/ActivityLocalNotificationRuntime';
+import { ConnectionRecoveryBanner } from '@/components/navigation/connectionStatus/ConnectionRecoveryBanner';
+import { PermissionRequestHapticsRuntime } from '@/activity/notifications/runtime/PermissionRequestHapticsRuntime';
 import { PushNotificationPermissionPrimingRuntime } from '@/activity/notifications/permission/PushNotificationPermissionPrimingRuntime';
 import { DesktopTrayRuntime } from '@/desktop/tray/DesktopTrayRuntime';
 import { ReleaseNotesAutoShowMount } from '@/changelog/releaseNotes';
 import { createAppStackScreenOptions } from '@/components/navigation/createAppStackScreenOptions';
-import { renderAppStackScreen } from '@/components/navigation/appStackScreenLayout';
+import { renderAppStackScreenWithVoiceSurface } from '@/components/navigation/appStackScreenLayout';
 import { NavigatorSafeAreaBleed } from '@/components/navigation/safeArea/HorizontalSafeArea';
 import { MobileBottomChromeHost } from '@/components/navigation/mobile/chrome/MobileBottomChromeHost';
 import { AppHeaderCloseButton } from '@/components/navigation/AppHeaderCloseButton';
@@ -193,10 +195,11 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
         <SessionCockpitChromeRegistryProvider>
             <ActivityBadgeRuntime />
             <ActivityLocalNotificationRuntime />
+            <PermissionRequestHapticsRuntime />
             <DesktopTrayRuntime />
             {auth.isAuthenticated ? <AuthenticatedAppShellRuntimes /> : null}
             <NavigatorSafeAreaBleed>
-            <Stack screenOptions={baseStackScreenOptions} screenLayout={renderAppStackScreen}>
+            <Stack screenOptions={baseStackScreenOptions} screenLayout={renderAppStackScreenWithVoiceSurface}>
             <Stack.Screen
                 name="desktop/pet-overlay"
                 options={DESKTOP_PET_OVERLAY_SCREEN_OPTIONS}
@@ -342,6 +345,17 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
                     headerShown: true,
                     headerTitle: '',
                     headerBackTitle: t('common.back'),
+                }}
+            />
+            <Stack.Screen
+                name="session/[id]/toolCalls/[anchorId]"
+                options={{
+                    headerShown: false,
+                    // The route is see-through: ToolCallsBottomSheet draws the sheet and its
+                    // animation over the chat.
+                    presentation: 'transparentModal',
+                    animation: 'none',
+                    contentStyle: { backgroundColor: 'transparent' },
                 }}
             />
             <Stack.Screen
@@ -633,6 +647,7 @@ const RootLayoutShell = React.memo(function RootLayoutShell(): React.ReactElemen
             </Stack>
             </NavigatorSafeAreaBleed>
             <MobileBottomChromeHost newSessionRendersFloatingComposer={newSessionRendersFloatingComposer} />
+            {auth.isAuthenticated ? <ConnectionRecoveryBanner /> : null}
         </SessionCockpitChromeRegistryProvider>
     );
 });

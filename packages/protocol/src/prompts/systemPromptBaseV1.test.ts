@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HAPPIER_BASE_SYSTEM_PROMPT_ATTACHMENTS_V1, HAPPIER_BASE_SYSTEM_PROMPT_V1 } from './systemPromptBaseV1.js';
+import { buildHappierBaseSystemPromptV1, HAPPIER_BASE_SYSTEM_PROMPT_ATTACHMENTS_V1, HAPPIER_BASE_SYSTEM_PROMPT_V1 } from './systemPromptBaseV1.js';
 
 describe('HAPPIER_BASE_SYSTEM_PROMPT_V1', () => {
   it('documents inline @path workspace file references', () => {
@@ -22,5 +22,13 @@ describe('HAPPIER_BASE_SYSTEM_PROMPT_V1', () => {
 
   it('states that relative attachment paths resolve against the session working directory', () => {
     expect(HAPPIER_BASE_SYSTEM_PROMPT_ATTACHMENTS_V1).toMatch(/relative to the session working directory/i);
+  });
+
+  it('tells the agent to show image files with show_image when the tool is available', () => {
+    expect(HAPPIER_BASE_SYSTEM_PROMPT_V1).toContain('show_image');
+    expect(buildHappierBaseSystemPromptV1({ showImageToolAvailable: false })).not.toContain('show_image');
+    expect(buildHappierBaseSystemPromptV1({
+      sessionMetadata: { mcpSelectionV1: { happierToolsEnabled: false } },
+    })).not.toContain('show_image');
   });
 });

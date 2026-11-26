@@ -34,6 +34,49 @@ vi.mock('react-native-unistyles', async () => {
     return createUnistylesMock();
 });
 
+describe('OptionPickerOverlay model price', () => {
+    it('shows the price level on the model card and hides it for free models', async () => {
+        const { OptionPickerOverlay } = await import('./OptionPickerOverlay');
+
+        const screen = await renderScreen(<OptionPickerOverlay
+            title="Model"
+            emptyText="empty"
+            canEnterCustomValue={false}
+            options={[
+                { value: 'paid', label: 'Paid', description: 'p', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'applied', label: 'Applied', accessibilityLabel: 'Last used: Applied', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'nodesc', label: 'NoDesc', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                { value: 'free', label: 'Free', description: 'f', costInputPerMTok: 0, costOutputPerMTok: 0 },
+            ]}
+            selectedValue="paid"
+            onSelect={vi.fn()}
+        />);
+
+        const symbols = screen.findAllByType(Text as any)
+            .map((node: any) => node.props.children)
+            .filter((child: unknown) => typeof child === 'string' && /^\$+$/.test(child));
+        expect(symbols).toEqual(['$$$', '$$$', '$$$']);
+
+        // The card is the accessible element, so the level must sit on the card's own label.
+        // The card is the accessible element, so the level joins its label. A priced card keeps
+        // announcing its model name, an explicit label stays in front, empty parts are dropped,
+        // and the free card announces nothing at all.
+        const cardLabels = screen.root.findAllByProps({ accessibilityRole: 'button' })
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        // Cards render column-major, so compare the set rather than the paint order.
+        expect([...cardLabels].sort()).toEqual([
+            'Last used: Applied, usage.cost: 3/4',
+            'NoDesc, usage.cost: 3/4',
+            'Paid, p, usage.cost: 3/4',
+        ].sort());
+        const viewLabels = screen.findAllByType(View as any)
+            .map((node: any) => node.props.accessibilityLabel)
+            .filter((label: unknown) => typeof label === 'string');
+        expect(viewLabels).not.toContain('usage.cost: 3/4');
+    });
+});
+
 describe('OptionPickerOverlay', () => {
     function flattenStyleFromCallback(
         styleProp: unknown,
@@ -1126,5 +1169,62 @@ describe('OptionPickerOverlay', () => {
         const base = flattenStyleFromCallback(customCard.props.style, { pressed: false, hovered: false });
         const hovered = flattenStyleFromCallback(customCard.props.style, { pressed: false, hovered: true });
         expect(hovered.backgroundColor).not.toBe(base.backgroundColor);
+    });
+});
+
+describe('OptionPickerOverlay with a long model list', () => {
+    const LONG_OPTIONS = Array.from({ length: 120 }, (_, idx) => ({
+        value: `model-${idx}`,
+        label: `Model ${idx}`,
+        description: 'provider',
+    }));
+
+    function shownValues(screen: Awaited<ReturnType<typeof renderScreen>>): string[] {
+        return LONG_OPTIONS
+            .map((option) => option.value)
+            .filter((value) => screen.findByTestId(`model-picker-overlay-option:${value}`) !== null);
+    }
+
+    async function flushFrames(): Promise<void> {
+        for (let frame = 0; frame < 40; frame += 1) {
+            await act(async () => {
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            });
+        }
+    }
+
+    async function renderLongPicker() {
+        const { OptionPickerOverlay } = await import('./OptionPickerOverlay');
+        mockEnv.windowWidth = 390;
+        return renderScreen(<OptionPickerOverlay
+            title="Model"
+            options={LONG_OPTIONS}
+            selectedValue="model-0"
+            emptyText="empty"
+            canEnterCustomValue={false}
+            onSelect={() => {}}
+        />);
+    }
+
+    it('shows the first cards at once and the remaining cards in the next frames', async () => {
+        const screen = await renderLongPicker();
+
+        const first = shownValues(screen);
+        expect(first[0]).toBe('model-0');
+        expect(first.length).toBeLessThan(LONG_OPTIONS.length);
+
+        await flushFrames();
+        expect(shownValues(screen)).toEqual(LONG_OPTIONS.map((option) => option.value));
+    });
+
+    it('shows all search matches at once', async () => {
+        const screen = await renderLongPicker();
+        await flushFrames();
+
+        await act(async () => {
+            screen.changeTextByTestId('model-picker-overlay-search', 'model 11');
+        });
+
+        expect(shownValues(screen)).toEqual(['model-11', ...Array.from({ length: 10 }, (_, idx) => `model-11${idx}`)]);
     });
 });

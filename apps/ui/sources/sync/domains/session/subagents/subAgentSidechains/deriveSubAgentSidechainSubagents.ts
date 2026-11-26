@@ -11,8 +11,9 @@ import {
 import type { SessionSubagent, SessionSubagentNativeRef } from '../types';
 import { resolveSubAgentSidechainProviderLabel } from './resolveSubAgentSidechainProviderLabel';
 import { isGenericSubAgentToolName } from '@happier-dev/protocol/tools/v2';
-import { isClaudeAsyncAgentLaunchToolResult, normalizeClaudeActivityStatusSignal, readClaudeAgentSdkProviderTaskStatus } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult, normalizeClaudeActivityStatusSignal, readClaudeAgentSdkProviderTaskStatus } from '@happier-dev/protocol';
 import { resolvePendingPermissionRouteForSubAgentTool } from './resolvePendingPermissionRouteForSubAgentTool';
+import { readSubagentCallPrompt, readSubagentCallType } from '../subagentCallInput';
 
 function readNonEmptyString(value: unknown): string | null {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -49,8 +50,11 @@ function readBoundedDisplayTitle(value: unknown): string | null {
  *                     e.g. "Lovelace") — the only field that tells sibling agents apart,
  *   description       what this run is doing (Claude `Task`, Cursor native tasks),
  *   role              Codex's categorical agent role (`new_agent_role`/`agent_type`),
- *   subagent_type     the same categorical answer from Claude/ACP producers,
- *   prompt            last resort, and only for a live agent whose prompt is its sole description.
+ *   subagent_type     the same categorical answer from Claude/ACP producers (pi-subagents `agent`),
+ *   prompt            last resort, and only for a live agent whose prompt is its sole description
+ *                     (Claude `prompt`, pi-subagents `task` or `tasks`).
+ *
+ * The type and the prompt come from `subagentCallInput`, the reader the other subagent surfaces use.
  *
  * Every candidate is bounded identically: a title is a row label, so no producer field — least of
  * all a whole prompt — may arrive at the layout unbounded.
@@ -66,9 +70,9 @@ function readSubAgentDisplayTitle(
         input?.nickname,
         input?.description,
         input?.role,
-        input?.subagent_type,
+        readSubagentCallType(toolMessage.tool),
     ];
-    if (!completionOnly) candidates.push(input?.prompt);
+    if (!completionOnly) candidates.push(readSubagentCallPrompt(toolMessage.tool));
     for (const candidate of candidates) {
         const title = readBoundedDisplayTitle(candidate);
         if (title) return title;
@@ -117,8 +121,8 @@ function deriveCompletionOnlyNativeRef(nativeSubagent: Record<string, unknown>):
  * milliseconds carrying only a launch acknowledgement (`status: 'async_launched'`), the agent then
  * runs for as long as its work takes, and its real result supersedes that acknowledgement later.
  * Reading the acknowledgement as the agent's answer drew every live subagent as finished seconds
- * after it started. `isClaudeAsyncAgentLaunchToolResult` is the shared owner of that question, so
- * this row and the CLI's activity headline cannot disagree about it.
+ * after it started. `isAsyncSubagentLaunchToolResult` is the shared owner of that question for
+ * every provider with async subagents (Claude and pi-subagents).
  *
  * Launch acknowledgements cannot hide a failed call. Explicit interruption is cancellation,
  * including when a transport represents its terminal result as a tool error.
@@ -134,7 +138,7 @@ function deriveSubAgentStatus(
         const status = normalizeClaudeActivityStatusSignal(readClaudeAgentSdkProviderTaskStatus(toolMessage.tool.result));
         if (status === 'cancelled') return 'cancelled';
         if (toolMessage.tool.state === 'completed') {
-            if (isClaudeAsyncAgentLaunchToolResult(toolMessage.tool.result)) return 'running';
+            if (isAsyncSubagentLaunchToolResult(toolMessage.tool.result)) return 'running';
             return 'succeeded';
         }
     }

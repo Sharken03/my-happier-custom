@@ -41,7 +41,10 @@ export const TaskOutputView = React.memo<ToolViewProps>(({ tool, detailLevel }) 
 
     return (
         <ToolSectionView fullWidth={detailLevel === 'full'}>
-            <CodeView code={detailLevel === 'full' ? output : tailTextWithEllipsis(output, MAX_OUTPUT_CHARS)} />
+            <CodeView
+                code={detailLevel === 'full' ? output : tailTextWithEllipsis(output, MAX_OUTPUT_CHARS)}
+                language="bash"
+            />
         </ToolSectionView>
     );
 });

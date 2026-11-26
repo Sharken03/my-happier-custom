@@ -177,4 +177,40 @@ describe('PiRpcBackend ensureProcess recovery', () => {
     expect(boots[1]!.argv).toContain('--session');
     expect(boots[1]!.argv).toContain(sessionPath);
   });
+
+  it('does not restart Pi to cancel when the RPC process has already exited', async () => {
+    workDir = makeTempDir('happier-pi-recovery-');
+    const piDir = join(workDir, 'pi-agent');
+    const sessionsDir = join(piDir, 'sessions', '--workdir--');
+    const bootLogPath = join(workDir, 'boot.log');
+    const authPath = join(piDir, 'auth.json');
+    const sessionPath = join(sessionsDir, `2026-02-18T00-00-00-000Z_pi-session-1.jsonl`);
+
+    mkdirSync(sessionsDir, { recursive: true, mode: 0o700 });
+    writeFileSync(authPath, JSON.stringify({ 'openai-codex': { type: 'oauth', access: 'a', refresh: 'r', expires: 999999999 } }) + '\\n');
+    writeFileSync(sessionPath, '{"role":"system","content":[{"type":"text","text":"stub"}]}' + '\\n');
+
+    const fake = makeFakePiRpcCrashAfterFirstTurnScript(workDir);
+    backend = new PiRpcBackend({
+      cwd: workDir,
+      command: process.execPath,
+      args: [fake],
+      env: {
+        BOOT_LOG_PATH: bootLogPath,
+        PI_CODING_AGENT_DIR: piDir,
+        SESSION_FILE_PATH: sessionPath,
+      },
+    });
+
+    const started = await backend.startSession();
+    await backend.sendPrompt(started.sessionId, 'first');
+
+    // Give the child process time to exit, as when the daemon kills the runner's process group.
+    await new Promise((r) => setTimeout(r, 30));
+
+    await expect(backend.cancel(started.sessionId)).resolves.toBeUndefined();
+
+    const boots = parseBootLog(await readFile(bootLogPath, 'utf8'));
+    expect(boots.length).toBe(1);
+  });
 });

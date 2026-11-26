@@ -59,6 +59,14 @@ describe('canonicalizeToolNameV2 mappings', () => {
     expect(canonicalize(toolName)).toBe('SubAgent');
   });
 
+  it('normalizes a Pi `subagent` run to SubAgent', () => {
+    expect(canonicalize('subagent', { agent: 'worker', task: 'Create d.txt', async: false })).toBe('SubAgent');
+  });
+
+  it.each(['status', 'list', 'interrupt', 'resume'])('keeps a Pi `subagent` call with action `%s` as its own tool', (action) => {
+    expect(canonicalize('subagent', { action, id: 'b36317c6' })).toBe('subagent');
+  });
+
   // `TaskOutput` and `TaskStop` are real Claude Agent SDK tools (`TaskOutputInput` / `TaskStopInput`
   // in `@anthropic-ai/claude-agent-sdk/sdk-tools.d.ts`) that act on a background task, not on a
   // subagent roster entry. The `task*` prefix rule above must not swallow them.

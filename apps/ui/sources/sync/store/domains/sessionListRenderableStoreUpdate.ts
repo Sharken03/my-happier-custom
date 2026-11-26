@@ -345,9 +345,10 @@ export function planSessionListRenderableReplacement(input: Readonly<{
     const removalWindow = input.removalWindow ?? null;
     return planSessionListRenderableIncomingRows({
         ...input,
-        shouldRemoveOmittedPreviousRenderable: removalWindow
-            ? (previous) => isRenderableInsideRemovalWindow(previous, removalWindow)
-            : () => true,
+        // The list endpoint never returns archived sessions, so omitting one says nothing about
+        // it. Those rows come from the archived list and stay until that list or a delete drops them.
+        shouldRemoveOmittedPreviousRenderable: (previous) => previous.archivedAt == null
+            && (removalWindow === null || isRenderableInsideRemovalWindow(previous, removalWindow)),
     });
 }
 

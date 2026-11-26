@@ -1,0 +1,121 @@
+name: Publish prerelease
+description: >
+  Publish the files in one folder as a prerelease 8t-<kind>-<short sha>-<run number>, keep the
+  newest 5 prereleases of that kind, keep only the newest Metro and ccache cache of that kind, and prune
+  superseded dependency and Gradle caches (scripts/ci/prune-build-caches.mjs). The web
+  export and the APK publish separately, so a failed or cancelled APK build does not hold back
+  the web export. Needs GH_TOKEN with contents: write and actions: write.
+
+inputs:
+  kind:
+    description: "'web', 'app' or 'cli'; part of the tag and of the Metro cache key prefix"
+    required: true
+  path:
+    description: Folder with the files to publish
+    required: true
+  title:
+    description: Release title prefix, for example "Happier web"
+    required: true
+  notes:
+    description: Extra Markdown lines for the release notes
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Publish
+      shell: bash
+      env:
+        KIND: ${{ inputs.kind }}
+        DIR: ${{ inputs.path }}
+        TITLE: ${{ inputs.title }}
+        NOTES: ${{ inputs.notes }}
+      run: |
+        set -euo pipefail
+        build="${HAPPIER_BUILD_NUMBER:-$GITHUB_RUN_NUMBER}"
+        tag="8t-${KIND}-${GITHUB_SHA::7}-${build}"
+        # Absolute, because the step changes into the artifact folder below.
+        retry_helper="${GITHUB_WORKSPACE}/scripts/ci/publish-retry.mjs"
+        # A token without contents: write answers the same "403 Resource not accessible by
+        # integration" that a GitHub API incident does, so ask up front rather than spend the
+        # retry window on a configuration error. Only an explicit `false` fails the step: an API
+        # that does not report the field must not block a publish that would have worked.
+        push_permission="$(gh api "repos/${GH_REPO}" --jq '.permissions.push // "unknown"' 2>/dev/null || echo unknown)"
+        if [ "$push_permission" = "false" ]; then
+          echo "::error::This token cannot write to ${GH_REPO} (permissions.push=false). Releases need contents: write."
+          exit 1
+        fi
+        cd "$DIR"
+        for f in *; do sha256sum "$f" > "$f.sha256"; done
+        ls -l
+        {
+          echo "Private Happier build from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA}."
+          echo
+          echo "- Default server: ${HAPPIER_8T_SERVER_URL}"
+          if [ -n "$NOTES" ]; then printf "%s\n" "${NOTES%$'\n'}"; fi
+          echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        } > "$RUNNER_TEMP/notes.md"
+        # Retries are minutes long, because a failed publish throws away a finished build: on
+        # 12/11-2026 two APK runs and on 26/11-2026 one more got "HTTP 403: Resource not accessible
+        # by integration" here while the same workflow published minutes earlier and later. The
+        # delay and the give-up decision come from scripts/ci/publish-retry.mjs, which waits on
+        # server errors, throttling and network drops but fails at once on a real 4xx.
+        # A try that failed halfway can leave the release behind, so it is deleted before the retry.
+        errlog="$RUNNER_TEMP/publish-error.log"
+        try=1
+        cleanup_failed=0
+        while :; do
+          if gh release create "$tag" ./* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "${TITLE} ${GITHUB_SHA::7} (#${build})" \
+            --notes-file "$RUNNER_TEMP/notes.md" 2>"$errlog"; then
+            break
+          fi
+          cat "$errlog" >&2
+          if ! gh release delete "$tag" --cleanup-tag --yes >/dev/null 2>&1; then
+            cleanup_failed=1
+            echo "::warning::Could not remove a half-created release ${tag}; the next try may report already_exists."
+          fi
+          retry_args=(--attempt "$try" --error-log "$errlog")
+          if [ "$cleanup_failed" = 1 ]; then retry_args+=(--cleanup-failed); fi
+          if ! delay="$(node "$retry_helper" "${retry_args[@]}")"; then
+            echo "::error::Publish failed on try ${try} with an error a retry cannot fix. The job keeps the files as an artifact."
+            exit 1
+          fi
+          echo "Publish try ${try} failed; next try in ${delay} s"
+          sleep "$delay"
+          try=$((try + 1))
+        done
+        echo "Published ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
+
+        gh release list --limit 200 --json tagName,createdAt \
+          --jq "[.[] | select(.tagName | startswith(\"8t-${KIND}-\"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName" |
+          while read -r old; do
+            echo "Deleting release $old"
+            gh release delete "$old" --cleanup-tag --yes
+          done
+
+        # One entry per run builds up; the repository's cache limit is 10 GB.
+        for prefix in "metro-${KIND}-v1-" "ccache-${KIND}-v1-"; do
+          gh cache list --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:] | .[].id' |
+            while read -r id; do gh cache delete "$id"; done
+        done
+    - name: Prune superseded dependency and Gradle caches
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      # The publish step above already keeps one Metro and one ccache entry per kind. This
+      # covers the families it does not: a modules entry is bound to the exact install tree
+      # that produced it, so a lockfile rotation leaves the old one unreachable forever,
+      # and at ~1.6 GB per scope those entries are what fills the 10 GB budget (15/11-2026).
+      #
+      # Housekeeping is best effort: the release is already published at this point, the
+      # Gradle group is shared by all three workflows, and a delete another publish performed
+      # a moment earlier answers 404. Failing the run over that would report a released build
+      # as broken, so a prune failure only warns. Nothing is lost by not pruning; a live entry
+      # is never a prune target.
+      continue-on-error: true
+      run: node scripts/ci/prune-build-caches.mjs

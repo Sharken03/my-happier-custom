@@ -75,6 +75,47 @@ export function buildStableJsonSignature(value: unknown): string {
     }
 }
 
+// Metadata objects are replaced, not mutated, so one signature per object is safe to reuse.
+const sessionMetadataStabilitySignatureByObject = new WeakMap<object, string>();
+
 export function buildSessionMetadataStabilitySignature(metadata: Metadata | null | undefined): string {
-    return buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    if (!metadata || typeof metadata !== 'object') {
+        return buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    }
+    const cached = sessionMetadataStabilitySignatureByObject.get(metadata);
+    if (cached !== undefined) return cached;
+    const signature = buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(metadata));
+    sessionMetadataStabilitySignatureByObject.set(metadata, signature);
+    return signature;
+}
+
+function signatureOfMetadataEntry(key: string, value: unknown): string {
+    return buildStableJsonSignature(
+        METADATA_NESTED_FRESHNESS_RECORD_KEYS.has(key) ? omitRecordKeys(value, UPDATED_AT_KEY) : value,
+    );
+}
+
+/**
+ * Same result as comparing `buildSessionMetadataStabilitySignature` of both sides, but it only
+ * serializes the entries whose references differ. A streaming update usually changes one entry.
+ */
+export function areSessionMetadataStabilityEqual(
+    prev: Metadata | null | undefined,
+    next: Metadata | null | undefined,
+): boolean {
+    if (prev === next) return true;
+    if (!prev || !next) return !prev && !next;
+    const a = prev as Record<string, unknown>;
+    const b = next as Record<string, unknown>;
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const key of keys) {
+        if (METADATA_TIMESTAMP_ONLY_KEYS.has(key)) continue;
+        const left = a[key];
+        const right = b[key];
+        if (left === right) continue;
+        // JSON drops undefined entries but keeps null ones.
+        if ((left === undefined) !== (right === undefined)) return false;
+        if (signatureOfMetadataEntry(key, left) !== signatureOfMetadataEntry(key, right)) return false;
+    }
+    return true;
 }

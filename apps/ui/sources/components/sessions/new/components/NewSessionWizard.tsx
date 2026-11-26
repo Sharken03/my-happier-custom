@@ -118,7 +118,7 @@ export interface NewSessionWizardAgentProps {
     onAgentPickerSelect?: React.ComponentProps<typeof AgentInput>['onAgentPickerSelect'];
     agentPickerProbe?: React.ComponentProps<typeof AgentInput>['agentPickerProbe'];
     selectedBackendEntry?: ResolvedBackendCatalogEntry | null;
-    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string }>;
+    modelOptions: ReadonlyArray<{ value: ModelMode; label: string; description: string; costInputPerMTok?: number; costOutputPerMTok?: number }>;
     modelOptionsProbe?: React.ComponentProps<typeof AgentInput>['modelOptionsOverrideProbe'];
     favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
     setFavoriteModelSelections?: (favorites: FavoriteModelSelectionV1[]) => void;
@@ -179,6 +179,12 @@ export interface NewSessionWizardFooterProps {
     agentInputExtraActionChips?: React.ComponentProps<typeof AgentInput>['extraActionChips'];
     attachmentFlowId?: string | null;
     resumePersistedLaunchKey?: string | null;
+
+    // Voice props for the new-session composer
+    onMicPress?: () => void;
+    isMicActive?: boolean;
+    isMicRecording?: boolean;
+    dictationMode?: boolean;
 }
 
 export interface NewSessionWizardProps {
@@ -623,6 +629,7 @@ export const NewSessionWizard = React.memo(function NewSessionWizard(props: NewS
                                         machinePopover={props.footer.machinePopover}
                                         onMachineClick={props.footer.machinePopover ? undefined : handleAgentInputMachineClick}
                                         currentPath={selectedPath}
+                                        currentPathHomeDir={selectedMachine?.metadata?.homeDir ?? null}
                                         pathPopover={props.footer.pathPopover}
                                         onPathClick={props.footer.pathPopover ? undefined : handleAgentInputPathClick}
                                         resumeSessionId={resumeSessionId}
@@ -631,6 +638,10 @@ export const NewSessionWizard = React.memo(function NewSessionWizard(props: NewS
                                         resumeIsChecking={resumeIsChecking}
                                         contentPaddingHorizontal={0}
                                         attachmentsUploadsEnabled={attachmentsUploadsEnabled}
+                                        onMicPress={props.footer.onMicPress}
+                                        isMicActive={props.footer.isMicActive}
+                                        isMicRecording={props.footer.isMicRecording}
+                                        dictationMode={props.footer.dictationMode}
                                         filePickerRef={filePickerRef}
                                         onAttachmentsPicked={addPickedAttachments}
                                         {...(useProfiles ? {

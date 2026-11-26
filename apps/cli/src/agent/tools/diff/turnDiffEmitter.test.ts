@@ -16,6 +16,34 @@ describe('TurnDiffEmitter', () => {
     });
   });
 
+  it('keeps unrelated edit snippets apart instead of pairing one old snippet with another new one', () => {
+    const emitter = new TurnDiffEmitter();
+    emitter.beginTurn();
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'x1', newText: 'y1' });
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'x2', newText: 'y2' });
+    expect(emitter.flushTurn()).toEqual({
+      files: [{ file_path: 'foo.txt', oldText: 'x1\n⋯\nx2', newText: 'y1\n⋯\ny2' }],
+    });
+  });
+
+  it('applies an edit snippet to whole file text from earlier in the turn', () => {
+    const emitter = new TurnDiffEmitter();
+    emitter.beginTurn();
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: '', newText: 'a\nb\nc\n' });
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'b', newText: 'B', unifiedDiff: '--- foo.txt\n+++ foo.txt\n@@ -2 +2 @@\n-b\n+B' });
+    expect(emitter.flushTurn()).toEqual({ files: [{ file_path: 'foo.txt', oldText: '', newText: 'a\nB\nc\n' }] });
+  });
+
+  it("uses the tool's own diff for an edit and appends the next edit's hunks", () => {
+    const emitter = new TurnDiffEmitter();
+    emitter.beginTurn();
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'b', newText: 'B', unifiedDiff: '--- foo.txt\n+++ foo.txt\n@@ -2 +2 @@\n-b\n+B' });
+    emitter.observeTextDiff({ filePath: 'foo.txt', oldText: 'x', newText: 'X', unifiedDiff: '--- foo.txt\n+++ foo.txt\n@@ -9 +9 @@\n-x\n+X\n' });
+    expect(emitter.flushTurn()).toEqual({
+      files: [{ file_path: 'foo.txt', unified_diff: '--- foo.txt\n+++ foo.txt\n@@ -2 +2 @@\n-b\n+B\n@@ -9 +9 @@\n-x\n+X\n' }],
+    });
+  });
+
   it('prefers text diffs over unified diffs for the same file', () => {
     const emitter = new TurnDiffEmitter();
     emitter.beginTurn();

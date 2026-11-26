@@ -30,6 +30,8 @@ export function resolveJumpToBottomAffordanceState(params: Readonly<{
     minNewActivityCount: number;
     newActivityCount: number;
     revealThresholdPx: number;
+    /** false hides the new-activity number; the pill keeps its reveal rules. Default true. */
+    showCount?: boolean;
     /**
      * Viewport height, used only to falsify a stale pin claim. `isPinned` is DERIVED state: an
      * explicit jump or a landing at the end of a rendered window can leave it `true` while the
@@ -39,6 +41,11 @@ export function resolveJumpToBottomAffordanceState(params: Readonly<{
      */
     viewportHeightPx?: number;
 }>): JumpToBottomAffordanceState {
+    const state = resolveJumpToBottomAffordanceVisibility(params);
+    return params.showCount === false && state.count > 0 ? { ...state, count: 0 } : state;
+}
+
+function resolveJumpToBottomAffordanceVisibility(params: Parameters<typeof resolveJumpToBottomAffordanceState>[0]): JumpToBottomAffordanceState {
     if (!params.enabled) return HIDDEN_JUMP_TO_BOTTOM_AFFORDANCE;
     if (params.hasMoreNewerBeyondRenderedWindow === true) {
         const windowNewActivityCount = normalizeNonNegativeInteger(params.newActivityCount);

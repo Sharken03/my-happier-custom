@@ -14,6 +14,7 @@ import {
     readMarkdownRenderSegmentsCache,
     writeMarkdownRenderSegmentsCache,
 } from './markdownRenderSegmentsCache';
+import { reuseUnchangedMarkdownRenderSegments } from './reuseUnchangedMarkdownRenderSegments';
 import { splitMarkdownRenderSegments } from './splitMarkdownRenderSegments';
 import { StaticMarkdownRenderPlaceholder } from './StaticMarkdownRenderPlaceholder';
 import { useDelayedStaticMarkdownRenderPlaceholder } from './useDelayedStaticMarkdownRenderPlaceholder';
@@ -39,14 +40,29 @@ type MarkdownViewRendererProps = Readonly<{
     highlightSourceRange?: MarkdownSourceRange | null;
     selectionActions?: readonly MarkdownSelectionAction[];
     agentTexMath: boolean;
+    /** Allowed hosts for markdown images; empty while the setting is off. */
+    remoteImageHosts?: readonly string[];
 }>;
+
+const NO_REMOTE_IMAGE_HOSTS: readonly string[] = [];
+
+// Segment keys for a source-range observer follow the segment text, so a segment keeps its key
+// when text before it changes. Only that observer needs it; plain views key by position.
+function hashMarkdownSource(source: string): string {
+    let hash = 2166136261;
+    for (let index = 0; index < source.length; index++) {
+        hash ^= source.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+}
 
 function readStreamingSegmentCache(params: Readonly<{
     parseCacheKey: string | null | undefined;
     preparedMarkdown: string;
     streamingMode: MarkdownStreamingMode;
     splitEnrichedSourceRanges: boolean;
-}>): readonly MarkdownRenderSegment[] | null {
+}>): MarkdownRenderSegment[] | null {
     if (params.streamingMode !== 'streaming') return null;
     if (params.splitEnrichedSourceRanges) return null;
     const key = typeof params.parseCacheKey === 'string' && params.parseCacheKey.length > 0
@@ -83,21 +99,31 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
         props.renderAfterSourceRange ||
         props.highlightSourceRange,
     );
+    const remoteImageHosts = props.remoteImageHosts ?? NO_REMOTE_IMAGE_HOSTS;
+    const remoteImageHostsKey = remoteImageHosts.join(',');
+    // Last split for the same split options; reused per unchanged segment while a message grows.
+    const previousSplitRef = React.useRef<Readonly<{ options: string; segments: MarkdownRenderSegment[] }> | null>(null);
     const segments = React.useMemo(() => {
-        const cached = readStreamingSegmentCache({
+        const hosts = remoteImageHostsKey ? remoteImageHostsKey.split(',') : NO_REMOTE_IMAGE_HOSTS;
+        // The streaming cache is keyed on the markdown only, as the static one; see the splitter.
+        const streamCacheable = hosts.length === 0 || !preparedMarkdown.includes('![');
+        const cached = streamCacheable ? readStreamingSegmentCache({
             parseCacheKey: props.streamingParseCacheKey,
             preparedMarkdown,
             streamingMode: props.streamingMode,
             splitEnrichedSourceRanges: sourceRangeInteractionsActive,
-        });
-        if (cached) return cached;
-
-        const nextSegments = splitMarkdownRenderSegments({
+        }) : null;
+        const splitOptions = `${props.streamingMode}:${sourceRangeInteractionsActive}:${remoteImageHostsKey}`;
+        const previous = previousSplitRef.current?.options === splitOptions ? previousSplitRef.current.segments : null;
+        const nextSegments = reuseUnchangedMarkdownRenderSegments(previous, cached ?? splitMarkdownRenderSegments({
             markdown: preparedMarkdown,
             streamingMode: props.streamingMode,
             streamingRepair: 'prepared',
             splitEnrichedSourceRanges: sourceRangeInteractionsActive,
-        });
+            remoteImageHosts: hosts,
+        }));
+        previousSplitRef.current = { options: splitOptions, segments: nextSegments };
+        if (cached || !streamCacheable) return nextSegments;
         writeStreamingSegmentCache({
             parseCacheKey: props.streamingParseCacheKey,
             preparedMarkdown,
@@ -106,14 +132,15 @@ export const MarkdownViewRenderer = React.memo((props: MarkdownViewRendererProps
             segments: nextSegments,
         });
         return nextSegments;
-    }, [preparedMarkdown, props.streamingMode, props.streamingParseCacheKey, sourceRangeInteractionsActive]);
+    }, [preparedMarkdown, props.streamingMode, props.streamingParseCacheKey, remoteImageHostsKey, sourceRangeInteractionsActive]);
     const segmentKeys = React.useMemo(() => {
         if (!props.sourceRangeLayoutObserver) return segments.map((segment) => segment.key);
         const occurrences = new Map<string, number>();
         return segments.map((segment) => {
-            const occurrence = occurrences.get(segment.sourceHash) ?? 0;
-            occurrences.set(segment.sourceHash, occurrence + 1);
-            return `${segment.sourceHash}:${occurrence}`;
+            const sourceHash = hashMarkdownSource(segment.markdown);
+            const occurrence = occurrences.get(sourceHash) ?? 0;
+            occurrences.set(sourceHash, occurrence + 1);
+            return `${sourceHash}:${occurrence}`;
         });
     }, [segments, props.sourceRangeLayoutObserver]);
     const contentRef = React.useRef<View>(null);

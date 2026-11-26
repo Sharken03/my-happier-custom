@@ -237,6 +237,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     centerContent: {
         flex: 1,
+        minWidth: 0,
         justifyContent: 'center',
     },
     title: {

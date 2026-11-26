@@ -81,6 +81,12 @@ describe('resolveToolHeaderTextPresentation (real known tools)', () => {
         expect(model.subtitle).toBe('Summarize third run');
     });
 
+    it('labels a pi-subagents call from its agent name', () => {
+        const tool = makeToolCall({ name: 'SubAgent', input: { agent: 'scout', task: 'Map the parser' } });
+        const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
+        expect(model.title).toBe('Scout Agent');
+    });
+
     it('keeps the generic Subagent fallback when no model, agent, or subagent type is known', () => {
         const tool = makeToolCall({ name: 'Task', input: { description: 'Summarize third run' } });
         const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
@@ -225,6 +231,14 @@ describe('resolveToolHeaderTextPresentation (real known tools)', () => {
         const tool = makeToolCall({ name: 'TaskStop', state: 'running', input: { task_id: 'task_1' }, result: null });
         const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
         expect(model.subtitle).toBe('task_1');
+    });
+
+    it('renders an agy command call like a pi Bash call', () => {
+        const tool = makeToolCall({ name: 'command', input: { command: 'ls -la' } });
+        const model = resolveToolHeaderTextPresentation({ tool, metadata: null });
+        expect(model.normalizedToolName).toBe('Bash');
+        expect(model.title).toBe('Terminal(cmd: ls)');
+        expect(model.subtitle).toBe('ls -la');
     });
 
     it('capitalizes simple lowercase tool names (skill)', () => {

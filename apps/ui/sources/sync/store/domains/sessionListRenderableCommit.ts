@@ -39,12 +39,13 @@ import {
 type SessionListRenderableCommitSettings = Readonly<{
     groupInactiveSessionsByProject?: boolean;
     sessionListGroupGitWorktreesV1?: boolean;
-    sessionListActiveGroupingV1?: 'project' | 'date';
-    sessionListInactiveGroupingV1?: 'project' | 'date';
+    sessionListActiveGroupingV1?: 'project' | 'date' | 'none';
+    sessionListInactiveGroupingV1?: 'project' | 'date' | 'none';
     sessionListSectionModeV1?: 'activity' | 'single';
     sessionListAttentionPromotionModeV1?: SessionListAttentionPromotionMode;
     sessionListWorkingPlacementModeV1?: SessionListWorkingPlacementMode;
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
+    showHibernatedInActiveList?: boolean;
 }>;
 
 type ProjectLookupResult = {
@@ -98,7 +99,7 @@ function normalizeTargetServerId(serverId: string | null | undefined): string | 
 function resolveSessionListGroupingForSettings(
     section: 'active' | 'inactive',
     settings: SessionListRenderableCommitSettings,
-): 'project' | 'date' {
+): 'project' | 'date' | 'none' {
     if (section === 'active') {
         return settings.sessionListActiveGroupingV1 ?? 'project';
     }
@@ -113,10 +114,10 @@ function isSessionListDateGroupingForRenderable(
     settings: SessionListRenderableCommitSettings,
 ): boolean {
     if (settings.sessionListSectionModeV1 === 'single') {
-        return resolveSessionListGroupingForSettings('active', settings) === 'date';
+        return resolveSessionListGroupingForSettings('active', settings) !== 'project';
     }
     const section = session.active === true ? 'active' : 'inactive';
-    return resolveSessionListGroupingForSettings(section, settings) === 'date';
+    return resolveSessionListGroupingForSettings(section, settings) !== 'project';
 }
 
 export function didSessionListRenderableListViewFieldsChangeForSettings(
@@ -184,6 +185,7 @@ export function buildSessionListViewDataForRenderableState(
         sectionModeV1: state.settings.sessionListSectionModeV1,
         workspacePathDisplayModeV1: state.settings.workspacePathDisplayModeV1,
         getProjectForSession: state.getProjectForSession,
+        showHibernatedInActiveList: state.settings.showHibernatedInActiveList === true,
     });
 }
 

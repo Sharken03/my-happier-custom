@@ -21,6 +21,7 @@ import { configuration } from '@/configuration';
 import type { RawJSONLines } from '@/backends/claude/types';
 import { persistClaudeToolResultMedia } from '@/backends/claude/attachments/persistClaudeToolResultMedia';
 import { compactClaudeToolResultMetadata } from '@/backends/claude/utils/claudeToolResultMetadata';
+import { readClaudeUserMessageText } from '@/backends/claude/utils/readClaudeUserMessageText';
 import {
     buildClaudeJsonlLocalId,
     buildClaudeJsonlLocalIdFromMessageKey,
@@ -70,7 +71,7 @@ import {
     bootstrapAccountSettingsContext,
     refreshActiveAccountSettingsFromServer,
 } from '@/settings/accountSettings/bootstrapAccountSettingsContext';
-import { AccountSettingsV2GetResponseSchema, readClaudePeerMessage } from '@happier-dev/protocol';
+import { AccountSettingsV2GetResponseSchema } from '@happier-dev/protocol';
 import {
     getActiveAccountSettingsSnapshot,
     subscribeActiveAccountSettingsSnapshot,
@@ -191,6 +192,12 @@ import type {
     SessionTurnsProjectionV1,
 } from '@happier-dev/protocol';
 import { calculateCost } from '@/utils/pricing';
+import {
+    piSubagentUsageFolder,
+    readPiSubagentUsageReports,
+    resolvePiAgentDir,
+    writePiSubagentOwnerFile,
+} from './piSubagentUsageReports';
 import { buildAcpAgentMessageEnvelope, shouldTraceAcpMessageType } from './acpMessageEnvelope';
 import { normalizeAcpSessionMessageBody, normalizeCodexSessionMessageBody } from './sessionOutboundMessageNormalization';
 import {
@@ -1037,6 +1044,7 @@ export class ApiSessionClient extends EventEmitter {
             encryptionKey: this.encryptionKey,
             encryptionVariant: this.encryptionVariant,
             encryptionMode: this.sessionEncryptionMode,
+            responseMaxBytes: configuration.rpcResponseMaxBytes,
             logger: (msg, data) => logger.debug(msg, data),
             onRegistrationError: (error) => {
                 const probe = classifySessionTransportErrorToProbeResult(error);
@@ -1070,6 +1078,8 @@ export class ApiSessionClient extends EventEmitter {
         });
         this.rebuildSessionRuntimeControls();
         this.rpcLifecycleRegistrations.push(registerSessionHandlers(this.rpcHandlerManager, this.metadata?.path, {
+            // The session starts now; capabilities are built on the first request instead.
+            prewarmCapabilities: false,
             getSessionMetadata: () => this.getMetadataSnapshot(),
             updateSessionMetadata: (handler) => this.updateMetadata(handler),
             updateSessionMetadataWithResult: (handler) => this.updateMetadataWithResult(handler),
@@ -4128,16 +4138,9 @@ export class ApiSessionClient extends EventEmitter {
 
         let content: MessageContent;
 
-        // Check if body is already a MessageContent (has role property)
-        if (
-            body.type === 'user' &&
-            typeof body.message.content === 'string' &&
-            body.isSidechain !== true &&
-            body.isMeta !== true &&
-            // Peer deliveries keep their sender provenance in the raw output envelope.
-            !readClaudePeerMessage(body)
-        ) {
-            content = this.buildUserTextMessageContent(body.message.content, meta);
+        const userText = readClaudeUserMessageText(body);
+        if (userText !== null) {
+            content = this.buildUserTextMessageContent(userText, meta);
         } else {
             // Wrap Claude messages in the expected format
             content = {
@@ -4171,6 +4174,13 @@ export class ApiSessionClient extends EventEmitter {
                 this.sendUsageData(body.message.usage, body.message.model);
             } catch (error) {
                 logger.debug('[SOCKET] Failed to send usage data:', serializeAxiosErrorForLog(error));
+            }
+            if (configuration.countPiSubagentUsage) {
+                try {
+                    this.sendPiSubagentUsageReports();
+                } catch (error) {
+                    logger.debug('[SOCKET] Failed to send Pi subagent usage:', serializeAxiosErrorForLog(error));
+                }
             }
         }
 
@@ -4303,7 +4313,7 @@ export class ApiSessionClient extends EventEmitter {
         });
     }
 
-    private prepareCodexMessage(body: any) {
+    private prepareCodexMessage(body: any, meta?: Record<string, unknown>) {
         const normalizedBody = normalizeCodexSessionMessageBody({
             body,
             toolCallCanonicalNameByProviderAndId: this.toolCallCanonicalNameByProviderAndId,
@@ -4318,6 +4328,7 @@ export class ApiSessionClient extends EventEmitter {
                 data: normalizedBody  // This wraps the entire Codex message
             },
             meta: {
+                ...meta,
                 sentFrom: 'cli',
                 source: 'cli',
             }
@@ -4326,8 +4337,8 @@ export class ApiSessionClient extends EventEmitter {
         return { normalizedBody, content };
     }
 
-    sendCodexMessage(body: any) {
-        const { normalizedBody, content } = this.prepareCodexMessage(body);
+    sendCodexMessage(body: any, opts?: { meta?: Record<string, unknown> }) {
+        const { normalizedBody, content } = this.prepareCodexMessage(body, opts?.meta);
 
         recordCodexToolTraceEventIfNeeded({ sessionId: this.sessionId, body: normalizedBody });
         
@@ -5408,6 +5419,29 @@ export class ApiSessionClient extends EventEmitter {
         this.socket.emit('usage-report', usageReport);
     }
 
+    private piSubagentOwnerWritten = false;
+    private readonly lastPiSubagentReports = new Map<string, string>();
+
+    /**
+     * Sends the running usage totals of the Pi subagents of this Claude chat that changed since
+     * the last send. The first call writes owner.json, so Pi subagents that later Bash commands
+     * start report to this session (the assistant message comes before its tool calls run).
+     */
+    private sendPiSubagentUsageReports(): void {
+        const folder = piSubagentUsageFolder(resolvePiAgentDir(process.env), this.sessionId);
+        if (!this.piSubagentOwnerWritten) {
+            writePiSubagentOwnerFile(folder, process.pid);
+            this.piSubagentOwnerWritten = true;
+        }
+        if (!this.socket.connected) return;
+        for (const report of readPiSubagentUsageReports(folder, this.sessionId, process.pid)) {
+            const text = JSON.stringify(report);
+            if (this.lastPiSubagentReports.get(report.key) === text) continue;
+            this.lastPiSubagentReports.set(report.key, text);
+            this.socket.emit('usage-report', report);
+        }
+    }
+
     /**
      * Update session metadata
      * @param handler - Handler function that returns the updated metadata
@@ -6011,6 +6045,17 @@ export class ApiSessionClient extends EventEmitter {
         localId: string,
         options?: CommittedUserMessageSeqWaitOptions,
     ): Promise<number | null> {
+        // A provider-claimed pending row commits its transcript row when the accepted delivery
+        // settles, which follows provider acceptance of this prompt. Before acceptance no seq
+        // can arrive, so a caller that waits before it sends the prompt only loses its timeout.
+        const known = this.committedUserMessageSeqTracker.get(localId);
+        if (
+            known === null
+            && this.canonicalPendingDeliveryByLocalId.has(localId)
+            && this.providerInputTerminalOutcomeByLocalId.get(localId) !== 'accepted'
+        ) {
+            return Promise.resolve(null);
+        }
         return this.committedUserMessageSeqTracker.wait(localId, options);
     }
 
@@ -6718,6 +6763,18 @@ export class ApiSessionClient extends EventEmitter {
         if (materializedLocalId) {
             this.pendingQueueMaterializedLocalIds.add(materializedLocalId);
         }
+        // Record a committed row before the prompt reaches the prompt loop, which waits for it.
+        if (
+            materializeResult.didWrite
+            && materializedMessage?.messageRole === 'user'
+            && materializedMessage.localId
+        ) {
+            this.recordCommittedUserMessageSeq(
+                materializedMessage.localId,
+                materializedMessage.seq,
+            );
+        }
+
         reportPendingMaterializationDiagnosticPhase(opts.onDiagnosticPhase, 'materialize.provider_handoff');
         const deliveredMaterializedMessage = await this.deliverPendingQueueMessage(materializedMessage, {
             providerAcceptancePending: isProviderDeliveryHandoff,
@@ -6752,17 +6809,6 @@ export class ApiSessionClient extends EventEmitter {
         ) {
             reportPendingMaterializationDiagnosticPhase(opts.onDiagnosticPhase, 'materialize.delivery_settlement');
             await this.blockCanonicalPendingDeliveries([materializedMessage.localId], 'invalid_prompt_text');
-        }
-
-        if (
-            materializeResult.didWrite
-            && materializedMessage?.messageRole === 'user'
-            && materializedMessage.localId
-        ) {
-            this.recordCommittedUserMessageSeq(
-                materializedMessage.localId,
-                materializedMessage.seq,
-            );
         }
 
         const message = materializedMessage;

@@ -50,4 +50,61 @@ describe('SimpleSyntaxHighlighter', () => {
         expect(outerStyle).toEqual(expect.objectContaining({ whiteSpace: 'pre' }));
         expect(outerStyle).toEqual(expect.objectContaining({ display: 'inline-block' }));
     });
+
+    it('lets a caller merge container and text styles over the defaults', async () => {
+        const { SimpleSyntaxHighlighter } = await import('./SimpleSyntaxHighlighter');
+
+        let tree!: renderer.ReactTestRenderer;
+        tree = (await renderScreen(<SimpleSyntaxHighlighter
+            code={'const x = 1'}
+            language={'typescript'}
+            selectable={true}
+            wrap
+            textStyle={{ fontSize: 13, lineHeight: 18 }}
+            containerStyle={{ flex: 1, marginTop: 8 }}
+        />)).tree;
+
+        const outerStyle = tree.findByType('View').props.style;
+        expect(Array.isArray(outerStyle)).toBe(true);
+        expect(Object.assign({}, ...outerStyle)).toEqual(expect.objectContaining({ flex: 1, marginTop: 8 }));
+
+        const outerTextStyle = Object.assign({}, ...tree.findAllByType('Text')[0].props.style);
+        expect(outerTextStyle).toEqual(expect.objectContaining({ fontSize: 13, lineHeight: 18 }));
+    });
+
+    it('tints untokenized text with the caller default colour', async () => {
+        const { SimpleSyntaxHighlighter } = await import('./SimpleSyntaxHighlighter');
+
+        let tree!: renderer.ReactTestRenderer;
+        tree = (await renderScreen(<SimpleSyntaxHighlighter
+            code={'const x = 1'}
+            language={'typescript'}
+            selectable={true}
+            defaultColor={'#abc'}
+        />)).tree;
+
+        const tokenColors = tree.findAllByType('Text').slice(1).map((node) => node.props.style.color);
+        expect(tokenColors).toHaveLength(2);
+        expect(tokenColors[1]).toBe('#abc');
+        expect(tokenColors[0]).not.toBe('#abc');
+    });
+
+    it('leaves the font to the outer text so caller overrides reach the glyphs', async () => {
+        const { SimpleSyntaxHighlighter } = await import('./SimpleSyntaxHighlighter');
+
+        let tree!: renderer.ReactTestRenderer;
+        tree = (await renderScreen(<SimpleSyntaxHighlighter
+            code={'const x = 1'}
+            language={'typescript'}
+            selectable={true}
+            textStyle={{ fontFamily: 'Menlo' }}
+        />)).tree;
+
+        const [outerText, ...tokenTexts] = tree.findAllByType('Text');
+        expect(Object.assign({}, ...outerText.props.style)).toEqual(expect.objectContaining({ fontFamily: 'Menlo' }));
+        expect(tokenTexts).toHaveLength(2);
+        for (const tokenText of tokenTexts) {
+            expect(tokenText.props.style.fontFamily).toBeUndefined();
+        }
+    });
 });

@@ -7,7 +7,9 @@ import { resolveServerIdForSessionIdFromLocalCache } from '@/sync/runtime/orches
 import { markSessionOpenRequestedForSessionUiTelemetry } from '@/sync/runtime/performance/sessionUiTelemetry';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 
+import { requestSessionOpenPrewarm } from '@/sync/runtime/sessionOpenPrewarm';
 import { buildScopedSessionRouteHref } from './sessionRouteServerScope';
+import { takePreloadedSessionRoute } from './sessionRoutePreloadRegistry';
 
 /**
  * Opening an existing session is ONE decision, spelled here.
@@ -48,7 +50,11 @@ export function navigateToSessionRoute(params: Readonly<{
         sessionId: params.sessionId,
         source: 'navigate-hook',
     });
-    if (Platform.OS === 'web') {
+    // Start the session and transcript fetch now, so the network overlaps the route render.
+    requestSessionOpenPrewarm(params.sessionId, targetServerId || null);
+    if (!params.query && takePreloadedSessionRoute(params.sessionId)) {
+        // The stack already rendered this session as a preloaded route; it is now shown as is.
+    } else if (Platform.OS === 'web') {
         params.router.push(href);
     } else {
         params.router.navigate(href, {

@@ -62,14 +62,19 @@ export async function materializeSessionDraftSocketWake(params: Readonly<{
     payload: unknown;
     capturedScope: ServerAccountScope;
     readActiveScope: () => ServerAccountScope | null;
-    materializeExact: (scope: ServerAccountScope, address: SessionDraftAddressV1) => Promise<void>;
+    materializeExact: (
+        scope: ServerAccountScope,
+        address: SessionDraftAddressV1,
+        known: Readonly<{ revision: number; status: 'present' | 'deleted' }>,
+    ) => Promise<void>;
 }>): Promise<boolean> {
     const update = parseSessionDraftSocketWake(params.payload);
     if (!update || !areServerAccountScopesEqual(params.readActiveScope(), params.capturedScope)) {
         return false;
     }
     try {
-        await params.materializeExact(params.capturedScope, update.address);
+        // The hint's revision lets the repository skip reading back this device's own write.
+        await params.materializeExact(params.capturedScope, update.address, { revision: update.revision, status: update.status });
     } catch (error) {
         if (isSessionDraftContextUnavailableError(error)) {
             log.log('[session-drafts] Socket wake deferred reason=session_context_unavailable');

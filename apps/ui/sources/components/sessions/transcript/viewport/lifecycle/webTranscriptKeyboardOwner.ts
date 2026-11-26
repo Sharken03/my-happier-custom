@@ -87,11 +87,13 @@ function resolveContainingEntry(
     target: EventTarget | null,
 ): RegisteredEntry | null {
     if (!isNode(target)) return null;
+    // resolveScroller reads layout, so each entry resolves once per event, not once per ancestor.
+    const scrollers = Array.from(registry.entries.values(), (entry) => ({ entry, scroller: entry.resolveScroller() }));
     let current: Node | null = target;
     while (current) {
         const matches: RegisteredEntry[] = [];
-        for (const entry of registry.entries.values()) {
-            if (entry.resolveScroller() === current) {
+        for (const { entry, scroller } of scrollers) {
+            if (scroller === current) {
                 matches.push(entry);
             }
         }

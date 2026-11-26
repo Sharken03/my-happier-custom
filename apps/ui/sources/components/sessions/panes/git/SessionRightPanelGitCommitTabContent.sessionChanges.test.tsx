@@ -61,6 +61,12 @@ vi.mock('@/components/sessions/panes/git/SessionRightPanelGitCommitTab', () => (
     },
 }));
 
+vi.mock('./externalChanges/SessionExternalRepositoryChanges', () => ({
+    useExternalRepositoryChanges: () => ({ groups: [], changedPathsByRoot: new Map() }),
+    countOtherRepositoryFiles: () => 0,
+    ExternalRepositoryChangesList: () => null,
+}));
+
 vi.mock('@/components/sessions/sourceControl/commitSelection/ScmCommitSelectionToggleButton', () => ({
     ScmCommitSelectionToggleButton: () => React.createElement('ScmCommitSelectionToggleButton'),
 }));

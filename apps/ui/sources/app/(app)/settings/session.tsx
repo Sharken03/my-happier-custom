@@ -53,6 +53,7 @@ export default React.memo(function SessionSettingsScreen() {
     const [sessionListDensity, setSessionListDensity] = useSettingMutable('sessionListDensity');
     const [sessionListIdentityDisplay, setSessionListIdentityDisplay] = useSettingMutable('sessionListIdentityDisplay');
     const [sessionListActiveColorMode, setSessionListActiveColorMode] = useSettingMutable('sessionListActiveColorModeV1');
+    const [sessionListHighlightAttention, setSessionListHighlightAttention] = useSettingMutable('sessionListHighlightAttention');
     const [sessionListAttentionPromotionMode, setSessionListAttentionPromotionMode] = useSettingMutable('sessionListAttentionPromotionModeV1');
     const [sessionListBackgroundWorkAttentionMode, setSessionListBackgroundWorkAttentionMode] = useSettingMutable('sessionListBackgroundWorkAttentionModeV1');
     const [sessionListAttentionStandingDefault, setSessionListAttentionStandingDefault] = useSettingMutable('sessionListAttentionStandingDefaultV1');
@@ -62,6 +63,10 @@ export default React.memo(function SessionSettingsScreen() {
     const [workspaceFaviconsEnabled, setWorkspaceFaviconsEnabled] = useSettingMutable('workspaceFaviconsEnabled');
     const [workspaceMachineSubtitlesEnabled, setWorkspaceMachineSubtitlesEnabled] = useSettingMutable('workspaceMachineSubtitlesEnabled');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
+    const [showHibernatedInActiveList, setShowHibernatedInActiveList] = useSettingMutable('showHibernatedInActiveList');
+    const [showArchivedSessionsLink, setShowArchivedSessionsLink] = useSettingMutable('showArchivedSessionsLink');
+    const [newSessionOpenBeforeUpload, setNewSessionOpenBeforeUpload] = useSettingMutable('newSessionOpenBeforeUploadV1');
+    const [favoriteModelsSortByUse, setFavoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
     const [sessionListSectionModeV1, setSessionListSectionModeV1] = useSettingMutable('sessionListSectionModeV1');
     const [sessionListGroupGitWorktrees, setSessionListGroupGitWorktrees] = useSettingMutable('sessionListGroupGitWorktreesV1');
     const [sessionListActiveGroupingV1, setSessionListActiveGroupingV1] = useSettingMutable('sessionListActiveGroupingV1');
@@ -136,10 +141,16 @@ export default React.memo(function SessionSettingsScreen() {
             title: t('settingsFeatures.sessionListGrouping.dateTitle'),
             subtitle: t('settingsFeatures.sessionListGrouping.dateSubtitle'),
         },
+        // Plain English, so no locale file changes.
+        {
+            id: 'none',
+            title: 'None',
+            subtitle: 'One list, newest first; the age shows on each row',
+        },
     ], []);
 
     const selectGrouping = React.useCallback((itemId: string, section: 'active' | 'inactive') => {
-        if (itemId !== 'project' && itemId !== 'date') return;
+        if (itemId !== 'project' && itemId !== 'date' && itemId !== 'none') return;
         if (section === 'active') {
             setSessionListActiveGroupingV1(itemId);
             return;
@@ -684,6 +695,37 @@ export default React.memo(function SessionSettingsScreen() {
                     showChevron={false}
                 />
                 <Item
+                    title="Show hibernated sessions in active list"
+                    subtitle="Sessions stopped to free RAM but not archived appear in Active"
+                    icon={<Icon name="moon" size={29} color={theme.colors.accent.purple} />}
+                    rightElement={<Switch value={showHibernatedInActiveList} onValueChange={setShowHibernatedInActiveList} />}
+                    showChevron={false}
+                />
+                {/* Plain English, so no locale file changes. */}
+                <Item
+                    testID="settings-session-openBeforeUpload"
+                    title="Open new chat before upload"
+                    subtitle="Attachments upload in the background"
+                    icon={<Icon name="cloud-arrow-up" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={newSessionOpenBeforeUpload} onValueChange={setNewSessionOpenBeforeUpload} />}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-session-favoriteModelsSortByUse"
+                    title="Sort favorite models by use"
+                    subtitle="Models with the most new chats come first"
+                    icon={<Icon name="star" size={29} color={theme.colors.accent.indigo} />}
+                    rightElement={<Switch value={favoriteModelsSortByUse} onValueChange={setFavoriteModelsSortByUse} />}
+                    showChevron={false}
+                />
+                <Item
+                    title={t('settingsFeatures.showArchivedSessionsLink')}
+                    subtitle={t('settingsFeatures.showArchivedSessionsLinkSubtitle')}
+                    icon={<Icon name="archive" size={29} color={theme.colors.accent.blue} />}
+                    rightElement={<Switch value={showArchivedSessionsLink} onValueChange={setShowArchivedSessionsLink} />}
+                    showChevron={false}
+                />
+                <Item
                     title={t('settingsAppearance.sessionsRightPaneDefaultOpen')}
                     subtitle={t('settingsAppearance.sessionsRightPaneDefaultOpenDescription')}
                     icon={<Icon name="files" size={29} color={theme.colors.accent.blue} />}
@@ -773,6 +815,15 @@ export default React.memo(function SessionSettingsScreen() {
                     }}
                     items={sessionListActiveColorModeItems}
                     onSelect={handleSessionListActiveColorModeSelect}
+                />
+                <Item
+                    testID="settings-session-sessionListHighlightAttention"
+                    title={t('settingsSession.sessionList.highlightAttentionTitle')}
+                    subtitle={t('settingsSession.sessionList.highlightAttentionSubtitle')}
+                    icon={<Icon name="text-b" size={29} color={theme.colors.accent.purple} />}
+                    rightElement={<Switch value={sessionListHighlightAttention === true} onValueChange={setSessionListHighlightAttention} />}
+                    showChevron={false}
+                    onPress={() => setSessionListHighlightAttention(!(sessionListHighlightAttention === true))}
                 />
                 <DropdownMenu
                     open={openWorkspacePathDisplayMenu}

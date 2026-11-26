@@ -30,7 +30,7 @@ import type {
 import { redactBugReportSensitiveText } from '@happier-dev/protocol';
 import { randomUUID } from 'node:crypto';
 import { createWriteStream, promises as fs } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type {
   AgentBackend,
   AgentMessage,
@@ -123,7 +123,8 @@ import {
   createAcpClientConnection,
   type AcpClientConnection,
 } from './connection/createAcpClientConnection';
-import { isAcpRequestError, loadAcpSdk } from './connection/acpSdk';
+import { isAcpRequestError, loadAcpSdk, requireLoadedAcpSdk } from './connection/acpSdk';
+import { resolveFilesystemTargetPath } from '@/rpc/handlers/fileSystem/accessPolicy/filesystemPathAuthorization';
 import type {
   AcpClientConnectionHandlers,
   AcpExtensionHandlerContext,
@@ -184,6 +185,12 @@ export type AcpPromptFinalResponseEvidence =
   | Readonly<{
       kind: 'accepted_without_exact_final_response';
     }>;
+
+/** One session/prompt request of the current turn that the agent has not answered. */
+type OpenTurnPrompt = Readonly<{
+  response: Promise<PromptResponse>;
+  emitUsage: (promptResponse: PromptResponse | unknown) => void;
+}>;
 
 export type AcpPromptSubmissionEvidence =
   | AcpPromptFinalResponseEvidence
@@ -591,9 +598,9 @@ function isTruthyEnv(value: string | undefined): boolean {
 }
 
 export function isAcpFsEnabled(): boolean {
-  // Default ON: ACP agents that support the `fs` capability will route file reads/writes
-  // through the client (Happier). This is the only reliable way for Happier to enforce
-  // workspace boundaries for ACP backends.
+  // Default ON: ACP agents that support the `fs` capability route text reads/writes through
+  // Happier, so writes pass through the session permission policy with their path visible.
+  // This is not a sandbox: the agent keeps its own shell and local I/O as the same OS user.
   const raw = process.env.HAPPIER_ACP_FS;
   if (raw === undefined) return true;
   return isTruthyEnv(raw);
@@ -633,88 +640,45 @@ export function buildInitializeRequest(params: {
   };
 }
 
-/** Apply workspace and permission policy to client filesystem calls, rechecking captured turn authority after I/O. */
+/**
+ * ACP has no permission-denied code; implementation-specific codes must sit outside the
+ * JSON-RPC/ACP reserved ranges, so a denied write uses this one with a readable message.
+ */
+export const ACP_FS_WRITE_DENIED_ERROR_CODE = 403;
+
+/**
+ * Serve ACP client filesystem calls as the session's OS user — the same reach the agent's own
+ * tools have — gating writes through the session permission policy and rechecking captured
+ * turn authority after I/O. Failures carry the path and cause in the JSON-RPC message.
+ */
 export function createAcpClientFsMethods(params: {
   cwd: string;
   permissionHandler?: AcpPermissionHandler;
   getPermissionContext?: () => AcpPermissionCallContext | undefined;
   captureRequestGuard?: (sessionId: string) => (() => void) | undefined;
 }): Required<Pick<AcpClientConnectionHandlers, 'readTextFile' | 'writeTextFile'>> {
-  const rootResolved = resolve(params.cwd);
-  const rootRealPromise = fs.realpath(rootResolved).catch(() => rootResolved);
-
-  const isWithinRoot = (root: string, target: string): boolean => {
-    const rel = relative(root, target);
-    return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel));
+  const resolveRequestPath = (path: unknown): string => {
+    const resolved = resolveFilesystemTargetPath({ targetPath: path, defaultDirectory: resolve(params.cwd) });
+    if (!resolved.valid) throw requireLoadedAcpSdk().RequestError.invalidParams({ path }, resolved.error);
+    return resolved.resolvedPath;
   };
 
-  const isWithinAnyRoot = (roots: string[], target: string): boolean => {
-    for (const root of roots) {
-      if (isWithinRoot(root, target)) return true;
-    }
-    return false;
-  };
-
-  const assertWithinCwd = async (targetPath: string, opts: { kind: 'read' | 'write' }): Promise<void> => {
-    const targetResolved = resolve(targetPath);
-    if (!isWithinRoot(rootResolved, targetResolved)) {
-      throw new Error(`Permission denied for ${opts.kind}TextFile (path traversal)`);
-    }
-
-    const rootReal = await rootRealPromise;
-    // `realpath()` can normalize the same directory into different spellings on some platforms
-    // (for example: Windows mapped drive letters vs UNC paths). Treat both spellings as valid roots.
-    const roots = rootReal === rootResolved ? [rootResolved] : [rootResolved, rootReal];
-    const resolveExistingAncestorRealPath = async (startPath: string): Promise<string> => {
-      let candidate = startPath;
-      while (true) {
-        const candidateReal = await fs.realpath(candidate).catch((error) => {
-          const errno = (error as NodeJS.ErrnoException | undefined)?.code;
-          if (errno === 'ENOENT') return null;
-          throw new Error(`Permission denied for ${opts.kind}TextFile (cannot resolve path)`);
-        });
-        if (candidateReal) return candidateReal;
-        const parent = dirname(candidate);
-        if (parent === candidate) {
-          throw new Error(`Permission denied for ${opts.kind}TextFile (cannot resolve path)`);
-        }
-        candidate = parent;
-      }
-    };
-
-    if (opts.kind === 'read') {
-      const targetReal = await fs.realpath(targetResolved).catch((error) => {
-        const errno = (error as NodeJS.ErrnoException | undefined)?.code;
-        if (errno === 'ENOENT') return targetResolved;
-        throw new Error(`Permission denied for ${opts.kind}TextFile (cannot resolve path)`);
-      });
-      if (!isWithinAnyRoot(roots, targetReal)) {
-        throw new Error(`Permission denied for ${opts.kind}TextFile (path traversal)`);
-      }
-      return;
-    }
-
-    const targetReal = await fs.realpath(targetResolved).catch((error) => {
-      const errno = (error as NodeJS.ErrnoException | undefined)?.code;
-      if (errno === 'ENOENT') return null;
-      throw new Error(`Permission denied for ${opts.kind}TextFile (cannot resolve path)`);
-    });
-    if (targetReal && !isWithinAnyRoot(roots, targetReal)) {
-      throw new Error(`Permission denied for ${opts.kind}TextFile (path traversal)`);
-    }
-
-    const existingAncestorReal = await resolveExistingAncestorRealPath(dirname(targetResolved));
-    if (!isWithinAnyRoot(roots, existingAncestorReal)) {
-      throw new Error(`Permission denied for ${opts.kind}TextFile (path traversal)`);
-    }
+  const toAcpFsError = (error: unknown, path: string): unknown => {
+    const sdk = requireLoadedAcpSdk();
+    if (error instanceof sdk.RequestError) return error;
+    const errno = (error as NodeJS.ErrnoException | undefined)?.code;
+    if (errno === 'ENOENT') return sdk.RequestError.resourceNotFound(path);
+    const message = error instanceof Error ? error.message : String(error);
+    return sdk.RequestError.internalError({ path, ...(errno ? { errno } : {}) }, message);
   };
 
   const readTextFile: NonNullable<AcpClientConnectionHandlers['readTextFile']> = async (req) => {
     const assertRequestCurrent = params.captureRequestGuard?.(req.sessionId);
-    const targetPath = isAbsolute(req.path) ? resolve(req.path) : resolve(rootResolved, req.path);
-    await assertWithinCwd(targetPath, { kind: 'read' });
+    const targetPath = resolveRequestPath(req.path);
     assertRequestCurrent?.();
-    const full = await fs.readFile(targetPath, 'utf8');
+    const full = await fs.readFile(targetPath, 'utf8').catch((error: unknown) => {
+      throw toAcpFsError(error, targetPath);
+    });
     assertRequestCurrent?.();
     const line = typeof req.line === 'number' ? req.line : null;
     const limit = typeof req.limit === 'number' ? req.limit : null;
@@ -735,8 +699,7 @@ export function createAcpClientFsMethods(params: {
   const writeTextFile: NonNullable<AcpClientConnectionHandlers['writeTextFile']> = async (req) => {
     const assertRequestCurrent = params.captureRequestGuard?.(req.sessionId);
     const permissionContext = params.getPermissionContext?.();
-    const targetPath = isAbsolute(req.path) ? resolve(req.path) : resolve(rootResolved, req.path);
-    await assertWithinCwd(targetPath, { kind: 'write' });
+    const targetPath = resolveRequestPath(req.path);
     assertRequestCurrent?.();
     const reqRecord = asRecord(req) ?? {};
     const meta = asRecord(reqRecord._meta) ?? {};
@@ -754,14 +717,21 @@ export function createAcpClientFsMethods(params: {
         result.decision === 'approved_execpolicy_amendment';
 
       if (!approved) {
-        throw new Error(`Permission denied for writeTextFile (${toolCallId})`);
+        throw new (requireLoadedAcpSdk().RequestError)(
+          ACP_FS_WRITE_DENIED_ERROR_CODE,
+          `Permission denied: writing ${targetPath} was not approved`,
+          { path: targetPath, toolCallId },
+        );
       }
     }
 
     assertRequestCurrent?.();
-    await fs.mkdir(dirname(targetPath), { recursive: true });
+    const rethrowAsAcpFsError = (error: unknown): never => {
+      throw toAcpFsError(error, targetPath);
+    };
+    await fs.mkdir(dirname(targetPath), { recursive: true }).catch(rethrowAsAcpFsError);
     assertRequestCurrent?.();
-    await fs.writeFile(targetPath, req.content, 'utf8');
+    await fs.writeFile(targetPath, req.content, 'utf8').catch(rethrowAsAcpFsError);
     return {};
   };
 
@@ -836,6 +806,17 @@ export interface AcpBackendOptions {
   /** Provider-owned projection/application for model metadata not standardized by ACP. */
   sessionModelAdapter?: AcpSessionModelAdapter;
 
+  /**
+   * Provider hook run before each prompt goes to the agent, for example to move a prompt off a
+   * model whose quota is used up. It may set the session model and post a status line to the
+   * chat. A failure is logged and the prompt is sent as it is.
+   */
+  beforePrompt?: (context: Readonly<{
+    modelState: Readonly<SessionModelState> | null;
+    setModel: (modelId: string) => Promise<void>;
+    notify: (message: string) => void;
+  }>) => Promise<void>;
+
   /** False hides and rejects mode controls when the provider's semantics are not supported. */
   sessionModesEnabled?: boolean;
 
@@ -849,6 +830,13 @@ export interface AcpBackendOptions {
 
   /** Provider-owned in-flight steer extension. Omit to retain the ACP session/prompt contract. */
   inFlightSteer?: AcpInFlightSteerAdapter;
+
+  /**
+   * For agents without a steer command that end the running session/prompt when a second one
+   * arrives and continue its work under the second. The turn then stays open until no prompt of
+   * the turn is open.
+   */
+  steerByPromptHandoff?: boolean;
 
   /** Provider-owned projection for non-standard prompt usage fields and accounting semantics. */
   promptUsageAdapter?: AcpPromptUsageAdapter;
@@ -1051,6 +1039,8 @@ export class AcpBackend implements AgentBackend {
     generation: number;
     settled: Promise<void>;
   }> | null = null;
+  /** In dispatch order. More than one entry only with `steerByPromptHandoff`. */
+  private readonly openTurnPrompts = new Map<symbol, OpenTurnPrompt>();
 
   /** Transport handler for agent-specific behavior */
   private readonly transport: TransportHandler;
@@ -1230,6 +1220,7 @@ export class AcpBackend implements AgentBackend {
   /** Start a new response generation with its admitted policy, retiring timers and settlement state from the prior turn. */
   private beginResponseTurn(permissionContext?: AcpPermissionCallContext): void {
     this.turnGeneration++;
+    this.openTurnPrompts.clear();
     this.closedTurnGeneration = null;
     this.promptCompletionSettlement = null;
     this.dispatchedPromptTurnGeneration = null;
@@ -3323,11 +3314,16 @@ export class AcpBackend implements AgentBackend {
     promptResponse: PromptResponse | unknown,
     turnGeneration: number,
     emitPromptUsage: (promptResponse: PromptResponse | unknown) => void,
+    openPrompt?: symbol,
   ): boolean {
     if (this.disposed) return true;
     if (turnGeneration !== this.turnGeneration) return true;
     if (this.isTurnGenerationClosed(turnGeneration)) return true;
 
+    if (openPrompt && this.releaseTurnPrompt(openPrompt)) {
+      emitPromptUsage(promptResponse);
+      return true;
+    }
     if (this.pendingPromptResponseTurnGeneration === turnGeneration) {
       this.pendingPromptResponseTurnGeneration = null;
     }
@@ -3347,6 +3343,28 @@ export class AcpBackend implements AgentBackend {
 
     this.finalizeTurnOutcome(mapStopReasonToAcpTurnOutcome(stopReason));
     return true;
+  }
+
+  /** Forget a settled prompt of the current turn; true when another prompt of the turn is still open. */
+  private releaseTurnPrompt(openPrompt: symbol): boolean {
+    this.openTurnPrompts.delete(openPrompt);
+    return this.openTurnPrompts.size > 0;
+  }
+
+  /** Make a dispatched prompt part of the ownership boundary. A handed over prompt stays in it until it settles. */
+  private trackActivePromptRpc(turnGeneration: number, response: Promise<PromptResponse>): void {
+    const previous = this.activePromptRpc?.settled;
+    const settled = response.then(() => undefined, () => undefined);
+    const activePromptRpc = {
+      generation: turnGeneration,
+      settled: previous ? Promise.all([previous, settled]).then(() => undefined) : settled,
+    };
+    this.activePromptRpc = activePromptRpc;
+    void activePromptRpc.settled.then(() => {
+      if (this.activePromptRpc === activePromptRpc) {
+        this.activePromptRpc = null;
+      }
+    });
   }
 
   private abortPendingPermissionsForCurrentTurn(reason: string): void {
@@ -3515,6 +3533,19 @@ export class AcpBackend implements AgentBackend {
       );
     }
 
+    if (this.options.beforePrompt) {
+      const acpSessionId = this.acpSessionId;
+      try {
+        await this.options.beforePrompt({
+          modelState: this.sessionModelState,
+          setModel: (modelId) => this.setSessionModel(acpSessionId, modelId),
+          notify: (message) => this.emit({ type: 'event', name: 'message', payload: { message } }),
+        });
+      } catch (error) {
+        logger.warnFile('[AcpBackend] beforePrompt hook failed; sending the prompt unchanged', error);
+      }
+    }
+
     // Check if prompt contains change_title instruction (via optional callback)
     const promptHasChangeTitle = this.options.hasChangeTitleInstruction?.(prompt) ?? false;
 
@@ -3531,15 +3562,21 @@ export class AcpBackend implements AgentBackend {
       permissionMode: this.options.getPermissionMode?.() ?? this.options.permissionMode ?? 'default',
     }) : undefined);
     const turnGeneration = this.turnGeneration;
+    const openPrompt = Symbol('acp-open-turn-prompt');
 
     type PromptErrorDisposition =
       | 'failed'
+      | 'ignored_after_handoff'
       | 'ignored_after_closed_turn';
     let promptErrorHandled = false;
     const handlePromptError = (error: unknown): PromptErrorDisposition => {
       if (turnGeneration !== this.turnGeneration || this.isTurnGenerationClosed(turnGeneration)) {
         logger.debug('[AcpBackend] Ignoring prompt error after turn generation closed:', error);
         return 'ignored_after_closed_turn';
+      }
+      if (this.releaseTurnPrompt(openPrompt)) {
+        logger.debug('[AcpBackend] Ignoring prompt error after a steer took over the turn:', error);
+        return 'ignored_after_handoff';
       }
       logger.debug('[AcpBackend] Error sending prompt:', error);
 
@@ -3686,16 +3723,8 @@ export class AcpBackend implements AgentBackend {
         await this.catchUpProviderTurns();
         return response;
       });
-      const activePromptRpc = {
-        generation: turnGeneration,
-        settled: promptPromise.then(() => undefined, () => undefined),
-      };
-      this.activePromptRpc = activePromptRpc;
-      void activePromptRpc.settled.then(() => {
-        if (this.activePromptRpc === activePromptRpc) {
-          this.activePromptRpc = null;
-        }
-      });
+      this.openTurnPrompts.set(openPrompt, { response: promptPromise, emitUsage: emitPromptUsage });
+      this.trackActivePromptRpc(turnGeneration, promptPromise);
       const finalResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = Promise.race([
         promptPromise,
         ...(privateCompletionResponse ? [privateCompletionResponse] : []),
@@ -3772,11 +3801,14 @@ export class AcpBackend implements AgentBackend {
         this.pendingPromptResponseTurnGeneration = turnGeneration;
         void promptPromise
           .then((res) => {
-            const completedTurn = this.handlePromptResponseForTurn(res, turnGeneration, emitPromptUsage);
+            const completedTurn = this.handlePromptResponseForTurn(res, turnGeneration, emitPromptUsage, openPrompt);
             if (!completedTurn) scheduleNoUpdateCompletionIfNeeded();
           })
           .catch(() => {
-            if (this.pendingPromptResponseTurnGeneration === turnGeneration) {
+            if (
+              this.pendingPromptResponseTurnGeneration === turnGeneration
+              && !this.releaseTurnPrompt(openPrompt)
+            ) {
               this.pendingPromptResponseTurnGeneration = null;
               this.idleStatusDeferredUntilPromptResponse = false;
             }
@@ -3816,7 +3848,7 @@ export class AcpBackend implements AgentBackend {
 
       // Best-effort: emit token usage when the ACP agent reports it in the PromptResponse.
       // ACP standardizes per-turn usage under `usage` (RFC: session-usage).
-      if (this.handlePromptResponseForTurn(promptResponse, turnGeneration, emitPromptUsage)) {
+      if (this.handlePromptResponseForTurn(promptResponse, turnGeneration, emitPromptUsage, openPrompt)) {
         return {
           kind: 'exact_final_response',
           response: promptResponse as PromptResponse,
@@ -3844,6 +3876,12 @@ export class AcpBackend implements AgentBackend {
       if (!promptErrorHandled) handlePromptError(error);
       throw toAcpPromptSubmissionPhaseError('effect_may_have_occurred', error);
     }
+  }
+
+  /** With prompt handoff a steer needs an open prompt to take over, so it waits until the first one is sent. */
+  isInFlightSteerOpen(): boolean {
+    if (this.options.steerByPromptHandoff !== true) return true;
+    return this.waitingForResponse && this.openTurnPrompts.size > 0;
   }
 
   async sendSteerPrompt(
@@ -3878,6 +3916,7 @@ export class AcpBackend implements AgentBackend {
     const turnGeneration = this.turnGeneration;
     // Native extensions may queue input between turns; projection must not outlive a turn that was open.
     const turnWasClosed = this.isTurnGenerationClosed(turnGeneration);
+    const handsOver = this.options.steerByPromptHandoff === true;
     const { metadata, ...deliveryIdentity } = options ?? {};
     const content = await buildAcpPromptContentBlocks({
       cwd: this.options.cwd,
@@ -3890,6 +3929,7 @@ export class AcpBackend implements AgentBackend {
       || this.acpSessionId !== normalizedSessionId
       || this.turnGeneration !== turnGeneration
       || (!turnWasClosed && this.isTurnGenerationClosed(turnGeneration))
+      || !this.isInFlightSteerOpen()
     ) {
       throw toAcpPromptSubmissionPhaseError(
         'rejected_before_effect',
@@ -3921,24 +3961,49 @@ export class AcpBackend implements AgentBackend {
     // This method is used for in-flight steering while a primary prompt is already running.
     const transportWriteReceipt = this.createAcpPromptTransportWriteReceipt(this.acpSessionId);
     const transportWriteSentinel = Symbol('acp-steer-transport-write');
+    const steeredPrompt = handsOver ? [...this.openTurnPrompts.values()].at(-1) : undefined;
+    const openPrompt = Symbol('acp-open-turn-prompt');
     const promptPromise = connection.peer.prompt(promptRequest);
-    const finalResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = promptPromise
+    if (steeredPrompt) {
+      this.openTurnPrompts.set(openPrompt, { response: promptPromise, emitUsage: steeredPrompt.emitUsage });
+      this.trackActivePromptRpc(turnGeneration, promptPromise);
+      this.pendingPromptResponseTurnGeneration = turnGeneration;
+    }
+    const promptResponseEvidence: Promise<AcpPromptExactFinalResponseEvidence> = promptPromise
       .then((response): AcpPromptExactFinalResponseEvidence => {
-        this.handlePromptResponseForTurn(response, turnGeneration, () => {});
+        this.handlePromptResponseForTurn(
+          response,
+          turnGeneration,
+          steeredPrompt?.emitUsage ?? (() => {}),
+          steeredPrompt && openPrompt,
+        );
         return { kind: 'exact_final_response', response };
       })
       .catch((error: unknown) => {
-        if (!this.disposed && this.waitingForResponse) {
+        const turnContinues = steeredPrompt !== undefined
+          && (turnGeneration !== this.turnGeneration || this.releaseTurnPrompt(openPrompt));
+        if (!this.disposed && this.waitingForResponse && !turnContinues) {
           const normalizedError = error instanceof Error ? error : new Error(String(error));
           this.failPendingResponseWait(normalizedError);
           this.emit({ type: 'status', status: 'error', detail: normalizedError.message, error: normalizedError });
         }
         throw toAcpPromptSubmissionPhaseError('effect_may_have_occurred', error);
       });
+    // The agent has taken the steer when it ends the steered prompt. Waiting for the steer's own
+    // response would leave it unconfirmed, and the next steer behind it, until the turn ends.
+    const finalResponseEvidence: Promise<AcpPromptFinalResponseEvidence> = steeredPrompt
+      ? Promise.race([
+          promptResponseEvidence,
+          steeredPrompt.response.then(
+            (): AcpPromptFinalResponseEvidence => ({ kind: 'accepted_without_exact_final_response' }),
+            () => promptResponseEvidence,
+          ),
+        ])
+      : promptResponseEvidence;
     // The compatibility method intentionally returns after transport custody. Keep the exact
     // response evidence safe until an evidence-aware runtime elects to observe it.
     void finalResponseEvidence.catch(() => {});
-    let outcome: AcpPromptExactFinalResponseEvidence | typeof transportWriteSentinel;
+    let outcome: AcpPromptFinalResponseEvidence | typeof transportWriteSentinel;
     try {
       outcome = await Promise.race([
         finalResponseEvidence,

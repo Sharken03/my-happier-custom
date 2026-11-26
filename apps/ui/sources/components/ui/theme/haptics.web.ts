@@ -11,3 +11,5 @@ export async function hapticsSelection(): Promise<void> {
 }
 
 export async function hapticsDragStart(): Promise<void> {}
+
+export async function hapticsAttention(): Promise<void> {}

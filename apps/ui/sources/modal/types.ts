@@ -78,7 +78,12 @@ export type CustomModalChromeCardConfig = Readonly<{
     dimensions?: ModalCardDimensionOptions;
 }>;
 
-export type CustomModalChromeConfig = CustomModalChromeCardConfig;
+/** The content fills the whole screen (no card, no safe-area padding). The content owns its own chrome. */
+export type CustomModalChromeFullscreenConfig = Readonly<{
+    kind: 'fullscreen';
+}>;
+
+export type CustomModalChromeConfig = CustomModalChromeCardConfig | CustomModalChromeFullscreenConfig;
 
 export interface CustomModalConfig<P extends CustomModalInjectedProps = any> extends BaseModalConfig {
     type: 'custom';

@@ -17,6 +17,7 @@ import {
 } from '@/agent/tools/happierTools/customMcp/listResolvedCustomHappierTools';
 import { callResolvedCustomHappierTool } from '@/agent/tools/happierTools/customMcp/callResolvedCustomHappierTool';
 import { fail } from '@happier-dev/cli-common/output';
+import { serveToolCalls, type ToolsServeDeps } from './toolsServe';
 
 type BuiltInToolEntry = Awaited<ReturnType<typeof listBuiltInHappierTools>>[number];
 type CustomToolEntry = Awaited<ReturnType<typeof listResolvedCustomHappierTools>>['tools'][number];
@@ -32,6 +33,7 @@ export type ToolsCommandDeps = Readonly<{
   resolveCustomHappierToolsContext: typeof resolveCustomHappierToolsContext;
   listResolvedCustomHappierTools: typeof listResolvedCustomHappierTools;
   callResolvedCustomHappierTool: typeof callResolvedCustomHappierTool;
+  toolsServeIo?: Pick<ToolsServeDeps, 'input' | 'writeLine' | 'idleExitMs'>;
 }>;
 
 function resolveToolsCommandDeps(overrides?: Partial<ToolsCommandDeps>): ToolsCommandDeps {
@@ -248,9 +250,9 @@ export async function handleToolsCommand(args: string[], overrides?: Partial<Too
       const parsedArgs = JSON.parse(argsJson);
 
       let result: ToolCallResult;
+      const sessionAgentBridge = args.includes('--session-agent-bridge');
       if (source === 'happier') {
         const context = await resolveToolsBaseContext(args, deps, { requireSessionId: true });
-        const sessionAgentBridge = args.includes('--session-agent-bridge');
         const toolCallId = sessionAgentBridge ? (getFlagValue(args, '--tool-call-id') ?? '') : '';
         result = await deps.callBuiltInHappierTool({
           credentials: context.credentials,
@@ -284,6 +286,9 @@ export async function handleToolsCommand(args: string[], overrides?: Partial<Too
               tool: toolName,
               isError: false,
               output: result.result,
+              // Content blocks (images) go only to the session-agent bridge, which turns them
+              // into tool-result content. A shell caller would get the base64 data as text.
+              ...(sessionAgentBridge && 'content' in result && result.content ? { content: result.content } : {}),
             },
           }, { exitCode: 0 });
         } else {
@@ -308,7 +313,17 @@ export async function handleToolsCommand(args: string[], overrides?: Partial<Too
       return;
     }
 
-    throw new Error('Usage: happier tools <list|call> ...');
+    if (subcommand === 'serve') {
+      // Used by the Pi tools-bridge extension: one process serves all built-in tool calls of a session.
+      await serveToolCalls({ sessionId: requireFlagValue(args, '--session-id') }, {
+        readCredentials: deps.readCredentials,
+        callBuiltInHappierTool: deps.callBuiltInHappierTool,
+        ...deps.toolsServeIo,
+      });
+      return;
+    }
+
+    throw new Error('Usage: happier tools <list|call|serve> ...');
   } catch (error) {
     if (!json) throw error;
     const mapped = mapUnknownErrorToControlError(error);

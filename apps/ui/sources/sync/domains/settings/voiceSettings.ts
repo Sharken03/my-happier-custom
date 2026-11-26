@@ -140,12 +140,20 @@ const VoiceHandsFreeSchema = z.preprocess(
     }),
 );
 
+/**
+ * Dictation mode: the microphone is an action per message, not a state. While a turn is running,
+ * the composer's button stops that turn instead of handing the slot to the microphone, and an idle
+ * local voice call reads as disconnected instead of "Voice Assistant Active".
+ */
+const VoiceDictationModeSchema = z.boolean().default(true);
+
 const VoiceLocalConversationSchema = z.object({
   conversationMode: z.enum(['direct_session', 'agent']).default('direct_session'),
   stt: VoiceLocalSttSchema.prefault({}),
   tts: VoiceLocalTtsSchema.prefault({}),
   networkTimeoutMs: z.number().int().min(1000).max(60000).default(15000),
   handsFree: VoiceHandsFreeSchema.prefault({}),
+  dictationMode: VoiceDictationModeSchema,
 		  agent: z
 		    .object({
 		      backend: z.enum(['daemon', 'openai_compat']).default('daemon'),
@@ -255,6 +263,7 @@ const VoiceLocalDirectSchema = z.object({
   tts: VoiceLocalTtsSchema.prefault({}),
   networkTimeoutMs: z.number().int().min(1000).max(60000).default(15000),
   handsFree: VoiceHandsFreeSchema.prefault({}),
+  dictationMode: VoiceDictationModeSchema,
 });
 
 export const VoiceSettingsSchema = z.object({

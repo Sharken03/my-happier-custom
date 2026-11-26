@@ -1,4 +1,4 @@
-import { isChangeTitleToolLikeName } from '@happier-dev/protocol/tools/v2';
+import { isChangeTitleToolLikeName, isShowImageToolNameAlias } from '@happier-dev/protocol/tools/v2';
 
 const TRUSTED_SAFE_TOOL_NAMES = new Set([
   'think',
@@ -24,6 +24,8 @@ export function isTrustedAlwaysAutoApproveToolName(
   const normalized = String(toolName ?? '').trim().toLowerCase();
   if (!normalized) return false;
   if (isChangeTitleToolLikeName(normalized)) return true;
+  // show_image reads one image file inside the session folder (session media access policy).
+  if (isShowImageToolNameAlias(normalized)) return true;
   if (TRUSTED_SAFE_TOOL_NAMES.has(normalized)) return true;
   return additionalExactNames.some((name) => normalized === name.trim().toLowerCase());
 }

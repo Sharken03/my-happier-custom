@@ -18,6 +18,40 @@ describe('splitMarkdownRenderSegments', () => {
         expect(prose.map((segment) => segment.type)).toEqual(['enriched-markdown']);
     });
 
+    it.each(['static', 'streaming'] as const)('gives a standalone image from an allowed host its own segment in %s mode', (streamingMode) => {
+        const markdown = 'Before.\n\n![Chart](https://happy.example.org/files/c.webp)\n\nAfter, ![inline](https://happy.example.org/i.png).';
+        const off = splitMarkdownRenderSegments({ markdown, streamingMode });
+        expect(off.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+
+        const on = splitMarkdownRenderSegments({ markdown, streamingMode, remoteImageHosts: ['happy.example.org'] });
+        expect(on.map((segment) => segment.type)).toEqual(['enriched-markdown', 'remote-image', 'enriched-markdown']);
+        const image = on[1];
+        expect(image?.type === 'remote-image' ? { url: image.url, alt: image.alt } : null)
+            .toEqual({ url: 'https://happy.example.org/files/c.webp', alt: 'Chart' });
+
+        const foreign = splitMarkdownRenderSegments({ markdown, streamingMode, remoteImageHosts: ['other.example.org'] });
+        expect(foreign.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+    });
+
+    it.each(['static', 'streaming'] as const)('splits a paragraph at a line that is only an allowed image in %s mode', (streamingMode) => {
+        const markdown = 'Before the image.\n![Chart](https://happy.example.org/c.webp)\nAfter the image.\nMore text.\n\nNext paragraph.';
+        const hosts = ['happy.example.org'];
+        const off = splitMarkdownRenderSegments({ markdown, streamingMode });
+        expect(off.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+
+        const on = splitMarkdownRenderSegments({ markdown, streamingMode, remoteImageHosts: hosts });
+        expect(on.map((segment) => segment.type)).toEqual(['enriched-markdown', 'remote-image', 'enriched-markdown']);
+        expect(on[0]?.markdown).toBe('Before the image.');
+        expect(on[2]?.markdown).toBe('After the image.\nMore text.\n\nNext paragraph.');
+
+        const inline = splitMarkdownRenderSegments({
+            markdown: 'Text ![Chart](https://happy.example.org/c.webp) inline.\nNext line.',
+            streamingMode,
+            remoteImageHosts: hosts,
+        });
+        expect(inline.map((segment) => segment.type)).toEqual(['enriched-markdown']);
+    });
+
     it('reuses segment arrays for unchanged markdown and rendering mode', () => {
         const markdown = [
             '## Long section',

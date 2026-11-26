@@ -126,8 +126,6 @@ type HandleSessionMessageSocketUpdateParams = {
     applyMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
     enqueueMessages?: (sessionId: string, messages: NormalizedMessage[]) => void;
     onNormalizedMessagesApplied?: (sessionId: string, messages: NormalizedMessage[]) => void;
-    isMutableToolCall: (sessionId: string, toolUseId: string) => boolean;
-    invalidateScmStatus: (sessionId: string) => void;
     isSessionMessagesLoaded: (sessionId: string) => boolean;
     isSessionActivelyViewed?: (sessionId: string) => boolean;
     getSessionMaterializedMaxSeq: (sessionId: string) => number;
@@ -347,8 +345,6 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
         fetchSessions,
         applyMessages,
         enqueueMessages,
-        isMutableToolCall,
-        invalidateScmStatus,
         isSessionMessagesLoaded,
         getSessionMaterializedMaxSeq,
         markSessionMaterializedMaxSeq,
@@ -534,6 +530,7 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
                 : normalizeMessage();
             if (lastMessage) {
                 applyTranscriptObservationMetadata(lastMessage, rawMessage);
+                if (typeof rawMessage.updatedAt === 'number') lastMessage.serverUpdatedAt = rawMessage.updatedAt;
             }
 
             const shouldInferLifecycle = inferLifecycle && !isRecoveredHistory;
@@ -633,25 +630,12 @@ async function handleSessionMessageSocketUpdate(params: HandleSessionMessageSock
                     }
                 }
 
-                let hasMutableTool = false;
                 if (!enqueueMessages) {
                     markStreamingMessagesAppliedForSessionUiTelemetry({
                         sessionId,
                         messages: [normalizedMessage],
                         source: 'socketMessage',
                     });
-                }
-                if (
-                    lastMessage.role === 'agent' &&
-                    Array.isArray(lastMessage.content) &&
-                    lastMessage.content.length > 0 &&
-                    lastMessage.content[0] &&
-                    (lastMessage.content[0] as any).type === 'tool-result'
-                ) {
-                    hasMutableTool = isMutableToolCall(sessionId, (lastMessage.content[0] as any).tool_use_id);
-                }
-                if (hasMutableTool) {
-                    invalidateScmStatus(sessionId);
                 }
             }
 

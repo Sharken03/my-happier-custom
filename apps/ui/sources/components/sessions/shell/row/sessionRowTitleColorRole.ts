@@ -20,8 +20,11 @@ export function resolveSessionRowTitleColorRole(input: Readonly<{
     isSessionActive: boolean;
     attentionState: SessionRowAttentionState;
     titleTone: SessionRowTitleTone;
+    /** A row that waits for the user (unread, ready, failed, a request) keeps the primary color, also offline. */
+    highlightAttention?: boolean;
 }>): SessionRowTitleColorRole {
     if (input.selected) return 'primary';
+    if (input.highlightAttention === true && isUserAttentionState(input.attentionState)) return 'primary';
     // An offline row recedes below a read one, but unread news still has to be findable.
     if (!input.isConnected && input.attentionState !== 'unread') return 'tertiary';
 

@@ -95,7 +95,131 @@ function writeSteerableAcpAgentScript(params: { dir: string }): string {
   return scriptPath;
 }
 
+/**
+ * Ends the running prompt when a second one arrives and goes on under the second. It waits for a
+ * permission answer before its final text, so a handover that aborts the open request shows up.
+ */
+function writePromptHandoffAcpAgentScript(params: { dir: string }): string {
+  const scriptPath = join(params.dir, 'fake-acp-agent-handoff.mjs');
+  writeFileSync(scriptPath, `
+    import readline from 'node:readline';
+    const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\\n');
+    const update = (update) => send({ method: 'session/update', params: { sessionId: 'test-session', update } });
+    const text = (text) => update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } });
+    const prompts = [];
+    let open = null;
+    readline.createInterface({ input: process.stdin }).on('line', (line) => {
+      const message = JSON.parse(line);
+      if (message.id === 'permission-1') {
+        const outcome = message.result.outcome;
+        text('prompts=' + prompts.join('|') + '; permission=' + outcome.outcome);
+        send({ id: open, result: { stopReason: 'end_turn' } });
+        return;
+      }
+      if (message.id === undefined) return;
+      if (message.method === 'initialize') return send({ id: message.id, result: { protocolVersion: 1, authMethods: [] } });
+      if (message.method === 'session/new') return send({ id: message.id, result: { sessionId: 'test-session' } });
+      if (message.method !== 'session/prompt') return send({ id: message.id, result: {} });
+      prompts.push(message.params.prompt[0].text);
+      if (open !== null) send({ id: open, result: { stopReason: 'end_turn' } });
+      open = message.id;
+      if (prompts.length === 1) send({
+        id: 'permission-1',
+        method: 'session/request_permission',
+        params: {
+          sessionId: 'test-session',
+          toolCall: { toolCallId: 'tool-1', title: 'sleep 5', kind: 'execute', status: 'pending', rawInput: { command: 'sleep 5' } },
+          options: [
+            { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
+            { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
+          ],
+        },
+      });
+    });
+  `, 'utf8');
+  return scriptPath;
+}
+
 describe('createAcpRuntime (in-flight steer, real process)', () => {
+  it('keeps one turn, its permission request and its text through two steers by prompt handoff', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'happier-acp-handoff-proc-'));
+    let answerPermission!: () => void;
+    const permissionAnswer = new Promise<void>((resolve) => { answerPermission = resolve; });
+    const permissionHandler = {
+      handleToolCall: vi.fn(async () => {
+        await permissionAnswer;
+        return { decision: 'approved' as const };
+      }),
+    };
+    const backend = new AcpBackend({
+      agentName: 'test',
+      cwd: dir,
+      command: process.execPath,
+      args: [writePromptHandoffAcpAgentScript({ dir })],
+      steerByPromptHandoff: true,
+      permissionHandler,
+      transportHandler: {
+        agentName: 'test',
+        getInitTimeout: () => 5_000,
+        getToolPatterns: () => [] as ToolPattern[],
+        getIdleTimeout: () => 50,
+      } satisfies TransportHandler,
+    });
+    const texts = new Map<string, string>();
+    const session = {
+      keepAlive: () => {},
+      sendAgentMessage: () => {},
+      sendAgentMessageCommitted: async (_provider: string, msg: any, options: any) => {
+        if (msg.type === 'message') texts.set(options.localId, msg.message);
+      },
+      sendUserTextMessageCommitted: async () => {},
+      fetchRecentTranscriptTextItemsForAcpImport: async () => [],
+      updateMetadata: () => {},
+    } as any;
+
+    try {
+      const runtime = createAcpRuntime({
+        provider: 'agy',
+        directory: dir,
+        session,
+        messageBuffer: new MessageBuffer(),
+        mcpServers: {},
+        permissionHandler,
+        onThinkingChange: () => {},
+        ensureBackend: async () => backend as any,
+        inFlightSteer: { enabled: true },
+      } as any);
+      const accepted: string[] = [];
+
+      runtime.beginTurn();
+      await runtime.startOrLoad({});
+      expect(runtime.supportsInFlightSteer()).toBe(false);
+      let turnEnded = false;
+      const turn = runtime.sendPrompt('first').then(() => { turnEnded = true; });
+      await vi.waitFor(() => expect(permissionHandler.handleToolCall).toHaveBeenCalledOnce());
+      expect(runtime.supportsInFlightSteer()).toBe(true);
+
+      for (const steer of ['second', 'third']) {
+        await runtime.steerPrompt(steer, { localId: steer, onProviderPromptAccepted: () => accepted.push(steer) });
+        await vi.waitFor(() => expect(accepted).toContain(steer));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(turnEnded).toBe(false);
+      expect(runtime.isTurnInFlight()).toBe(true);
+
+      answerPermission();
+      await turn;
+      await runtime.flushTurn();
+      await vi.waitFor(() => {
+        expect([...texts.values()]).toEqual(['prompts=first|second|third; permission=selected']);
+      });
+      expect(accepted).toEqual(['second', 'third']);
+    } finally {
+      await backend.dispose().catch(() => {});
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20_000);
+
   it('routes an exact steer ACK through the typed singleton outcome bridge without broad settlement', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'happier-acp-steer-proc-'));
     const scriptPath = writeSteerableAcpAgentScript({ dir });

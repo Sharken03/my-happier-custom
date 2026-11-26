@@ -1,4 +1,4 @@
-import { createReadStream, accessSync, constants as fsConstants, existsSync } from 'node:fs';
+import { createReadStream, accessSync, constants as fsConstants, existsSync, statSync } from 'node:fs';
 import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, dirname, isAbsolute, join, relative } from 'node:path';
@@ -306,7 +306,7 @@ export type AgyAcpDepData = Readonly<{
 export async function getAgyAcpDepStatus(opts?: { includeLatestVersion?: boolean; onlyIfInstalled?: boolean }): Promise<AgyAcpDepData> {
   const installDir = agyAcpInstallDir();
   const state = await readAgyAcpState();
-  const binPath = await verifyExistingAgyAcpManagedBinPath();
+  const binPath = resolveAgyAcpCommandOverride(process.env)?.command ?? await verifyExistingAgyAcpManagedBinPath();
   const includeLatestVersion = opts?.includeLatestVersion === true;
   const onlyIfInstalled = opts?.onlyIfInstalled === true;
   const latestVersionCheck: LatestVersionCheck | undefined =
@@ -325,4 +325,32 @@ export async function getAgyAcpDepStatus(opts?: { includeLatestVersion?: boolean
     lastBackgroundUpdateCheckAtMs,
     ...(latestVersionCheck ? { latestVersionCheck } : {}),
   };
+}
+
+/**
+ * An ACP server to start in place of the managed agy-acp-server: an absolute path in
+ * HAPPIER_AGY_ACP_COMMAND, with HAPPIER_AGY_ACP_ARGS as a JSON array of arguments. Used where the
+ * pinned server cannot run, such as Android, whose 39-bit address space the server's allocator
+ * does not support; there the agy CLI serves ACP itself (`agy acp`). Launch, the launch check and
+ * the dependency status all use this rule, so no managed install is needed or offered.
+ */
+export function resolveAgyAcpCommandOverride(env: NodeJS.ProcessEnv): Readonly<{ command: string; args: readonly string[] }> | null {
+  const command = env.HAPPIER_AGY_ACP_COMMAND?.trim();
+  if (!command) return null;
+  if (!isAbsolute(command) || !existsSync(command) || !statSync(command).isFile()) {
+    throw new Error(`HAPPIER_AGY_ACP_COMMAND must be an absolute path to a file: ${command}`);
+  }
+  const rawArgs = env.HAPPIER_AGY_ACP_ARGS?.trim();
+  let args: unknown = [];
+  if (rawArgs) {
+    try {
+      args = JSON.parse(rawArgs);
+    } catch {
+      args = null;
+    }
+  }
+  if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) {
+    throw new Error('HAPPIER_AGY_ACP_ARGS must be a JSON array of strings');
+  }
+  return { command, args };
 }

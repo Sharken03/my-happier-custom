@@ -760,8 +760,8 @@ describe('computeVisibleSessionListIndex', () => {
         )).toEqual([
             'h:sessions:Sessions',
             'h:project:Alpha',
-            's:inactive-new:inactive',
             's:active-old:active',
+            's:inactive-new:inactive',
         ]);
     });
 
@@ -1642,6 +1642,47 @@ describe('computeVisibleSessionListIndex', () => {
             'h:attention:Needs attention',
             's:ready:attention',
         ]);
+    });
+
+    describe('visibility scope', () => {
+        const groupKey = 'server:s1:day:2026-02-17';
+        const source: SessionListIndexItem[] = [
+            { type: 'header', headerKind: 'date', title: 'Today', serverId: 's1', groupKey },
+            { type: 'session', sessionId: 'running', serverId: 's1', section: 'active', groupKey, groupKind: 'date' },
+            { type: 'session', sessionId: 'stopped', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
+            { type: 'session', sessionId: 'archived', serverId: 's1', section: 'inactive', groupKey, groupKind: 'date' },
+        ];
+        const resolveSessionRow = makeResolver({
+            's1:running': makeSessionRow('running', { active: true }),
+            's1:stopped': makeSessionRow('stopped'),
+            's1:archived': makeSessionRow('archived', { archivedAt: 4_000 }),
+        });
+        const visibleIds = (params: Readonly<{
+            hideInactiveSessions: boolean;
+            sessionListVisibilityScope?: 'active' | 'archived';
+        }>) => computeVisibleSessionListIndex({
+            source,
+            resolveSessionRow,
+            ...params,
+            pinnedSessionKeysV1: [],
+            sessionListGroupOrderV1: {},
+            sessionListOrderingModeV1: 'custom',
+            presentation: { enabled: false, presentation: 'grouped', selectedServerIds: [] },
+        })!.filter((item) => item.type === 'session').map((item) => item.sessionId);
+
+        it('shows running and stopped sessions in Active when inactive sessions are not hidden', () => {
+            expect(visibleIds({ hideInactiveSessions: false, sessionListVisibilityScope: 'active' })).toEqual(['running', 'stopped']);
+            expect(visibleIds({ hideInactiveSessions: false })).toEqual(['running', 'stopped']);
+        });
+
+        it('leaves the inactive filter of Active to hideInactiveSessions', () => {
+            expect(visibleIds({ hideInactiveSessions: true, sessionListVisibilityScope: 'active' })).toEqual(['running']);
+        });
+
+        it('shows only archived sessions in Archived, also when inactive sessions are hidden', () => {
+            expect(visibleIds({ hideInactiveSessions: false, sessionListVisibilityScope: 'archived' })).toEqual(['archived']);
+            expect(visibleIds({ hideInactiveSessions: true, sessionListVisibilityScope: 'archived' })).toEqual(['archived']);
+        });
     });
 
     it('keeps the unified sessions section header when inactive rows are hidden', () => {

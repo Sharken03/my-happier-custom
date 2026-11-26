@@ -22,12 +22,12 @@ import type {
 } from '@/sync/domains/sessionControl/configOptionsControl';
 import {
     buildFavoriteModelAvailabilityById,
+    buildFavoriteModelBackendIdentityForEntry,
     favoriteModelSelectionMatchesBackend,
     isFavoriteModelSelectableId,
     normalizeFavoriteModelId,
     resolveAvailableFavoriteModelsForBackend,
     type AvailableFavoriteModel,
-    type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
 import { t } from '@/text';
@@ -42,6 +42,8 @@ type FavoriteModelOption = Readonly<{
     label: string;
     icon?: React.ReactNode;
     description: string;
+    costInputPerMTok?: number;
+    costOutputPerMTok?: number;
 }>;
 
 type FavoriteModelSnapshot = Readonly<{
@@ -75,6 +77,12 @@ export type NewSessionFavoriteModelsDetailProps = Readonly<{
         entry: ResolvedBackendCatalogEntry,
         modelId: string,
         configOverrides?: Readonly<Record<string, string>>,
+        /**
+         * The words this list used for the model. A surface that names the choice
+         * elsewhere — the in-session picker arms an Agent with it — carries the label
+         * rather than re-deriving it from another model list.
+         */
+        modelLabel?: string,
     ) => void;
     onSelectFavoriteModelOptionValue?: (
         entry: ResolvedBackendCatalogEntry,
@@ -85,15 +93,6 @@ export type NewSessionFavoriteModelsDetailProps = Readonly<{
     onToggleFavoriteModel: (entry: ResolvedBackendCatalogEntry, model: FavoriteModelTogglePayload) => void;
     onRemoveFavoriteModelSelection?: (favorite: FavoriteModelSelectionV1) => void;
 }>;
-
-function buildFavoriteBackendIdentity(entry: ResolvedBackendCatalogEntry): FavoriteModelBackendIdentity {
-    return {
-        backendTargetKey: entry.targetKey,
-        providerAgentId: entry.providerAgentId,
-        builtInAgentId: entry.builtInAgentId,
-        configuredBackendId: entry.target.kind === 'configuredAcpBackend' ? entry.target.backendId : null,
-    };
-}
 
 const FAVORITE_OPTION_VALUE_SEPARATOR = '\x1f';
 
@@ -184,7 +183,7 @@ function FavoriteBackendModelsCollector(props: Readonly<{
     refreshProbe?: OptionPickerProbeState | null;
     onSnapshot: (targetKey: string, snapshot: FavoriteModelSnapshot) => void;
 }>) {
-    const backendIdentity = React.useMemo(() => buildFavoriteBackendIdentity(props.entry), [props.entry]);
+    const backendIdentity = React.useMemo(() => buildFavoriteModelBackendIdentityForEntry(props.entry), [props.entry]);
 
     const capabilityProbeContext = React.useMemo(() => resolveNewSessionCapabilityProbeContext({
         backendTarget: props.entry.target,
@@ -265,13 +264,25 @@ function FavoriteBackendModelsCollector(props: Readonly<{
         return out;
     }, [matchingFavorites, selectableFavorites]);
 
+    // The favorites reuse the preflight rows, so a priced model keeps its level here too.
+    const modelOptionByValue = React.useMemo(() => new Map(selectableFavorites.flatMap((model) => {
+        const option = modelOptions.find((candidate) => candidate.value === model.modelId) ?? null;
+        return option ? [[buildFavoriteOptionValue(props.entry, model.modelId), option] as const] : [];
+    })), [modelOptions, props.entry, selectableFavorites]);
+
     const options = React.useMemo(() => [
-        ...selectableFavorites.map((model) => ({
-            value: buildFavoriteOptionValue(props.entry, model.modelId),
-            label: model.modelLabel,
-            icon: renderFavoriteModelOptionIcon(props.entry),
-            description: model.backendLabel ?? props.entry.title,
-        })),
+        ...selectableFavorites.map((model) => {
+            const value = buildFavoriteOptionValue(props.entry, model.modelId);
+            const priced = modelOptionByValue.get(value) ?? null;
+            return {
+                value,
+                label: model.modelLabel,
+                icon: renderFavoriteModelOptionIcon(props.entry),
+                description: model.backendLabel ?? props.entry.title,
+                ...(typeof priced?.costInputPerMTok === 'number' ? { costInputPerMTok: priced.costInputPerMTok } : {}),
+                ...(typeof priced?.costOutputPerMTok === 'number' ? { costOutputPerMTok: priced.costOutputPerMTok } : {}),
+            };
+        }),
         ...staleFavorites.map((favorite) => {
             const modelId = normalizeFavoriteModelId(favorite.modelId);
             return {
@@ -281,7 +292,7 @@ function FavoriteBackendModelsCollector(props: Readonly<{
                 description: props.entry.title,
             };
         }),
-    ], [props.entry, selectableFavorites, staleFavorites]);
+    ], [modelOptionByValue, props.entry, selectableFavorites, staleFavorites]);
 
     const favoriteValues = React.useMemo(() => options.map((option) => option.value), [options]);
     const availableValues = React.useMemo(() => selectableFavorites.map((model) => (
@@ -298,11 +309,6 @@ function FavoriteBackendModelsCollector(props: Readonly<{
             modelLabel: model.modelLabel,
         },
     ] as const)), [props.entry, selectableFavorites]);
-    const modelOptionByValue = React.useMemo(() => new Map(selectableFavorites.flatMap((model) => {
-        const option = modelOptions.find((candidate) => candidate.value === model.modelId) ?? null;
-        return option ? [[buildFavoriteOptionValue(props.entry, model.modelId), option] as const] : [];
-    })), [modelOptions, props.entry, selectableFavorites]);
-
     const selectedValue = props.selectedBackendTargetKey === props.entry.targetKey
         ? buildFavoriteOptionValue(props.entry, props.selectedModelId)
         : '';
@@ -364,7 +370,7 @@ function FavoriteBackendModelsCollector(props: Readonly<{
 
 export function NewSessionFavoriteModelsDetail(props: NewSessionFavoriteModelsDetailProps) {
     const favoriteBackendEntries = React.useMemo(() => props.resolvedBackendEntries.filter((entry) => {
-        const backendIdentity = buildFavoriteBackendIdentity(entry);
+        const backendIdentity = buildFavoriteModelBackendIdentityForEntry(entry);
         return props.favoriteModelSelections.some((favorite) => favoriteModelSelectionMatchesBackend(favorite, backendIdentity));
     }), [props.favoriteModelSelections, props.resolvedBackendEntries]);
 
@@ -500,6 +506,7 @@ export function NewSessionFavoriteModelsDetail(props: NewSessionFavoriteModelsDe
                                 selectedModelId: model.modelId,
                                 selectedConfigOverrides: props.selectedConfigOverrides ?? {},
                             }),
+                            model.modelLabel,
                         );
                     }}
                 />

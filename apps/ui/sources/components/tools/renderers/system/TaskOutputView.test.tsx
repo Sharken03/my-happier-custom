@@ -87,8 +87,9 @@ describe('TaskOutputView', () => {
 
         await renderScreen(React.createElement(TaskOutputView, makeToolViewProps(tool)));
 
-        const code = codeViewSpy.mock.calls.at(-1)?.[0] as { code?: string };
+        const code = codeViewSpy.mock.calls.at(-1)?.[0] as { code?: string; language?: string };
         expect(code.code).toHaveLength(4001);
         expect(code.code).toMatch(/^…/);
+        expect(code.language).toBe('bash');
     });
 });

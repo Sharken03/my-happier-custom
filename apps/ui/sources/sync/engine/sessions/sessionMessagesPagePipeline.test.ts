@@ -177,6 +177,48 @@ describe('runSessionMessagesPagePipeline', () => {
         });
     });
 
+    it('applies a decrypted page only after the caller allows it, and drops it when superseded meanwhile', async () => {
+        const message = buildEncryptedApiMessage({ id: 'm99', seq: 99 });
+        const runPage = (params: Readonly<{ waitForApply: () => Promise<void>; shouldContinue: () => boolean }>) => {
+            const applied: string[] = [];
+            const received = new Map<string, Map<string, number>>();
+            const result = runSessionMessagesPagePipeline({
+                sessionId: 's1',
+                purpose: 'older',
+                page: { direction: 'older', requestPath: '/v1/sessions/s1/messages?beforeSeq=100', scope: 'main', beforeSeq: 100 },
+                lifecyclePolicy: 'suppress',
+                getSessionEncryption: () => ({ decryptMessages: async (messages) => messages.map((row) => buildTextContent(row)) }),
+                request: async () => new Response(JSON.stringify({ messages: [message], hasMore: true, nextBeforeSeq: 98 })),
+                sessionReceivedMessages: received,
+                applyMessages: (_sessionId, messages) => { applied.push(...messages.map((row) => row.id)); },
+                shouldContinue: params.shouldContinue,
+                waitForApply: params.waitForApply,
+                log: { log: () => {} },
+            });
+            return { applied, received, result };
+        };
+
+        let allow: (() => void) | null = null;
+        const held = runPage({
+            waitForApply: () => new Promise<void>((resolve) => { allow = resolve; }),
+            shouldContinue: () => true,
+        });
+        await vi.waitFor(() => expect(allow).not.toBeNull());
+        expect(held.applied).toEqual([]);
+        allow!();
+        await expect(held.result).resolves.toMatchObject({ applied: 1 });
+        expect(held.applied).toEqual(['m99']);
+
+        let current = true;
+        const superseded = runPage({
+            waitForApply: async () => { current = false; },
+            shouldContinue: () => current,
+        });
+        await expect(superseded.result).resolves.toMatchObject({ applied: 0, skippedSuperseded: true });
+        expect(superseded.applied).toEqual([]);
+        expect(superseded.received.get('s1')?.has('m99') ?? false).toBe(false);
+    });
+
     it('repairs only selected identities without applying or consuming neighboring page rows', async () => {
         const selected = buildEncryptedApiMessage({ id: 'selected', seq: 15 });
         const neighbor = buildEncryptedApiMessage({ id: 'neighbor', seq: 9000 });

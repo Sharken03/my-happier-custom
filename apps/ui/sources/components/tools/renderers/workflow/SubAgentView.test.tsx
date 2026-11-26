@@ -109,6 +109,16 @@ describe('SubAgentView', () => {
             expect(joined).toContain('Create task: Validate tool testing');
         });
 
+        it('renders the task of a pi-subagents call', async () => {
+            const tree = await renderView(
+                makeTaskTool({ name: 'SubAgent', input: { agent: 'scout', task: 'Map the parser' } }),
+                [],
+                'full',
+            );
+
+            expect(collectHostText(tree).join(' ')).toContain('Map the parser');
+        });
+
         it('renders only the last 3 sub-tools by default and shows a +more indicator', async () => {
             const base = Date.now();
             const taskTool = makeTaskTool({ createdAt: base, startedAt: base });

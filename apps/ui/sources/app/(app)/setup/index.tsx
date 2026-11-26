@@ -26,6 +26,7 @@ import { validateServerUrl } from '@/sync/domains/server/serverConfig';
 import { t } from '@/text';
 import { toServerUrlDisplay } from '@/sync/domains/server/url/serverUrlDisplay';
 import { isTauriDesktop } from '@/utils/platform/tauri';
+import { isBrowserWebClient } from '@/utils/platform/browserWeb';
 import { Icon } from '@/components/ui/icons/Icon';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 
@@ -441,7 +442,7 @@ export default function SetupRoute() {
     const auth = useAuth();
     const params = useLocalSearchParams<{ openCustom?: string | string[] }>();
     const shouldOpenCustomRelayForm = readOpenCustomParam(params.openCustom);
-    const isBrowserWeb = Platform.OS === 'web' && !isTauriDesktop();
+    const isBrowserWeb = isBrowserWebClient();
     if (isBrowserWeb && (!shouldOpenCustomRelayForm || auth.isAuthenticated)) {
         return <BrowserWebSetupRoute useUnauthenticatedChrome={!auth.isAuthenticated} />;
     }

@@ -27,6 +27,12 @@ const EVENT_SPINNER_SIZE = iconMatchedSpinnerSize(EVENT_ICON_SIZE);
 const EVENT_INLINE_ACTION_ICON_SIZE = 12;
 const EVENT_ICON_CONTAINER_SIZE = 20;
 
+// The balance line ("DS: $4.67 · OR: $0.28 · OR: 203/1000 (01:00)") is a notice. It fills the row
+// to within a few pixels, so a wider number would wrap its last word onto a second line.
+function isBalanceLine(text: string): boolean {
+    return /^(DS|OR): /.test(text);
+}
+
 function formatLimitReachedTime(timestamp: number): string {
     try {
         const date = new Date(timestamp * 1000);
@@ -449,7 +455,13 @@ export const TranscriptEventRow = React.memo(function TranscriptEventRow(props: 
                     )}
                 </View>
                 <View style={styles.textColumn} testID={testID ? `${testID}-body` : undefined}>
-                    <Text selectable style={[styles.text, deemphasized ? styles.deemphasizedText : null]}>
+                    <Text
+                        selectable
+                        style={[styles.text, deemphasized ? styles.deemphasizedText : null]}
+                        {...(props.event.type === 'message' && isBalanceLine(text)
+                            ? { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.8 }
+                            : null)}
+                    >
                         {text}
                     </Text>
                     {detailText ? (

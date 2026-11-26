@@ -30,6 +30,8 @@ const HEADER_HORIZONTAL_PADDING_PX = 8;
 
 interface ChatHeaderViewProps {
     title: string;
+    /** Pressing the title (and subtitle) opens the chat's changed files. */
+    onTitlePress?: () => void;
     subtitle?: string;
     subtitleEllipsizeMode?: 'head' | 'tail';
     badges?: ReadonlyArray<string>;
@@ -62,6 +64,7 @@ interface ChatHeaderViewProps {
 
 export const ChatHeaderView = React.memo(function ChatHeaderView({
     title,
+    onTitlePress,
     subtitle,
     subtitleEllipsizeMode = 'tail',
     badges,
@@ -174,7 +177,12 @@ export const ChatHeaderView = React.memo(function ChatHeaderView({
                     </View>
                 ) : null}
 
-                <View style={styles.titleContainer}>
+                <Pressable
+                    style={styles.titleContainer}
+                    onPress={onTitlePress}
+                    disabled={!onTitlePress}
+                    testID="session-header-title"
+                >
                     <Text
                         numberOfLines={1}
                         ellipsizeMode="tail"
@@ -228,7 +236,7 @@ export const ChatHeaderView = React.memo(function ChatHeaderView({
                             ))}
                         </View>
                     ) : null}
-                </View>
+                </Pressable>
 
                 {rightElement ? (
                     <View style={styles.rightElementContainer}>

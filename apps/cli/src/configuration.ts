@@ -14,6 +14,7 @@ import { isLocalishServerUrl } from '@/server/serverUrlClassification'
 import { readCliProcessArgs } from '@/cli/parseArgs'
 import { applyRuntimeContextPrefixEnv, parseRuntimeContextPrefixArgs } from '@/utils/env/runtimeContextArgv'
 import { expandHomeDirPath } from '@/utils/path/expandHomeDirPath'
+import { resolveChatsDir } from '@/daemon/chatFolders/chatsDir'
 import {
   resolveManagedCliReleaseChannelSync,
 } from '@happier-dev/cli-common/firstPartyRuntime'
@@ -25,6 +26,7 @@ import {
   MAX_EXECUTION_RUN_OBSERVATION_TIMEOUT_SECONDS,
   type ClientEncryptionRequirement,
 } from '@happier-dev/protocol'
+import { SOCKET_RPC_DEFAULT_RESPONSE_MAX_BYTES } from '@happier-dev/protocol/socketRpc'
 import packageJson from '../package.json'
 import type { PublicReleaseRingId } from '@happier-dev/release-runtime/releaseRings'
 
@@ -89,7 +91,35 @@ export function resolveWorkspaceReplicationJobStatusHeartbeatIntervalMs(): numbe
   });
 }
 
-export function isDaemonProcessArgv(args: readonly string[]): boolean {
+// The prefix flags of applyEphemeralServerSelectionFromPrefixArgs (server/serverSelection.ts).
+const SERVER_SELECTION_PREFIX_FLAGS: readonly string[] = [
+  '--server',
+  '--server-url',
+  '--webapp-url',
+  '--local-server-url',
+  '--public-server-url',
+]
+
+function skipServerSelectionPrefixArgs(args: readonly string[]): readonly string[] {
+  let index = 0
+  while (index < args.length) {
+    const arg = args[index]
+    if (SERVER_SELECTION_PREFIX_FLAGS.includes(arg)) {
+      const value = args[index + 1]
+      if (!value || value.startsWith('--')) break
+      index += 2
+    } else if (SERVER_SELECTION_PREFIX_FLAGS.some((flag) => arg.startsWith(`${flag}=`))) {
+      index += 1
+    } else {
+      break
+    }
+  }
+  return args.slice(index)
+}
+
+export function isDaemonProcessArgv(argsRaw: readonly string[]): boolean {
+  // `happier --server <id> daemon start-sync` is a daemon process too.
+  const args = skipServerSelectionPrefixArgs(argsRaw)
   if (args.length < 2) return false
   if (args[0] !== 'daemon') return false
   return args[1] === 'start' || args[1] === 'start-sync'
@@ -190,6 +220,8 @@ class Configuration {
 
   // Directories and paths (from persistence)
   public readonly happyHomeDir: string
+  /** Where new chats get their own folder (HAPPIER_CHATS_DIR); published as machine metadata `chatsDir`. */
+  public readonly chatsDir: string | null
   public readonly logsDir: string
   public readonly settingsFile: string
   public readonly serversDir: string
@@ -219,6 +251,8 @@ class Configuration {
   public readonly installablesRuntimeAutoUpdateCheckIntervalMs: number
   // File system RPC limits (Files tab + transfers).
   public readonly filesReadMaxBytes: number
+  // Largest RPC reply payload; larger replies get RPC_RESPONSE_TOO_LARGE instead of a dropped socket.
+  public readonly rpcResponseMaxBytes: number
   // Prompt transfer payload limits (prompt assets + prompt registry items).
   public readonly promptTransferJsonMaxBytes: number
   public readonly filesTransferChunkBytes: number
@@ -244,6 +278,8 @@ class Configuration {
 
   public readonly pendingQueueStateReconcileThrottleMs: number
   public readonly promptLoopUserMessageSeqWaitTimeoutMs: number
+  /** How long a prewarmed runner waits for its launch before it exits; 0 means no limit. */
+  public readonly runnerPrewarmMaxWaitMs: number
 
   // Codex app-server terminal notification settle time (allows slightly late item notifications to land before flushing).
   public readonly codexAppServerTurnCompletionSettleMs: number
@@ -305,6 +341,17 @@ class Configuration {
 
   // Claude Task tool policy (remote mode).
   public readonly claudeTaskAllowRunInBackground: boolean
+  /**
+   * HAPPIER_COUNT_PI_SUBAGENT_USAGE: a Claude chat also reports the usage of the Pi subagents that
+   * its Bash commands start (see api/session/piSubagentUsageReports.ts). Default off.
+   */
+  public readonly countPiSubagentUsage: boolean
+  /**
+   * HAPPIER_PI_EXTENSION_UI: a Pi chat saves the status texts and widget lines of Pi extensions
+   * (ctx.ui.setStatus/setWidget) in session metadata, so the app can show them. Default on;
+   * 0, false, no or off turns it off.
+   */
+  public readonly piExtensionUi: boolean
   /**
    * When a user aborts a Claude session, the vendor SDK may surface a cancellation as a process-level
    * unhandledRejection (known "Operation aborted" error). Within this short window after a user abort,
@@ -375,6 +422,7 @@ class Configuration {
 
     // Directory configuration - Priority: HAPPIER_HOME_DIR env > default home dir
     this.happyHomeDir = resolveCliHappyHomeDir(process.env)
+    this.chatsDir = resolveChatsDir(process.env)
 
     this.logsDir = join(this.happyHomeDir, 'logs')
     this.settingsFile = join(this.happyHomeDir, 'settings.json')
@@ -482,6 +530,13 @@ class Configuration {
     // Default: 2.5MB. Defensive minimum: 1 byte.
     this.filesReadMaxBytes = resolveIntEnvWithBounds('HAPPIER_FILES_READ_MAX_BYTES', {
       min: 1, default: 2_500_000,
+    });
+
+    // Default: the largest reply packet the relay keeps the socket open for (its packet limit, or
+    // what the supported uplink uploads before the heartbeat deadline), minus reply framing.
+    // Raise it only on a faster uplink and within the relay's HAPPIER_SOCKET_MAX_HTTP_BUFFER_SIZE.
+    this.rpcResponseMaxBytes = resolveIntEnvWithBounds('HAPPIER_RPC_RESPONSE_MAX_BYTES', {
+      min: 1, default: SOCKET_RPC_DEFAULT_RESPONSE_MAX_BYTES,
     });
 
     // Default: 2.5MB. Defensive min: 1 byte; max: 10MB.
@@ -599,6 +654,13 @@ class Configuration {
     this.promptLoopUserMessageSeqWaitTimeoutMs = resolveIntEnvWithBounds(
       'HAPPIER_PROMPT_LOOP_USER_MESSAGE_SEQ_WAIT_TIMEOUT_MS',
       { min: 0, max: 10_000, default: 1_000 },
+    );
+    // The daemon releases an unused prewarmed runner 2 minutes after the last prewarm request;
+    // this limit is a little longer, starts again at each request, and ends the process also
+    // when the daemon hangs.
+    this.runnerPrewarmMaxWaitMs = resolveIntEnvWithBounds(
+      'HAPPIER_RUNNER_PREWARM_MAX_WAIT_MS',
+      { min: 0, max: 86_400_000, default: 180_000 },
     );
 
     this.codexAppServerTurnCompletionSettleMs = resolveIntEnvWithBounds(
@@ -834,6 +896,12 @@ class Configuration {
       .trim()
       .toLowerCase();
     this.claudeTaskAllowRunInBackground = ['1', 'true', 'yes', 'on'].includes(allowTaskBackgroundRaw);
+    this.countPiSubagentUsage = ['1', 'true', 'yes', 'on'].includes(
+      String(process.env.HAPPIER_COUNT_PI_SUBAGENT_USAGE ?? '').trim().toLowerCase(),
+    );
+    this.piExtensionUi = !['0', 'false', 'no', 'off'].includes(
+      String(process.env.HAPPIER_PI_EXTENSION_UI ?? '').trim().toLowerCase(),
+    );
 
     // Default: 10s. Set to 0 to disable suppression.
     this.claudeAbortUnhandledRejectionIgnoreWindowMs = resolveIntEnvWithBounds(

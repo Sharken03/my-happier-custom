@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { reconcileAcpCatalogRows } from '@/agent/acp/reconcileAcpCatalogRows';
 import { updateMetadataBestEffort } from '@/api/session/sessionWritesBestEffort';
 import { normalizeAcpConfigOptionChoices } from '@/agent/acp/configOptionChoiceNormalization';
+import { normalizePricePerMTok } from '@/backends/modelCapabilities/pricePerMTok';
 import { readNonBlankSessionControlIdentifier } from '@/agent/runtime/sessionControlIdentifiers';
 import { readNewestSessionModelsMetadataStateV1 } from '@happier-dev/agents';
 
@@ -148,6 +149,8 @@ function normalizeAcpSessionModel(raw: unknown): AcpSessionModel | null {
 
   const descriptionRaw = model.description;
   const contextWindowTokensRaw = model.contextWindowTokens;
+  const costInputPerMTok = normalizePricePerMTok(model.costInputPerMTok ?? model.cost_input_per_mtok);
+  const costOutputPerMTok = normalizePricePerMTok(model.costOutputPerMTok ?? model.cost_output_per_mtok);
   const modelOptions = normalizeConfigOptionsArray(model.modelOptions ?? model.model_options);
   return {
     id: idRaw,
@@ -158,6 +161,8 @@ function normalizeAcpSessionModel(raw: unknown): AcpSessionModel | null {
       && contextWindowTokensRaw > 0
       ? { contextWindowTokens: contextWindowTokensRaw }
       : {}),
+    ...(costInputPerMTok !== undefined ? { costInputPerMTok } : {}),
+    ...(costOutputPerMTok !== undefined ? { costOutputPerMTok } : {}),
     ...(modelOptions.length > 0 ? { modelOptions } : {}),
   };
 }

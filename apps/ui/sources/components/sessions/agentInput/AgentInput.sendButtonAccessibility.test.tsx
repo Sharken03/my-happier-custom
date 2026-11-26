@@ -1,6 +1,6 @@
 import React from 'react';
 import { act } from 'react-test-renderer';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { collectUnexpectedRawTextNodes, renderScreen } from '@/dev/testkit';
 import { installAgentInputCommonModuleMocks } from './agentInputTestHelpers';
 
@@ -13,7 +13,7 @@ const multiTextInputHandleMocks = vi.hoisted(() => ({
     setSelection: vi.fn(),
     setTextAndSelection: vi.fn(),
 }));
-const localSettingOverrides = vi.hoisted(() => ({} as Record<string, unknown>));
+const localSettingOverrides = vi.hoisted((): Partial<import('@/sync/domains/settings/localSettings').LocalSettings> => ({}));
 const useActiveSuggestionsMock = vi.hoisted(() => vi.fn(() => [[], -1, () => {}, () => {}] as const));
 
 // The Agent mark is a rendering boundary that reaches the generated Agent
@@ -30,15 +30,24 @@ const translateOverride = vi.hoisted(() => ({
     fn: null as null | ((key: string, params?: Record<string, unknown>) => string),
 }));
 
+// The indicator animates with Animated.delay, which this harness does not provide; the composer
+// only has to render it, so the bars are stubbed.
+vi.mock('@/components/ui/status/VoiceBars', () => ({
+    VoiceBars: (props: Record<string, unknown>) => React.createElement('VoiceBars', props),
+}));
+
 vi.mock('@/agents/registry/AgentIcon', () => ({
     AgentIcon: (props: Record<string, unknown>) => React.createElement('AgentIcon', props),
 }));
 
 installAgentInputCommonModuleMocks({
-    storeHooks: async (importOriginal) => ({
-        ...(await importOriginal()) as Record<string, unknown>,
-        useLocalSetting: (key: string) => localSettingOverrides[key] ?? null,
-    }),
+    storeHooks: async (importOriginal) => {
+        const { createUseLocalSettingMock } = await import('@/dev/testkit/mocks/storage');
+        return {
+            ...(await importOriginal()) as Record<string, unknown>,
+            useLocalSetting: createUseLocalSettingMock({ values: localSettingOverrides }),
+        };
+    },
     reactNative: async () => {
         const { createReactNativeWebMock } = await import('@/dev/testkit/mocks/reactNative');
         return createReactNativeWebMock({
@@ -79,8 +88,9 @@ installAgentInputCommonModuleMocks({
         return createModalModuleMock().module;
     },
     storage: async () => {
-        const { createStorageModuleStub } = await import('@/dev/testkit/mocks/storage');
+        const { createStorageModuleStub, createUseLocalSettingMock } = await import('@/dev/testkit/mocks/storage');
         return createStorageModuleStub({
+            useLocalSetting: createUseLocalSettingMock({ values: localSettingOverrides }),
             useSetting: (key: string) => {
                 if (key === 'profiles') return [];
                 if (key === 'agentInputEnterToSend') return true;
@@ -259,6 +269,13 @@ vi.mock('@/sync/domains/sessionControl/configOptionsControl', () => ({
 }));
 
 describe('AgentInput (send button accessibility)', () => {
+    // Cold transform of the composer graph costs a minute on a slow device, and the first test
+    // used to spend its whole per-test budget before reaching a single assertion. Warm the
+    // module once, with its own budget, so every test starts from a cached import.
+    beforeAll(async () => {
+        await import('./AgentInput');
+    }, 180_000);
+
     it('exposes available send choices to assistive technology and dismisses without changing the draft', async () => {
         const { AgentInput } = await import('./AgentInput');
         const { Popover } = await import('@/components/ui/popover');
@@ -880,6 +897,101 @@ describe('AgentInput (send button accessibility)', () => {
         featureEnabledState.voice = true;
     });
 
+    it('shows a recording indicator only while the microphone is capturing', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+
+        const idle = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onMicPress={() => {}}
+                    isMicActive={false}
+                    isMicRecording={false}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+        expect(idle.findByTestId('session-composer-recording-indicator')).toBeNull();
+        await idle.unmount();
+
+        const recording = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onMicPress={() => {}}
+                    isMicActive={true}
+                    isMicRecording={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+        expect(recording.findByTestId('session-composer-recording-indicator')).toBeTruthy();
+        await recording.unmount();
+    });
+
+    it('waits with a spinner while the dictated audio turns into text', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+
+        const screen = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={() => {}}
+                    onAbort={() => {}}
+                    onMicPress={() => {}}
+                    showAbortButton={true}
+                    isMicActive={false}
+                    isMicBusy={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+
+        const send = screen.findByTestId('session-composer-send');
+        if (!send) throw new Error('session-composer-send not found');
+        expect(send.props.accessibilityLabel).toBe('voiceAssistant.label');
+        expect(send.props.accessibilityState?.disabled).toBe(true);
+
+        await screen.unmount();
+    });
+
+    it('lets a running turn keep the button while dictation mode is on', async () => {
+        featureEnabledState.voice = true;
+        const { AgentInput } = await import('./AgentInput');
+        const onAbort = vi.fn();
+        const onMicPress = vi.fn();
+        const onSend = vi.fn();
+
+        const screen = await renderScreen(<AgentInput
+                    sessionId="session-1"
+                    value=""
+                    placeholder="Type"
+                    onChangeText={() => {}}
+                    onSend={onSend}
+                    onAbort={onAbort}
+                    onMicPress={onMicPress}
+                    showAbortButton={true}
+                    autocompleteKinds={[]}
+                    autocompleteSuggestions={async () => []}
+                />);
+
+        const send = screen.findByTestId('session-composer-send');
+        if (!send) throw new Error('session-composer-send not found');
+        expect(send.props.accessibilityLabel).toBe('runs.stop.stopRunA11y');
+
+        await screen.pressByTestIdAsync('session-composer-send');
+
+        expect(onAbort).toHaveBeenCalledTimes(1);
+        expect(onMicPress).not.toHaveBeenCalled();
+        expect(onSend).not.toHaveBeenCalled();
+
+        await screen.unmount();
+    });
+
     it('sets an accessible label for session creation context (no sessionId)', async () => {
         const { AgentInput } = await import('./AgentInput');
 
@@ -1162,6 +1274,7 @@ describe('AgentInput (send button accessibility)', () => {
         screen.pressByTestId('session-composer-send');
 
         expect(multiTextInputHandleMocks.blur).toHaveBeenCalledTimes(1);
+        expect(multiTextInputHandleMocks.focus).not.toHaveBeenCalled();
 
         await screen.unmount();
     });
@@ -1183,6 +1296,7 @@ describe('AgentInput (send button accessibility)', () => {
         screen.pressByTestId('session-composer-send');
 
         expect(multiTextInputHandleMocks.blur).not.toHaveBeenCalled();
+        expect(multiTextInputHandleMocks.focus).toHaveBeenCalled();
         await screen.unmount();
     });
 

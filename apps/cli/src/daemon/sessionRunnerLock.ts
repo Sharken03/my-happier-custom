@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { configuration } from '@/configuration';
 
-import { readProcessRunState as readProcessRunStateDefault, type ProcessRunState } from './processRunState';
+import { readSessionRunnerProcessRunState as readProcessRunStateDefault, type ProcessRunState } from './processRunState';
 import {
   classifySessionRunnerProcessPresence,
   readSessionRunnerProcessIdentity,
@@ -182,7 +182,6 @@ function releaseSessionRunnerLockSync(params: Readonly<{
 }
 
 function createAcquiredSessionRunnerLock(params: Readonly<{
-  happyHomeDir: string;
   lockPath: string;
   sessionId: string;
   pid: number;
@@ -209,15 +208,12 @@ function createAcquiredSessionRunnerLock(params: Readonly<{
     release: async () => {
       if (released) return;
       released = true;
+      // Unlink synchronously before the exit listener is removed: process.exit can
+      // run while an async unlink still waits on I/O, and the lock would then leak.
+      releaseSessionRunnerLockSync(params);
       if (ownsCurrentProcess) {
         params.processExitEmitter.off('exit', onProcessExit);
       }
-      await releaseSessionRunnerLock({
-        happyHomeDir: params.happyHomeDir,
-        sessionId: params.sessionId,
-        pid: params.pid,
-        acquiredAtMs: params.acquiredAtMs,
-      }).catch(() => {});
     },
   };
 }
@@ -284,7 +280,6 @@ export async function acquireSessionRunnerLock(params: Readonly<{
     const created = await tryCreate();
     if (created) {
       return createAcquiredSessionRunnerLock({
-        happyHomeDir,
         lockPath,
         sessionId,
         pid,
@@ -365,7 +360,6 @@ export async function acquireSessionRunnerLock(params: Readonly<{
       return { ok: false, reason: 'io_error', errorMessage: 'Lock acquisition raced and could not read existing lock' };
     }
     return createAcquiredSessionRunnerLock({
-      happyHomeDir,
       lockPath,
       sessionId,
       pid,

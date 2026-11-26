@@ -5,12 +5,14 @@ const toggleLocalVoiceTurn = vi.fn(async () => {});
 const stopLocalVoiceSession = vi.fn(async () => {});
 const abortLocalVoiceTurn = vi.fn(async (_sessionId: string) => {});
 const appendLocalVoiceAgentContextUpdate = vi.fn();
-const sendVoiceTextTurn = vi.fn(async () => {});
+const dispatchVoiceTextTurn = vi.fn(async () => {});
+const prepareVoiceTextTurn = vi.fn(() => dispatchVoiceTextTurn);
 const getLocalVoiceState = vi.fn(() => ({
   status: 'idle' as const,
   sessionId: null as string | null,
   error: null as Error | null,
 }));
+const shouldHoldLocalVoiceCallWhileIdle = vi.fn(() => true);
 
 const ensureBound = vi.fn(async (_params: any) => null);
 const voiceAgentSessions = { sendTurn: vi.fn(), stop: vi.fn(), isActive: vi.fn(), appendContextUpdate: vi.fn() };
@@ -47,9 +49,10 @@ vi.mock('@/voice/local/localVoiceEngine', () => ({
   abortLocalVoiceTurn,
   appendLocalVoiceAgentContextUpdate,
   getLocalVoiceState,
+  shouldHoldLocalVoiceCallWhileIdle,
 }));
 vi.mock('@/voice/local/sendVoiceTextTurn', () => ({
-  sendVoiceTextTurn,
+  prepareVoiceTextTurn,
 }));
 vi.mock('@/voice/agent/voiceAgentSessions', () => ({
   voiceAgentSessions,
@@ -120,6 +123,7 @@ describe('local conversation voice adapter', () => {
 
   it('treats idle local voice state with a sessionId as connected (ready)', async () => {
     getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: VOICE_AGENT_GLOBAL_SESSION_ID, error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(true);
     const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
     const adapter = createLocalConversationVoiceAdapter();
 
@@ -128,6 +132,19 @@ describe('local conversation voice adapter', () => {
       mode: 'idle',
       sessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
       canStop: true,
+    });
+  });
+
+  it('releases an idle dictation-mode call so the composer keeps its microphone', async () => {
+    getLocalVoiceState.mockReturnValueOnce({ status: 'idle', sessionId: VOICE_AGENT_GLOBAL_SESSION_ID, error: null });
+    shouldHoldLocalVoiceCallWhileIdle.mockReturnValueOnce(false);
+    const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
+    const adapter = createLocalConversationVoiceAdapter();
+
+    expect(adapter.getSnapshot()).toMatchObject({
+      status: 'disconnected',
+      mode: 'idle',
+      canStop: false,
     });
   });
 
@@ -144,47 +161,49 @@ describe('local conversation voice adapter', () => {
   });
 
   it('routes typed sends through the local voice text turn path for synthetic agent sessions', async () => {
-    sendVoiceTextTurn.mockClear();
+    prepareVoiceTextTurn.mockClear();
     const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
     const adapter = createLocalConversationVoiceAdapter();
 
-    await adapter.sendTextTurn?.({
+    const dispatch = adapter.prepareTextTurn?.({
       controlSessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
       conversationSessionId: 'voice-home',
       text: 'hello from composer',
-      localId: 'voice-local-1',
-      handoffMode: 'interrupt_and_send',
     });
+    await dispatch?.({ localId: 'voice-local-1', handoffMode: 'interrupt_and_send' });
 
-    expect(sendVoiceTextTurn).toHaveBeenCalledWith(
+    expect(prepareVoiceTextTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
-        userText: 'hello from composer',
         voiceAgentSessions,
       }),
     );
+    expect(dispatchVoiceTextTurn).toHaveBeenLastCalledWith(expect.objectContaining({
+      userText: 'hello from composer', durableDispatch: { localId: 'voice-local-1', handoffMode: 'interrupt_and_send' },
+    }));
   });
 
   it('routes typed sends through the local voice text turn path for daemon-backed agent sessions too', async () => {
-    sendVoiceTextTurn.mockClear();
+    prepareVoiceTextTurn.mockClear();
     state.settings.voice.adapters.local_conversation.agent.backend = 'daemon';
     const { createLocalConversationVoiceAdapter } = await import('./localConversationAdapter');
     const adapter = createLocalConversationVoiceAdapter();
 
-    await adapter.sendTextTurn?.({
+    const dispatch = adapter.prepareTextTurn?.({
       controlSessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
       conversationSessionId: 'voice-home',
       text: 'hello from daemon composer',
-      localId: 'voice-local-2',
-      handoffMode: 'interrupt_and_send',
     });
+    await dispatch?.({ localId: 'voice-local-2', handoffMode: 'interrupt_and_send' });
 
-    expect(sendVoiceTextTurn).toHaveBeenCalledWith(
+    expect(prepareVoiceTextTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: VOICE_AGENT_GLOBAL_SESSION_ID,
-        userText: 'hello from daemon composer',
         voiceAgentSessions,
       }),
     );
+    expect(dispatchVoiceTextTurn).toHaveBeenLastCalledWith(expect.objectContaining({
+      userText: 'hello from daemon composer', durableDispatch: { localId: 'voice-local-2', handoffMode: 'interrupt_and_send' },
+    }));
   });
 });

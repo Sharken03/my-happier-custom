@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { reconcileAcpCatalogRows } from '@/agent/acp/reconcileAcpCatalogRows';
 
+import { logStartupStep } from '@/utils/startupTiming';
 import { logger } from '@/ui/logger';
 import type { AgentBackend, AgentMessage, McpServerConfig } from '@/agent';
 import type { AgentPromptPayload } from '@/agent/core/AgentPromptPayload';
@@ -355,8 +356,17 @@ export type AcpRuntimeBackend = Omit<AgentBackend, 'waitForResponseComplete' | '
     prompt: string,
     options?: AcpRuntimeSteerPromptOptions,
   ) => Promise<AcpPromptSubmissionEvidence>;
+  /**
+   * Optional: false while the provider cannot take steering inside the current turn window,
+   * for example after the provider ended its run but before the turn settles.
+   */
+  isInFlightSteerOpen?: () => boolean;
   setPlanStatePublisher?: (
     publisher: (snapshot: NormalizedAcpPlanSnapshot) => Promise<void>,
+  ) => void;
+  /** Optional: the backend merges provider-owned keys into session metadata. */
+  setMetadataPatchPublisher?: (
+    publisher: (patch: Readonly<Record<string, unknown>>) => Promise<void>,
   ) => void;
 };
 
@@ -2190,7 +2200,9 @@ export function createAcpRuntime(params: {
     if (backend) return backend;
     if (backendPromise) return await backendPromise;
     backendPromise = (async () => {
+      logStartupStep('backend start begins');
       const created = await params.ensureBackend();
+      logStartupStep('backend process ready');
       created.setPlanStatePublisher?.(async (snapshot) => {
         await Promise.resolve(params.session.updateMetadata((metadata) => (
           applyAcpPlanSnapshotToMetadata({
@@ -2198,6 +2210,11 @@ export function createAcpRuntime(params: {
             snapshot,
             updatedAt: Date.now(),
           }) as typeof metadata
+        )));
+      });
+      created.setMetadataPatchPublisher?.(async (patch) => {
+        await Promise.resolve(params.session.updateMetadata((metadata) => (
+          { ...metadata, ...patch } as typeof metadata
         )));
       });
       backend = created;
@@ -2376,7 +2393,8 @@ export function createAcpRuntime(params: {
     try {
       await applySessionModelControl(pendingModel.modelId);
     } catch (error) {
-      logger.debug(`[${params.provider}] Failed to apply startup model override before pending drain (non-fatal)`, error);
+      // The session continues on the provider's default model, so record why.
+      logger.warnFile(`[${params.provider}] Failed to apply startup model override before pending drain (non-fatal)`, error);
     }
   };
 
@@ -2472,7 +2490,7 @@ export function createAcpRuntime(params: {
 
   return {
     getSessionId: () => sessionId,
-    supportsInFlightSteer: () => inFlightSteerEnabled,
+    supportsInFlightSteer: () => inFlightSteerEnabled && backend?.isInFlightSteerOpen?.() !== false,
     isTurnInFlight: () => turnState.turnInFlight,
 
     async isProviderNativeCommand(prompt: string): Promise<boolean> {
@@ -2621,7 +2639,11 @@ export function createAcpRuntime(params: {
             identityContext.assertCurrent();
             const sessionOpenSignal = params.getSessionOpenAbortSignal?.();
             const sessionOpenOptions = sessionOpenSignal ? { signal: sessionOpenSignal } : undefined;
-            if (!hasResumeIntent) return await b.startSession(undefined, sessionOpenOptions);
+            if (!hasResumeIntent) {
+              const opened = await b.startSession(undefined, sessionOpenOptions);
+              logStartupStep('ACP session opened');
+              return opened;
+            }
             if (!b.loadSession && !b.loadSessionWithReplayCapture) {
               throw new Error(`${params.provider} ACP backend does not support loading sessions`);
             }
@@ -2654,6 +2676,7 @@ export function createAcpRuntime(params: {
         await applyStartupModeOverride();
         assertRuntimeGeneration(operationGeneration);
         await applyStartupModelOverride();
+        logStartupStep('startup mode and model applied');
         assertRuntimeGeneration(operationGeneration);
         if (params.pendingQueue?.drainAfterStartOrLoad === true && opts.deferPendingDrain !== true) {
           const controller = new AbortController();

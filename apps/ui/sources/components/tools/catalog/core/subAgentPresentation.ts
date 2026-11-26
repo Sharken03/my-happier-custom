@@ -6,6 +6,7 @@ import { findModelOptionForEffectiveModelId, getModelOptionsForSession } from '@
 import type { ToolCall } from '@/sync/domains/messages/messageTypes';
 import { readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
 import type { Metadata } from '@/sync/domains/state/storageTypes';
+import { readSubagentCallType } from '@/sync/domains/session/subagents/subagentCallInput';
 import { t } from '@/text';
 
 type SubagentToolPresentation = Readonly<{
@@ -73,6 +74,8 @@ function resolveModelLabel(params: {
 
 function resolveNativeSessionModelId(agentId: AgentId | null, metadata: Metadata | null): string | null {
     if (!agentId) return null;
+    // Pi subagents take their model from their own agent config, not from the parent chat.
+    if (agentId === 'pi') return null;
     const metadataRecord = metadata as unknown as Record<string, unknown> | null;
     const applied = readSessionAppliedModelMetadataStateV1(metadataRecord);
     if (applied?.provider === agentId) return readNonBlankString(applied.modelId);
@@ -91,7 +94,7 @@ function resolveManagedIntent(input: Record<string, unknown>): string | null {
 }
 
 function resolveNativeAgentType(input: Record<string, unknown>): string | null {
-    const raw = readFirstString(input, ['subagent_type', 'agent_type', 'role', 'nickname']);
+    const raw = readSubagentCallType({ input });
     return raw ? humanizeAgentType(raw) : null;
 }
 

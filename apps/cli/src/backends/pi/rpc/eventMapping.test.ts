@@ -87,7 +87,7 @@ describe('mapPiRpcEventToAgentMessages', () => {
               toolCallId: 'call-1',
               contentIndex: 1,
             },
-            dedupeKey: expect.stringMatching(/^pi:tool-result:call-1:[a-f0-9]{64}$/),
+            dedupeKey: expect.stringMatching(/^acp:tool-result:call-1:[a-f0-9]{64}$/),
           },
         ],
       },
@@ -114,6 +114,46 @@ describe('mapPiRpcEventToAgentMessages', () => {
       message: { role: 'assistant', content: [{ type: 'text', text: 'final' }] },
     });
     expect(output).toEqual([{ type: 'model-output', fullText: 'final', fullTextScope: 'segment' }]);
+  });
+
+  it('shows a custom message that an extension sends with display, as Pi does', () => {
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: { role: 'custom', customType: 'agent-inbox', content: 'From another agent', display: true },
+    })).toEqual([{ type: 'user-message', text: 'From another agent' }]);
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: {
+        role: 'custom',
+        customType: 'agent-inbox',
+        content: [{ type: 'text', text: 'part one' }, { type: 'image', data: 'x', mimeType: 'image/png' }, { type: 'text', text: 'part two' }],
+        display: true,
+      },
+    })).toEqual([{ type: 'user-message', text: 'part one\npart two' }]);
+  });
+
+  it('hides pi-subagents notices unless HAPPIER_PI_SHOW_SUBAGENT_NOTICES=1', () => {
+    const event = {
+      type: 'message_end',
+      message: { role: 'custom', customType: 'subagent_supervisor_request', content: 'Subagent needs a supervisor decision.', display: true },
+    };
+    const previous = process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+    try {
+      delete process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+      expect(mapPiRpcEventToAgentMessages(event)).toEqual([]);
+      process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES = '1';
+      expect(mapPiRpcEventToAgentMessages(event)).toEqual([{ type: 'user-message', text: 'Subagent needs a supervisor decision.' }]);
+    } finally {
+      if (previous === undefined) delete process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES;
+      else process.env.HAPPIER_PI_SHOW_SUBAGENT_NOTICES = previous;
+    }
+  });
+
+  it('keeps a hidden custom message hidden', () => {
+    expect(mapPiRpcEventToAgentMessages({
+      type: 'message_end',
+      message: { role: 'custom', customType: 'happier-session-title-reminder', content: 'SET_A_TITLE', display: false },
+    })).toEqual([]);
   });
 
   it('emits an authoritative thinking snapshot alongside text on message_end', () => {

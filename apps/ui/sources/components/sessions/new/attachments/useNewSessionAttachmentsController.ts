@@ -254,6 +254,10 @@ export function useNewSessionAttachmentsController(params: Readonly<{
         const initialPrompt = promptText;
         submit({
             initialMessage: 'skip',
+            // Shown as the queued first turn when the chat opens before the upload.
+            ...(!hasReviewCommentDrafts && initialPrompt.trim()
+                ? { afterCreatedDisplayText: initialPrompt.trim() }
+                : {}),
             afterCreated: async ({ sessionId, effectiveSpawnServerId, launchAttempt }) => {
                 const trimmed = initialPrompt.trim();
                 let attachmentsBlock = '';

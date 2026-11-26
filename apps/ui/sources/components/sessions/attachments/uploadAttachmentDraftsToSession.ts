@@ -5,6 +5,7 @@ import { sessionAttachmentsUploadFile } from '@/sync/domains/transfers/ops/uploa
 import type { AttachmentsUploadFileSource } from '@/sync/domains/attachments/attachmentsUploadFileSource';
 import { RpcError } from '@/sync/runtime/rpcErrors';
 import { randomUUID } from '@/platform/randomUUID';
+import { sync } from '@/sync/sync';
 
 import type { AttachmentDraft } from './attachmentDraftModel';
 import type { StructuredInputImageInput } from '@/components/sessions/agentInput/structuredInputMentions';
@@ -91,70 +92,76 @@ export async function uploadAttachmentDraftsToSession(args: Readonly<{
     const messageLocalId = args.messageLocalId ?? randomUUID();
     const uploaded: UploadedAttachment[] = [];
 
-    for (const draft of args.drafts) {
-        const stillPresent = args.drafts.find((d) => d.id === draft.id);
-        if (!stillPresent) continue;
+    // Keep the socket open while the app goes to the background during the upload.
+    const releaseUserRequestLease = sync.acquireUserRequestLease();
+    try {
+        for (const draft of args.drafts) {
+            const stillPresent = args.drafts.find((d) => d.id === draft.id);
+            if (!stillPresent) continue;
 
-        const described = describeSource(stillPresent.source);
-        if (stillPresent.uploadedPath) {
+            const described = describeSource(stillPresent.source);
+            if (stillPresent.uploadedPath) {
+                const uploadedAttachment: UploadedAttachmentBase = {
+                    name: described.name,
+                    path: stillPresent.uploadedPath,
+                    sizeBytes: stillPresent.uploadedSizeBytes ?? described.sizeBytes ?? 0,
+                    ...((stillPresent.uploadedMimeType ?? described.mimeType)
+                        ? { mimeType: (stillPresent.uploadedMimeType ?? described.mimeType)! }
+                        : {}),
+                    ...(stillPresent.sha256 ? { sha256: stillPresent.sha256 } : {}),
+                };
+                const structuredInput = buildStructuredInputForUploadedAttachment(uploadedAttachment);
+                uploaded.push({
+                    ...uploadedAttachment,
+                    ...(structuredInput ? { structuredInput } : {}),
+                });
+                continue;
+            }
+
+            const initialProgress =
+                typeof described.sizeBytes === 'number' && Number.isFinite(described.sizeBytes) && described.sizeBytes >= 0
+                    ? { uploadedBytes: 0, totalBytes: described.sizeBytes }
+                    : undefined;
+            args.applyDraftPatch(stillPresent.id, { status: 'uploading', error: undefined, uploadProgress: initialProgress });
+            const uploadRes = await sessionAttachmentsUploadFile({
+                sessionId: args.sessionId,
+                file: stillPresent.source,
+                messageLocalId,
+                config: args.config,
+                onProgress: (progress) => {
+                    args.applyDraftPatch(stillPresent.id, { uploadProgress: progress });
+                },
+            });
+            if (!uploadRes.success) {
+                args.applyDraftPatch(stillPresent.id, { status: 'error', error: uploadRes.error });
+                throw createAttachmentUploadFailureError(uploadRes);
+            }
+
+            args.applyDraftPatch(stillPresent.id, {
+                status: 'uploaded',
+                uploadedPath: uploadRes.path,
+                uploadedSizeBytes: uploadRes.sizeBytes,
+                uploadedMimeType: described.mimeType,
+                sha256: uploadRes.sha256,
+                error: undefined,
+                uploadProgress: { uploadedBytes: uploadRes.sizeBytes, totalBytes: uploadRes.sizeBytes },
+            });
+
             const uploadedAttachment: UploadedAttachmentBase = {
                 name: described.name,
-                path: stillPresent.uploadedPath,
-                sizeBytes: stillPresent.uploadedSizeBytes ?? described.sizeBytes ?? 0,
-                ...((stillPresent.uploadedMimeType ?? described.mimeType)
-                    ? { mimeType: (stillPresent.uploadedMimeType ?? described.mimeType)! }
-                    : {}),
-                ...(stillPresent.sha256 ? { sha256: stillPresent.sha256 } : {}),
+                path: uploadRes.path,
+                sizeBytes: uploadRes.sizeBytes,
+                ...(described.mimeType ? { mimeType: described.mimeType } : {}),
+                ...(uploadRes.sha256 ? { sha256: uploadRes.sha256 } : {}),
             };
             const structuredInput = buildStructuredInputForUploadedAttachment(uploadedAttachment);
             uploaded.push({
                 ...uploadedAttachment,
                 ...(structuredInput ? { structuredInput } : {}),
             });
-            continue;
         }
-
-        const initialProgress =
-            typeof described.sizeBytes === 'number' && Number.isFinite(described.sizeBytes) && described.sizeBytes >= 0
-                ? { uploadedBytes: 0, totalBytes: described.sizeBytes }
-                : undefined;
-        args.applyDraftPatch(stillPresent.id, { status: 'uploading', error: undefined, uploadProgress: initialProgress });
-        const uploadRes = await sessionAttachmentsUploadFile({
-            sessionId: args.sessionId,
-            file: stillPresent.source,
-            messageLocalId,
-            config: args.config,
-            onProgress: (progress) => {
-                args.applyDraftPatch(stillPresent.id, { uploadProgress: progress });
-            },
-        });
-        if (!uploadRes.success) {
-            args.applyDraftPatch(stillPresent.id, { status: 'error', error: uploadRes.error });
-            throw createAttachmentUploadFailureError(uploadRes);
-        }
-
-        args.applyDraftPatch(stillPresent.id, {
-            status: 'uploaded',
-            uploadedPath: uploadRes.path,
-            uploadedSizeBytes: uploadRes.sizeBytes,
-            uploadedMimeType: described.mimeType,
-            sha256: uploadRes.sha256,
-            error: undefined,
-            uploadProgress: { uploadedBytes: uploadRes.sizeBytes, totalBytes: uploadRes.sizeBytes },
-        });
-
-        const uploadedAttachment: UploadedAttachmentBase = {
-            name: described.name,
-            path: uploadRes.path,
-            sizeBytes: uploadRes.sizeBytes,
-            ...(described.mimeType ? { mimeType: described.mimeType } : {}),
-            ...(uploadRes.sha256 ? { sha256: uploadRes.sha256 } : {}),
-        };
-        const structuredInput = buildStructuredInputForUploadedAttachment(uploadedAttachment);
-        uploaded.push({
-            ...uploadedAttachment,
-            ...(structuredInput ? { structuredInput } : {}),
-        });
+    } finally {
+        releaseUserRequestLease();
     }
 
     return { messageLocalId, uploaded };

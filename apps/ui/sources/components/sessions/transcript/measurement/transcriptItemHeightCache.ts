@@ -1,5 +1,9 @@
+import { Platform } from 'react-native';
+
 import { loadSyncTuning } from '@/sync/runtime/syncTuning';
 import { LruMap } from '@/utils/cache/lruMap';
+
+import { createPersistedTranscriptItemHeightStore, type TranscriptItemHeightStore } from './transcriptItemHeightStore';
 
 export type TranscriptItemHeightRowState =
     | 'stable'
@@ -18,6 +22,12 @@ export type TranscriptItemHeightValiditySignature = Readonly<{
     forkContextKey: string;
     expansionKey: string;
     rowState: TranscriptItemHeightRowState;
+    /**
+     * The row's key in the on-disk height store, built from ids that survive an app restart.
+     * Absent for a row with no such identity, which is then kept in memory only. Not part of
+     * {@link buildTranscriptItemHeightSignatureKey}: the in-memory key stays the local one.
+     */
+    persistedKey?: string;
 }>;
 
 export type TranscriptItemHeightCacheEntry = Readonly<{
@@ -34,6 +44,8 @@ export type TranscriptItemHeightCache = Readonly<{
 
 export type TranscriptItemHeightCacheOptions = Readonly<{
     maxEntries?: number;
+    /** Heights that outlive the process; read on a memory miss, written on every change. */
+    store?: TranscriptItemHeightStore;
 }>;
 
 export function buildTranscriptItemHeightSignatureKey(
@@ -71,26 +83,40 @@ export function createDefaultTranscriptItemHeightCache(
 ): TranscriptItemHeightCache {
     const maxEntries = options.maxEntries ?? loadSyncTuning().transcriptItemHeightCacheMaxEntries;
     const entries = new LruMap<string, TranscriptItemHeightCacheEntry>({ maxEntries });
+    const store = options.store;
 
     return {
         delete(signature) {
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
+            if (signature.persistedKey !== undefined) store?.delete(signature.persistedKey);
             return entries.delete(buildTranscriptItemHeightSignatureKey(signature));
         },
         get(signature) {
             if (!isTranscriptItemHeightSignatureStable(signature)) return undefined;
-            return entries.get(buildTranscriptItemHeightSignatureKey(signature));
+            const key = buildTranscriptItemHeightSignatureKey(signature);
+            const inMemory = entries.get(key);
+            if (inMemory !== undefined || store === undefined || signature.persistedKey === undefined) return inMemory;
+            const storedHeightPx = store.get(signature.persistedKey);
+            if (storedHeightPx === undefined || !isValidHeight(storedHeightPx)) return undefined;
+            const restored = { heightPx: storedHeightPx };
+            entries.set(key, restored);
+            return restored;
         },
         set(signature, entry) {
             if (!isTranscriptItemHeightSignatureStable(signature)) return false;
             if (!isValidHeight(entry.heightPx)) return false;
-            entries.set(buildTranscriptItemHeightSignatureKey(signature), {
+            const key = buildTranscriptItemHeightSignatureKey(signature);
+            if (signature.persistedKey !== undefined && entries.get(key)?.heightPx !== entry.heightPx) {
+                store?.set(signature.persistedKey, entry.heightPx);
+            }
+            entries.set(key, {
                 heightPx: entry.heightPx,
             });
             return true;
         },
         clear() {
             entries.clear();
+            store?.clear();
         },
         size() {
             return entries.size;
@@ -110,7 +136,12 @@ export function getDefaultTranscriptItemHeightCache(
     options?: TranscriptItemHeightCacheOptions,
 ): TranscriptItemHeightCache {
     if (defaultCacheInstance === null) {
-        defaultCacheInstance = createDefaultTranscriptItemHeightCache(options);
+        // Native only: web MMKV is `localStorage`, a small quota shared with the rest of the app.
+        const storeMaxEntries = Platform.OS === 'web' ? 0 : loadSyncTuning().transcriptItemHeightStoreMaxEntries;
+        defaultCacheInstance = createDefaultTranscriptItemHeightCache({
+            ...(storeMaxEntries > 0 ? { store: createPersistedTranscriptItemHeightStore({ maxEntries: storeMaxEntries }) } : {}),
+            ...options,
+        });
     }
     return defaultCacheInstance;
 }

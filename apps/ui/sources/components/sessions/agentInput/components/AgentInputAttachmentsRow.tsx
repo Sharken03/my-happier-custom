@@ -230,6 +230,7 @@ export const AgentInputAttachmentsRow = React.memo(function AgentInputAttachment
                                                 images: attachmentImagePreviewItems,
                                                 initialIndex: imagePreviewIndex >= 0 ? imagePreviewIndex : 0,
                                             },
+                                            chrome: { kind: 'fullscreen' },
                                         });
                                     }}
                                     style={styles.attachmentImageSurface}

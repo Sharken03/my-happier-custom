@@ -228,6 +228,7 @@ export const SourceControlSettingsView = React.memo(function SourceControlSettin
     const [scmCommitMessageGeneratorBackendId, setScmCommitMessageGeneratorBackendId] = useSettingMutable('scmCommitMessageGeneratorBackendId');
     const [scmCommitMessageGeneratorInstructions, setScmCommitMessageGeneratorInstructions] = useSettingMutable('scmCommitMessageGeneratorInstructions');
     const [scmIncludeCoAuthoredBy, setScmIncludeCoAuthoredBy] = useSettingMutable('scmIncludeCoAuthoredBy');
+    const [scmRefreshOnToolDone, setScmRefreshOnToolDone] = useSettingMutable('scmRefreshOnToolDoneV1');
     const [filesEditorAutoSave, setFilesEditorAutoSave] = useSettingMutable('filesEditorAutoSave');
     const [markdownDefaultEditMode, setMarkdownDefaultEditMode] = useSettingMutable('markdownDefaultEditMode');
     const markdownRichEditorEnabled = useFeatureEnabled('files.markdownRichEditor');
@@ -255,6 +256,7 @@ export const SourceControlSettingsView = React.memo(function SourceControlSettin
         ? scmCommitMessageGeneratorInstructions
         : '';
     const effectiveIncludeCoAuthoredBy = scmIncludeCoAuthoredBy === true;
+    const effectiveRefreshOnToolDone = scmRefreshOnToolDone !== false;
 
     const renderIcon = React.useCallback((iconName: IoniconName) => (
         <Icon name={iconName} size={29} color={theme.colors.text.secondary} />
@@ -422,6 +424,20 @@ export const SourceControlSettingsView = React.memo(function SourceControlSettin
                     icon={renderIcon('users')}
                     rightElement={effectiveIncludeCoAuthoredBy ? <Icon name="check" size={20} color={theme.colors.accent.blue} /> : null}
                     onPress={() => setScmIncludeCoAuthoredBy(!effectiveIncludeCoAuthoredBy)}
+                    showChevron={false}
+                />
+            </ItemGroup>
+
+            <ItemGroup
+                title={t('settingsSourceControl.changedFilesRefresh.title')}
+                footer={t('settingsSourceControl.changedFilesRefresh.footer')}
+            >
+                <Item
+                    title={t('settingsSourceControl.changedFilesRefresh.refreshOnToolDone.title')}
+                    subtitle={effectiveRefreshOnToolDone ? t('common.enabled') : t('common.disabled')}
+                    icon={renderIcon('arrows-clockwise')}
+                    rightElement={effectiveRefreshOnToolDone ? <Icon name="check" size={20} color={theme.colors.accent.blue} /> : null}
+                    onPress={() => setScmRefreshOnToolDone(!effectiveRefreshOnToolDone)}
                     showChevron={false}
                 />
             </ItemGroup>

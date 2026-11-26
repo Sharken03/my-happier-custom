@@ -41,6 +41,7 @@ import type { InFlightSteerController, InFlightSteerPromptOptions } from '@/agen
 import type { Credentials } from '@/persistence';
 import { registerKillSessionHandler } from '@/rpc/handlers/killSession';
 import { MessageBuffer } from '@/ui/ink/messageBuffer';
+import { logStartupStep } from '@/utils/startupTiming';
 import { logger } from '@/ui/logger';
 import { resolvePermissionModeSeedForAgentStart } from '@/settings/permissions/permissionModeSeed';
 import { resolveRunnerMcpServers } from '@/mcp/runtime/resolveRunnerMcpServers';
@@ -249,10 +250,12 @@ export async function runStandardAcpProvider(
 
   connectionState.setBackend(config.backendDisplayName);
 
+  logStartupStep('provider run begins');
   const { api, machineId } = await initializeBackendApiContextFn({
     credentials: opts.credentials,
     machineMetadata: config.machineMetadata,
   });
+  logStartupStep('API context ready');
 
   // This runtime only hosts ACP providers. If a custom flavor string is not recognized,
   // keep policy/tooling decisions in the ACP family instead of inheriting a built-in default.
@@ -577,6 +580,7 @@ export async function runStandardAcpProvider(
       });
     },
   });
+  logStartupStep('run session ready, creating runtime');
   const runtime = config.createRuntime({
     directory: runtimeDirectory,
     metadata: runtimeMetadata,
@@ -595,6 +599,7 @@ export async function runStandardAcpProvider(
     providerInputConsumer: providerInputConsumer as SessionProviderInputConsumer<unknown, unknown>,
     turnAssistantPreviewTracker,
   });
+  logStartupStep('runtime created');
   runtime.drainPendingAfterStartOrLoad = async () => {
     await providerInputConsumer.drainPending({ reason: 'standard-acp-start-or-load' });
   };
@@ -762,6 +767,17 @@ export async function runStandardAcpProvider(
           session,
           runtime,
           isStarted,
+          reportTerminalFailure: (failure) => {
+            // A rejected model choice is final for that choice, so the chat gets one notice;
+            // the synchronizer then clears the choice and the provider keeps its model.
+            if (failure.kind !== 'model') return;
+            const reason = (failure.error instanceof Error ? failure.error.message : String(failure.error))
+              .split('\n')[0].slice(0, 300);
+            session.sendSessionEvent({
+              type: 'message',
+              message: `Could not switch to model ${failure.requested}: ${reason}. The chat keeps its current model.`,
+            });
+          },
         });
         rebindOverrideSynchronizerSession = synchronizer.rebindSession;
         return synchronizer;

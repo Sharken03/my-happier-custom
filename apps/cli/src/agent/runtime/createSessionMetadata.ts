@@ -84,13 +84,20 @@ export interface CreateSessionMetadataOptions {
     acpProviderId?: string;
 }
 
+/**
+ * Per-session values the runner reads from its environment when it creates the session
+ * metadata, and then deletes. They are read at that time, not when modules load.
+ */
+export const CONSUMED_SESSION_ENV_KEYS = [
+    'HAPPIER_SESSION_CONFIG_OPTION_OVERRIDES_JSON',
+    'HAPPIER_SESSION_MCP_SELECTION_JSON',
+    HAPPIER_SESSION_CONNECTED_SERVICE_BROKER_SELECTION_IDENTITY_ENV_KEY,
+    HAPPIER_SESSION_CONNECTED_SERVICE_MATERIALIZATION_IDENTITY_ENV_KEY,
+    HAPPIER_SESSION_CONNECTED_SERVICES_BINDINGS_ENV_KEY,
+] as const;
+
 function consumeSessionEnv(
-    name:
-        | 'HAPPIER_SESSION_CONFIG_OPTION_OVERRIDES_JSON'
-        | 'HAPPIER_SESSION_MCP_SELECTION_JSON'
-        | typeof HAPPIER_SESSION_CONNECTED_SERVICE_BROKER_SELECTION_IDENTITY_ENV_KEY
-        | typeof HAPPIER_SESSION_CONNECTED_SERVICE_MATERIALIZATION_IDENTITY_ENV_KEY
-        | typeof HAPPIER_SESSION_CONNECTED_SERVICES_BINDINGS_ENV_KEY,
+    name: (typeof CONSUMED_SESSION_ENV_KEYS)[number],
 ): string | null {
     const raw = process.env[name];
     delete process.env[name];

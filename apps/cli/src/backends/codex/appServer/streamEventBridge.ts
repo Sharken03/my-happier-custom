@@ -1,13 +1,15 @@
 import { readCodexReasoningText } from '../utils/readCodexReasoningText';
 import { extractMcpToolCallResultOutput } from '../runtime/sessionTurnLifecycle';
 import { readCodexMessageContentText } from '../utils/readCodexMessageContentText';
+import { readCodexUserMessageContent } from '../utils/readCodexUserMessageContent';
 import { canonicalizeCodexMcpToolName } from '../utils/canonicalizeCodexMcpToolName';
 import { extractCodexGeneratedMedia } from '../media/extractCodexGeneratedMedia';
+import { extractAcpMediaContentBlocks } from '@/agent/acp/media/extractAcpMediaContentBlocks';
 import type { SessionMediaSource } from '@/agent/core/AgentMessage';
 
 type RecordLike = Record<string, unknown>;
 
-type ToolKind = 'command' | 'mcp' | 'file-change' | 'web-search' | 'image-view' | 'sleep';
+type ToolKind = 'command' | 'mcp' | 'file-change' | 'web-search' | 'image-view' | 'sleep' | 'native-agent' | 'dynamic';
 type PermissionRequestToolName = 'request_permissions';
 
 type NotificationEnvelope = Readonly<{
@@ -27,7 +29,7 @@ type ToolContext = Readonly<{
 }>;
 
 export type CodexAppServerStreamUpdate =
-    | Readonly<{ type: 'provider-user-text'; itemId: string; clientId: string | null; text: string }>
+    | Readonly<{ type: 'provider-user-text'; itemId: string; clientId: string | null; text: string; nativeContent?: readonly Record<string, unknown>[] }>
     | Readonly<{ type: 'assistant-text-delta'; itemId: string; text: string }>
     | Readonly<{ type: 'assistant-text-final'; itemId: string; text: string }>
     | Readonly<{ type: 'async-user-input-request'; itemId: string; text: string; questions: unknown[] }>
@@ -40,7 +42,7 @@ export type CodexAppServerStreamUpdate =
     | Readonly<{ type: 'context-compaction'; phase: 'started' | 'completed'; itemId: string }>
     | Readonly<{ type: 'turn-diff-updated'; turnId: string | null; unifiedDiff: string }>
     | Readonly<{ type: 'tool-call'; toolKind: ToolKind; callId: string; name: string; input: unknown }>
-    | Readonly<{ type: 'tool-result'; toolKind: ToolKind; callId: string; name?: string; input?: unknown; output: unknown }>
+    | Readonly<{ type: 'tool-result'; toolKind: ToolKind; callId: string; name?: string; input?: unknown; output: unknown; media?: SessionMediaSource[] }>
     | Readonly<{
         type: 'approval-request';
         requestKind: 'command-execution' | 'file-change';
@@ -140,6 +142,17 @@ function omitKeys(value: RecordLike, keys: readonly string[]): RecordLike {
 
 function readToolContextFromItem(item: RecordLike): ToolContext | null {
     const itemType = readItemType(item);
+    // These native records describe an activity/tool occurrence, not completion
+    // of the child agent itself. Keep its identity and reported state intact.
+    if (itemType === 'subagentactivity' || itemType === 'collabagenttoolcall' || itemType === 'dynamictoolcall') {
+        const name = itemType === 'subagentactivity' ? 'subAgentActivity' : readString(item.tool);
+        if (!name) return null;
+        return {
+            toolKind: itemType === 'dynamictoolcall' ? 'dynamic' : 'native-agent',
+            name,
+            input: omitKeys(item, ['id', 'itemId', 'type', 'itemType', 'status', 'agentsStates', 'contentItems', 'success', 'durationMs', 'completedAtMs', 'error']),
+        };
+    }
     if (itemType === 'commandexecution') {
         const command = readString(item.command);
         const cwd = readString(item.cwd);
@@ -210,6 +223,36 @@ function readToolResultOutput(item: RecordLike, itemType: string | null, input?:
     return itemType === 'mcptoolcall' && 'result' in item ? extractMcpToolCallResultOutput(item.result) : output;
 }
 
+function replaceInlineMediaData(value: unknown, data: ReadonlySet<string>): unknown {
+    if (typeof value === 'string') return data.has(value.trim()) ? '[session media]' : value;
+    if (Array.isArray(value)) return value.map((item) => replaceInlineMediaData(item, data));
+    const record = asRecord(value);
+    return record
+        ? Object.fromEntries(Object.entries(record).map(([key, item]) => [key, replaceInlineMediaData(item, data)]))
+        : value;
+}
+
+/**
+ * Image blocks in an MCP tool result (for example from show_image) become session media on the
+ * tool result, as for the other providers. The output keeps a placeholder instead of the bytes.
+ */
+function withMcpToolResultMedia(
+    itemId: string,
+    itemType: string,
+    output: unknown,
+): Readonly<{ output: unknown; media: SessionMediaSource[] }> {
+    if (itemType !== 'mcptoolcall') return { output, media: [] };
+    const extracted = extractAcpMediaContentBlocks(output, {
+        source: 'codex-mcp-tool-result',
+        originSource: 'tool-output',
+        toolCallId: itemId,
+        dedupePrefix: 'codex:mcp-tool-result',
+    });
+    if (extracted.media.length === 0) return { output, media: [] };
+    const persistedData = new Set(extracted.media.flatMap((item) => item.kind === 'base64' ? [item.data] : []));
+    return { output: replaceInlineMediaData(output, persistedData), media: extracted.media };
+}
+
 export function createCodexAppServerStreamEventBridge(): Readonly<{
     onNotification: (notification: NotificationEnvelope) => CodexAppServerStreamUpdate[];
     onServerRequest: (request: ServerRequestEnvelope) => CodexAppServerStreamUpdate[];
@@ -269,13 +312,13 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
                 if (item) {
                     if (readItemType(item) === 'usermessage') {
                         const itemId = readItemId(item);
-                        const text = readCodexMessageContentText(item.content);
-                        if (itemId && text) {
+                        const content = readCodexUserMessageContent(item.content);
+                        if (itemId && content) {
                             return [{
                                 type: 'provider-user-text',
                                 itemId,
                                 clientId: readString(item.clientId) ?? readString(item.client_id),
-                                text,
+                                ...content,
                             }];
                         }
                     }
@@ -346,16 +389,23 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
             const synthesizedToolContext = rememberedToolContext ?? readToolContextFromItem(item);
             if (!synthesizedToolContext) return [];
             toolContextByCallId.delete(itemId);
-            if (rememberedToolContext) {
-                return [{
+            const toolResult = withMcpToolResultMedia(
+                itemId,
+                itemType,
+                readToolResultOutput(item, itemType, rememberedToolContext ? undefined : synthesizedToolContext.input),
+            );
+            const resultUpdates: CodexAppServerStreamUpdate[] = [
+                {
                     type: 'tool-result',
-                    toolKind: rememberedToolContext.toolKind,
+                    toolKind: synthesizedToolContext.toolKind,
                     callId: itemId,
-                    name: rememberedToolContext.name,
-                    input: rememberedToolContext.input,
-                    output: readToolResultOutput(item, itemType),
-                }];
-            }
+                    name: synthesizedToolContext.name,
+                    input: synthesizedToolContext.input,
+                    output: toolResult.output,
+                    ...(toolResult.media.length > 0 ? { media: toolResult.media } : {}),
+                },
+            ];
+            if (rememberedToolContext) return resultUpdates;
             return [
                 {
                     type: 'tool-call',
@@ -364,14 +414,7 @@ export function createCodexAppServerStreamEventBridge(): Readonly<{
                     name: synthesizedToolContext.name,
                     input: synthesizedToolContext.input,
                 },
-                {
-                    type: 'tool-result',
-                    toolKind: synthesizedToolContext.toolKind,
-                    callId: itemId,
-                    name: synthesizedToolContext.name,
-                    input: synthesizedToolContext.input,
-                    output: readToolResultOutput(item, itemType, synthesizedToolContext.input),
-                },
+                ...resultUpdates,
             ];
         },
 

@@ -6046,7 +6046,7 @@ describe('ChatList (FlashList v2)', () => {
                 { turns: 2 },
             );
 
-            expect(loadOlderMessagesMock).toHaveBeenCalledWith('session-1', { limit: 37 });
+            expect(loadOlderMessagesMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ limit: 37 }));
         });
     });
 
@@ -6111,7 +6111,7 @@ describe('ChatList (FlashList v2)', () => {
                 { turns: 2 },
             );
 
-            expect(loadOlderMessagesMock).toHaveBeenCalledWith('session-1', { limit: 37 });
+            expect(loadOlderMessagesMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ limit: 37 }));
         });
     });
 

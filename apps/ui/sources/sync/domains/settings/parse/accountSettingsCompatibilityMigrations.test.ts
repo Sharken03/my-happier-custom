@@ -142,6 +142,42 @@ describe('applyAccountSettingsCompatibilityMigrations', () => {
         expect(migrated.glassBlurEnabled).toBe(true);
     });
 
+    it('gives the web client the app mode of a Tool calls group chosen before the app/web split', () => {
+        const migrated = applyAccountSettingsCompatibilityMigrations({
+            input: {
+                transcriptToolCallsGroupOpenMode: 'sheet',
+            },
+            settings: {
+                ...settingsDefaults,
+                transcriptToolCallsGroupOpenMode: 'sheet',
+            },
+            inputSchemaVersion: 8,
+            supportedSchemaVersion: 8,
+        });
+
+        expect(migrated.transcriptToolCallsGroupOpenMode).toBe('sheet');
+        expect(migrated.transcriptToolCallsGroupOpenModeWeb).toBe('sheet');
+    });
+
+    it('keeps an explicit web mode for Tool calls groups when the app mode differs', () => {
+        const migrated = applyAccountSettingsCompatibilityMigrations({
+            input: {
+                transcriptToolCallsGroupOpenMode: 'sheet',
+                transcriptToolCallsGroupOpenModeWeb: 'list',
+            },
+            settings: {
+                ...settingsDefaults,
+                transcriptToolCallsGroupOpenMode: 'sheet',
+                transcriptToolCallsGroupOpenModeWeb: 'list',
+            },
+            inputSchemaVersion: 8,
+            supportedSchemaVersion: 8,
+        });
+
+        expect(migrated.transcriptToolCallsGroupOpenMode).toBe('sheet');
+        expect(migrated.transcriptToolCallsGroupOpenModeWeb).toBe('list');
+    });
+
     it('normalizes persisted transcript legacy list implementation to canonical FlashList', () => {
         const migrated = applyAccountSettingsCompatibilityMigrations({
             input: {

@@ -6,3 +6,8 @@ export function resolveSessionMediaImageMimeType(media: SessionMediaInlineImageS
     if (typeof media.mimeType === 'string' && media.mimeType.startsWith('image/')) return media.mimeType;
     return getImageMimeTypeFromPath(media.path) ?? getImageMimeTypeFromPath(media.name);
 }
+
+/** The number of tiles `SessionMediaInlineImages` paints for these entries: one per image. */
+export function countSessionMediaImages(media: readonly SessionMediaInlineImageSummary[]): number {
+    return media.filter((entry) => resolveSessionMediaImageMimeType(entry) !== null).length;
+}

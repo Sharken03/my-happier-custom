@@ -263,4 +263,18 @@ describe('/session/[id]/git', () => {
 
         expect(routerPushSpy).not.toHaveBeenCalled();
     });
+
+    it('keeps a tab the user selects instead of forcing the git tab back', async () => {
+        const screen = await renderRouteScreen();
+        expect(setRightTabSpy).toHaveBeenCalledWith('git');
+        setRightTabSpy.mockClear();
+
+        scopeState = {
+            right: { isOpen: true, activeTabId: 'files', tabState: {} },
+            details: null,
+        };
+        await screen.update(<SessionGitRouteScreen />);
+
+        expect(setRightTabSpy).not.toHaveBeenCalled();
+    });
 });

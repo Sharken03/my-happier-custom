@@ -2,6 +2,7 @@ import type { DirectTranscriptRawMessageV1, SessionMessageRole } from '@happier-
 
 import { resolveAcpSessionMessageRole } from '@/api/session/messageRole/resolveAcpSessionMessageRole';
 
+import { isHiddenPiSubagentNotice } from '../piSubagentNoticeVisibility';
 import { buildSessionPath, type PiSessionEntry } from './piEntryContext';
 
 type ProjectedPiRow = Readonly<{
@@ -49,8 +50,9 @@ function projectPiEntryToRows(entry: PiSessionEntry, baseId: string): readonly P
   }
 
   if (entry.type === 'custom_message') {
-    const record = entry as { content?: unknown; display?: unknown };
+    const record = entry as { content?: unknown; display?: unknown; customType?: unknown };
     if (record.display === false) return [];
+    if (isHiddenPiSubagentNotice(record.customType)) return [];
     const text = projectPiUserContentText(record.content);
     return text === null ? [] : [{
       messageRole: 'user',

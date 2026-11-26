@@ -25,13 +25,15 @@ import type { SavedSecret } from '@/sync/domains/settings/savedSecretTypes';
 import type { ServerAccountScope } from '@/sync/domains/scope/serverAccountScope';
 import { resolveEffectiveWindowsRemoteSessionLaunchMode } from '@/sync/domains/session/spawn/windowsRemoteSessionLaunchMode';
 import { getAgentCore, type AgentId } from '@/agents/catalog/catalog';
+import { countFavoriteModelUse } from '@/sync/domains/models/favoriteModelSelections';
+import { log } from '@/log';
 import { buildSpawnEnvironmentVariablesFromUiState, buildSpawnSessionExtrasFromUiState, getAgentResumeExperimentsFromSettings, getNewSessionPreflightIssues } from '@/agents/catalog/catalog';
 import { buildProfileEnvironmentVariablesForSession } from '@/components/sessions/new/modules/profileHelpers';
 import type { NewSessionPromptStore } from '@/components/sessions/new/hooks/screenModel/newSessionPromptStore';
 import type { UseMachineEnvPresenceResult } from '@/hooks/machine/useMachineEnvPresence';
 import { getMachineCapabilitiesSnapshot } from '@/hooks/server/useMachineCapabilitiesCache';
 import type { PermissionMode, ModelMode } from '@/sync/domains/permissions/permissionTypes';
-import { SPAWN_SESSION_ERROR_CODES, type ActionOperationSnapshotV1, type BackendTargetRefV1, type WindowsRemoteSessionLaunchMode } from '@happier-dev/protocol';
+import { buildBackendTargetKey, SPAWN_SESSION_ERROR_CODES, type ActionOperationSnapshotV1, type BackendTargetRefV1, type WindowsRemoteSessionLaunchMode } from '@happier-dev/protocol';
 import type { AcpConfigOptionOverridesV1 } from '@happier-dev/protocol';
 import type { SessionSpawnSourceContextV1 } from '@happier-dev/protocol';
 import { parsePermissionIntentAlias } from '@happier-dev/agents';
@@ -154,6 +156,12 @@ export type HandleCreateSessionOptions = Readonly<{
      */
     structuredInputMetaOverrides?: Record<string, unknown>;
     afterCreated?: (context: CreatedSessionFollowUpContext) => void | Promise<void>;
+    /**
+     * The text `afterCreated` sends as the first turn. With the setting
+     * `newSessionOpenBeforeUploadV1` the chat opens before `afterCreated` runs and shows this
+     * text as a queued message under the id that `afterCreated` sends with.
+     */
+    afterCreatedDisplayText?: string;
     /**
      * D2: relaunch under the newly-selected connected-service account WITHOUT resume continuity, after
      * the "switch unavailable" dialog offered "start fresh". Drops the vendor resume reference so the
@@ -488,6 +496,7 @@ export function useCreateNewSession(params: Readonly<{
             ].slice(0, 10);
             const profilesActive = current.useProfiles;
 
+            const backendTarget: BackendTargetRefV1 = current.backendTarget ?? { kind: 'builtInAgent', agentId: current.agentType };
             const settingsUpdate: MutableSettingsDelta = {
                 recentMachinePaths: updatedPaths,
                 lastUsedAgent: current.agentType,
@@ -496,9 +505,23 @@ export function useCreateNewSession(params: Readonly<{
             if (profilesActive) {
                 settingsUpdate.lastUsedProfile = current.selectedProfileId;
             }
+            // A new chat with a favorite model counts one use for that favorite.
+            const countedFavorites = getAgentCore(current.agentType).model.supportsSelection === true
+                ? countFavoriteModelUse({
+                    favorites: current.settings.favoriteModelSelectionsV1 ?? [],
+                    backend: {
+                        backendTargetKey: buildBackendTargetKey(backendTarget),
+                        builtInAgentId: backendTarget.kind === 'builtInAgent' ? backendTarget.agentId : null,
+                        configuredBackendId: backendTarget.kind === 'configuredAcpBackend' ? backendTarget.backendId : null,
+                    },
+                    modelId: current.modelMode,
+                })
+                : null;
+            if (countedFavorites) {
+                settingsUpdate.favoriteModelSelectionsV1 = countedFavorites;
+            }
             applySettings(settingsUpdate);
 
-            const backendTarget: BackendTargetRefV1 = current.backendTarget ?? { kind: 'builtInAgent', agentId: current.agentType };
             let environmentVariables = undefined;
             if (profilesActive && current.selectedProfileId) {
                 const selectedProfile = current.profileMap.get(current.selectedProfileId) || getBuiltInProfile(current.selectedProfileId);
@@ -1158,11 +1181,73 @@ export function useCreateNewSession(params: Readonly<{
                     });
                 }
 
+                // With newSessionOpenBeforeUploadV1 the chat opens before the follow-up (an
+                // attachment upload can take most of a minute on mobile data); the follow-up and
+                // its failure handling below run on after this screen unmounts.
+                let openedBeforeFollowUp = false;
+                let queuedFollowUpLocalId: string | null = null;
+                if (
+                    !postSpawnFollowUpError
+                    && opts?.afterCreated
+                    && current.settings.newSessionOpenBeforeUploadV1 === true
+                    && !postSpawnSessionRouteSuffix
+                    && !postSpawnReplacementHref
+                    && mountedRef.current
+                    && isLaunchScopeStillActive()
+                ) {
+                    await requireSpawnedSessionVisibleForRoute({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
+                        ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
+                    });
+                    const state = storage.getState();
+                    const session = state.sessions[createdSessionId] ?? null;
+                    if (session) {
+                        state.markSessionOptimisticThinking(createdSessionId);
+                    }
+                    const queuedText = opts.afterCreatedDisplayText?.trim() ?? '';
+                    if (queuedText) {
+                        queuedFollowUpLocalId = launchAttempt.attachmentMessageLocalId;
+                        projectLocalOutboundUserMessage({
+                            sessionId: createdSessionId,
+                            localId: queuedFollowUpLocalId,
+                            text: queuedText,
+                            displayText: queuedText,
+                            rawRecord: buildOutgoingUserTextRecord({
+                                text: queuedText,
+                                sentFrom: resolveSentFrom(),
+                                displayText: queuedText,
+                                agentId: current.agentType,
+                                modelMode: current.modelMode,
+                                permissionMode: current.permissionMode,
+                                settings: state.settings,
+                                session,
+                            }),
+                            deliveryStatus: 'queued',
+                        });
+                    }
+                    current.router.replace(buildScopedSessionRouteHref({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        suffix: '',
+                    }), {
+                        dangerouslySingular() {
+                            return 'session';
+                        },
+                    });
+                    openedBeforeFollowUp = true;
+                }
+
                 if (!postSpawnFollowUpError && opts?.afterCreated) {
                     try {
                         await runAfterCreatedFollowUp();
                     } catch (error) {
                         postSpawnFollowUpError = error;
+                        if (queuedFollowUpLocalId) {
+                            // The chat already shows the prompt as queued; it was never sent.
+                            storage.getState().removePendingMessage(createdSessionId, queuedFollowUpLocalId);
+                        }
                     }
                 }
 
@@ -1263,12 +1348,23 @@ export function useCreateNewSession(params: Readonly<{
                     launchAttempt = markNewSessionLaunchAttemptComplete(launchAttempt);
                 }
 
-                await requireSpawnedSessionVisibleForRoute({
-                    sessionId: createdSessionId,
-                    serverId: resolvedTargetServerId,
-                    getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
-                    ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
-                });
+                // The spawn confirmed the session and the follow-up is done, so a slow local
+                // hydration must not keep the user on this screen. The session route hydrates
+                // the session itself.
+                try {
+                    await requireSpawnedSessionVisibleForRoute({
+                        sessionId: createdSessionId,
+                        serverId: resolvedTargetServerId,
+                        getStoredSession: (sessionId) => storage.getState().sessions[sessionId] ?? null,
+                        ensureSessionVisibleForMessageRoute: sync.ensureSessionVisibleForMessageRoute,
+                    });
+                } catch (visibilityError) {
+                    log.log(
+                        `[newSession] opening ${createdSessionId} before local hydration finished: ${
+                            visibilityError instanceof Error ? visibilityError.message : String(visibilityError)
+                        }`,
+                    );
+                }
 
                 const firstTurnTextForRoute = handedFirstTurnToDaemon
                     ? daemonFirstTurnText
@@ -1305,7 +1401,9 @@ export function useCreateNewSession(params: Readonly<{
                     suffix: postSpawnSessionRouteSuffix,
                 });
 
-                if (mountedRef.current && isLaunchScopeStillActive()) {
+                if (openedBeforeFollowUp) {
+                    // The chat opened before the follow-up.
+                } else if (mountedRef.current && isLaunchScopeStillActive()) {
                     current.router.replace(postSpawnReplacementHref ?? sessionRoute, {
                         dangerouslySingular() {
                             return 'session';

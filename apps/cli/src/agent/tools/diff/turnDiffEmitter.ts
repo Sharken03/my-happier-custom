@@ -14,12 +14,16 @@ type TextDiffSignal = Readonly<{
   oldText: string;
   newText: string;
   description?: string;
+  /** The tool's own diff of this change (Pi's edit gives one), used when the turn has no whole file text. */
+  unifiedDiff?: string | null;
 }>;
 
 type UnifiedDiffSignal = Readonly<{
   filePath?: string;
   unifiedDiff: string;
   description?: string;
+  /** The diff is one more change after the earlier diff of the file, not a newer view of it. */
+  appendHunks?: boolean;
 }>;
 
 type UnifiedDiffSnapshotSignal = Readonly<{
@@ -53,6 +57,42 @@ export type TurnDiffEmitterOptions = Readonly<{
   snapshotUnifiedDiff?: boolean;
 }>;
 
+/** True when a unified diff adds or removes a line; a placeholder (empty hunk) is false. */
+function hasUnifiedDiffLineChanges(unifiedDiff: string | null | undefined): unifiedDiff is string {
+  if (typeof unifiedDiff !== 'string') return false;
+  return unifiedDiff.split('\n').some((line) =>
+    (line.startsWith('+') && !line.startsWith('+++ ')) || (line.startsWith('-') && !line.startsWith('--- ')));
+}
+
+/** The hunks of `second` after `first`, for two diffs of one file made one after the other. */
+function appendUnifiedDiffHunks(first: string, second: string): string {
+  const lines = second.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('@@'));
+  if (start < 0) return first;
+  return `${first.replace(/\n+$/, '')}\n${lines.slice(start).join('\n')}`;
+}
+
+/**
+ * Two text changes of one file as one. When the second starts from the text the first ended with
+ * (whole file contents), they chain. When the first ends with whole file text that holds the
+ * second's old snippet once, the snippet is replaced in it, as the edit did on disk. Else both edit
+ * snippets stay, one after the other, with a separator line: pairing the old snippet of one edit
+ * with the new snippet of another gives a false diff. Same rule as combineTextChanges in
+ * @happier-dev/protocol.
+ */
+function combineTextChanges(
+  first: Readonly<{ oldText: string; newText: string }>,
+  second: Readonly<{ oldText: string; newText: string }>,
+): { oldText: string; newText: string } {
+  if (first.newText === second.oldText) return { oldText: first.oldText, newText: second.newText };
+  const at = second.oldText ? first.newText.indexOf(second.oldText) : -1;
+  if (at >= 0 && first.newText.indexOf(second.oldText, at + 1) < 0) {
+    const newText = first.newText.slice(0, at) + second.newText + first.newText.slice(at + second.oldText.length);
+    return { oldText: first.oldText, newText };
+  }
+  return { oldText: `${first.oldText}\n⋯\n${second.oldText}`, newText: `${first.newText}\n⋯\n${second.newText}` };
+}
+
 /**
  * Shared "turn diff" coalescer.
  *
@@ -82,39 +122,41 @@ export class TurnDiffEmitter {
     if (!filePath) return;
 
     const existing = this.byFilePath.get(filePath);
-    if (!existing) {
-      this.byFilePath.set(filePath, {
-        kind: 'text',
-        filePath,
-        oldText: signal.oldText,
-        newText: signal.newText,
-        description: signal.description,
-        order: this.orderCounter++,
-      });
-      return;
-    }
-
-    if (existing.kind === 'text') {
+    if (existing?.kind === 'text') {
       if (existing.newText === signal.newText) return;
+      const combined = combineTextChanges(existing, signal);
       this.byFilePath.set(filePath, {
         kind: 'text',
         filePath,
-        oldText: existing.oldText,
-        newText: signal.newText,
+        oldText: combined.oldText,
+        newText: combined.newText,
         description: signal.description ?? existing.description,
         order: existing.order,
       });
       return;
     }
 
-    // Override unified diffs with net text diffs when available.
+    // Without whole file text, the tool's own diff shows the edit with its context and line numbers.
+    if (hasUnifiedDiffLineChanges(signal.unifiedDiff)) {
+      const earlier = existing?.kind === 'unified' && hasUnifiedDiffLineChanges(existing.unifiedDiff) ? existing.unifiedDiff : null;
+      this.byFilePath.set(filePath, {
+        kind: 'unified',
+        filePath,
+        unifiedDiff: earlier ? appendUnifiedDiffHunks(earlier, signal.unifiedDiff) : signal.unifiedDiff,
+        description: signal.description ?? existing?.description,
+        order: existing?.order ?? this.orderCounter++,
+      });
+      return;
+    }
+
+    // A text diff replaces a unified diff of the same file.
     this.byFilePath.set(filePath, {
       kind: 'text',
       filePath,
       oldText: signal.oldText,
       newText: signal.newText,
-      description: signal.description ?? existing.description,
-      order: existing.order,
+      description: signal.description ?? existing?.description,
+      order: existing?.order ?? this.orderCounter++,
     });
   }
 
@@ -139,10 +181,11 @@ export class TurnDiffEmitter {
     }
 
     if (existing.kind === 'unified' && existing.unifiedDiff === signal.unifiedDiff) return;
+    const append = signal.appendHunks === true && hasUnifiedDiffLineChanges(existing.unifiedDiff);
     this.byFilePath.set(filePath, {
       kind: 'unified',
       filePath,
-      unifiedDiff: signal.unifiedDiff,
+      unifiedDiff: append ? appendUnifiedDiffHunks(existing.unifiedDiff, signal.unifiedDiff) : signal.unifiedDiff,
       description: signal.description ?? existing.description,
       order: existing.order,
     });

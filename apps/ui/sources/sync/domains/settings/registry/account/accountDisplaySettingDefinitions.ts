@@ -316,6 +316,41 @@ export const ACCOUNT_DISPLAY_SETTING_DEFINITIONS = defineSettingDefinitions({
         storageScope: 'account',
         analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'enum', privacy: 'safe', identityScope: 'person' },
     },
+    showHibernatedInActiveList: {
+        schema: z.boolean(),
+        default: false,
+        description: 'Show hibernated (stopped but not archived) sessions in the active session list',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    composerFilledButtonsV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether the composer buttons have a gray fill and the send button turns orange while it can send or the microphone records',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionOpenDeferComposerV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether a chat opens with header and transcript first and mounts the composer one frame later, so the chat shows sooner after a tap',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    sessionOpenPreloadV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether the app keeps the chat the reader just left rendered in the background, so opening it again is instant',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
+    composerAbortChipOnlyWithMicV1: {
+        schema: z.boolean(),
+        default: true,
+        description: 'Whether the composer stop chip shows only when voice is on and dictation mode is off, so the send button holds the microphone and not stop',
+        storageScope: 'account',
+        analytics: { trackCurrentState: true, trackChanges: true, valueKind: 'boolean', privacy: 'safe', identityScope: 'person' },
+    },
 });
 
 export const ACCOUNT_DISPLAY_SETTING_ARTIFACTS = buildSettingArtifacts(ACCOUNT_DISPLAY_SETTING_DEFINITIONS);

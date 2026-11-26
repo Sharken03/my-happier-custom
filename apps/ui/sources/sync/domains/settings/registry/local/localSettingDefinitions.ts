@@ -190,6 +190,12 @@ export const LOCAL_SETTING_DEFINITIONS = defineSettingDefinitions({
         description: 'Whether the session composer stays focused after sending a message',
         storageScope: 'local',
     },
+    composerTypeToFocusEnabled: {
+        schema: z.boolean().catch(true),
+        default: true,
+        description: 'Typing outside a text field on web moves into the session composer',
+        storageScope: 'local',
+    },
     uiBackdropBlurEnabled: {
         schema: z.boolean(),
         default: true,
@@ -200,6 +206,18 @@ export const LOCAL_SETTING_DEFINITIONS = defineSettingDefinitions({
         schema: z.boolean().catch(true),
         default: true,
         description: 'Enable haptic feedback on this device',
+        storageScope: 'local',
+    },
+    permissionRequestHapticsEnabled: {
+        schema: z.boolean().catch(true),
+        default: true,
+        description: 'Vibrate when an agent asks for permission on this device',
+        storageScope: 'local',
+    },
+    connectionRecoveryBannerEnabled: {
+        schema: z.boolean().catch(true),
+        default: true,
+        description: 'Show a banner while the server connection recovers',
         storageScope: 'local',
     },
     systemTabBarEnabled: {

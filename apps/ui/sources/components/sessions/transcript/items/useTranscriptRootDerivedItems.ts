@@ -10,6 +10,7 @@ import {
 } from '@/components/sessions/transcript/turnGrouping/buildTranscriptTurns';
 import type { ChatTranscriptListItem } from '@/components/sessions/transcript/chatListTypes';
 import type { ForkAwareMessageDescriptors } from '@/components/sessions/transcript/forkContext/buildForkAwareMessageDescriptors';
+import { filterHiddenThinkingMessageIds } from '@/components/sessions/transcript/thinking/filterHiddenThinkingMessageIds';
 import type { ForkedTranscriptSnapshot } from '@/sync/domains/sessionFork/forkedTranscriptSnapshot';
 import { runAfterInteractionsWithFallback } from '@/utils/timing/runAfterInteractionsWithFallback';
 import {
@@ -39,23 +40,39 @@ export function useTranscriptRootDerivedItems(params: Readonly<{
     pendingMessages: BuildChatListItemsOptions['pendingMessages'];
     pendingUserActionRequests: NonNullable<BuildChatListItemsOptions['pendingUserActionRequests']>;
     sessionId: string;
+    thinkingDisplayMode: unknown;
     toolCallsGroupStrategy: 'all_tools_in_turn' | 'consecutive_tools';
 }>) {
     const {
         actionDrafts,
         discardedPendingMessages,
         fork,
-        forkAwareMessageDescriptors,
         forkedTranscriptEnabled,
         groupToolCalls,
         groupingMode,
-        messageIdsOldestFirst,
         messagesById,
         pendingMessages,
         pendingUserActionRequests,
         sessionId,
+        thinkingDisplayMode,
         toolCallsGroupStrategy,
     } = params;
+    // Item derivation sees only the rows that paint; see filterHiddenThinkingMessageIds.
+    const { messageIdsOldestFirst, forkAwareMessageDescriptors } = React.useMemo(() => {
+        const descriptors = params.forkAwareMessageDescriptors;
+        const filtered = filterHiddenThinkingMessageIds({
+            messageIdsOldestFirst: params.messageIdsOldestFirst,
+            messagesById,
+            thinkingDisplayMode,
+            forkBoundaryBeforeMessageIds: descriptors?.forkBoundaryBeforeMessageIds,
+        });
+        return {
+            messageIdsOldestFirst: filtered.messageIdsOldestFirst,
+            forkAwareMessageDescriptors: descriptors && filtered.forkBoundaryBeforeMessageIds !== descriptors.forkBoundaryBeforeMessageIds
+                ? { ...descriptors, forkBoundaryBeforeMessageIds: filtered.forkBoundaryBeforeMessageIds ?? new Set<string>() }
+                : descriptors,
+        };
+    }, [messagesById, params.forkAwareMessageDescriptors, params.messageIdsOldestFirst, thinkingDisplayMode]);
     const syncTuning = sync.getSyncTuning();
     const derivedItemsCacheMaxSessions = resolveTranscriptDerivedItemsCacheMaxSessions(
         syncTuning.transcriptDerivedItemsCacheMaxSessions,

@@ -137,6 +137,7 @@ const messageDisplayCommon = {
     transcriptStreamingSettleDelayMs: 200,
     transcriptStreamingSmoothingEnabled: true,
     transcriptMessageSelectionEnabled: true,
+    transcriptMessageActionsCopyOnly: false,
     transcriptMessageSendToSessionEnabled: false,
     debugInformationEnabled: false,
     workspacePath: null,

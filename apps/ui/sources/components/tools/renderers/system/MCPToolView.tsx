@@ -7,6 +7,7 @@ import { CodeView } from '@/components/ui/media/CodeView';
 import { maybeParseJson } from '@happier-dev/protocol';
 import { Text } from '@/components/ui/text/Text';
 import { t } from '@/text';
+import { stripInternalToolInputKeys } from '../../shell/views/formatToolResultJson';
 
 
 /**
@@ -106,6 +107,12 @@ function getResultText(result: unknown): string | null {
     return null;
 }
 
+/** A JSON result shows indented; a plain text result shows as text, not as a quoted JSON string. */
+function formatResultForCode(result: unknown): string {
+    const parsed = maybeParseJson(result);
+    return typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+}
+
 export const MCPToolView = React.memo<ToolViewProps>(({ tool, detailLevel }) => {
     if (detailLevel === 'title') return null;
 
@@ -144,12 +151,12 @@ export const MCPToolView = React.memo<ToolViewProps>(({ tool, detailLevel }) => 
                 ) : null}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('toolView.input')}</Text>
-                    <CodeView code={JSON.stringify(maybeParseJson(tool.input), null, 2)} />
+                    <CodeView code={JSON.stringify(stripInternalToolInputKeys(maybeParseJson(tool.input)), null, 2)} />
                 </View>
                 {tool.state === 'completed' && tool.result != null ? (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>{t('toolView.output')}</Text>
-                        <CodeView code={JSON.stringify(maybeParseJson(tool.result), null, 2)} />
+                        <CodeView code={formatResultForCode(tool.result)} />
                     </View>
                 ) : null}
             </View>

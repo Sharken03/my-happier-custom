@@ -70,6 +70,7 @@ export const StoryDeckSlideTransition = React.forwardRef<
     const resolvedPreset: SlideTransitionPreset = props.preset ?? 'soft';
     const resolvedBlur = props.blur ?? true;
     const thresholdRatio = props.gestureThresholdRatio ?? DEFAULT_GESTURE_THRESHOLD_RATIO;
+    const gestureEnabled = props.gestureEnabled ?? true;
     const spring = resolveSlideTransitionSpring(resolvedPreset, { reducedMotion: effectiveReducedMotion });
 
     const progress = useSharedValue(0);
@@ -144,6 +145,7 @@ export const StoryDeckSlideTransition = React.forwardRef<
 
     const gesture = React.useMemo(() => {
         return Gesture.Pan()
+            .enabled(gestureEnabled)
             // Activate only on clear horizontal intent. Vertical drags (e.g.
             // dismissing a sheet, scrolling content) must propagate to the
             // nested gesture system instead of firing a horizontal swipe.
@@ -213,6 +215,7 @@ export const StoryDeckSlideTransition = React.forwardRef<
             });
     }, [
         effectiveReducedMotion,
+        gestureEnabled,
         pageWidth,
         canGoPreviousSV,
         canGoNextSV,

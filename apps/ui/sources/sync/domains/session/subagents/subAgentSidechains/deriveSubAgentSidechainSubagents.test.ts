@@ -126,6 +126,12 @@ describe('deriveSubAgentSidechainSubagents — the row title reads the names pro
         })).toBe('Lovelace');
     });
 
+    it('reads the agent and the task of a pi-subagents call', () => {
+        expect(titleFor({ agent: 'scout', task: 'Map the parser' })).toBe('scout');
+        expect(titleFor({ workflow: 'single', args: { agent: 'scout', task: 'Map the parser' } })).toBe('scout');
+        expect(titleFor({ workflow: 'parallel', args: { tasks: [{ agent: 'worker', task: 'Map the image' }] } })).toBe('worker: Map the image');
+    });
+
     it('falls back to the Codex role when the agent was spawned without a nickname', () => {
         expect(titleFor({
             threadId: 'thread_unnamed',
@@ -218,6 +224,17 @@ describe('deriveSubAgentSidechainSubagents — an async launch acknowledgement i
         ]);
 
         expect(subagent.status).toBe('running');
+    });
+
+    it('reports the launch answer of an async pi-subagents run as running', () => {
+        // pi-subagents answers an async call with the run id and no results; the CLI sends the
+        // real result when the run ends.
+        const subagent = deriveSingle([
+            createAsyncLaunchedSubAgentMessage({ content: 'Detached.', details: { asyncId: 'run-1', results: [] } }),
+        ]);
+
+        expect(subagent.status).toBe('running');
+        expect(subagent.timestamps.finishedAtMs).toBeUndefined();
     });
 
     it('reports the agent as succeeded once a real result supersedes the acknowledgement', () => {

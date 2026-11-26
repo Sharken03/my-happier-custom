@@ -5,7 +5,7 @@ import {
     useSessionPendingMessages,
     useSetting,
 } from '@/sync/domains/state/storage';
-import { buildSessionMetadataStabilitySignatureValue, buildStableJsonSignature } from '@/sync/domains/session/metadata/sessionMetadataStability';
+import { buildSessionMetadataStabilitySignature } from '@/sync/domains/session/metadata/sessionMetadataStability';
 import { useActiveServerAccountScope } from '@/sync/store/hooks';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveTranscriptInteraction';
@@ -59,6 +59,7 @@ export function useChatListRootState(props: ChatListProps) {
     const transcriptGroupingMode = useSetting('transcriptGroupingMode');
     const transcriptGroupToolCalls = useSetting('transcriptGroupToolCalls');
     const transcriptTurnToolCallsGroupStrategy = useSetting('transcriptTurnToolCallsGroupStrategy');
+    const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
     const transcriptSessionCommon = useTranscriptSessionCommon(props.session.id);
     const toolViewTimelineChromeMode = transcriptSessionCommon.toolChrome.toolViewTimelineChromeMode;
 
@@ -80,7 +81,7 @@ export function useChatListRootState(props: ChatListProps) {
         session: props.session,
     });
     const sessionMetadataSignature = React.useMemo(
-        () => buildStableJsonSignature(buildSessionMetadataStabilitySignatureValue(props.session.metadata ?? null)),
+        () => buildSessionMetadataStabilitySignature(props.session.metadata ?? null),
         [props.session.metadata],
     );
     const stableSessionMetadata = useStableValueBySignature(props.session.metadata, sessionMetadataSignature);
@@ -105,6 +106,7 @@ export function useChatListRootState(props: ChatListProps) {
         pendingMessages,
         pendingUserActionRequests,
         sessionId: props.session.id,
+        thinkingDisplayMode: sessionThinkingDisplayMode,
         toolCallsGroupStrategy,
     });
 

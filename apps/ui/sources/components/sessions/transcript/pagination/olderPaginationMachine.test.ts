@@ -6,6 +6,7 @@ import {
     reduceOlderPagination,
     resolveItemsToOlderEdge,
     resolveItemsToNewerEdge,
+    resolveOlderPaginationScrollTrigger,
     shouldLoadNow,
     type OlderPaginationEvent,
     type OlderPaginationState,
@@ -634,6 +635,31 @@ describe('isOlderPaginationBusyNearEdge', () => {
         ]);
         expect(isOlderPaginationBusyNearEdge(exited)).toBe(false);
     });
+});
+
+describe('resolveOlderPaginationScrollTrigger', () => {
+    it('resolves genuine top frames to edge-reached while preserving caller triggers outside the top band', () => {
+        expect(resolveOlderPaginationScrollTrigger({
+            requestedTrigger: 'scroll',
+            offsetY: 0,
+        })).toBe('edge-reached');
+        expect(resolveOlderPaginationScrollTrigger({
+            requestedTrigger: 'scroll',
+            offsetY: 1,
+        })).toBe('edge-reached');
+        expect(resolveOlderPaginationScrollTrigger({
+            requestedTrigger: 'scroll',
+            offsetY: 2,
+        })).toBe('scroll');
+        expect(resolveOlderPaginationScrollTrigger({
+            requestedTrigger: 'edge-reached',
+            offsetY: 2,
+        })).toBe('edge-reached');
+        expect(resolveOlderPaginationScrollTrigger({
+            offsetY: 2,
+        })).toBe('scroll');
+    });
+
 });
 
 describe('resolveItemsToOlderEdge', () => {

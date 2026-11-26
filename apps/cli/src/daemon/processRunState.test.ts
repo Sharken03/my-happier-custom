@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isPidAliveBySignal, readProcessRunState } from './processRunState';
+import { isPidAliveBySignal, readProcessRunState, readSessionRunnerProcessRunState } from './processRunState';
 
 const spawnedPids: number[] = [];
 
@@ -81,5 +81,34 @@ describe('readProcessRunState (win32 semantics)', () => {
   it('maps alive to servable and not-alive to dead', async () => {
     await expect(readProcessRunState(1234, { platform: 'win32', isPidAlive: () => true })).resolves.toBe('servable');
     await expect(readProcessRunState(1234, { platform: 'win32', isPidAlive: () => false })).resolves.toBe('dead');
+  });
+});
+
+describe('readSessionRunnerProcessRunState', () => {
+  const denied = (code: string) => () => {
+    throw Object.assign(new Error('process probe'), { code });
+  };
+
+  it('reports a PID owned by another user (EPERM) as dead on POSIX', async () => {
+    const readRunState = vi.fn(async () => 'servable' as const);
+    await expect(readSessionRunnerProcessRunState(4780, {
+      platform: 'linux', signalPid: denied('EPERM'), readRunState,
+    })).resolves.toBe('dead');
+    expect(readRunState).not.toHaveBeenCalled();
+  });
+
+  it.each(['EACCES', 'EIO'])('keeps the fail-closed run state for %s', async (code) => {
+    await expect(readSessionRunnerProcessRunState(4780, {
+      platform: 'linux', signalPid: denied(code), readRunState: async () => 'servable',
+    })).resolves.toBe('servable');
+  });
+
+  it('keeps the run state of a signalable PID and of EPERM on win32', async () => {
+    await expect(readSessionRunnerProcessRunState(4780, {
+      platform: 'linux', signalPid: () => {}, readRunState: async () => 'stopped',
+    })).resolves.toBe('stopped');
+    await expect(readSessionRunnerProcessRunState(4780, {
+      platform: 'win32', signalPid: denied('EPERM'), readRunState: async () => 'servable',
+    })).resolves.toBe('servable');
   });
 });

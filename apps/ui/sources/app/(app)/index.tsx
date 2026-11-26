@@ -127,6 +127,9 @@ function Authenticated() {
         clearPendingSetupIntent();
     }, [router, sessionId]);
 
+    // The chat preload (setting sessionOpenPreloadV1) lives in SessionsListWrapper: it needs the rows
+    // the list actually draws, and this route does not compute them.
+
     if (isTauriDesktop()) {
         // R11 — setup runs at the shell and never blocks the rest of the app. The Home presents it
         // as the blurred setup veil over the Home content area only: the sidebar, header chrome,

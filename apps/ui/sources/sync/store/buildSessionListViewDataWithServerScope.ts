@@ -99,11 +99,12 @@ export function buildSessionListViewDataWithServerScope(params: {
     serverId?: string | null;
     groupInactiveSessionsByProject: boolean;
     groupGitWorktreesByRepository?: boolean;
-    activeGroupingV1?: 'project' | 'date';
-    inactiveGroupingV1?: 'project' | 'date';
+    activeGroupingV1?: 'project' | 'date' | 'none';
+    inactiveGroupingV1?: 'project' | 'date' | 'none';
     sectionModeV1?: 'activity' | 'single';
     workspacePathDisplayModeV1?: WorkspacePathDisplayModeV1 | null;
     getProjectForSession?: (sessionId: string) => ProjectLookupResult;
+    showHibernatedInActiveList?: boolean;
 }): SessionListViewItem[] {
     const snapshot = getActiveServerSnapshot();
     const serverId = normalizeNonEmptyString(params.serverId) ?? snapshot.serverId;
@@ -130,6 +131,7 @@ export function buildSessionListViewDataWithServerScope(params: {
                 serverId,
                 serverName: profile?.name,
             },
+            showHibernatedInActiveList: params.showHibernatedInActiveList,
         }
     );
 }

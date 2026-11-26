@@ -470,7 +470,8 @@ export const AGENTS_CORE = {
         tools: { delivery: 'shell_bridge', support: 'experimental' },
         media: {
             acceptsImageInput: 'experimental',
-            emitsSessionMedia: EXPERIMENTAL_SESSION_MEDIA_OUTPUT,
+            // Pi tool results carry image blocks; the runtime stores them so the app can show them.
+            emitsSessionMedia: GENERIC_SESSION_MEDIA_OUTPUT,
             nativeImageGeneration: NO_NATIVE_IMAGE_GENERATION,
         },
     },
@@ -600,6 +601,10 @@ export const AGENTS_CORE = {
         // The managed `agy_acp_server` ACP transport never shares session identity with it
         // until a real create → list/load round trip proves equivalence.
         localControl: { supported: true, topology: 'exclusive', attachStrategy: 'tmux' },
+        runtimeInput: {
+            inFlightSteerSupported: true,
+            terminalPromptInjectionSupported: false,
+        },
         tools: { delivery: 'native_mcp', support: 'supported' },
         media: {
             acceptsImageInput: 'experimental',

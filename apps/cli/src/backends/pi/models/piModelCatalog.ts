@@ -1,15 +1,21 @@
-export type PiThinkingEffort = 'low' | 'medium' | 'high' | 'xhigh';
+import { readPricePerMTokFromCostRecord } from '@/backends/modelCapabilities/pricePerMTok';
+
+export type PiThinkingEffort = 'off' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export type PiModelCatalogEntry = Readonly<{
   id: string;
   name: string;
   description: string;
   modelOptions?: unknown[];
+  /** USD per million input tokens, when the provider catalog declares a price. */
+  costInputPerMTok?: number;
+  /** USD per million output tokens, when the provider catalog declares a price. */
+  costOutputPerMTok?: number;
 }>;
 
 export function normalizePiThinkingEffort(raw: unknown): PiThinkingEffort | null {
   const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-  if (value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh') return value;
+  if (value === 'off' || value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh') return value;
   if (value === 'max') return 'xhigh';
   return null;
 }
@@ -18,8 +24,9 @@ export function qualifyPiModelId(providerRaw: unknown, modelIdRaw: unknown): str
   const provider = typeof providerRaw === 'string' ? providerRaw.trim() : '';
   const modelId = typeof modelIdRaw === 'string' ? modelIdRaw.trim() : '';
   if (!provider || !modelId) return null;
-  const providerPrefix = `${provider}/`;
-  return modelId.startsWith(providerPrefix) ? modelId : `${providerPrefix}${modelId}`;
+  // Always prefix: a native id can itself start with the provider name (`nvidia/<model>` in
+  // the `nvidia` provider), and set_model splits the qualified id at the first slash.
+  return `${provider}/${modelId}`;
 }
 
 export function createPiModelCatalogEntry(params: Readonly<{
@@ -28,6 +35,13 @@ export function createPiModelCatalogEntry(params: Readonly<{
   name?: unknown;
   supportsThinking?: boolean;
   thinkingEffort?: unknown;
+  /**
+   * The model's thinkingLevelMap from Pi's models.json: null marks a level the model does not
+   * support, and an `off` value lets the model run without thinking.
+   */
+  thinkingLevelMap?: unknown;
+  /** Pi's `cost` record for the model: USD per million tokens (input, output, cache*). */
+  cost?: unknown;
 }>): PiModelCatalogEntry | null {
   const provider = typeof params.provider === 'string' ? params.provider.trim() : '';
   const id = qualifyPiModelId(provider, params.modelId);
@@ -36,25 +50,50 @@ export function createPiModelCatalogEntry(params: Readonly<{
   const name = typeof params.name === 'string' && params.name.trim().length > 0
     ? params.name.trim()
     : id.slice(id.indexOf('/') + 1);
-  const thinkingEffort = normalizePiThinkingEffort(params.thinkingEffort) ?? 'medium';
+  const levels = resolvePiThinkingEffortChoices(params.thinkingLevelMap);
+  const requested = normalizePiThinkingEffort(params.thinkingEffort) ?? 'medium';
+  const thinkingEffort = levels.some((level) => level.value === requested) ? requested : levels[0]?.value ?? requested;
+
+  const costInputPerMTok = readPricePerMTokFromCostRecord(params.cost, 'input');
+  const costOutputPerMTok = readPricePerMTokFromCostRecord(params.cost, 'output');
 
   return {
     id,
     name,
     description: provider,
+    ...(costInputPerMTok !== undefined ? { costInputPerMTok } : {}),
+    ...(costOutputPerMTok !== undefined ? { costOutputPerMTok } : {}),
     ...(params.supportsThinking === true ? {
       modelOptions: [{
         id: 'reasoning_effort',
         name: 'Thinking',
         type: 'select',
         currentValue: thinkingEffort,
-        options: [
-          { value: 'low', name: 'Low' },
-          { value: 'medium', name: 'Medium' },
-          { value: 'high', name: 'High' },
-          { value: 'xhigh', name: 'Max' },
-        ],
+        options: levels,
       }],
     } : {}),
   };
+}
+
+const PI_THINKING_EFFORT_CHOICES: ReadonlyArray<Readonly<{ value: PiThinkingEffort; name: string }>> = [
+  { value: 'off', name: 'Off' },
+  { value: 'low', name: 'Low' },
+  { value: 'medium', name: 'Medium' },
+  { value: 'high', name: 'High' },
+  { value: 'xhigh', name: 'Max' },
+];
+
+/**
+ * The effort choices a model offers. Without a thinkingLevelMap: Low to Max, as Pi's defaults. With
+ * one: the levels it does not mark null, and Off only when it gives `off` a value.
+ */
+function resolvePiThinkingEffortChoices(thinkingLevelMap: unknown): ReadonlyArray<Readonly<{ value: PiThinkingEffort; name: string }>> {
+  const map = thinkingLevelMap && typeof thinkingLevelMap === 'object' && !Array.isArray(thinkingLevelMap)
+    ? thinkingLevelMap as Record<string, unknown>
+    : null;
+  const choices = PI_THINKING_EFFORT_CHOICES.filter((choice) => {
+    if (choice.value === 'off') return map !== null && typeof map.off === 'string';
+    return map === null || map[choice.value] !== null;
+  });
+  return choices.length > 0 ? choices : PI_THINKING_EFFORT_CHOICES.filter((choice) => choice.value !== 'off');
 }

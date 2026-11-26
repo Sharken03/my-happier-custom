@@ -25,6 +25,46 @@ function toolCallMessage(toolName: string, toolInput: unknown): NormalizedMessag
     };
 }
 
+function toolResultMessage(toolUseId: string): NormalizedMessage {
+    return {
+        id: `msg-result-${toolUseId}`,
+        localId: null,
+        createdAt: 2000,
+        role: 'agent',
+        isSidechain: false,
+        content: [
+            {
+                type: 'tool-result',
+                tool_use_id: toolUseId,
+                content: 'ok',
+                is_error: false,
+                uuid: `uuid-result-${toolUseId}`,
+                parentUUID: null,
+            },
+        ],
+    } as NormalizedMessage;
+}
+
+type RecordedInvalidation = { paths: readonly string[]; unknown: boolean; fromCompletedTool: boolean };
+
+function createInvalidator(input: { now: () => number; refreshOnToolDone: boolean }) {
+    const invalidations: RecordedInvalidation[] = [];
+    const invalidator = new WorkspaceMutationInvalidator({
+        debounceMs: 200,
+        minUnknownOnlyIntervalMs: 1500,
+        now: input.now,
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: (h) => clearTimeout(h as any),
+        refreshOnToolDone: () => input.refreshOnToolDone,
+        onInvalidate: (evt) => invalidations.push({
+            paths: evt.changedPaths,
+            unknown: evt.hasUnknownMutations,
+            fromCompletedTool: evt.fromCompletedTool,
+        }),
+    });
+    return { invalidator, invalidations };
+}
+
 async function advanceTimers(ms: number): Promise<void> {
     await vi.advanceTimersByTimeAsync(ms);
 }
@@ -142,6 +182,52 @@ describe('WorkspaceMutationInvalidator', () => {
             sessionId: 's1',
             changedPaths: ['src/native.ts'],
             hasUnknownMutations: false,
+            fromCompletedTool: false,
         });
+    });
+
+    it('invalidates again with the known paths when a file tool result arrives', async () => {
+        const { invalidator, invalidations } = createInvalidator({ now: () => 1_000, refreshOnToolDone: true });
+
+        invalidator.ingest('s1', [toolCallMessage('Write', { file_path: 'a.ts', content: 'x' })]);
+        await advanceTimers(200);
+        invalidator.ingest('s1', [toolResultMessage('tool-Write')]);
+        await advanceTimers(200);
+
+        expect(invalidations).toEqual([
+            { paths: ['a.ts'], unknown: false, fromCompletedTool: false },
+            { paths: ['a.ts'], unknown: false, fromCompletedTool: true },
+        ]);
+    });
+
+    it('emits a finished shell command after the unknown-only interval instead of dropping it', async () => {
+        let nowMs = 1_000;
+        const { invalidator, invalidations } = createInvalidator({ now: () => nowMs, refreshOnToolDone: true });
+
+        invalidator.ingest('s1', [toolCallMessage('bash', { command: 'python3 render.py' })]);
+        await advanceTimers(200);
+        expect(invalidations).toHaveLength(1);
+
+        nowMs = 1_500;
+        invalidator.ingest('s1', [toolResultMessage('tool-bash')]);
+        await advanceTimers(999);
+        expect(invalidations).toHaveLength(1);
+        await advanceTimers(1);
+        expect(invalidations[1]).toEqual({ paths: [], unknown: true, fromCompletedTool: true });
+    });
+
+    it('ignores tool results when the setting is off or the call did not mutate', async () => {
+        const off = createInvalidator({ now: () => 1_000, refreshOnToolDone: false });
+        off.invalidator.ingest('s1', [toolCallMessage('Write', { file_path: 'a.ts', content: 'x' })]);
+        await advanceTimers(200);
+        off.invalidator.ingest('s1', [toolResultMessage('tool-Write')]);
+        await advanceTimers(2_000);
+        expect(off.invalidations).toHaveLength(1);
+
+        const on = createInvalidator({ now: () => 1_000, refreshOnToolDone: true });
+        on.invalidator.ingest('s1', [toolCallMessage('Read', { file_path: 'a.ts' })]);
+        on.invalidator.ingest('s1', [toolResultMessage('tool-Read')]);
+        await advanceTimers(2_000);
+        expect(on.invalidations).toHaveLength(0);
     });
 });

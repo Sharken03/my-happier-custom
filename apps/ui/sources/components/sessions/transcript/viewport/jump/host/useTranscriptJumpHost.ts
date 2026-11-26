@@ -437,6 +437,7 @@ export function useTranscriptJumpHost(deps: TranscriptJumpHostDeps): TranscriptJ
     const transcriptScrollJumpToBottomMinNewCount = useSetting('transcriptScrollJumpToBottomMinNewCount');
     const transcriptScrollJumpToBottomRevealViewportRatio = useSetting('transcriptScrollJumpToBottomRevealViewportRatio');
     const transcriptScrollJumpToBottomAnimateScroll = useSetting('transcriptScrollJumpToBottomAnimateScroll');
+    const transcriptScrollJumpToBottomShowCount = useSetting('transcriptScrollJumpToBottomShowCount');
     const jumpEnabled = transcriptScrollJumpToBottomEnabled !== false;
     const jumpMinNewCount =
         typeof transcriptScrollJumpToBottomMinNewCount === 'number' && Number.isFinite(transcriptScrollJumpToBottomMinNewCount)
@@ -798,6 +799,7 @@ export function useTranscriptJumpHost(deps: TranscriptJumpHostDeps): TranscriptJ
         minNewActivityCount: jumpMinNewCount,
         newActivityCount: scrollPin.newActivityCount,
         revealThresholdPx: jumpRevealOffsetThresholdPx,
+        showCount: transcriptScrollJumpToBottomShowCount !== false,
         viewportHeightPx: listLayoutHeight,
     });
 

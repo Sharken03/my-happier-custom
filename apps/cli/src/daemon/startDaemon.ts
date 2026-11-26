@@ -51,6 +51,9 @@ import { buildTrackedSpawnOptions, resolveDaemonTerminalPresentation } from '@/d
 import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import { configuration, reloadConfiguration } from '@/configuration';
+import { isChatFolder } from '@/daemon/chatFolders/chatFolderTitleLink';
+import { removeEmptyChatFolder } from '@/daemon/chatFolders/removeEmptyChatFolder';
+import { initChatFolderRepo } from '@/daemon/chatFolders/initChatFolderRepo';
 import { startCaffeinate, stopCaffeinate } from '@/integrations/caffeinate';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
@@ -250,6 +253,7 @@ import {
   HAPPIER_DAEMON_PENDING_FIRST_INPUT_ENV_KEY,
   serializePendingFirstInputForEnv,
 } from './spawn/pendingFirstInput';
+import { prewarmedRunnerSlot } from './spawn/prewarmedRunner';
 import { createDefaultTerminalHostRegistry } from '@/integrations/terminalHost/defaultRegistry';
 import { resolveLiveRunnerSnapshotFingerprints } from './sessionRunnerRuntime/resolveLiveRunnerSnapshotFingerprints';
 import { buildHappySessionControlArgs } from './sessionSpawnArgs';
@@ -1576,6 +1580,9 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
   } = createDaemonShutdownController();
 
   logger.debug('[DAEMON RUN] Starting daemon process...');
+  // Without HAPPIER_CHATS_DIR, chats get no own folder and no git repository; say so once, because
+  // nothing else in the log shows it.
+  logger.debug(`[DAEMON RUN] Chat folders: ${configuration.chatsDir ?? 'off (HAPPIER_CHATS_DIR is not set)'}`);
   logger.debugLargeJson('[DAEMON RUN] Environment', getEnvironmentInfo());
   const diagnosticSubsystemGates = resolveDaemonDiagnosticSubsystemGates(process.env);
 
@@ -3574,13 +3581,32 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
 
               const ensuredDirectory = await ensureSessionDirectory({
                 directory: resolvedDirectory,
-                approvedNewDirectoryCreation,
+                // A chat's own folder is daemon-owned: a chat that stopped empty lost it
+                // (removeEmptyChatFolder) and gets it back when it resumes.
+                approvedNewDirectoryCreation: approvedNewDirectoryCreation
+                  || (configuration.chatsDir !== null && isChatFolder(resolvedDirectory, configuration.chatsDir)),
               });
               if (!ensuredDirectory.ok) {
                 logger.debug(`[DAEMON RUN] Directory setup failed for ${resolvedDirectory}`, ensuredDirectory.response);
                 return ensuredDirectory.response;
               }
               directoryCreated = ensuredDirectory.directoryCreated;
+              if (configuration.chatsDir) {
+                // A chat folder gets a git repository for the app's changed-files view. Not only the
+                // folder this spawn created: a row-first spawn or a prewarmed runner has already
+                // made it, and initChatFolderRepo itself skips non-chat folders and existing
+                // repositories. The spawn does not wait for it: git init takes about 0.3 s on a phone,
+                // and the first reader (the changed-files view, an agent's first tool call) comes
+                // seconds later.
+                void initChatFolderRepo({ sessionPath: resolvedDirectory, chatsDir: configuration.chatsDir }).then(
+                  (initialized) => {
+                    if (initialized) logger.debug(`[DAEMON RUN] Made the chat folder a git repository: ${resolvedDirectory}`);
+                  },
+                  (error: unknown) => {
+                    logger.warnFile('[DAEMON RUN] Could not make the chat folder a git repository', { error: String(error) });
+                  },
+                );
+              }
 
               try {
 
@@ -4689,7 +4715,30 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     launchOptions: runnerLaunchOptions,
                   })
                   : null;
-              const happyProcess = cgroupSelfMigratingLaunchSpec
+              // A prewarmed runner can take this launch: same program and flags, and an
+              // environment that differs only in the per-session variables. The cgroup launch is
+              // the same shell command with the runner's arguments last, so the prewarmed process
+              // joins its cgroup when it starts.
+              const prewarmLaunch = (() => {
+                if (!prewarmedRunnerSlot.isEnabled()) return null;
+                const launchSpec = cgroupSelfMigratingLaunchSpec
+                  ?? buildHappyCliSubprocessLaunchSpec(args, runnerLaunchOptions);
+                const baseArgs = launchSpec.args.slice(0, launchSpec.args.length - args.length);
+                const userArgs = launchSpec.args.slice(baseArgs.length);
+                if (userArgs.length !== args.length || userArgs.some((arg, index) => arg !== args[index])) {
+                  logger.debug('[DAEMON RUN] Prewarm: the launch arguments differ from the spawn arguments');
+                  return null;
+                }
+                return {
+                  filePath: launchSpec.filePath,
+                  baseArgs,
+                  env: { ...childProcessEnv, ...(launchSpec.env ?? {}) },
+                };
+              })();
+              const prewarmedRunner = prewarmLaunch
+                ? prewarmedRunnerSlot.take({ ...prewarmLaunch, userArgs: args, cwd: resolvedDirectory })
+                : null;
+              const happyProcess = prewarmedRunner ?? (cgroupSelfMigratingLaunchSpec
                 ? spawnChildProcess(
                   cgroupSelfMigratingLaunchSpec.filePath,
                   cgroupSelfMigratingLaunchSpec.args,
@@ -4701,7 +4750,16 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
                     },
                   },
                 )
-                : spawnHappyCLI(args, spawnOptions, runnerLaunchOptions);
+                : spawnHappyCLI(args, spawnOptions, runnerLaunchOptions));
+              if (prewarmedRunner) {
+                logger.debug(`[DAEMON RUN] Using the prewarmed runner process ${prewarmedRunner.pid}`);
+              }
+              if (prewarmLaunch) {
+                prewarmedRunnerSlot.rememberLaunch({ ...prewarmLaunch, cwd: configuration.happyHomeDir });
+                // The next chat is likely to follow: load its runner now. The app asks for a
+                // preview only once per app session, so the daemon cannot wait for it.
+                prewarmedRunnerSlot.prewarm();
+              }
 
               if (!happyProcess.pid) {
                 logger.debug('[DAEMON RUN] Failed to spawn process - no PID returned');
@@ -5639,6 +5697,12 @@ export async function startDaemon(options: Readonly<{ takeover?: boolean }> = {}
           },
           onFinalTrackedSessionExitStaged: async ({ pid, trackedSession }) => {
             if (connectedServicesRestartRequestedPids.has(pid)) return;
+            const chatFolderPath = trackedSession.happySessionMetadataFromLocalWebhook?.path;
+            if (configuration.chatsDir && typeof chatFolderPath === 'string') {
+              await removeEmptyChatFolder({ sessionPath: chatFolderPath, chatsDir: configuration.chatsDir }).catch((error: unknown) => {
+                logger.warnFile('[DAEMON RUN] Could not remove an empty chat folder', { pid, error: String(error) });
+              });
+            }
             const sessionId = typeof trackedSession.happySessionId === 'string'
               ? trackedSession.happySessionId.trim()
               : '';

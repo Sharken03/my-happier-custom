@@ -1,8 +1,7 @@
 import * as React from 'react';
-import { act } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { invokeTestInstanceHandler, renderScreen } from '@/dev/testkit';
+import { renderScreen } from '@/dev/testkit';
 import { installReactNativeWebMock } from '@/dev/testkit/mocks/reactNative';
 import { installUnistylesMock } from '@/dev/testkit/mocks/unistyles';
 import { createTextModuleMock } from '@/dev/testkit/mocks/text';
@@ -250,7 +249,9 @@ describe('SessionMediaInlineImages', () => {
         expect(preview?.props.resizeMode).toBe('contain');
     });
 
-    it('preserves transcript image aspect ratios after loaded previews report dimensions', async () => {
+    // The transcript estimate sizes a tile from its metadata only, so a tile without dimensions
+    // keeps the fallback box after the load: a resize would move every row below it.
+    it('keeps the fallback tile size after a preview without metadata dimensions loads', async () => {
         const { SessionMediaInlineImages } = await import('./SessionMediaInlineImages');
 
         const media = {
@@ -281,18 +282,9 @@ describe('SessionMediaInlineImages', () => {
             height: 84,
         });
 
-        await act(async () => {
-            invokeTestInstanceHandler(screen.findByTestId(previewTestID), 'onLoad', {
-                nativeEvent: {
-                    source: { width: 900, height: 1600 },
-                },
-            });
-        });
-
-        expect(flattenStyle(screen.findByTestId(tileTestID)?.props.style)).toMatchObject({
-            width: 90,
-            height: 160,
-        });
+        // No load handler: the loaded size of the image cannot reach the tile.
+        expect(screen.findByTestId(previewTestID)?.props.onLoad).toBeUndefined();
+        expect(screen.findByTestId(previewTestID)?.props.resizeMode).toBe('contain');
     });
 
     it('renders public media as inert metadata without invoking the preview hook', async () => {

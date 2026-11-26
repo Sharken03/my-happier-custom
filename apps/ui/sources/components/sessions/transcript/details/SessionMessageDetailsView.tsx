@@ -1,7 +1,7 @@
 import { isSubAgentTranscriptToolName, type ParticipantRecipientV1 } from '@happier-dev/protocol';
 import * as React from 'react';
 import { View } from 'react-native';
-import type { TextStyle, ViewStyle } from 'react-native';
+import type { ScrollViewProps, TextStyle, ViewStyle } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { useSessionAgentInputRoutingControls } from '@/components/sessions/agentInput/routing/useSessionAgentInputRoutingControls';
@@ -32,6 +32,7 @@ import { deriveTranscriptInteractionFromSession } from '@/utils/sessions/deriveT
 import { Typography } from '@/constants/Typography';
 import { ToolFullView } from '@/components/tools/shell/views/ToolFullView';
 import { useSessionRecipientState } from '@/components/sessions/agentInput/routing/useSessionRecipientState';
+import { useSubagentToolTranscriptMessages } from '@/hooks/session/useSubagentToolTranscriptMessages';
 
 type SessionMessageDetailsTheme = Readonly<{
     colors: Readonly<{
@@ -148,6 +149,7 @@ function ToolCallDetailsView(props: Readonly<{
     session: Session;
     jumpChildId: string | null;
     showComposer: boolean;
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
 }>) {
     const { theme } = useUnistyles();
     const styles = React.useMemo(() => createSessionMessageDetailsStyles(theme), [theme]);
@@ -192,6 +194,13 @@ function ToolCallDetailsView(props: Readonly<{
     const focusedTool = props.message.tool;
     const toolName = focusedTool?.name;
     const canShowComposer = typeof toolName === 'string' && isSubAgentTranscriptToolName(toolName);
+    // The children published with the tool message are a snapshot; the sidechain is the live list
+    // (see useSubagentToolTranscriptMessages), so a child that keeps working keeps growing here.
+    const focusedMessages = useSubagentToolTranscriptMessages({
+        sessionId: props.sessionId,
+        tool: focusedTool ?? null,
+        fallback: props.message.children,
+    });
 
     const baseParticipantTargets = React.useMemo(() => {
         return deriveSessionParticipantTargets({
@@ -209,20 +218,20 @@ function ToolCallDetailsView(props: Readonly<{
             tool: focusedTool,
             messages: committedMessages,
             activeExecutionRuns: runningExecutionRuns,
-            focusedMessages: props.message.children,
+            focusedMessages,
             canControlExecutionRuns,
         });
-    }, [canControlExecutionRuns, canShowComposer, committedMessages, focusedTool, props.message.children, props.session, runningExecutionRuns]);
+    }, [canControlExecutionRuns, canShowComposer, committedMessages, focusedMessages, focusedTool, props.session, runningExecutionRuns]);
 
     const visibleFocusedMessages = React.useMemo(() => {
         return resolveSessionSubagentVisibleMessages({
             session: props.session,
             tool: focusedTool,
             messages: committedMessages,
-            focusedMessages: props.message.children,
+            focusedMessages,
             activeExecutionRuns: runningExecutionRuns,
         });
-    }, [committedMessages, focusedTool, props.message.children, props.session, runningExecutionRuns]);
+    }, [committedMessages, focusedMessages, focusedTool, props.session, runningExecutionRuns]);
 
     const participantTargets = React.useMemo(() => {
         return ensureAutoRecipientTarget(baseParticipantTargets, autoRecipient);
@@ -247,12 +256,14 @@ function ToolCallDetailsView(props: Readonly<{
             <ToolFullView
                 tool={props.message.tool}
                 owningMessageId={props.message.id}
+                meta={props.message.meta}
                 messages={[...visibleFocusedMessages]}
                 sessionId={props.sessionId}
                 metadata={props.session.metadata ?? null}
                 interaction={interaction}
                 jumpChildId={props.jumpChildId}
                 forcePermissionFooterInTranscript={forcePermissionFooterInTranscript}
+                ScrollComponent={props.ScrollComponent}
             />
 
             {shouldShowComposer ? (
@@ -277,6 +288,8 @@ export const SessionMessageDetailsView = React.memo((props: Readonly<{
     message: Message;
     jumpChildId?: string | null;
     showComposer?: boolean;
+    /** Replaces the scroll view of a tool call's generic detail (see ToolFullView). */
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
 }>) => {
     const { theme } = useUnistyles();
     const styles = React.useMemo(() => createSessionMessageDetailsStyles(theme), [theme]);
@@ -291,6 +304,7 @@ export const SessionMessageDetailsView = React.memo((props: Readonly<{
                         session={props.session}
                         jumpChildId={props.jumpChildId ?? null}
                         showComposer={props.showComposer ?? true}
+                        ScrollComponent={props.ScrollComponent}
                     />
                 ) : props.message.kind === 'agent-text' || props.message.kind === 'user-text' ? (
                     <TextFullView text={props.message.text} />

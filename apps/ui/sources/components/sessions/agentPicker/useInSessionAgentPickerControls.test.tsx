@@ -15,6 +15,7 @@ import {
     useInSessionAgentPickerControls,
     type SessionAgentContinuationFeatureDecision,
 } from './useInSessionAgentPickerControls';
+import type { FavoriteModelSelectionV1 } from '@/sync/domains/models/favoriteModelSelections';
 import type {
     SessionAgentContinuationMachineTarget,
     SessionAgentContinuationSourceState,
@@ -121,7 +122,10 @@ type HookProps = Readonly<{
     machine?: SessionAgentContinuationMachineTarget;
     featureDecision?: SessionAgentContinuationFeatureDecision;
     sessionActive?: boolean | null;
+    favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
 }>;
+
+const favoriteModelSelectionsWrites: FavoriteModelSelectionV1[][] = [];
 
 async function renderControls(props: HookProps = {}) {
     return renderHook((hookProps: HookProps) => useInSessionAgentPickerControls({
@@ -135,6 +139,10 @@ async function renderControls(props: HookProps = {}) {
         source: hookProps.source ?? supportedSource,
         machine: hookProps.machine ?? onlineMachine,
         detail: detailContext,
+        favoriteModelSelections: hookProps.favoriteModelSelections ?? [],
+        setFavoriteModelSelections: (favorites) => {
+            favoriteModelSelectionsWrites.push(favorites);
+        },
     }), { initialProps: props });
 }
 
@@ -484,6 +492,73 @@ describe('useInSessionAgentPickerControls', () => {
         expect(hook.getCurrent().armedContinuationLocalId).not.toBe(firstLocalId);
         // The model row's own selected state is the feedback; announcing again would nag.
         expect(announceAccessibilityMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        ['kimi', 'kimi-code/k3.1-pro'],
+        ['codex', 'gpt-5'],
+    ])('omits an absent session mode when selecting a model for %s', async (agentId, modelId) => {
+        const hook = await renderControls({ entries: [entry('claude'), entry(agentId)] });
+        await openPicker(hook);
+
+        await act(async () => {
+            optionsOf(hook.getCurrent())[1]?.renderDetailContent?.();
+            detailSelectionChangeRef.current?.({
+                modelId,
+                modelLabel: 'K3.1 Pro',
+                sessionModeId: '',
+                configOverrides: {},
+            });
+        });
+
+        expect(machineRpcWithServerScope).toHaveBeenLastCalledWith(expect.objectContaining({
+            method: 'session.continuation.inspectBatch',
+            payload: {
+                v: 1,
+                sourceSessionId: 'session-1',
+                selections: [{ v: 1, agentId, modelId }],
+            },
+        }));
+        expect(hook.getCurrent().armedContinuation?.selection).toEqual({
+            v: 1,
+            agentId,
+            modelId,
+        });
+    });
+
+    it('preserves the session mode for a target that supports session modes', async () => {
+        const hook = await renderControls({ entries: [entry('claude'), entry('codex')] });
+        await openPicker(hook);
+
+        await act(async () => {
+            optionsOf(hook.getCurrent())[1]?.renderDetailContent?.();
+            detailSelectionChangeRef.current?.({
+                modelId: 'gpt-5',
+                modelLabel: 'GPT-5',
+                sessionModeId: 'review',
+                configOverrides: {},
+            });
+        });
+
+        expect(machineRpcWithServerScope).toHaveBeenLastCalledWith(expect.objectContaining({
+            method: 'session.continuation.inspectBatch',
+            payload: {
+                v: 1,
+                sourceSessionId: 'session-1',
+                selections: [{
+                    v: 1,
+                    agentId: 'codex',
+                    modelId: 'gpt-5',
+                    acpSessionModeId: 'review',
+                }],
+            },
+        }));
+        expect(hook.getCurrent().armedContinuation?.selection).toEqual({
+            v: 1,
+            agentId: 'codex',
+            modelId: 'gpt-5',
+            acpSessionModeId: 'review',
+        });
     });
 
     it('names the armed row for screen readers instead of wrapping a subtitle under it', async () => {
@@ -935,5 +1010,36 @@ describe('useInSessionAgentPickerControls', () => {
 
         expect(optionsOf(hook.getCurrent())).toEqual([CURRENT_AGENT_ROW]);
         expect(machineRpcWithServerScope).not.toHaveBeenCalled();
+    });
+
+    describe('model favorites', () => {
+        const codexFavorite: FavoriteModelSelectionV1 = {
+            backendTargetKey: 'builtInAgent:codex',
+            modelId: 'gpt-5',
+            builtInAgentId: 'codex',
+            modelLabel: 'GPT-5',
+        };
+
+        it('offers no Favorites view in the rail: the Session reaches favorites through each Agent', async () => {
+            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
+            await openPicker(hook);
+
+            expect(optionsOf(hook.getCurrent()).map((option) => option.id)).toEqual([
+                'engine:claude',
+                'builtInAgent:codex',
+            ]);
+            expect(optionsOf(hook.getCurrent()).map((option) => option.label))
+                .not.toContain(t('profiles.groups.favorites'));
+        });
+
+        it('keeps each Agent\'s own model list, deferred until its row is opened', async () => {
+            const hook = await renderControls({ favoriteModelSelections: [codexFavorite] });
+            await openPicker(hook);
+
+            const option = optionsOf(hook.getCurrent()).find((candidate) => candidate.id === 'builtInAgent:codex');
+            expect(option?.deferRenderDetailContent).toBe(true);
+            expect(option?.deferredDetailContentCacheKey).toContain('builtInAgent:codex');
+            expect(option?.renderDetailContent).toBeTypeOf('function');
+        });
     });
 });

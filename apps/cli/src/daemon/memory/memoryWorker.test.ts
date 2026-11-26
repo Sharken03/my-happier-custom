@@ -781,4 +781,91 @@ describe('memoryWorker', () => {
       vi.useRealTimers();
     }
   });
+  it('stops background indexing of a session the server no longer has', async () => {
+    vi.useFakeTimers();
+    const argvBackup = process.argv.slice();
+    try {
+      const fetchSessionsPage = vi.fn(async () => ({
+        sessions: [
+          { id: 'sess-live', createdAt: 1_000, updatedAt: 9_000, activeAt: 0 },
+          { id: 'sess-deleted', createdAt: 1_000, updatedAt: 9_000, activeAt: 0 },
+        ],
+        nextCursor: null,
+        hasNext: false,
+      }));
+      const fetchSessionById = vi.fn(async () => ({}));
+      const { createHttpStatusError } = await import('@/api/client/httpStatusError');
+      const fetchEncryptedTranscriptMessagesPage = vi.fn(async ({ sessionId }: { sessionId: string }) => {
+        if (sessionId === 'sess-deleted') {
+          throw createHttpStatusError(404, 'Unexpected status from /v1/sessions/:id/messages: 404');
+        }
+        return { messages: [], hasMore: false, nextBeforeSeq: null, nextAfterSeq: null };
+      });
+
+      vi.doMock('@/session/transport/http/sessionsHttp', () => ({
+        fetchSessionsPage,
+        fetchSessionById,
+      }));
+      vi.doMock('@/session/replay/fetchEncryptedTranscriptMessages', () => ({
+        fetchEncryptedTranscriptMessagesPage,
+      }));
+
+      const { writeMemorySettingsToDisk } = await import('@/settings/memorySettings');
+      await writeMemorySettingsToDisk({
+        v: 1,
+        enabled: true,
+        indexMode: 'deep',
+        backfillPolicy: 'all_history',
+        worker: {
+          tickIntervalMs: 500,
+          inventoryRefreshIntervalMs: 5_000,
+          maxSessionsPerTick: 1,
+          sessionListPageLimit: 10,
+        },
+      });
+
+      process.argv = ['node', 'happier', 'daemon', 'start-sync'];
+      vi.doMock('@/configuration', async () => {
+        const actual = await vi.importActual<typeof import('@/configuration')>('@/configuration');
+        return {
+          ...actual,
+          configuration: {
+            ...actual.configuration,
+            isDaemonProcess: true,
+          },
+        };
+      });
+      const { startMemoryWorker } = await import('./memoryWorker');
+      const credentials: Credentials = { token: 't', encryption: { type: 'legacy', secret: new Uint8Array(32).fill(1) } };
+      const worker = await startMemoryWorker({ credentials, machineId: 'machine_1' });
+      await worker.reloadSettings();
+
+      const deletedSessionFetches = () => fetchEncryptedTranscriptMessagesPage.mock.calls
+        .filter(([args]) => args.sessionId === 'sess-deleted').length;
+      const liveSessionFetches = () => fetchEncryptedTranscriptMessagesPage.mock.calls
+        .filter(([args]) => args.sessionId === 'sess-live').length;
+
+      // The worker also waits on real I/O (SQLite, settings files), so fake time alone does not
+      // fix when a tick runs. Advance one tick at a time until the expected fetch happens.
+      const advanceTicksUntil = async (done: () => boolean) => {
+        for (let tick = 0; tick < 200 && !done(); tick += 1) {
+          await vi.advanceTimersByTimeAsync(500);
+        }
+      };
+
+      await advanceTicksUntil(() => deletedSessionFetches() > 0);
+      const deletedAfterFirstVisit = deletedSessionFetches();
+      expect(deletedAfterFirstVisit).toBeGreaterThan(0);
+
+      const liveAfterFirstVisit = liveSessionFetches();
+      await advanceTicksUntil(() => liveSessionFetches() > liveAfterFirstVisit + 2);
+      expect(liveSessionFetches()).toBeGreaterThan(liveAfterFirstVisit + 2);
+      expect(deletedSessionFetches()).toBe(deletedAfterFirstVisit);
+
+      worker.stop();
+    } finally {
+      process.argv = argvBackup;
+      vi.useRealTimers();
+    }
+  });
 });

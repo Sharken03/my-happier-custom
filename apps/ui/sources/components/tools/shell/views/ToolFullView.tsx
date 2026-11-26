@@ -1,6 +1,9 @@
 import * as React from 'react';
-import { View, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Platform, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { ToolCall, Message } from '@/sync/domains/messages/messageTypes';
+import type { MessageMeta } from '@/sync/domains/messages/messageMetaTypes';
+import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { ToolResultMedia } from '@/components/sessions/sessionMedia/ToolResultMedia';
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Metadata } from '@/sync/domains/state/storageTypes';
 import { getToolViewComponent } from '@/components/tools/renderers/core/_registry';
@@ -24,6 +27,8 @@ import { ToolError } from '@/components/tools/shell/presentation/ToolError';
 import { resolveToolPermissionTerminalErrorMessage } from '../permissions/resolveToolPermissionTerminalErrorMessage';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
 import { Icon } from '@/components/ui/icons/Icon';
+import { stripInternalToolInputKeys } from './formatToolResultJson';
+import { ToolResultFormatToggle, useToolResultFormat } from './ToolResultFormatToggle';
 import { useHistoricalTranscriptAgentId } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
 
 
@@ -36,9 +41,26 @@ interface ToolFullViewProps {
     jumpChildId?: string | null;
     forcePermissionFooterInTranscript?: boolean;
     interaction?: TranscriptInteraction;
+    /** Replaces the ScrollView of the generic view, for example with the scroll view of the Tool calls sheet. */
+    ScrollComponent?: React.ComponentType<ScrollViewProps>;
+    /** The tool call message's meta. Its session media (result images) shows under the result. */
+    meta?: MessageMeta;
 }
 
-export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction }: ToolFullViewProps) {
+/** Result code block with a toggle that pretty-prints JSON text. */
+function FormattableResult({ code, canFormat }: { code: string; canFormat: boolean }) {
+    const format = useToolResultFormat(code, canFormat);
+    if (format.formatted === null) return <CodeView code={code} />;
+    return (
+        <View>
+            <ToolResultFormatToggle on={format.on} onToggle={format.toggle} />
+            <CodeView code={format.shown ?? code} />
+        </View>
+    );
+}
+
+export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messages = [], jumpChildId, forcePermissionFooterInTranscript = false, interaction, ScrollComponent, meta }: ToolFullViewProps) {
+    const Scroll = ScrollComponent ?? ScrollView;
     const { theme } = useUnistyles();
     // This view opens one historical row on its own screen, so the row's own
     // Agent — published by the opener — outranks the Session's current one.
@@ -58,6 +80,8 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
             historicalAgentId,
         });
     }, [historicalAgentId, interaction?.permissionDisabledReason, metadata, toolForRendering]);
+
+    const resultMedia = React.useMemo(() => parseSessionMediaMessageMeta(meta), [meta]);
 
     const permissionTerminalError = permissionTerminalErrorMessage ? (
         <TextSelectabilityScope selectable>
@@ -215,7 +239,7 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
     }
 
     return (
-        <ScrollView style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
+        <Scroll style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
             <View style={styles.contentWrapper}>
                 {/* Tool-specific content or generic fallback */}
                 {SpecializedFullView ? (
@@ -250,7 +274,7 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                                         <Icon name="sign-in" size={20} color={theme.colors.accent.indigo} />
                                         <Text style={styles.sectionTitle}>{t('tools.fullView.inputParams')}</Text>
                                     </View>
-                                    <CodeView code={JSON.stringify(toolForRendering.input, null, 2)} />
+                                    <CodeView code={JSON.stringify(stripInternalToolInputKeys(toolForRendering.input), null, 2)} />
                                 </View>
                             )}
 
@@ -261,8 +285,9 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                                         <Icon name="sign-out" size={20} color={theme.colors.state.success.foreground} />
                                         <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
                                     </View>
-                                    <CodeView
+                                    <FormattableResult
                                         code={typeof toolForRendering.result === 'string' ? toolForRendering.result : JSON.stringify(toolForRendering.result, null, 2)}
+                                        canFormat={typeof toolForRendering.result === 'string'}
                                     />
                                 </View>
                             )}
@@ -308,15 +333,23 @@ export function ToolFullView({ tool, owningMessageId, sessionId, metadata, messa
                     </TextSelectabilityScope>
                 )}
 
+                {sessionId ? (
+                    <View style={styles.resultMedia}>
+                        <ToolResultMedia sessionId={sessionId} media={resultMedia} interaction={interaction} />
+                    </View>
+                ) : null}
                 {permissionTerminalError}
                 {permissionFooter}
                 {debugSection}
             </View>
-        </ScrollView>
+        </Scroll>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
+    resultMedia: {
+        paddingHorizontal: 16,
+    },
     container: {
         flex: 1,
         backgroundColor: theme.colors.surface.base,

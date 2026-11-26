@@ -146,6 +146,22 @@ describe('extractWorkspaceMutationsFromNormalizedMessages', () => {
         expect(result.hasUnknownMutations).toBe(false);
     });
 
+    it('extracts the path of an agy edit in the shape of Pi tools', () => {
+        const result = extractWorkspaceMutationsFromNormalizedMessages({
+            messages: [
+                toolCallMessageWithCanonicalToolName('edit', 'MultiEdit', {
+                    path: '/home/u/tools/ops/turns',
+                    file_path: '/home/u/tools/ops/turns',
+                    edits: [{ file_path: '/home/u/tools/ops/turns', oldText: 'a', newText: 'b' }],
+                }),
+                toolCallMessageWithCanonicalToolName('write', 'Write', { path: '/home/u/tools/new.md', content: 'x' }),
+            ],
+        });
+
+        expect(new Set(result.paths)).toEqual(new Set(['/home/u/tools/ops/turns', '/home/u/tools/new.md']));
+        expect(result.hasUnknownMutations).toBe(false);
+    });
+
     it('extracts both source and destination paths from rename and move tool calls', () => {
         const result = extractWorkspaceMutationsFromNormalizedMessages({
             messages: [

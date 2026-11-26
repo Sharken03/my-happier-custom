@@ -19,6 +19,7 @@ describe('detectCliSnapshotOnDaemonPath (version retry)', () => {
       'PATH',
       'HAPPIER_CODEX_PATH',
       'HAPPIER_TEST_CLI_SNAPSHOT_RETRY_STATE_FILE',
+      'HAPPIER_CLI_SNAPSHOT_PROBE_TIMEOUT_MS',
     ]);
 
     try {
@@ -47,6 +48,9 @@ process.exit(0);
       envScope.patch({
         HAPPIER_TEST_CLI_SNAPSHOT_RETRY_STATE_FILE: stateFile,
         HAPPIER_CODEX_PATH: codexPath,
+        // The first attempt uses its whole timeout (1.2 s locally). The default 1.5 s budget then
+        // leaves too little time for a second process start on a slow host.
+        HAPPIER_CLI_SNAPSHOT_PROBE_TIMEOUT_MS: '6000',
       });
 
       const { detectCliSnapshotOnDaemonPath } = await import('./cliSnapshot');

@@ -1,4 +1,5 @@
-export const DEFAULT_TRANSCRIPT_TOOL_CALLS_COLLAPSED_PREVIEW_COUNT = 3;
+// 8T fork: a collapsed group shows only its header, as in Claude Code; the person opens it.
+export const DEFAULT_TRANSCRIPT_TOOL_CALLS_COLLAPSED_PREVIEW_COUNT = 0;
 
 const MAX_TRANSCRIPT_TOOL_CALLS_COLLAPSED_PREVIEW_COUNT = 15;
 

@@ -77,6 +77,8 @@ export type StoryDeckSlideTransitionProps = Readonly<{
     onCommitPrevious: () => void;
     /** Fraction of pageWidth required to commit a card change on release; default 0.4. */
     gestureThresholdRatio?: number;
+    /** Defaults to true. False turns the swipe off, for example while a child zooms its content. */
+    gestureEnabled?: boolean;
     /** Defaults to true (premium signature for full-screen carousels). */
     blur?: boolean;
     /** Defaults to 'soft'. */

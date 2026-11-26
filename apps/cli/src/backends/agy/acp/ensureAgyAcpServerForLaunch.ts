@@ -1,7 +1,7 @@
 import type { AccountSettings } from '@happier-dev/protocol';
 import { INSTALLABLE_KEYS } from '@happier-dev/protocol';
 
-import { resolveExistingAgyAcpManagedBinPath } from '@/capabilities/deps/agyAcp';
+import { resolveAgyAcpCommandOverride, resolveExistingAgyAcpManagedBinPath } from '@/capabilities/deps/agyAcp';
 import { ensureRuntimeInstallablesForLaunch } from '@/installables/runtime/ensureRuntimeInstallablesForLaunch';
 import { readSettings } from '@/persistence';
 import { getActiveAccountSettingsSnapshot } from '@/settings/accountSettings/activeAccountSettingsSnapshot';
@@ -12,6 +12,8 @@ export async function ensureAgyAcpServerForLaunch(params: Readonly<{
   env?: NodeJS.ProcessEnv;
   readinessOnly?: boolean;
 }> = {}): Promise<Readonly<{ command: string; args: readonly string[] }>> {
+  const override = resolveAgyAcpCommandOverride({ ...process.env, ...params.env });
+  if (override) return override;
   const machineId = (await readSettings()).machineId ?? '';
   const ensured = await ensureRuntimeInstallablesForLaunch({
     installableKeys: [INSTALLABLE_KEYS.AGY_ACP_SERVER],

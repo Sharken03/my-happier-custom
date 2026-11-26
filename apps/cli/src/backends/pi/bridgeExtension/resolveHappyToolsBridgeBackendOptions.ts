@@ -16,6 +16,19 @@ import { ensurePiBridgeExtensionAsset } from './piBridgeExtensionAssets';
 import { readActionsSettingsOverrideFromEnv } from '@/settings/actionsSettings';
 import { resolveSessionAgentToolPresentation } from '@/agent/tools/happierTools/resolveSessionAgentToolPresentation';
 import { PiBridgeSessionConfigSchema, type PiBridgeSessionConfig } from './piBridgeSessionConfig';
+import { resolvePiSessionTitleReminder } from './piSessionTitleReminder';
+
+/** The Happier title of a session (summary.text, else the legacy name), as `{ title }` or `{}`. */
+function readSessionTitle(sessionMetadata: unknown): { title?: string } {
+  const metadata = sessionMetadata && typeof sessionMetadata === 'object' && !Array.isArray(sessionMetadata)
+    ? sessionMetadata as Record<string, unknown>
+    : null;
+  const summary = metadata?.summary as { text?: unknown } | undefined;
+  for (const candidate of [summary?.text, metadata?.name]) {
+    if (typeof candidate === 'string' && candidate.trim()) return { title: candidate.trim() };
+  }
+  return {};
+}
 
 /**
  * Resolved tools-bridge backend options for a Pi session. `extensionPath` is passed via
@@ -105,7 +118,16 @@ export async function resolveHappyToolsBridgeBackendOptions(params: Readonly<{
       executionRunsFeatureEnabled: false,
       memoryRecallGuidanceEnabled: memoryGuidanceEnabled,
       sessionTitleToolAvailable: directToolNames.has('change_title'),
+      showImageToolAvailable: directToolNames.has('show_image'),
     })),
+    sessionTitleReminder: resolvePiSessionTitleReminder({
+      settings: params.settings,
+      sessionMetadata: params.sessionMetadata,
+      sessionTitleToolAvailable: directToolNames.has('change_title'),
+    }),
+    ...(directToolNames.has('change_title')
+      ? { sessionName: { toolName: 'change_title', ...readSessionTitle(params.sessionMetadata) } }
+      : {}),
     launch: {
       filePath: launchSpec.filePath,
       argPrefix: launchArgPrefix,

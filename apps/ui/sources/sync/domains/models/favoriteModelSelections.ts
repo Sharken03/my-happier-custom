@@ -12,6 +12,8 @@ export const FavoriteModelSelectionV1Schema = z.object({
     backendLabel: z.string().optional(),
     modelLabel: z.string().optional(),
     addedAtMs: z.number().int().nonnegative().optional(),
+    /** New chats started with this model; the picker can sort favorites by it. */
+    useCount: z.number().int().nonnegative().optional(),
 });
 
 export type FavoriteModelSelectionV1 = z.infer<typeof FavoriteModelSelectionV1Schema>;
@@ -69,6 +71,47 @@ export function favoriteModelSelectionMatchesBackend(
         && backendConfiguredBackendId
         && selectionConfiguredBackendId === backendConfiguredBackendId,
     );
+}
+
+/**
+ * The favorite-identity of a resolved catalog entry, from the entry's own target.
+ *
+ * Every surface that stars or reads favorites for one Agent resolves the same
+ * identity here, so a favorite written on one surface is found by the others.
+ */
+export function buildFavoriteModelBackendIdentityForEntry(entry: Readonly<{
+    targetKey: string;
+    providerAgentId?: string | null;
+    builtInAgentId?: string | null;
+    target: Readonly<{ kind: string; backendId?: string; agentId?: string }>;
+}>): FavoriteModelBackendIdentity {
+    return {
+        backendTargetKey: entry.targetKey,
+        providerAgentId: entry.providerAgentId ?? null,
+        builtInAgentId: entry.builtInAgentId ?? null,
+        configuredBackendId: entry.target.kind === 'configuredAcpBackend'
+            ? entry.target.backendId ?? null
+            : null,
+    };
+}
+
+/**
+ * The favorite model values of one backend, as the model picker's selection values.
+ *
+ * Available-favorite resolution needs a model list to filter against; a picker that
+ * already shows one backend's models only needs to know which of them are favorites.
+ */
+export function resolveFavoriteModelValuesForBackend(params: Readonly<{
+    favorites: readonly FavoriteModelSelectionV1[];
+    backend: FavoriteModelBackendIdentity;
+}>): ReadonlySet<string> {
+    const values = new Set<string>();
+    for (const favorite of params.favorites) {
+        if (!favoriteModelSelectionMatchesBackend(favorite, params.backend)) continue;
+        const modelId = normalizeFavoriteModelId(favorite.modelId);
+        if (isFavoriteModelSelectableId(modelId)) values.add(modelId);
+    }
+    return values;
 }
 
 function addModelOptionAvailability(
@@ -183,4 +226,37 @@ export function toggleFavoriteModelSelection(params: Readonly<{
                 : {}),
         },
     ];
+}
+
+/**
+ * The favorites with one more use on the favorite that matches the backend and model of a
+ * new chat. Returns null when no favorite matches, so the caller writes no setting.
+ */
+export function countFavoriteModelUse(params: Readonly<{
+    favorites: readonly FavoriteModelSelectionV1[];
+    backend: FavoriteModelBackendIdentity;
+    modelId: string | null | undefined;
+}>): FavoriteModelSelectionV1[] | null {
+    const modelId = normalizeFavoriteModelId(params.modelId);
+    if (!isFavoriteModelSelectableId(modelId)) return null;
+    let matched = false;
+    const next = params.favorites.map((favorite) => {
+        if (matched) return favorite;
+        if (!favoriteModelSelectionMatchesBackend(favorite, params.backend)) return favorite;
+        if (normalizeFavoriteModelId(favorite.modelId) !== modelId) return favorite;
+        matched = true;
+        return { ...favorite, useCount: (favorite.useCount ?? 0) + 1 };
+    });
+    return matched ? next : null;
+}
+
+/** The favorites with the most used first. Favorites with the same count keep their order. */
+export function sortFavoriteModelSelectionsByUse(
+    favorites: readonly FavoriteModelSelectionV1[],
+): readonly FavoriteModelSelectionV1[] {
+    if (!favorites.some((favorite) => (favorite.useCount ?? 0) > 0)) return favorites;
+    return favorites
+        .map((favorite, index) => ({ favorite, index }))
+        .sort((a, b) => ((b.favorite.useCount ?? 0) - (a.favorite.useCount ?? 0)) || (a.index - b.index))
+        .map((item) => item.favorite);
 }

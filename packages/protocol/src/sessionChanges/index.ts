@@ -25,3 +25,4 @@ export type {
 export { mergeTurnChangeSets } from './mergeTurnChangeSets.js';
 export { reconcileWithScmSnapshot } from './reconcileWithScmSnapshot.js';
 export { excludeRolledBackTurns } from './rollbacks.js';
+export { TEXT_CHANGE_SNIPPET_SEPARATOR, combineTextChanges, hasUnifiedDiffLineChanges, type TextChange } from './textChanges.js';

@@ -85,6 +85,17 @@ export const BUILT_IN_ACP_CONFIG: Readonly<Partial<Record<AgentId, BuiltInAcpCon
     supportsModels: 'auto',
     promptImageSupport: 'auto',
     mcpServers: 'pass',
+    // agy 1.5.11 advertises default, accept-edits, auto and plan. Auto runs commands in an OS
+    // sandbox first, which fails on hosts without one, so no Happier mode maps to it.
+    // agy has no read-only mode: Happier's permission handler refuses writes instead.
+    permissionModeMapping: {
+      default: null,
+      acceptEdits: 'accept-edits',
+      'read-only': null,
+      'safe-yolo': 'accept-edits',
+      yolo: 'accept-edits',
+      plan: 'plan',
+    },
   },
   fx: {
     agentId: 'fx',

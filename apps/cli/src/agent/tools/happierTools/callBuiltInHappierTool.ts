@@ -3,6 +3,7 @@ import { isActionEnabledByEnv, readActionsSettingsFromEnv } from '@/settings/act
 import { dispatchBuiltInHappierTool } from './dispatchBuiltInHappierTool';
 import { createActionToolExecutorBridge } from './createActionToolExecutorBridge';
 import { createChangeTitleToolHandler } from './createChangeTitleToolHandler';
+import { createShowImageToolHandler } from './createShowImageToolHandler';
 import { normalizeExecutionRunToolResult } from './normalizeExecutionRunToolResult';
 import { createCliActionExecutor } from '@/session/actions/createCliActionExecutor';
 import { createDaemonMemoryActionDeps } from '@/session/actions/createDaemonMemoryActionDeps';
@@ -75,9 +76,11 @@ export async function callBuiltInHappierTool(params: Readonly<{
         toolName: params.toolName,
       }
     : null;
-  const defaultSessionMachineId = typeof rawSession.machineId === 'string' && rawSession.machineId.trim()
-    ? rawSession.machineId.trim()
-    : null;
+  // The server's session record has no machine id: the session's metadata holds it.
+  const metadataMachineId = (sessionMetadata as { machineId?: unknown } | null)?.machineId;
+  const defaultSessionMachineId = [rawSession.machineId, metadataMachineId]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .find((value) => value.length > 0) ?? null;
   const actionsSettings = readActionsSettingsFromEnv();
   const executor = createCliActionExecutor(
     {
@@ -119,6 +122,12 @@ export async function callBuiltInHappierTool(params: Readonly<{
         executor,
         surface,
         resolveCallerPermissionMode: () => callerPermissionMode,
+      }),
+      showImage: createShowImageToolHandler({
+        resolveWorkingDirectory: () => {
+          const path = (sessionMetadata as { path?: unknown } | null)?.path;
+          return typeof path === 'string' ? path : null;
+        },
       }),
       startExecutionRun: async (hostSessionId, request) => {
         const result = await startExecutionRun({

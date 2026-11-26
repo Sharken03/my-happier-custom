@@ -1,5 +1,5 @@
 import type { TrackedSession } from '../types';
-import { readProcessRunState as readProcessRunStateDefault, type ProcessRunState } from '../processRunState';
+import { readSessionRunnerProcessRunState as readProcessRunStateDefault, type ProcessRunState } from '../processRunState';
 import { readSessionRunnerLockStatus, type SessionRunnerLockStatus } from '../sessionRunnerLock';
 import {
   classifySessionRunnerProcessPresence,

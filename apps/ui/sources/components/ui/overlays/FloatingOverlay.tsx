@@ -92,6 +92,11 @@ interface FloatingOverlayProps {
     children: React.ReactNode;
     maxHeight?: number;
     scrollEnabled?: boolean;
+    /**
+     * Keeps the scroller and its bounded layout, but the user cannot scroll it. A parent gesture,
+     * such as a sheet's drag, then gets the touch.
+     */
+    scrollLocked?: boolean;
     showScrollIndicator?: boolean;
     keyboardShouldPersistTaps?: boolean | 'always' | 'never' | 'handled';
     edgeFades?: FloatingOverlayEdgeFades;
@@ -125,6 +130,7 @@ export const FloatingOverlay = React.memo((props: FloatingOverlayProps) => {
         children, 
         maxHeight = 240, 
         scrollEnabled = true,
+        scrollLocked = false,
         showScrollIndicator = false, 
         keyboardShouldPersistTaps = 'handled',
         edgeFades = false,
@@ -200,6 +206,7 @@ export const FloatingOverlay = React.memo((props: FloatingOverlayProps) => {
         <Animated.ScrollView
             ref={scrollViewRef}
             style={[{ maxHeight }, scrollViewStyle]}
+            scrollEnabled={!scrollLocked}
             keyboardShouldPersistTaps={keyboardShouldPersistTaps}
             showsVerticalScrollIndicator={showScrollIndicator}
             scrollEventThrottle={32}

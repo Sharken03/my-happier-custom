@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { resolveServerIdForSessionIdFromLocalCache } from '@/sync/runtime/orchestration/serverScopedRpc/resolveServerIdForSessionIdFromLocalCache';
 import { useOpenSessionTarget } from '@/components/sessions/panes/open/useOpenSessionTarget';
-import { Platform, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ActivitySpinner } from '@/components/ui/feedback/ActivitySpinner';
 
@@ -21,6 +21,7 @@ import { scmStatusSync } from '@/scm/scmStatusSync';
 import { useScmAdaptivePolling } from '@/scm/refresh/useScmAdaptivePolling';
 import { buildSnapshotSignature } from '@/scm/statusSync/projectState';
 import { useFeatureEnabled } from '@/hooks/server/useFeatureEnabled';
+import { useDerivedSessionChangeSet } from '@/sync/domains/session/changes/hooks/useDerivedSessionChangeSet';
 import { SCM_COMMIT_STRATEGIES, type ScmCommitStrategy } from '@/scm/settings/commitStrategy';
 import { useLastNonNullValue } from '@/hooks/ui/useLastNonNullValue';
 import { resolveCommitAdjacentPushActionState } from '@/scm/operations/commitAdjacentPushAction';
@@ -44,6 +45,10 @@ import {
 import type { ScmStatusFiles } from '@/scm/scmStatusFiles';
 import { t } from '@/text';
 import { SCM_OPERATION_ERROR_CODES } from '@happier-dev/protocol';
+import { SessionExternalRepositoryChanges } from './externalChanges/SessionExternalRepositoryChanges';
+import { PiChatChangesSection } from './piChatChanges/PiChatChangesSection';
+import { addPiChatChangeCounts } from './piChatChanges/piChatChanges';
+import { usePiChatChanges } from './piChatChanges/usePiChatChanges';
 import { SessionRightPanelGitSubTabsBar } from './SessionRightPanelGitSubTabsBar';
 import { SessionRightPanelGitCommitTabContent } from './SessionRightPanelGitCommitTabContent';
 import { SessionRightPanelGitHistoryTab } from './SessionRightPanelGitHistoryTab';
@@ -135,6 +140,9 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
     }, []);
 
     const session = useSession(props.sessionId);
+    // A chat edits whatever its tools are told to edit, which can be outside its own folder and
+    // repository. Its change set is therefore available even when the folder is not a repository.
+    const { sessionChangeSet } = useDerivedSessionChangeSet(props.sessionId);
     const scmSnapshot = useSessionProjectScmSnapshot(props.sessionId);
     useSessionRealtimeScmTranscriptConsumer(props.sessionId, scmSnapshot);
     const lastGoodScmSnapshot = useLastNonNullValue(scmSnapshot, { resetKey: props.sessionId });
@@ -276,6 +284,13 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
         setActiveGitSubTab(displayActiveGitSubTab);
     }, [activeGitSubTab, displayActiveGitSubTab, setActiveGitSubTab]);
 
+    // Pi chats: files changed outside git, read again on each git snapshot refresh while shown.
+    const { files: piChatChanges, repoPaths: piRepoPaths } = usePiChatChanges({
+        sessionId: props.sessionId,
+        enabled: Boolean(effectiveScmSnapshot) && (effectiveScmSnapshot?.repo.isRepo !== true || displayActiveGitSubTab !== 'history'),
+        refreshKey: effectiveScmSnapshot?.fetchedAt ?? null,
+    });
+
     React.useEffect(() => {
         if (displayActiveGitSubTab !== 'history') return;
         if (!sessionPath) return;
@@ -363,6 +378,10 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             totalPending: effectiveScmSnapshot.totals.pendingFiles,
         };
     }, [effectiveScmSnapshot]);
+    const updateTabStatusFiles = React.useMemo(
+        () => addPiChatChangeCounts(scmStatusFilesSummary, piChatChanges),
+        [piChatChanges, scmStatusFilesSummary],
+    );
 
     const isLockedByOtherSession = Boolean(
         inFlightScmOperation && inFlightScmOperation.sessionId !== props.sessionId
@@ -565,12 +584,30 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
     }
 
     if (!effectiveScmSnapshot.repo.isRepo) {
+        // The chat's folder is not a repository, but its tool calls may still have changed files
+        // that live in a repository elsewhere. Keep the not-a-repository state and list those
+        // changes below it, instead of returning before the other-repositories section mounts.
         return (
-            <NotSourceControlRepositoryState
-                sessionId={props.sessionId}
-                canInitializeRepository={effectiveScmSnapshot.capabilities?.writeRepositoryInit === true}
-                onInitialized={refreshScmData}
-            />
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ flexGrow: 1 }}
+                testID="session-git-non-repository-surface"
+            >
+                <View style={{ minHeight: 260 }}>
+                    <NotSourceControlRepositoryState
+                        sessionId={props.sessionId}
+                        canInitializeRepository={effectiveScmSnapshot.capabilities?.writeRepositoryInit === true}
+                        onInitialized={refreshScmData}
+                    />
+                </View>
+                <SessionExternalRepositoryChanges
+                    sessionId={props.sessionId}
+                    sessionChangeSet={sessionChangeSet}
+                    scmSnapshot={effectiveScmSnapshot}
+                    extraPaths={piRepoPaths}
+                />
+                <PiChatChangesSection sessionId={props.sessionId} files={piChatChanges} />
+            </ScrollView>
         );
     }
 
@@ -629,6 +666,8 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             openFileInDetails={openFileInDetails}
             openFileInDetailsPinned={openFileInDetailsPinned}
             showBranchSummary={displayActiveGitSubTab === 'commit'}
+            piChatChanges={piChatChanges}
+            piRepoPaths={piRepoPaths}
         />
     );
 
@@ -641,7 +680,7 @@ export const SessionRightPanelGitView = React.memo((props: SessionRightPanelGitV
             disabled={scmOperationBusy || hasGlobalOperationInFlight || isLockedByOtherSession}
             actions={remoteActions}
             hint={remoteHint}
-            scmStatusFiles={scmStatusFilesSummary}
+            scmStatusFiles={updateTabStatusFiles}
             showBranchSummary={displayActiveGitSubTab === 'update'}
         />
     );

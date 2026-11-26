@@ -9,7 +9,7 @@ import { Item } from '@/components/ui/lists/Item';
 import { ItemGroup } from '@/components/ui/lists/ItemGroup';
 import { ItemList } from '@/components/ui/lists/ItemList';
 import { t } from '@/text';
-import { useHasHardwareKeyboard } from '@/hooks/ui/useHasHardwareKeyboard';
+import { useComposerKeepsFocusAfterSend } from '@/components/sessions/agentInput/hooks/useComposerKeepsFocusAfterSend';
 import { useLocalSettingMutable, useSettingMutable } from '@/sync/domains/state/storage';
 import { normalizeComposerBannerCollapseRecord } from '@/components/sessions/composerBanners/composerBannerCollapse';
 import type { BusySteerSendPolicy, MessageSendMode, NonSteerableSendPromptSetting } from '@/sync/domains/session/control/submitMode';
@@ -18,6 +18,9 @@ import {
     type SessionInactiveResumePolicy,
 } from '@/sync/domains/session/control/inactiveResumePolicy';
 import { Icon } from '@/components/ui/icons/Icon';
+import { AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS } from '@/components/sessions/agentInput/controls/agentInputControlRegistry';
+
+const NO_HIDDEN_CONTROLS: readonly string[] = [];
 
 type PendingQueueDrainMode = 'one_at_a_time' | 'drain_all';
 type PendingQueueDeliveryTiming = 'after_foreground_ready' | 'after_runtime_idle';
@@ -27,6 +30,7 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const popoverBoundaryRef = React.useRef<any>(null);
     const [messageSendMode, setMessageSendMode] = useSettingMutable('sessionMessageSendMode');
     const [busySteerSendPolicy, setBusySteerSendPolicy] = useSettingMutable('sessionBusySteerSendPolicy');
+    const [queueMessageOptions, setQueueMessageOptions] = useSettingMutable('sessionMessageOptionsQueueV1');
     const [nonSteerableSendPrompt, setNonSteerableSendPrompt] = useSettingMutable('sessionNonSteerableSendPrompt');
     const [pendingQueueDrainMode, setPendingQueueDrainMode] = useSettingMutable('sessionPendingQueueDrainMode');
     const [pendingQueueDeliveryTiming, setPendingQueueDeliveryTiming] = useSettingMutable('sessionPendingQueueDeliveryTiming');
@@ -36,14 +40,26 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
     const [agentInputHistoryScope, setAgentInputHistoryScope] = useSettingMutable('agentInputHistoryScope');
     const [agentInputActionBarLayout, setAgentInputActionBarLayout] = useSettingMutable('agentInputActionBarLayout');
     const [agentInputChipDensity, setAgentInputChipDensity] = useSettingMutable('agentInputChipDensity');
+    const [storedHiddenControls, setHiddenControls] = useSettingMutable('agentInputHiddenControls');
+    const [modelChipStyle, setModelChipStyle] = useSettingMutable('agentInputModelChipStyle');
+    const [compactModelPicker, setCompactModelPicker] = useSettingMutable('agentInputCompactModelPicker');
+    const [alphabeticalModelPicker, setAlphabeticalModelPicker] = useSettingMutable('agentInputModelPickerAlphabetical');
+    const [modelPickerLayout, setModelPickerLayout] = useSettingMutable('agentInputModelPickerLayout');
+    // The list of buttons is long, so it opens on demand.
+    const [composerButtonsExpanded, setComposerButtonsExpanded] = React.useState(false);
+    const hiddenControls = storedHiddenControls ?? NO_HIDDEN_CONTROLS;
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
     const [composerSurfaceStyle, setComposerSurfaceStyle] = useSettingMutable('composerSurfaceStyle');
+    const [filledButtons, setFilledButtons] = useSettingMutable('composerFilledButtonsV1');
+    const [abortChipOnlyWithMic, setAbortChipOnlyWithMic] = useSettingMutable('composerAbortChipOnlyWithMicV1');
+    const [deferComposerOnOpen, setDeferComposerOnOpen] = useSettingMutable('sessionOpenDeferComposerV1');
+    const [preloadOnLeave, setPreloadOnLeave] = useSettingMutable('sessionOpenPreloadV1');
     const [rememberBannerVisibility, setRememberBannerVisibility] = useSettingMutable('sessionComposerRememberBannerVisibility');
     const [newSessionDraftEntryMode, setNewSessionDraftEntryMode] = useSettingMutable('newSessionDraftEntryMode');
     const [newSessionAfterSend, setNewSessionAfterSend] = useSettingMutable('newSessionAfterSendV1');
-    const [keepFocusAfterSendSetting, setKeepFocusAfterSend] = useLocalSettingMutable('composerKeepFocusAfterSend');
-    const hasHardwareKeyboard = useHasHardwareKeyboard();
-    const keepFocusAfterSend = keepFocusAfterSendSetting ?? hasHardwareKeyboard;
+    const [, setKeepFocusAfterSend] = useLocalSettingMutable('composerKeepFocusAfterSend');
+    const keepFocusAfterSend = useComposerKeepsFocusAfterSend();
+    const [typeToFocusEnabled, setTypeToFocusEnabled] = useLocalSettingMutable('composerTypeToFocusEnabled');
     const [collapsedBannerKinds, setCollapsedBannerKinds] = useLocalSettingMutable('sessionComposerCollapsedBannerKinds');
     const [openHistoryScopeMenu, setOpenHistoryScopeMenu] = React.useState(false);
     const [openInactiveResumePolicyMenu, setOpenInactiveResumePolicyMenu] = React.useState(false);
@@ -164,7 +180,9 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
             subtitle: t('settingsSession.messageSending.pendingDeliveryTiming.afterRuntimeIdleSubtitle'),
         },
     ];
-    const pendingQueueMayBeUsed = messageSendMode === 'server_pending' || busySteerSendPolicy === 'server_pending';
+    const pendingQueueMayBeUsed = messageSendMode === 'server_pending'
+        || busySteerSendPolicy === 'server_pending'
+        || queueMessageOptions !== false;
 
     return (
         <ItemList ref={popoverBoundaryRef} style={{ paddingTop: 0 }}>
@@ -234,6 +252,17 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     showChevron={false}
                     onPress={() => setKeepFocusAfterSend(!keepFocusAfterSend)}
                 />
+                {Platform.OS === 'web' ? (
+                    <Item
+                        testID="settings-composer-type-to-focus"
+                        title={t('settingsSession.inputBehavior.typeToFocusTitle')}
+                        subtitle={t('settingsSession.inputBehavior.typeToFocusSubtitle')}
+                        icon={<Icon name="pencil-simple" size={29} color={theme.colors.accent.indigo} />}
+                        rightElement={<Switch value={typeToFocusEnabled} onValueChange={setTypeToFocusEnabled} />}
+                        showChevron={false}
+                        onPress={() => setTypeToFocusEnabled(!typeToFocusEnabled)}
+                    />
+                ) : null}
                 <Item
                     title={t('settingsFeatures.enterToSend')}
                     subtitle={enterToSendSubtitle}
@@ -335,6 +364,23 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                 </ItemGroup>
             ) : null}
 
+            <ItemGroup title="Message options">
+                <Item
+                    testID="settings-message-options-queue"
+                    title="Queue options"
+                    subtitle="A tapped option waits until the current task is done"
+                    icon={<Icon name="stack-simple" size={29} color={theme.colors.accent.blue} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-message-options-queue-switch"
+                            value={queueMessageOptions !== false}
+                            onValueChange={setQueueMessageOptions}
+                        />
+                    }
+                    showChevron={false}
+                />
+            </ItemGroup>
+
             <ItemGroup title={t('settingsSession.messageSending.nonSteerablePromptTitle')} footer={t('settingsSession.messageSending.nonSteerablePromptFooter')}>
                 {nonSteerablePromptOptions.map((option) => (
                     <Item
@@ -434,6 +480,138 @@ export const SessionComposerSettingsView = React.memo(function SessionComposerSe
                     }
                     showChevron={false}
                 />
+                <Item
+                    title="Filled composer buttons"
+                    subtitle="Gray circles around the buttons. The send button turns orange when there is text to send or the microphone records."
+                    icon={<Icon name="arrow-up" size={29} color={theme.colors.accent.orange} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-filledButtons-switch"
+                            value={filledButtons !== false}
+                            onValueChange={setFilledButtons}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Stop chip only with microphone"
+                    subtitle="Show the stop chip only when voice is on and dictation mode is off"
+                    icon={<Icon name="octagon-x" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-abortChipOnlyWithMic-switch"
+                            value={abortChipOnlyWithMic === true}
+                            onValueChange={setAbortChipOnlyWithMic}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Show chat before composer"
+                    subtitle="Open a chat with the messages first and show the composer one frame later"
+                    icon={<Icon name="lightning" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-deferOnOpen-switch"
+                            value={deferComposerOnOpen !== false}
+                            onValueChange={setDeferComposerOnOpen}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title="Keep last chat ready"
+                    subtitle="Keep the chat you just left rendered in the background, so it opens again at once"
+                    icon={<Icon name="timer" size={29} color={theme.colors.text.secondary} />}
+                    rightElement={
+                        <Switch
+                            testID="settings-composer-preloadOnLeave-switch"
+                            value={preloadOnLeave !== false}
+                            onValueChange={setPreloadOnLeave}
+                        />
+                    }
+                    showChevron={false}
+                />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.modelChip.title')} footer={t('settingsSession.modelChip.footer')}>
+                <Item
+                    testID="settings-model-chip-agent-and-model"
+                    title={t('settingsSession.modelChip.agentAndModelTitle')}
+                    subtitle={t('settingsSession.modelChip.agentAndModelSubtitle')}
+                    rightElement={modelChipStyle !== 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('agentAndModel')}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-model-chip-model-and-effort"
+                    title={t('settingsSession.modelChip.modelAndEffortTitle')}
+                    subtitle={t('settingsSession.modelChip.modelAndEffortSubtitle')}
+                    rightElement={modelChipStyle === 'modelAndEffort'
+                        ? <Icon name="check" size={20} color={theme.colors.accent.blue} />
+                        : null}
+                    onPress={() => setModelChipStyle('modelAndEffort')}
+                    showChevron={false}
+                />
+                <Item
+                    testID="settings-model-picker-compact"
+                    title={t('settingsSession.modelChip.compactTitle')}
+                    subtitle={t('settingsSession.modelChip.compactSubtitle')}
+                    rightElement={<Switch value={compactModelPicker === true} onValueChange={setCompactModelPicker} />}
+                    showChevron={false}
+                    onPress={() => setCompactModelPicker(compactModelPicker !== true)}
+                />
+                <Item
+                    testID="settings-model-picker-alphabetical"
+                    title={t('settingsSession.modelChip.alphabeticalTitle')}
+                    subtitle={t('settingsSession.modelChip.alphabeticalSubtitle')}
+                    rightElement={<Switch value={alphabeticalModelPicker === true} onValueChange={setAlphabeticalModelPicker} />}
+                    showChevron={false}
+                    onPress={() => setAlphabeticalModelPicker(alphabeticalModelPicker !== true)}
+                />
+                <Item
+                    testID="settings-model-picker-layout"
+                    title={t('settingsSession.modelChip.layoutTitle')}
+                    subtitle={t('settingsSession.modelChip.layoutSubtitle')}
+                    icon={<Icon name="squares-four" size={29} color={theme.colors.accent.indigo} />}
+                    detail={modelPickerLayout === 'carded'
+                        ? t('settingsSession.modelChip.layoutOptions.carded')
+                        : t('settingsSession.modelChip.layoutOptions.compact')}
+                    onPress={() => {
+                        const order: Array<typeof modelPickerLayout> = ['carded', 'compact'];
+                        const idx = Math.max(0, order.indexOf(modelPickerLayout));
+                        setModelPickerLayout(order[(idx + 1) % order.length]!);
+                    }}
+                />
+            </ItemGroup>
+
+            <ItemGroup title={t('settingsSession.composerButtons.title')} footer={t('settingsSession.composerButtons.footer')}>
+                <Item
+                    testID="settings-composer-buttons-expander"
+                    title={t('settingsSession.composerButtons.title')}
+                    detail={`${AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.length - hiddenControls.filter((id) => (AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS as readonly string[]).includes(id)).length} / ${AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.length}`}
+                    rightElement={<Icon name={composerButtonsExpanded ? 'caret-up' : 'caret-down'} size={18} color={theme.colors.text.secondary} />}
+                    onPress={() => setComposerButtonsExpanded((expanded) => !expanded)}
+                    showChevron={false}
+                />
+                {composerButtonsExpanded ? AGENT_INPUT_USER_HIDEABLE_CONTROL_IDS.map((controlId) => {
+                    const shown = !hiddenControls.includes(controlId);
+                    const toggle = () => setHiddenControls(shown
+                        ? [...hiddenControls, controlId]
+                        : hiddenControls.filter((id) => id !== controlId));
+                    return (
+                        <Item
+                            key={controlId}
+                            testID={`settings-composer-button-${controlId}`}
+                            title={t(`settingsSession.composerButtons.controls.${controlId}`)}
+                            rightElement={<Switch value={shown} onValueChange={toggle} />}
+                            showChevron={false}
+                            onPress={toggle}
+                        />
+                    );
+                }) : null}
             </ItemGroup>
 
             <ItemGroup title={t('settingsSession.banners.title')} footer={t('settingsSession.banners.footer')}>

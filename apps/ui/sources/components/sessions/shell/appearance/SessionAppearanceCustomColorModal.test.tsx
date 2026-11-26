@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderScreen } from '@/dev/testkit';
 import type { CustomModalChromeConfig } from '@/modal/types';
 
+function cardFooter(chrome: CustomModalChromeConfig | null | undefined): React.ReactNode {
+    return chrome?.kind === 'card' ? chrome.footer : null;
+}
+
 vi.mock('@/components/ui/text/Text', async () => {
     const { createUiTextModuleMock } = await import('@/dev/testkit/mocks/uiText');
     return createUiTextModuleMock();
@@ -30,7 +34,7 @@ async function renderModal(initialColor: Parameters<typeof import('./SessionAppe
         setChrome={setChrome}
     />);
     const footerButtons = async () => {
-        const footer = await renderScreen(<>{setChrome.mock.lastCall?.[0]?.footer}</>);
+        const footer = await renderScreen(<>{cardFooter(setChrome.mock.lastCall?.[0])}</>);
         return footer.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button');
     };
     return { screen, onResolve, onClose, footerButtons };

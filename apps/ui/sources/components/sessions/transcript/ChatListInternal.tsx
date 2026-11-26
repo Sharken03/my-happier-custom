@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
     getStorage,
+    useLocalSetting,
     useSetting,
 } from '@/sync/domains/state/storage';
 import { Dimensions, Platform, View } from 'react-native';
@@ -17,6 +18,10 @@ import {
     useSessionTranscriptAgentAttributionIndexForMessages,
 } from '@/components/sessions/transcript/attribution/SessionTranscriptAgentAttributionContext';
 import { TranscriptMotionProvider } from '@/components/sessions/transcript/motion/TranscriptMotionProvider';
+import {
+    TranscriptSharedImagesContext,
+    type TranscriptSharedImages,
+} from '@/components/sessions/sessionMedia/TranscriptSharedImagesContext';
 import {
     type TranscriptViewportTelemetryEvent,
     type TranscriptViewportTelemetryObservationReason,
@@ -110,6 +115,7 @@ import {
     resolveTranscriptListPresentation,
     type TranscriptListOrientation,
 } from '@/components/sessions/transcript/listOrientation';
+import { useResolvedToolCallsGroupOpenMode } from '@/components/sessions/transcript/toolCalls/useResolvedToolCallsGroupOpenMode';
 import {
     resolveTranscriptEdgePrefetchThresholdPx,
     TRANSCRIPT_EDGE_PREFETCH_FALLBACK_VIEWPORT_RATIO,
@@ -189,6 +195,7 @@ import {
 import { clearTranscriptNavigationVisibilityStore } from '@/components/sessions/transcript/viewport/visibility/transcriptNavigationVisibilityStore';
 import { useLayoutMaxWidth } from '@/components/ui/layout/layout';
 import { useTranscriptPrependHost } from '@/components/sessions/transcript/viewport/prepend/host/useTranscriptPrependHost';
+import { createNativeFlingApplyGate } from '@/components/sessions/transcript/viewport/prepend/nativeFlingApplyGate';
 import {
     useTranscriptViewportAnchorCaptureHost,
     type ScheduledViewportAnchorCapture,
@@ -234,10 +241,11 @@ import { resolveToolCallsGroupChromeVariant } from '@/components/sessions/transc
 import { buildTranscriptItemHeightSignatureKey } from '@/components/sessions/transcript/measurement/transcriptItemHeightCache';
 import { useTranscriptMeasurementHostWiring } from '@/components/sessions/transcript/measurement/useTranscriptMeasurementHostWiring';
 import {
-    resolveFontScaleKey,
+    resolveTranscriptRowPresentationKey,
     resolveInitialTranscriptRowWidthBucket,
     resolveTranscriptRowWidthBucket,
 } from '@/components/sessions/transcript/measurement/rowRenderKeys';
+import { useMarkdownRemoteImageHosts } from '@/components/sessions/transcript/transcriptSessionCommon';
 import type { TranscriptLiveTailAnchorReason } from '@/components/sessions/transcript/viewport/lifecycle/transcriptRowClassification';
 import {
     resolveNativeBottomFollowPreviousFollow,
@@ -590,6 +598,14 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     // mode machine's retained trusted drag session it forms the post-drag release attribution
     // window: momentum frames may release follow, height-churn frames without a drag never can.
     const nativeMomentumScrollActiveRef = React.useRef(false);
+    const [nativeFlingApplyGate] = React.useState(() => createNativeFlingApplyGate({
+        platformOS: Platform.OS,
+        readFling: () => ({
+            momentumActive: nativeMomentumScrollActiveRef.current,
+            dragActive: nativeListDragActiveRef.current,
+        }),
+    }));
+    React.useEffect(() => () => nativeFlingApplyGate.releaseAll(), [nativeFlingApplyGate, props.sessionId]);
     const nativeVisibleWindowSnapshotRef = React.useRef<NativeVisibleWindowSnapshot | null>(null);
     const lastNativeVisibleRowsSnapshotRef = React.useRef<NativeVisibleWindowSnapshot | null>(null);
     const nativeFlashListMvcpPolicyRef = React.useRef<TranscriptViewportTelemetryMvcpPolicy>('none');
@@ -667,9 +683,20 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const waitForNextVisualUpdate = React.useCallback(waitForNextTranscriptVisualUpdate, []);
     const { motionConfig, reducedMotionPreferred } = useTranscriptMotionConfig();
     const transcriptScrollPinEnabled = useSetting('transcriptScrollPinEnabled');
+    const initialFillToUserMessageEnabled = useSetting('transcriptInitialFillToUserMessageV1') === true;
     const transcriptScrollPinOffsetThresholdPx = useSetting('transcriptScrollPinOffsetThresholdPx');
     const transcriptScrollAutoFollowWhenPinned = useSetting('transcriptScrollAutoFollowWhenPinned');
+    const transcriptJumpToBottomPosition = useSetting('transcriptJumpToBottomPosition');
     const transcriptToolCallsCollapsedPreviewCountSetting = useSetting('transcriptToolCallsCollapsedPreviewCount');
+    const transcriptToolCallsGroupBottomCollapse = useSetting('transcriptToolCallsGroupBottomCollapse') === true;
+    const transcriptToolCallsGroupOpenMode = useResolvedToolCallsGroupOpenMode();
+    const transcriptChatFont = useSetting('transcriptChatFont');
+    const transcriptUiFontScale = useLocalSetting('uiFontScale');
+    const transcriptWrapCodeBlocks = useSetting('wrapChatCodeBlocks');
+    const markdownRemoteImageHosts = useMarkdownRemoteImageHosts();
+    const transcriptSharedImagesEnabled = useSetting('transcriptSharedImagesEnabled') !== false;
+    const sessionThinkingDisplayMode = useSetting('sessionThinkingDisplayMode');
+    const sessionThinkingInlineChrome = useSetting('sessionThinkingInlineChrome');
     // F-4 (2026-08-11): the height-bearing half of the action-draft option resolution, so an
     // `action-draft` row's size key moves when a SYNCED settings push adds or removes one of its
     // chips while the row is offscreen. This hook is deliberately the narrow variant — one
@@ -1184,9 +1211,11 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     const resolveSyncLoadOlderOptions = React.useCallback((): TranscriptPrependOlderLoadSyncOptions | undefined => {
         if (Platform.OS === 'web') return undefined;
         const configuredLimit = sync.getSyncTuning().transcriptNativeOlderMessagesPageSize;
-        if (typeof configuredLimit !== 'number' || !Number.isFinite(configuredLimit)) return undefined;
-        return { limit: Math.max(1, Math.trunc(configuredLimit)) };
-    }, []);
+        const limit = typeof configuredLimit === 'number' && Number.isFinite(configuredLimit)
+            ? Math.max(1, Math.trunc(configuredLimit))
+            : undefined;
+        return { ...(limit !== undefined ? { limit } : {}), waitForApply: nativeFlingApplyGate.waitForApply };
+    }, [nativeFlingApplyGate]);
     const [firstListPaintObserved, setFirstListPaintObserved] = React.useState(false);
     const firstListPaintObservedRef = React.useRef(false);
     useCommittedTranscriptRef(firstListPaintObservedRef, firstListPaintObserved);
@@ -1250,7 +1279,15 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         renderWindowIndexMapRef,
         resolveActionDraftFieldOptions,
         resolveThinkingExpanded,
-        rowFontScaleKey: resolveFontScaleKey(),
+        rowFontScaleKey: resolveTranscriptRowPresentationKey({
+            chatFont: transcriptChatFont,
+            thinkingDisplayMode: sessionThinkingDisplayMode,
+            thinkingInlineChrome: sessionThinkingInlineChrome,
+            uiFontScale: transcriptUiFontScale,
+            wrapCodeBlocks: transcriptWrapCodeBlocks,
+            markdownRemoteImageHosts,
+            sharedImagesEnabled: transcriptSharedImagesEnabled,
+        }),
         rowWidthBucket: listLayoutWidthBucket,
         sessionActive: props.sessionActive,
         sessionId: props.sessionId,
@@ -1260,6 +1297,8 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         targetWindowActiveRef,
         transcriptNativeHotTailItemCount: tuning.transcriptNativeHotTailItemCount,
         transcriptToolCallsCollapsedPreviewCountSetting,
+        transcriptToolCallsGroupBottomCollapse,
+        transcriptToolCallsGroupOpenMode,
         transcriptWebHotTailItemCount: tuning.transcriptWebHotTailItemCount,
         webHotColdCountsRef,
     });
@@ -1436,10 +1475,16 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     // exact measurement beats the renderer's average-size learning for rows it has
     // not mounted yet (legend-list#492; live reopen/switch-back oscillation captures
     // 2026-07-22/23). Unknown rows return undefined and keep the renderer fallback.
-    const getEstimatedItemSize = React.useCallback((item: ChatTranscriptListItem): number | undefined => (
-        estimateTranscriptRowHeightFromCache({
+    const thinkingRowEstimateInput = React.useMemo(() => ({
+        displayMode: sessionThinkingDisplayMode,
+        inlineChrome: sessionThinkingInlineChrome,
+        isExpanded: resolveThinkingExpanded,
+    }), [resolveThinkingExpanded, sessionThinkingDisplayMode, sessionThinkingInlineChrome]);
+    const getEstimatedItemSize = React.useCallback((item: ChatTranscriptListItem): number | undefined => {
+        const signature = buildRowShellSignature(item);
+        return estimateTranscriptRowHeightFromCache({
             reconciler: measurementReconciler,
-            signature: buildRowShellSignature(item),
+            signature,
             // A committed user row can inherit the bubble height the pending block just painted for
             // the same utterance, so the send crossover is placed from a measurement rather than a
             // wrap heuristic that undershoots by whole lines.
@@ -1449,8 +1494,34 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
             item,
             toolCallsGroupChromeVariant,
             platformIsWeb: Platform.OS === 'web',
-        })
-    ), [buildRowShellSignature, getTurnMessageById, measurementReconciler, toolCallsGroupChromeVariant]);
+            platformIsAndroid: Platform.OS === 'android',
+            thinking: {
+                ...thinkingRowEstimateInput,
+                measuredCollapsedRowPx: measurementReconciler.resolveCollapsedThinkingRowHeight(signature),
+            },
+            uiFontScale: transcriptUiFontScale,
+            transcriptContentWidthPx: Math.min(listLayoutWidthPx, transcriptContentMaxWidth),
+            sharedImagesEnabled: transcriptSharedImagesEnabled,
+        });
+    }, [
+        buildRowShellSignature,
+        getTurnMessageById,
+        listLayoutWidthPx,
+        measurementReconciler,
+        thinkingRowEstimateInput,
+        toolCallsGroupChromeVariant,
+        transcriptContentMaxWidth,
+        transcriptSharedImagesEnabled,
+        transcriptUiFontScale,
+    ]);
+    // `show_image` rows paint at the width the estimate above reads. Null while the setting is off
+    // or the width is unknown: the row is then a tool call, as the estimate assumes.
+    const sharedImagesContentWidthPx = Math.min(listLayoutWidthPx, transcriptContentMaxWidth);
+    const sharedImages = React.useMemo<TranscriptSharedImages | null>(() => (
+        transcriptSharedImagesEnabled && sharedImagesContentWidthPx > 0
+            ? { transcriptContentWidthPx: sharedImagesContentWidthPx }
+            : null
+    ), [sharedImagesContentWidthPx, transcriptSharedImagesEnabled]);
     const getItemSizeVersion = React.useCallback((item: ChatTranscriptListItem): React.Key => (
         buildTranscriptItemHeightSignatureKey(buildRowShellSignature(item))
     ), [buildRowShellSignature]);
@@ -2312,12 +2383,18 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 // fall through to measurement-based heuristic
             }
         }
+        // Native: the synthesized Legend content height includes the end padding that fills a
+        // short list to the viewport, so a short list reads as scrollable. Ask the renderer.
+        if (Platform.OS !== 'web' && initialFillToUserMessageEnabled) {
+            const overflow = listRef.current?.readNativeContentOverflow?.() ?? null;
+            if (overflow !== null) return overflow;
+        }
         const layout = listLayoutHeight;
         const content = listContentHeight;
         if (!Number.isFinite(layout) || layout <= 0) return false;
         if (!Number.isFinite(content) || content <= 0) return false;
         return content > layout + 16;
-    }, [listContentHeight, listLayoutHeight, resolveWebScrollMetrics]);
+    }, [initialFillToUserMessageEnabled, listContentHeight, listLayoutHeight, resolveWebScrollMetrics]);
     useCommittedTranscriptRef(isScrollableRef, isScrollable);
     const skipRendererOwnedContentSizePin = React.useCallback(() => false, []);
     const flashListStartReachedThreshold = React.useMemo(() => {
@@ -2525,6 +2602,16 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
         setListLayoutHeight,
         verifyNativeSliceEntryRestoreTransaction,
     });
+    const onScrollObservationScrollBeginDrag = scrollObservationHost.onScrollBeginDrag;
+    const onScrollObservationMomentumScrollEnd = scrollObservationHost.onMomentumScrollEnd;
+    const handleScrollBeginDrag = React.useCallback(() => {
+        onScrollObservationScrollBeginDrag();
+        nativeFlingApplyGate.notify();
+    }, [nativeFlingApplyGate, onScrollObservationScrollBeginDrag]);
+    const handleMomentumScrollEnd = React.useCallback(() => {
+        onScrollObservationMomentumScrollEnd();
+        nativeFlingApplyGate.notify();
+    }, [nativeFlingApplyGate, onScrollObservationMomentumScrollEnd]);
     useCommittedTranscriptRef(
         observeCommittedProjectionLayoutRef,
         scrollObservationHost.observeCommittedProjectionLayout,
@@ -2550,6 +2637,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
     ]);
     return (
         <SessionTranscriptAgentAttributionProvider value={agentAttributionIndex}>
+        <TranscriptSharedImagesContext.Provider value={sharedImages}>
         <TranscriptMotionProvider sessionKey={props.sessionId} config={motionConfig}>
               <View
                 style={{ flex: 1 }}
@@ -2575,10 +2663,10 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                     onLayout={scrollObservationHost.onLayout}
                     onContentSizeChange={scrollObservationHost.onContentSizeChange}
                     onScroll={scrollObservationHost.onScroll}
-                    onScrollBeginDrag={scrollObservationHost.onScrollBeginDrag}
+                    onScrollBeginDrag={handleScrollBeginDrag}
                     onScrollEndDrag={scrollObservationHost.onScrollEndDrag}
                     onMomentumScrollBegin={scrollObservationHost.onMomentumScrollBegin}
-                    onMomentumScrollEnd={scrollObservationHost.onMomentumScrollEnd}
+                    onMomentumScrollEnd={handleMomentumScrollEnd}
                     onRendererAtEndChange={handleRendererAtEndChange}
                     onEntryPlacementEvent={onEntryPlacementEvent}
                     renderItem={renderItem}
@@ -2609,7 +2697,9 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                     <ComposerKeyboardFloatingInset
                         testID="transcript-jump-to-bottom-keyboard-offset"
                         baseBottom={12}
-                        style={{ position: 'absolute', right: 12 }}
+                        style={transcriptJumpToBottomPosition === 'bottom-right'
+                            ? { position: 'absolute', right: 12 }
+                            : { position: 'absolute', left: 0, right: 0, alignItems: 'center', pointerEvents: 'box-none' }}
                     >
                         <JumpToBottomButton
                             testID="transcript-jump-to-bottom"
@@ -2621,6 +2711,7 @@ export const ChatListInternal = React.memo((props: ChatListInternalProps) => {
                 ) : null}
               </View>
         </TranscriptMotionProvider>
+        </TranscriptSharedImagesContext.Provider>
         </SessionTranscriptAgentAttributionProvider>
     );
 });

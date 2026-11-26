@@ -74,7 +74,9 @@ describe('FileBinaryState (svg previews)', () => {
             component: AttachmentImagePreviewModal,
             props: {
                 images: [{ kind: 'session-image', sessionId: 's1', filePath: 'icon.svg', title: 'icon.svg' }],
+                sessionId: 's1',
             },
+            chrome: { kind: 'fullscreen' },
         }));
     });
 });

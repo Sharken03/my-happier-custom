@@ -21,6 +21,7 @@ import type { SessionFolderV1, SessionFoldersV1 } from '@/sync/domains/session/f
 import { normalizeSessionListFolderSortMode } from '@/sync/domains/session/listing/sessionListFolderSortMode';
 import {
     normalizeSessionListOrderingModeV1,
+    normalizeSessionListVisibilityScope,
     resolveEffectiveSessionListFolderSortMode,
 } from '@/sync/domains/session/listing/sessionListOrderingRules';
 import {
@@ -165,8 +166,10 @@ export function useSessionListViewState({
     const [sessionFolderViewModeRaw, setSessionFolderViewModeV1] = useSessionFolderViewModeMutable('sessionFolderViewModeV1');
     const sessionTagsEnabled = useSetting('sessionTagsEnabled');
     const [hideInactiveSessionsSetting, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
+    const [sessionListVisibilityScopeRaw, setSessionListVisibilityScope] = useSettingMutable('sessionListVisibilityScope');
     const rememberLastProjectSessionSelections = useSetting('rememberLastProjectSessionSelections') !== false;
     const workspaceFaviconsEnabled = useSetting('workspaceFaviconsEnabled') !== false;
+    const showHibernatedInActiveList = useSetting('showHibernatedInActiveList') === true;
     const workspaceMachineSubtitlesEnabled = useSetting('workspaceMachineSubtitlesEnabled') !== false;
     const [collapsedGroupKeysV1, setCollapsedGroupKeysV1] = useCollapsedGroupKeysMutable('collapsedGroupKeysV1');
     const sessionListDensity = useSetting('sessionListDensity');
@@ -186,6 +189,7 @@ export function useSessionListViewState({
     const sessionFoldersDecision = useFeatureDecision('sessions.folders');
 
     const hideInactiveSessions = hideInactiveSessionsSetting === true;
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(sessionListVisibilityScopeRaw);
     const compactSessionView = sessionListDensity === 'cozy' || sessionListDensity === 'narrow';
     const compactSessionViewMinimal = sessionListDensity === 'narrow';
     const currentUserId = typeof profile?.id === 'string' ? profile.id : null;
@@ -397,8 +401,8 @@ export function useSessionListViewState({
             enabled: true,
             folders: sessionFoldersV1,
             assignmentsBySessionKey: sessionFolderAssignmentsBySessionKey,
-        });
-    }, [data, folderViewEnabled, sessionFolderAssignmentsBySessionKey, sessionFoldersV1, workspaceLabelsByLabelKey]);
+        }, showHibernatedInActiveList);
+    }, [data, folderViewEnabled, sessionFolderAssignmentsBySessionKey, sessionFoldersV1, showHibernatedInActiveList, workspaceLabelsByLabelKey]);
 
     const headerFiltersActive = hasActiveSessionListHeaderFilters(headerFilters);
 
@@ -527,6 +531,8 @@ export function useSessionListViewState({
         sessionTagsEnabled,
         hideInactiveSessions,
         setHideInactiveSessions,
+        sessionListVisibilityScope,
+        setSessionListVisibilityScope,
         rememberLastProjectSessionSelections,
         workspaceLabelsV1,
         setWorkspaceLabelsV1,

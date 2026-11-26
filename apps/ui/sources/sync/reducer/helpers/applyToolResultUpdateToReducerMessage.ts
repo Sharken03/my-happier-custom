@@ -1,4 +1,6 @@
-import { isClaudeAsyncAgentLaunchToolResult } from '@happier-dev/protocol';
+import { isAsyncSubagentLaunchToolResult } from '@happier-dev/protocol';
+
+import { sameJsonValue } from '@/utils/json/sameJsonValue';
 
 import type { MessageMeta } from '../../domains/messages/messageMetaTypes';
 import type { ReducerMessage } from '../reducer';
@@ -43,18 +45,24 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
   messageId: string;
   toolResult: ToolResultUpdate;
   resultCreatedAt: number;
+  /** When the server last wrote the result row; see `NormalizedMessage.serverUpdatedAt`. */
+  resultUpdatedAt?: number;
   meta?: MessageMeta;
   changed: Set<string>;
 }>): void {
-  const { message, messageId, toolResult, resultCreatedAt, meta, changed } = params;
+  const { message, messageId, toolResult, resultCreatedAt, resultUpdatedAt, meta, changed } = params;
 
   if (!message.tool) return;
 
   if (meta) {
-    message.meta = {
+    const nextMeta = {
       ...(message.meta ?? {}),
       ...meta,
     };
+    if (!sameJsonValue(nextMeta, message.meta)) {
+      message.meta = nextMeta;
+      changed.add(messageId);
+    }
   }
 
   const isApprovedPlaceholder =
@@ -69,10 +77,11 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
   // result was dropped and the card stayed frozen on "Async agent launched successfully" forever.
   // A replay of the acknowledgement itself is not new evidence, so the incoming result must be a
   // different kind of answer for the exception to apply.
+  // An async `pi-subagents` run works the same way: the CLI sends the run's real result when it ends.
   const supersedesAsyncAgentLaunch =
     message.tool.state === 'completed' &&
-    isClaudeAsyncAgentLaunchToolResult(message.tool.result) &&
-    !isClaudeAsyncAgentLaunchToolResult(toolResult.content);
+    isAsyncSubagentLaunchToolResult(message.tool.result) &&
+    !isAsyncSubagentLaunchToolResult(toolResult.content);
 
   if (
     message.tool.state !== 'running' &&
@@ -113,7 +122,9 @@ export function applyToolResultUpdateToReducerMessage(params: Readonly<{
     message.tool.result,
     toolResult.content
   );
-  message.tool.completedAt = resultCreatedAt;
+  // The final result can arrive in a row that first held stream chunks; that row keeps the first
+  // chunk's createdAt, so its last write is when the tool ended.
+  message.tool.completedAt = Math.max(resultCreatedAt, resultUpdatedAt ?? resultCreatedAt);
 
   if (toolResult.permissions) {
     if (message.tool.permission) {

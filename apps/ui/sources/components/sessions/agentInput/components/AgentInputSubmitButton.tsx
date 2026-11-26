@@ -10,6 +10,12 @@ import { RoundButton } from '@/components/ui/buttons/RoundButton';
 import { describeMotionSpring, resolveMotionPresentation } from '@/components/ui/motion';
 import { hapticsLight } from '@/components/ui/theme/haptics';
 import { useReducedMotionPreference } from '@/hooks/ui/useReducedMotionPreference';
+import { useSetting } from '@/sync/domains/state/storage';
+import {
+    COMPOSER_SEND_ACCENT,
+    COMPOSER_SEND_ACCENT_TINT,
+    resolveComposerFilledButtonColors,
+} from '../composerFilledButtons';
 import { t } from '@/text';
 import { Icon } from '@/components/ui/icons/Icon';
 import { DeferredAnchoredTooltip } from '@/components/ui/overlays/DeferredAnchoredTooltip';
@@ -30,6 +36,8 @@ import {
  * lands inside the clip.
  */
 const SUBMIT_HIT_SLOP = { top: 5, bottom: 10, left: 0, right: 0 } as const;
+/** The send column at rest: the 32 dp PrimaryCircleIconButton and the 8 dp margins of shapeClip. */
+export const AGENT_INPUT_SUBMIT_COLUMN_WIDTH = 32 + 8 + 8;
 
 const stylesheet = StyleSheet.create(() => ({
     shapeClip: {
@@ -117,8 +125,17 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     isStopping?: boolean;
     hasSendableContent: boolean;
     canStop?: boolean;
+    /**
+     * Dictation mode: the microphone is one action per message. While a turn runs, the empty
+     * composer's button stops it instead of handing the slot to the microphone.
+     */
+    dictationMode?: boolean;
     micPressHandler?: (() => void) | undefined;
     micActive: boolean;
+    /** Capturing audio right now: the stop glyph turns the recording color. */
+    micRecording?: boolean;
+    /** Turning the captured audio into text: the button shows a spinner and waits. */
+    micBusy?: boolean;
     /**
      * The Agent the in-session picker has armed, or null for an ordinary send.
      *
@@ -145,14 +162,35 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
     };
 
     React.useEffect(() => { setSendMenuOpen(false); }, [props.sessionId, sendMenuEnabled]);
-    const showStopWhenEmpty = !hasSendIntent && !props.micPressHandler && props.canStop === true;
     /*
-     * With nothing to send, a composer that has Voice hands this button to the
-     * microphone — `submitPress` routes there before it ever reaches Stop, whether
-     * or not the mic is already listening. Text takes the button back.
+     * A running turn owns the empty composer when dictation mode is on: the button stops the run
+     * and the microphone waits, because a mic press during a turn used to be swallowed by the voice
+     * engine. A microphone that is actually listening keeps the slot — otherwise the person could
+     * not stop a recording started while the previous turn is still running. With dictation mode
+     * off the microphone keeps the slot, as before. Text takes it back.
      */
     const micHoldsSubmit = Boolean(props.micPressHandler) && !hasSendIntent;
+    const micOwnsSubmit = micHoldsSubmit && (props.micActive === true || props.micBusy === true);
+    const showStopWhenEmpty = !hasSendIntent && props.canStop === true && props.dictationMode !== false
+        && !micOwnsSubmit;
     const disabled = props.disabled || (!hasSendIntent && !micHoldsSubmit && !showStopWhenEmpty);
+    // Setting composerFilledButtonsV1: orange while the press sends or the microphone records,
+    // a dim orange for a send with nothing to send, and the composer's gray fill otherwise. A voice
+    // turn that waits for the reply or reads it aloud keeps the gray fill: only capture is orange.
+    const filledButtons = useSetting('composerFilledButtonsV1') !== false;
+    const filledColors = resolveComposerFilledButtonColors(theme.dark);
+    const accented = filledButtons
+        && ((props.hasSendableContent && !disabled) || props.isSending === true
+            || (micHoldsSubmit && props.micActive === true && props.micRecording === true));
+    const dimSend = filledButtons && !accented && !micHoldsSubmit && !showStopWhenEmpty;
+    const fillColor = !filledButtons ? undefined
+        : accented ? COMPOSER_SEND_ACCENT
+        : dimSend ? filledColors.dimAccent
+        : filledColors.fill;
+    const glyphTint = !filledButtons ? theme.colors.button.primary.tint
+        : accented ? COMPOSER_SEND_ACCENT_TINT
+        : dimSend ? filledColors.dimAccentTint
+        : theme.colors.text.primary;
 
     // The armed switch only reaches the button while the button is actually a
     // send. The mic and Stop are other actions, and labelling either
@@ -176,10 +214,10 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
         hapticsLight();
         if (hasSendIntent) {
             props.onSend();
-        } else if (props.micPressHandler) {
-            props.micPressHandler();
         } else if (showStopWhenEmpty) {
             props.onStop?.();
+        } else if (props.micPressHandler) {
+            props.micPressHandler();
         }
     }, [hasSendIntent, props.micPressHandler, props.onSend, props.onStop, showStopWhenEmpty]);
 
@@ -240,16 +278,17 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
             <PrimaryCircleIconButton
                 testID={props.testID}
                 active={props.hasSendableContent || props.isSending || Boolean(props.micPressHandler) || showStopWhenEmpty}
-                loading={props.isSending || (showStopWhenEmpty && props.isStopping)}
+                fillColor={fillColor}
+                loading={props.isSending || (showStopWhenEmpty && props.isStopping) || (micHoldsSubmit && props.micBusy === true)}
                 disabled={disabled}
                 accessibilityLabel={
                     props.hasSendableContent
                         ? (props.submitAccessibilityLabel ?? (props.sessionId ? t('common.send') : t('newSession.title')))
                         : (
-                            props.micPressHandler
-                                ? t('voiceAssistant.label')
-                                : showStopWhenEmpty
-                                    ? t('runs.stop.stopRunA11y')
+                            showStopWhenEmpty
+                                ? t('runs.stop.stopRunA11y')
+                                : props.micPressHandler
+                                    ? t('voiceAssistant.label')
                                 : (props.submitAccessibilityLabel ?? (props.sessionId ? t('common.send') : t('newSession.title')))
                         )
                 }
@@ -278,26 +317,30 @@ export const AgentInputSubmitButton = React.memo(function AgentInputSubmitButton
                     <Icon
                         name="arrow-up"
                         size={16}
-                        color={theme.colors.button.primary.tint}
+                        color={glyphTint}
                         style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                     />
+                ) : showStopWhenEmpty ? (
+                    <Icon name="stop" size={16} weight="fill" color={glyphTint} />
                 ) : props.micPressHandler ? (
                     props.micActive ? (
-                        <Icon name="stop-circle" size={20} color={theme.colors.button.primary.tint} />
+                        <Icon
+                            name="stop-circle"
+                            size={20}
+                            color={props.micRecording && !accented ? theme.colors.status.error : glyphTint}
+                        />
                     ) : (
                         <Image
                             source={require('@/assets/images/icon-voice-white.png')}
                             style={{ width: 24, height: 24 }}
-                            tintColor={theme.colors.button.primary.tint}
+                            tintColor={glyphTint}
                         />
                     )
-                ) : showStopWhenEmpty ? (
-                    <Icon name="stop" size={16} weight="fill" color={theme.colors.button.primary.tint} />
                 ) : (
                     <Icon
                         name="arrow-up"
                         size={16}
-                        color={theme.colors.button.primary.tint}
+                        color={glyphTint}
                         style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                     />
                 )}

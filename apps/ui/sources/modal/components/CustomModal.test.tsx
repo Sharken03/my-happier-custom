@@ -53,6 +53,13 @@ function SelfChromeModal(props: CustomModalInjectedProps & Readonly<{ label: str
     return React.createElement('SelfChromeModal', props);
 }
 
+function FullscreenChromeModal(props: CustomModalInjectedProps & Readonly<{ label: string }>) {
+    React.useLayoutEffect(() => {
+        props.setChrome?.({ kind: 'fullscreen' });
+    }, [props.setChrome]);
+    return React.createElement('FullscreenChromeModal', props);
+}
+
 function PatchChromeModal(props: CustomModalInjectedProps & Readonly<{ label: string }>) {
     React.useLayoutEffect(() => {
         props.setChrome?.({
@@ -113,7 +120,6 @@ describe('CustomModal', () => {
 
     it('wraps chrome-backed modals in ModalCardFrame and closes through the shared handler', async () => {
         const onClose = vi.fn();
-        const onRequestClose = vi.fn();
         const chromeLeading = React.createElement('ChromeLeading');
         const chromeActions = React.createElement('ChromeActions');
         const chromeFooter = React.createElement('ChromeFooter');
@@ -124,7 +130,6 @@ describe('CustomModal', () => {
             props: {
                 label: 'browse',
             },
-            onRequestClose,
             chrome: {
                 kind: 'card',
                 leading: chromeLeading,
@@ -157,7 +162,6 @@ describe('CustomModal', () => {
             modalCardFrame.props.onClose();
         });
 
-        expect(onRequestClose).toHaveBeenCalledTimes(1);
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
@@ -172,6 +176,28 @@ describe('CustomModal', () => {
         expect(modalCardFrame.props.title).toBe('Self chrome');
         expect(modalCardFrame.props.layout).toBe('fit');
         expect(screen.findByType(SelfChromeModal).props.label).toBe('self');
+    });
+
+    it('renders fullscreen chrome without a card and asks BaseModal for the whole screen', async () => {
+        const screen = await renderCustomModal({
+            type: 'custom',
+            component: FullscreenChromeModal,
+            props: { label: 'fullscreen' },
+        });
+
+        expect(screen.findAllByType(ModalCardFrame as any)).toHaveLength(0);
+        expect(screen.findByType('BaseModal' as any).props.fullscreen).toBe(true);
+        expect(screen.findByType(FullscreenChromeModal).props.label).toBe('fullscreen');
+    });
+
+    it('keeps BaseModal out of fullscreen when no chrome is requested', async () => {
+        const screen = await renderCustomModal({
+            type: 'custom',
+            component: RawModal,
+            props: { label: 'raw' },
+        });
+
+        expect(screen.findByType('BaseModal' as any).props.fullscreen).toBe(false);
     });
 
     it('merges card chrome updates with existing chrome by default', async () => {
@@ -275,7 +301,6 @@ describe('CustomModal', () => {
 
     it('does not invoke legacy `props.onRequestClose` when dismissing', async () => {
         const onClose = vi.fn();
-        const onRequestClose = vi.fn();
         const legacyOnRequestClose = vi.fn();
 
         const screen = await renderCustomModal({
@@ -285,14 +310,12 @@ describe('CustomModal', () => {
                 label: 'legacy',
                 onRequestClose: legacyOnRequestClose,
             },
-            onRequestClose,
         }, onClose);
 
         act(() => {
             screen.findByType('BaseModal' as any).props.onClose();
         });
 
-        expect(onRequestClose).toHaveBeenCalledTimes(1);
         expect(legacyOnRequestClose).toHaveBeenCalledTimes(0);
         expect(onClose).toHaveBeenCalledTimes(1);
     });

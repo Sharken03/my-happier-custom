@@ -12,7 +12,7 @@ import { useLayoutMaxWidth } from "@/components/ui/layout/layout";
 import { ToolView } from '@/components/tools/shell/views/ToolView';
 import { ToolTimelineRow } from '@/components/tools/shell/views/ToolTimelineRow';
 import { buildMessageRouteId, resolveMessageRouteIdForDisplay } from '@/sync/domains/messages/messageRouteIds';
-import { sync } from '@/sync/sync';
+import { pressMessageOption } from '@/components/sessions/transcript/options/pressMessageOption';
 import { Option, type OptionLongPressHandler } from '@/components/markdown/MarkdownView';
 import { isCommittedMessageDiscarded } from "@/utils/sessions/discardedCommittedMessages";
 import { shouldShowTranscriptRowActions, shouldShowTranscriptRowPinAction } from '@/components/sessions/transcript/messageCopyVisibility';
@@ -41,6 +41,11 @@ import { AttachmentsMessageRow } from '@/components/sessions/attachments/message
 import { SessionMediaInlineImages } from '@/components/sessions/sessionMedia/SessionMediaInlineImages';
 import { SessionMediaUnavailableItems } from '@/components/sessions/sessionMedia/SessionMediaUnavailableItems';
 import { parseSessionMediaMessageMeta } from '@/sync/domains/sessionMedia/sessionMediaMessageMeta';
+import { countSessionMediaImages } from '@/components/sessions/sessionMedia/sessionMediaPresentation';
+import { ToolResultMedia } from '@/components/sessions/sessionMedia/ToolResultMedia';
+import { SharedImageToolCallRow } from '@/components/sessions/sessionMedia/SharedImageToolCallRow';
+import { TranscriptSharedImagesContext } from '@/components/sessions/sessionMedia/TranscriptSharedImagesContext';
+import { resolveSharedImageToolCallPresentation } from '@/components/sessions/sessionMedia/sharedImageToolCall';
 import { canForkFromMessage } from '@/sync/domains/sessionFork/forkUiSupport';
 import { resolveForkFromMessageSemantics } from '@/sync/domains/sessionFork/forkFromMessageSemantics';
 import { openSessionForkStrategyFlow } from '@/components/sessions/fork/openSessionForkStrategyFlow';
@@ -50,17 +55,19 @@ import { getImageMimeTypeFromPath } from '@/scm/utils/filePresentation';
 import { normalizeVoiceAgentTurnTranscriptText } from '@happier-dev/agents';
 import { MessageSelectionCheckbox } from '@/components/sessions/transcript/messageSelection/MessageSelectionCheckbox';
 import { SelectMessageButton } from '@/components/sessions/transcript/messageSelection/SelectMessageButton';
+import { UserMessageLongPressMenu } from '@/components/sessions/transcript/messageActions/UserMessageLongPressMenu';
 import { useOptionalTranscriptSelectionRow } from '@/components/sessions/transcript/messageSelection/TranscriptMessageSelectionContext';
 import { useTranscriptQuoteMarkdownProps } from '@/components/sessions/transcript/quote/TranscriptQuoteContext';
 import {
   resolveSelectableMessageText,
-  stripLegacyAttachmentsBlock,
+  resolveUserTextDisplayText,
   unwrapLegacyThinkingWrapper,
 } from '@/components/sessions/transcript/messageSelection/resolveSelectableMessageText';
 import { TranscriptRollbackActionButton } from '@/components/sessions/transcript/TranscriptRollbackActionButton';
 import { MessageActionRow } from '@/components/sessions/transcript/messageActions/MessageActionRow';
 import { RowActionDeferredIcon } from '@/components/sessions/transcript/messageActions/RowActionRevealSlot';
 import { MessagePinButton } from '@/components/sessions/transcript/messageActions/MessagePinButton';
+import { MessageSpeakButton } from '@/components/sessions/transcript/messageActions/MessageSpeakButton';
 import { resolveMessagePinAvailability } from '@/components/sessions/transcript/messageActions/resolveMessagePinAvailability';
 import { readCoarsePrimaryPointer, useRowActionHoverHost } from '@/components/sessions/transcript/messageActions/rowActionRevealHost';
 import { resolveToolRowPinAction } from '@/components/sessions/transcript/toolCalls/ToolCallPinAction';
@@ -92,7 +99,8 @@ import {
   deriveTranscriptInteractionFromSession,
   type TranscriptInteraction,
 } from '@/utils/sessions/deriveTranscriptInteraction';
-import { useSessionInteractionSource, useSessionReferenceTarget } from '@/sync/domains/state/storage';
+import { useSessionInteractionSource, useSessionReferenceTarget, useSetting } from '@/sync/domains/state/storage';
+import { resolveChatFontFaces } from '@/constants/chatFont';
 import { Icon, ICON_SIZE } from '@/components/ui/icons/Icon';
 import { getSessionDisplayTitle } from '@/utils/sessions/sessionUtils';
 
@@ -276,9 +284,54 @@ function resolveMessageTimestampPresentation(input: {
   }
 }
 
-function buildStreamingMarkdownParseCacheKey(messageId: string, revision: number | null | undefined): string | null {
-  if (typeof revision !== 'number' || !Number.isFinite(revision)) return null;
-  return `message:${messageId}:revision:${Math.trunc(revision)}`;
+// The parse slot names the message only. The segment cache already checks that the stored text
+// equals the current one, so a revision in the key adds no safety; it changed on every stream
+// delta and made the renderer split the unchanged Markdown again.
+function buildStreamingMarkdownParseCacheKey(messageId: string): string {
+  return `message:${messageId}`;
+}
+
+/**
+ * Escape markdown underscores in agent-mail messages to prevent them from being rendered as emphasis.
+ * Agent-mail messages (peer.handoff === true) often contain technical terms like `agent_send`
+ * where underscores should be displayed literally, not as markdown emphasis.
+ * This only escapes underscores in identifier-like contexts (alphanumeric chars on both sides),
+ * not markdown emphasis syntax like _italic_ or __bold__.
+ * It also preserves code spans (`code`) and fenced code blocks (```code```).
+ */
+function escapeMarkdownUnderscoresForAgentMail(text: string): string {
+  // Protect code spans and fenced blocks by temporarily replacing them with placeholders
+  // that use a character not matched by [^\W_] (underscore). Using NUL char ensures
+  // placeholders never match the escape regex. Placeholders use only NUL + index + NUL
+  // with no word characters to avoid being corrupted by the escape pass.
+  const codeSpans: string[] = [];
+  const fencedBlocks: string[] = [];
+  const NUL = '\0';
+  
+  // Protect fenced code blocks first (```...``` or ~~~...~~~)
+  let escaped = text.replace(/^( {0,3})([`~]{3,})([^`~]*)\n([\s\S]*?)\n\1\2/gm, (match, indent, fence, info, content) => {
+    const idx = fencedBlocks.length;
+    fencedBlocks.push(match);
+    return `${NUL}FB${idx}${NUL}`;
+  });
+  
+  // Protect inline code spans (`code`)
+  escaped = escaped.replace(/`([^`\n]+)`/g, (match, content) => {
+    const idx = codeSpans.length;
+    codeSpans.push(match);
+    return `${NUL}CS${idx}${NUL}`;
+  });
+  
+  // Escape underscores only in prose (alphanumeric on both sides, not already escaped)
+  escaped = escaped.replace(/(?<!\\)(?<=[^\W_])_(?=[^\W_])/g, '\\_');
+  
+  // Restore fenced blocks - use RegExp constructor with double-escaped backslash for \d in string literal
+  escaped = escaped.replace(new RegExp(NUL + 'FB(\\d+)' + NUL, 'g'), (_, idx) => fencedBlocks[parseInt(idx, 10)]);
+  
+  // Restore code spans
+  escaped = escaped.replace(new RegExp(NUL + 'CS(\\d+)' + NUL, 'g'), (_, idx) => codeSpans[parseInt(idx, 10)]);
+  
+  return escaped;
 }
 
 type MessageViewProps = {
@@ -297,6 +350,7 @@ type MessageViewProps = {
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   onToggleToolPin?: SessionMessagePinToggleHandler;
   historical?: boolean;
+  // Not read below: as a memo input it re-renders the row when a delta bumps the revision.
   messageRevision?: number | null;
   eventEmphasis?: TranscriptEventEmphasis;
   interaction?: TranscriptInteraction;
@@ -372,7 +426,6 @@ export const MessageViewWithSessionCommon = React.memo(function MessageViewWithS
           onToggleMessagePin={props.onToggleMessagePin}
           onToggleToolPin={props.onToggleToolPin}
           historical={props.historical}
-          messageRevision={props.messageRevision}
           eventEmphasis={props.eventEmphasis}
           interaction={interaction}
           canFork={canFork}
@@ -407,7 +460,6 @@ function RenderBlock(props: {
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   onToggleToolPin?: SessionMessagePinToggleHandler;
   historical?: boolean;
-  messageRevision?: number | null;
   eventEmphasis?: TranscriptEventEmphasis;
   forkCommon: TranscriptForkCommon;
   messageDisplayCommon: TranscriptMessageDisplayCommon;
@@ -457,7 +509,6 @@ function RenderBlock(props: {
           messagePins={props.messagePins}
           onToggleMessagePin={props.onToggleMessagePin}
           historical={props.historical}
-          messageRevision={props.messageRevision}
           pinReadOnlyContext={props.interaction.permissionDisabledReason === 'readOnly'}
           forkCommon={props.forkCommon}
           messageDisplayCommon={props.messageDisplayCommon}
@@ -565,6 +616,7 @@ function UserTextBlock(props: {
   const provenance = readSessionMessageProvenanceV1(props.message.meta);
   const quoteMarkdownProps = useTranscriptQuoteMarkdownProps(props.sessionId, !isDiscarded && props.historical !== true);
   const handleJumpToAnchor = useStructuredMessageJumpHandler(props.sessionId, props.canOpenFiles);
+  const userBubbleNarrow = useSetting('transcriptUserBubbleNarrow') === true;
 
   const isVoiceAgentTurn = React.useMemo(() => {
     const envelope = parseHappierMetaEnvelope(props.message.meta);
@@ -614,15 +666,10 @@ function UserTextBlock(props: {
     })
     : null;
 
-  const markdownText = React.useMemo(() => {
-    if (unsupportedContentText != null) return unsupportedContentText;
-    if (isVoiceAgentTurn && props.message.displayText === undefined) {
-      return normalizeVoiceAgentTurnTranscriptText(props.message.text);
-    }
-    if (props.message.displayText !== undefined) return props.message.displayText;
-    if (attachmentsMeta) return stripLegacyAttachmentsBlock(props.message.text);
-    return props.message.text;
-  }, [attachmentsMeta, isVoiceAgentTurn, props.message.displayText, props.message.text, unsupportedContentText]);
+  const markdownText = React.useMemo(
+    () => unsupportedContentText ?? resolveUserTextDisplayText(props.message, attachmentsMeta != null),
+    [attachmentsMeta, props.message, unsupportedContentText],
+  );
   const renderedMarkdownText = markdownText ?? props.message.displayText ?? props.message.text;
 
   const structuredReferences = useMessageStructuredReferences({
@@ -631,19 +678,14 @@ function UserTextBlock(props: {
   });
 
   const handleOptionPress = React.useCallback((option: Option) => {
-    fireAndForget((async () => {
-      try {
-        if (!props.canSendMessages) {
-          Modal.alert(t('session.sharing.viewOnly'), t('session.sharing.noEditPermission'));
-          return;
-        }
-        await sync.submitMessage(props.sessionId, option.title, undefined, undefined, {
-          callerSurface: 'message_option',
-        });
-      } catch (e) {
-        Modal.alert(t('common.error'), e instanceof Error ? e.message : t('errors.failedToSendMessage'));
-      }
-    })(), { tag: 'MessageView.handleOptionPress.userMessage' });
+    fireAndForget(
+      pressMessageOption({
+        sessionId: props.sessionId,
+        title: option.title,
+        canSendMessages: props.canSendMessages,
+      }),
+      { tag: 'MessageView.handleOptionPress.userMessage' },
+    );
   }, [props.canSendMessages, props.sessionId]);
   const handleOptionLongPress = React.useCallback<OptionLongPressHandler>(async (option) => {
     const ok = await setClipboardStringSafe(option.title);
@@ -663,6 +705,7 @@ function UserTextBlock(props: {
     return base && unsupportedContentText != null ? { ...base, text: unsupportedContentText } : base;
   })();
   const selectionEnabled = props.messageDisplayCommon.transcriptMessageSelectionEnabled === true && selectableMessage != null;
+  const copyOnly = props.messageDisplayCommon.transcriptMessageActionsCopyOnly === true;
   const selectionRow = useOptionalTranscriptSelectionRow(props.message.id);
   const selectionModeActionsVisible = selectionEnabled && selectionRow.isSelectionMode;
   const sessionReplayEnabled = props.forkCommon.sessionReplayEnabled;
@@ -757,6 +800,7 @@ function UserTextBlock(props: {
               <AttachmentsMessageRow
                 attachments={nonImageAttachments}
                 onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
+                sessionId={props.sessionId}
               />
             ) : null}
             {isDiscarded ? (
@@ -768,7 +812,7 @@ function UserTextBlock(props: {
             timestampText={timestampText}
             showActions={showMessageActions}
             showPinAction={showPinButton}
-            pinAction={hasPinButton ? (
+            pinAction={hasPinButton && !copyOnly ? (
               <MessagePinButton
                 availability={messagePinAvailability}
                 onTogglePin={props.onToggleMessagePin}
@@ -783,6 +827,7 @@ function UserTextBlock(props: {
             isWeb={isWeb}
             invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
           >
+            {copyOnly ? null : (<>
             {props.rollbackAction ? (
               <TranscriptRollbackActionButton
                 sessionId={props.sessionId}
@@ -826,6 +871,14 @@ function UserTextBlock(props: {
                 invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
               />
             ) : null}
+            <MessageSpeakButton
+              messageKey={String(props.message.id)}
+              text={copyText}
+              testID={`transcript-message-speak:${props.message.id}`}
+              onHoverIn={isWeb ? () => setIsCopyButtonHovered(true) : undefined}
+              onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
+              invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
+            />
             <CopyMessageButton
               markdown={copyText}
               testID={`transcript-message-copy:${props.message.id}`}
@@ -833,6 +886,7 @@ function UserTextBlock(props: {
               onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
+            </>)}
           </MessageActionRow>
         </View>
       </View>
@@ -859,55 +913,61 @@ function UserTextBlock(props: {
           {...(isWeb ? {} : { pointerEvents: 'box-none' as const })}
         >
           {provenance ? <SessionMessageProvenanceAttribution messageId={props.message.id} provenance={provenance} /> : null}
-          <View style={styles.userMessageBubbleAligner}>
-            <TranscriptJumpAttention
-              sessionId={props.sessionId}
-              routeMessageId={buildMessageRouteId(props.message)}
-              seq={seq}
-              radius={TRANSCRIPT_MESSAGE_HIGHLIGHT_RADIUS}
-              style={[styles.userMessageBubble, isDiscarded ? styles.userMessageBubbleDiscarded : null]}
-            >
-              <StructuredMessageBlock
-                message={props.message}
+          <View
+            testID={`transcript-user-bubble:${props.message.id}`}
+            style={[styles.userMessageBubbleAligner, userBubbleNarrow ? styles.userMessageBubbleAlignerNarrow : null]}
+          >
+            <UserMessageLongPressMenu enabled={copyOnly} text={copyText} messageId={props.message.id}>
+              <TranscriptJumpAttention
                 sessionId={props.sessionId}
-                interaction={props.interaction}
-                onJumpToAnchor={handleJumpToAnchor}
-              />
-              <MarkdownView {...quoteMarkdownProps} codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])} markdown={renderedMarkdownText} onOptionPress={handleOptionPress} onOptionLongPress={handleOptionLongPress} onLinkPress={handleMarkdownLinkPress} selectable={true} profile="transcript" textStyle={styles.transcriptMarkdownText} />
-              {sessionMediaInlineImages.length > 0 ? (
-                <SessionMediaInlineImages
+                routeMessageId={buildMessageRouteId(props.message)}
+                seq={seq}
+                radius={TRANSCRIPT_MESSAGE_HIGHLIGHT_RADIUS}
+                style={[styles.userMessageBubble, isDiscarded ? styles.userMessageBubbleDiscarded : null]}
+              >
+                <StructuredMessageBlock
+                  message={props.message}
                   sessionId={props.sessionId}
-                  media={sessionMediaInlineImages}
-                  onOpenPath={handleOpenAttachmentPath}
-                  fileOpenEnabled={props.canOpenFiles}
-                  mediaPreviewEnabled={props.canPreviewMedia}
+                  interaction={props.interaction}
+                  onJumpToAnchor={handleJumpToAnchor}
                 />
-              ) : null}
-              <SessionMediaUnavailableItems items={unavailableSessionMedia} />
-              {nonImageAttachments.length > 0 ? (
-                <AttachmentsMessageRow
-                  attachments={nonImageAttachments}
-                  onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
-                />
-              ) : null}
-              {structuredReferences.length > 0 ? (
-                <StructuredReferencesRow
-                  sessionId={props.sessionId}
-                  references={structuredReferences}
-                  fileOpenEnabled={props.canOpenFiles}
-                />
-              ) : null}
-              {isDiscarded && (
-                <Text selectable style={styles.discardedCommittedMessageLabel}>{t('message.discarded')}</Text>
-              )}
-            </TranscriptJumpAttention>
+                <MarkdownView {...quoteMarkdownProps} codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])} markdown={renderedMarkdownText} onOptionPress={handleOptionPress} onOptionLongPress={handleOptionLongPress} onLinkPress={handleMarkdownLinkPress} selectable={!copyOnly} profile="transcript" textStyle={styles.transcriptMarkdownText} />
+                {sessionMediaInlineImages.length > 0 ? (
+                  <SessionMediaInlineImages
+                    sessionId={props.sessionId}
+                    media={sessionMediaInlineImages}
+                    onOpenPath={handleOpenAttachmentPath}
+                    fileOpenEnabled={props.canOpenFiles}
+                    mediaPreviewEnabled={props.canPreviewMedia}
+                  />
+                ) : null}
+                <SessionMediaUnavailableItems items={unavailableSessionMedia} />
+                {nonImageAttachments.length > 0 ? (
+                  <AttachmentsMessageRow
+                    attachments={nonImageAttachments}
+                    onOpenPath={props.canOpenFiles ? handleOpenAttachmentPath : undefined}
+                    sessionId={props.sessionId}
+                  />
+                ) : null}
+                {structuredReferences.length > 0 ? (
+                  <StructuredReferencesRow
+                    sessionId={props.sessionId}
+                    references={structuredReferences}
+                    fileOpenEnabled={props.canOpenFiles}
+                  />
+                ) : null}
+                {isDiscarded && (
+                  <Text selectable style={styles.discardedCommittedMessageLabel}>{t('message.discarded')}</Text>
+                )}
+              </TranscriptJumpAttention>
+            </UserMessageLongPressMenu>
           </View>
           <MessageActionRow
             messageId={props.message.id}
             timestampText={timestampText}
             showActions={showMessageActions}
             showPinAction={showPinButton}
-            pinAction={hasPinButton ? (
+            pinAction={hasPinButton && !copyOnly ? (
               <MessagePinButton
                 availability={messagePinAvailability}
                 onTogglePin={props.onToggleMessagePin}
@@ -922,6 +982,7 @@ function UserTextBlock(props: {
             isWeb={isWeb}
             invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
           >
+            {copyOnly ? null : (<>
             {props.rollbackAction ? (
               <TranscriptRollbackActionButton
                 sessionId={props.sessionId}
@@ -965,6 +1026,14 @@ function UserTextBlock(props: {
                 invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
               />
             ) : null}
+            <MessageSpeakButton
+              messageKey={String(props.message.id ?? props.message.localId)}
+              text={copyText}
+              testID={`transcript-message-speak:${props.message.id ?? props.message.localId}`}
+              onHoverIn={isWeb ? () => setIsCopyButtonHovered(true) : undefined}
+              onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
+              invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
+            />
             <CopyMessageButton
               markdown={copyText}
               testID={`transcript-message-copy:${props.message.id ?? props.message.localId}`}
@@ -972,6 +1041,7 @@ function UserTextBlock(props: {
               onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
+            </>)}
           </MessageActionRow>
         </View>
       </View>
@@ -996,7 +1066,6 @@ function AgentTextBlock(props: {
   messagePins?: readonly PersistedSessionMessagePinV1[];
   onToggleMessagePin?: SessionMessagePinToggleHandler;
   historical?: boolean;
-  messageRevision?: number | null;
   pinReadOnlyContext?: boolean;
   forkCommon: TranscriptForkCommon;
   messageDisplayCommon: TranscriptMessageDisplayCommon;
@@ -1064,6 +1133,10 @@ function AgentTextBlock(props: {
   const markdown = (!unsupportedContentMeta && props.message.isThinking)
     ? unwrapLegacyThinkingWrapper(markdownSource)
     : markdownSource;
+  // Agent-mail messages (peer.handoff === true) often contain technical terms with underscores
+  // that should be displayed literally, not as markdown emphasis.
+  const isAgentMail = props.message.peer?.handback === true;
+  const renderMarkdown = isAgentMail ? escapeMarkdownUnderscoresForAgentMail(markdown) : markdown;
   const deriveThinkingSummary = (text: string) => {
     const trimmed = String(text ?? '').trim();
     if (!trimmed) return '';
@@ -1085,22 +1158,18 @@ function AgentTextBlock(props: {
     return base && unsupportedContentText != null ? { ...base, text: unsupportedContentText } : base;
   })();
   const selectionEnabled = props.messageDisplayCommon.transcriptMessageSelectionEnabled === true && selectableMessage != null;
+  const copyOnly = props.messageDisplayCommon.transcriptMessageActionsCopyOnly === true;
   const copyText = selectableMessage?.text ?? (isStructuredOnly ? props.message.text : markdown);
 
   const handleOptionPress = React.useCallback((option: Option) => {
-    fireAndForget((async () => {
-      try {
-        if (!props.canSendMessages) {
-          Modal.alert(t('session.sharing.viewOnly'), t('session.sharing.noEditPermission'));
-          return;
-        }
-        await sync.submitMessage(props.sessionId, option.title, undefined, undefined, {
-          callerSurface: 'message_option',
-        });
-      } catch (e) {
-        Modal.alert(t('common.error'), e instanceof Error ? e.message : t('errors.failedToSendMessage'));
-      }
-    })(), { tag: 'MessageView.handleOptionPress.agentMessage' });
+    fireAndForget(
+      pressMessageOption({
+        sessionId: props.sessionId,
+        title: option.title,
+        canSendMessages: props.canSendMessages,
+      }),
+      { tag: 'MessageView.handleOptionPress.agentMessage' },
+    );
   }, [props.canSendMessages, props.sessionId]);
   const handleOptionLongPress = React.useCallback<OptionLongPressHandler>(async (option) => {
     const ok = await setClipboardStringSafe(option.title);
@@ -1172,6 +1241,7 @@ function AgentTextBlock(props: {
   const transcriptStreamingSettleDelayMsRaw = props.messageDisplayCommon.transcriptStreamingSettleDelayMs;
   const transcriptStreamingPartialOutputEnabledRaw = props.messageDisplayCommon.transcriptStreamingPartialOutputEnabled;
   const transcriptStreamingMarkdownRenderingEnabledRaw = props.messageDisplayCommon.transcriptStreamingMarkdownRenderingEnabled;
+  const transcriptChatFont = useSetting('transcriptChatFont');
   const transcriptStreamingSmoothingEnabled =
     typeof transcriptStreamingSmoothingEnabledRaw === 'boolean'
       ? transcriptStreamingSmoothingEnabledRaw
@@ -1335,7 +1405,7 @@ function AgentTextBlock(props: {
                     {...(thinkingStreamingActive
                       ? {
                           streamingMode: 'streaming' as const,
-                          streamingParseCacheKey: buildStreamingMarkdownParseCacheKey(props.message.id, props.messageRevision),
+                          streamingParseCacheKey: buildStreamingMarkdownParseCacheKey(props.message.id),
                           streamingAnimated: streamingRevealAnimationEnabled,
                           streamingRevealPreset,
                         }
@@ -1355,15 +1425,16 @@ function AgentTextBlock(props: {
                   profile="transcript"
                   textStyle={styles.transcriptMarkdownText}
                   streamingMode="streaming"
-                  streamingParseCacheKey={buildStreamingMarkdownParseCacheKey(props.message.id, props.messageRevision)}
+                  streamingParseCacheKey={buildStreamingMarkdownParseCacheKey(props.message.id)}
                   streamingAnimated={streamingRevealAnimationEnabled}
                   streamingRevealPreset={streamingRevealPreset}
+                  remoteImageHosts={props.messageDisplayCommon.markdownRemoteImageHosts}
                 />
               ) : shouldRenderStreamingPlain ? (
                 <Text
                   testID={`transcript-streaming-plain:${props.message.id}`}
                   selectable={fallbackTextSelectable}
-                  style={[styles.transcriptMarkdownText, styles.streamingPlainText]}
+                  style={[styles.transcriptMarkdownText, styles.streamingPlainText, resolveChatFontFaces(transcriptChatFont, 'transcript')?.regular]}
                 >
                   {streaming.displayText}
                 </Text>
@@ -1375,7 +1446,7 @@ function AgentTextBlock(props: {
                   summary={deriveThinkingSummary(markdown)}
                 >
                   <MarkdownView
-                    markdown={markdown}
+                    markdown={renderMarkdown}
                     codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])}
                     agentTexMath
                     onOptionPress={handleOptionPress}
@@ -1389,7 +1460,7 @@ function AgentTextBlock(props: {
               ) : (
                 <MarkdownView
                   {...quoteMarkdownProps}
-                  markdown={markdown}
+                  markdown={renderMarkdown}
                   codeBlockStateKey={JSON.stringify([props.sessionId, props.message.id])}
                   agentTexMath
                   onOptionPress={handleOptionPress}
@@ -1399,6 +1470,7 @@ function AgentTextBlock(props: {
                   profile={props.message.isThinking ? 'thinking' : 'transcript'}
                   textStyle={props.message.isThinking ? styles.thinkingMarkdownText : styles.transcriptMarkdownText}
                   staticRenderPlaceholderEnabled={staticRenderPlaceholderEnabled}
+                  remoteImageHosts={props.message.isThinking ? undefined : props.messageDisplayCommon.markdownRemoteImageHosts}
                 />
               )
             )
@@ -1426,7 +1498,7 @@ function AgentTextBlock(props: {
           timestampText={timestampText}
           showActions={showMessageActions}
           showPinAction={showPinButton}
-          pinAction={hasPinButton ? (
+          pinAction={hasPinButton && !copyOnly ? (
             <MessagePinButton
               availability={messagePinAvailability}
               onTogglePin={props.onToggleMessagePin}
@@ -1440,7 +1512,9 @@ function AgentTextBlock(props: {
           onActionsBlur={handleActionsBlur}
           isWeb={isWeb}
           invertTimestampAndActions={timestampPresentation.invertTimestampAndActions}
+          align={copyOnly ? 'start' : 'end'}
         >
+          {copyOnly ? null : (<>
           {props.rollbackAction ? (
             <TranscriptRollbackActionButton
               sessionId={props.sessionId}
@@ -1484,6 +1558,15 @@ function AgentTextBlock(props: {
               invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
             />
           ) : null}
+          <MessageSpeakButton
+            messageKey={String(props.message.id)}
+            text={copyText}
+            testID={`transcript-message-speak:${props.message.id}`}
+            onHoverIn={isWeb ? () => setIsCopyButtonHovered(true) : undefined}
+            onHoverOut={isWeb ? () => setIsCopyButtonHovered(false) : undefined}
+            invertedActionsLayout={timestampPresentation.invertTimestampAndActions}
+          />
+          </>)}
           <CopyMessageButton
             markdown={copyText}
             testID={`transcript-message-copy:${props.message.id}`}
@@ -1676,28 +1759,20 @@ function ToolCallBlock(props: {
   toolChromeCommon: TranscriptToolChromeCommon;
   toolRouteCommon: TranscriptToolRouteCommon;
 }) {
-  const router = useRouter();
   const sessionMedia = React.useMemo(
     () => parseSessionMediaMessageMeta(props.message.meta),
     [props.message.meta],
   );
-  const handleOpenMediaPath = React.useCallback((filePath: string) => {
-    pushSessionFileDeepLink(router, { sessionId: props.sessionId, filePath });
-  }, [props.sessionId, router]);
+  // An image the agent shares (`show_image`) is drawn full width in the main transcript list.
+  const sharedImages = React.useContext(TranscriptSharedImagesContext);
+  const sharedImagesActive = sharedImages != null && props.layoutContext === 'transcript';
+  const sharedImagePresentation = React.useMemo(
+    () => (sharedImagesActive ? resolveSharedImageToolCallPresentation(props.message) : null),
+    [sharedImagesActive, props.message],
+  );
   const hasToolMedia = sessionMedia.inlineImages.length > 0 || sessionMedia.unavailableMedia.length > 0;
   const toolMedia = hasToolMedia ? (
-    <>
-      {sessionMedia.inlineImages.length > 0 ? (
-        <SessionMediaInlineImages
-          sessionId={props.sessionId}
-          media={sessionMedia.inlineImages}
-          onOpenPath={handleOpenMediaPath}
-          fileOpenEnabled={props.interaction.canOpenFiles === true}
-          mediaPreviewEnabled={props.interaction.canPreviewMedia === true}
-        />
-      ) : null}
-      <SessionMediaUnavailableItems items={sessionMedia.unavailableMedia} />
-    </>
+    <ToolResultMedia sessionId={props.sessionId} media={sessionMedia} interaction={props.interaction} />
   ) : null;
 
   const handleJumpToAnchor = useStructuredMessageJumpHandler(
@@ -1709,6 +1784,17 @@ function ToolCallBlock(props: {
   const reducerState = props.toolRouteCommon.reducerState;
   if (!props.message.tool) {
     return null;
+  }
+  if (sharedImages && sharedImagePresentation) {
+    return (
+      <SharedImageToolCallRow
+        sessionId={props.sessionId}
+        messageId={props.message.id}
+        presentation={sharedImagePresentation}
+        transcriptContentWidthPx={sharedImages.transcriptContentWidthPx}
+        interaction={props.interaction}
+      />
+    );
   }
   const structuredNode = renderStructuredMessage({
     message: props.message,
@@ -1755,6 +1841,7 @@ function ToolCallBlock(props: {
           approvalRequests={props.approvalRequests}
           forcePermissionPromptsInTranscript={props.forcePermissionPromptsInTranscript}
           interaction={props.interaction}
+          imageCount={countSessionMediaImages(sessionMedia.inlineImages)}
         >
           {structuredNode}
           {toolMedia}
@@ -1849,6 +1936,9 @@ const styles = StyleSheet.create((theme) => ({
       // on one line, since maxWidth:'100%' only clamps the box, it does not bound the text).
       alignSelf: 'flex-end',
       maxWidth: '100%',
+    },
+    userMessageBubbleAlignerNarrow: {
+      maxWidth: '80%',
     },
     userMessageBubble: {
       backgroundColor: theme.colors.message.user.background,

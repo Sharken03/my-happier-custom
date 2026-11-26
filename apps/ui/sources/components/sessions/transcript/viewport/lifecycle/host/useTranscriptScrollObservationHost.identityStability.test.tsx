@@ -413,6 +413,52 @@ describe('useTranscriptScrollObservationHost identity stability', () => {
         await hook.unmount();
     });
 
+    // A native list at the genuine top emits no scroll frames, and onStartReached fires again only
+    // after leaving the start zone, so a drag that begins with the first row reached re-observes
+    // the older edge. The older edge is asked for directly, whatever the list orientation.
+    it.each([
+        ['standard', (edge: 'start' | 'end') => edge === 'start' ? 'older' : 'newer'],
+        ['inverted', (edge: 'start' | 'end') => edge === 'start' ? 'newer' : 'older'],
+    ] as const)('re-observes the older edge when a native drag begins at the first row in %s orientation', async (
+        _orientation,
+        resolveReachedEdge,
+    ) => {
+        const members = createStableMembers();
+        members.readItemsToOlderEdge.mockReturnValue(0);
+        members.listContentHeightRef.current = 1200;
+        members.listLayoutHeightRef.current = 600;
+        members.listRef.current = {
+            getAbsoluteLastScrollOffset: () => 0,
+            scrollToIndex: vi.fn(),
+            scrollToOffset: vi.fn(),
+        };
+        members.resolveNativeObservedScrollOffset.mockReturnValue({
+            canonicalOffsetY: 0,
+            distanceFromLiveTailPx: 600,
+        });
+        members.wantsPinnedRef.current = false;
+        members.bottomFollowModeStateRef.current = { dragSession: null, mode: 'released' };
+        members.resolveViewportReachedEdge.mockImplementation(resolveReachedEdge);
+        const hook = await renderHook(
+            (deps: ScrollObservationHostDeps) => useTranscriptScrollObservationHost(deps),
+            { initialProps: { ...buildDeps(members), isLoaded: true, platformOS: 'android' } },
+        );
+        members.olderPagination.onScrollObservation.mockClear();
+
+        hook.getCurrent().onScrollBeginDrag();
+        expect(members.olderPagination.onScrollObservation).toHaveBeenCalledWith(expect.objectContaining({
+            itemsToOlderEdge: 0,
+            offsetY: 0,
+            trigger: 'edge-reached',
+        }));
+
+        members.olderPagination.onScrollObservation.mockClear();
+        members.readItemsToOlderEdge.mockReturnValue(3);
+        hook.getCurrent().onScrollBeginDrag();
+        expect(members.olderPagination.onScrollObservation).not.toHaveBeenCalled();
+        await hook.unmount();
+    });
+
     it('does not treat an unknown native committed visible range as edge or exit evidence', async () => {
         const members = createStableMembers();
         members.readItemsToOlderEdge.mockReturnValue(null);

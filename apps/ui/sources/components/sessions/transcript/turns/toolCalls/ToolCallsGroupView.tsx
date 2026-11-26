@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import * as FlashListCompat from '@/components/ui/lists/flashListCompat/FlashListCompat';
 
@@ -8,6 +9,7 @@ import type { PersistedSessionMessagePinV1 } from '@/sync/domains/messages/pins/
 import type { Metadata } from '@/sync/domains/state/storageTypes';
 import type { OpenApprovalArtifactForSession } from '@/sync/domains/artifacts/approvalArtifacts';
 
+import { toolCallsSheetHref } from '@/components/sessions/transcript/toolCallsSheet/toolCallsSheetRoute';
 import { TranscriptEnterWrapper } from '@/components/sessions/transcript/motion/TranscriptEnterWrapper';
 import { TranscriptCollapsible } from '@/components/sessions/transcript/motion/TranscriptCollapsible';
 import type { TranscriptInteraction } from '@/utils/sessions/deriveTranscriptInteraction';
@@ -100,6 +102,7 @@ export const ToolCallsGroupView = React.memo((props: ToolCallsGroupViewProps) =>
         transcriptSessionCommon.toolChrome.toolViewTimelineChromeMode,
         transcriptSessionCommon.toolChrome.transcriptToolCallsCollapsedPreviewCount,
         transcriptSessionCommon.toolChrome.transcriptToolCallsGroupShowBackground,
+        transcriptSessionCommon.toolChrome.transcriptToolCallsGroupOpenMode,
     ]);
     const toolRouteCommon = React.useMemo(() => transcriptSessionCommon.toolRoute, [
         transcriptSessionCommon.toolRoute.messagesById,
@@ -124,10 +127,12 @@ export const ToolCallsGroupViewWithSessionCommon = React.memo((props: ToolCallsG
         toolViewTimelineChromeMode,
         transcriptToolCallsCollapsedPreviewCount,
         transcriptToolCallsGroupShowBackground,
+        transcriptToolCallsGroupOpenMode,
     } = props.toolChromeCommon;
+    const sheetMode = transcriptToolCallsGroupOpenMode === 'sheet';
     const normalizedChromeMode = toolViewTimelineChromeMode === 'activity_feed' ? 'activity_feed' : 'cards';
     const { messagesById, reducerState } = props.toolRouteCommon;
-    const expanded = props.expanded === true;
+    const expanded = !sheetMode && props.expanded === true;
     const count = props.toolMessages.length;
     const createdAt = props.toolMessages[0]?.createdAt ?? Date.now();
     const collapsibleId = `toolCallsGroup:${props.id}`;
@@ -143,15 +148,24 @@ export const ToolCallsGroupViewWithSessionCommon = React.memo((props: ToolCallsG
         : null;
     const previewCount = resolveTranscriptToolCallsCollapsedPreviewCount(transcriptToolCallsCollapsedPreviewCount);
     const previewMessages = React.useMemo(() => {
-        if (expanded || previewCount <= 0) return [];
+        if (expanded || sheetMode || previewCount <= 0) return [];
         return props.toolMessages.slice(-previewCount);
-    }, [expanded, previewCount, props.toolMessages]);
+    }, [expanded, sheetMode, previewCount, props.toolMessages]);
 
     const hiddenCount = expanded ? 0 : Math.max(0, count - previewMessages.length);
     const showExpandButton = !expanded && previewCount > 0 && hiddenCount > 0;
     const showCollapsedPreview = previewMessages.length > 0;
     const { setExpanded } = props;
-    const onToggle = React.useCallback(() => setExpanded(!expanded), [setExpanded, expanded]);
+    const router = useRouter();
+    const firstToolMessageId = props.toolMessages[0]?.id ?? null;
+    const { sessionId } = props;
+    const onToggle = React.useCallback(() => {
+        if (sheetMode) {
+            if (firstToolMessageId) router.push(toolCallsSheetHref(sessionId, firstToolMessageId) as never);
+            return;
+        }
+        setExpanded(!expanded);
+    }, [expanded, firstToolMessageId, router, sessionId, setExpanded, sheetMode]);
     const onExpand = React.useCallback(() => setExpanded(true), [setExpanded]);
     const previewSidechainIds = React.useMemo(() => {
         return resolveGroupedPreviewSidechainIds({
@@ -215,8 +229,9 @@ export const ToolCallsGroupViewWithSessionCommon = React.memo((props: ToolCallsG
             <ToolCallsGroupHeaderChrome
                 chromeMode={normalizedChromeMode}
                 status={props.status}
-                count={count}
+                toolMessages={props.toolMessages}
                 expanded={expanded}
+                sheetMode={sheetMode}
                 onToggle={onToggle}
             />
 

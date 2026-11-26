@@ -9,7 +9,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     first: boolean;
@@ -19,10 +18,21 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     blocks: readonly MarkdownBlock[];
+    first: boolean;
+    last: boolean;
+}> | Readonly<{
+    /** A paragraph that is only one image from an allowed host; see `markdownRemoteImages.ts`. */
+    type: 'remote-image';
+    key: string;
+    sourceStart: number;
+    sourceLength: number;
+    sourceRange: MarkdownSourceRange;
+    markdown: string;
+    url: string;
+    alt: string;
     first: boolean;
     last: boolean;
 }> | Readonly<{
@@ -31,7 +41,6 @@ export type MarkdownRenderSegment = Readonly<{
     key: string;
     sourceStart: number;
     sourceLength: number;
-    sourceHash: string;
     sourceRange: MarkdownSourceRange;
     markdown: string;
     first: boolean;

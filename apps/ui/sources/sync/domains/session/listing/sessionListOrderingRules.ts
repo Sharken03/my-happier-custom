@@ -10,6 +10,16 @@ export const SESSION_LIST_ORDERING_MODE_DEFAULT_V1: SessionListOrderingModeV1 = 
 
 export const SESSION_LIST_UPDATED_ORDERING_BUCKET_MS = 5 * 60_000;
 
+export const SESSION_LIST_VISIBILITY_SCOPES = ['active', 'archived'] as const;
+// Stored values of the setting. 'all' is a former scope and now reads as Active.
+export const SESSION_LIST_VISIBILITY_SCOPE_STORED_VALUES = ['all', 'active', 'archived'] as const;
+export type SessionListVisibilityScope = typeof SESSION_LIST_VISIBILITY_SCOPES[number];
+export const SESSION_LIST_VISIBILITY_SCOPE_DEFAULT: SessionListVisibilityScope = 'active';
+
+export function normalizeSessionListVisibilityScope(value: unknown): SessionListVisibilityScope {
+    return value === 'archived' ? value : SESSION_LIST_VISIBILITY_SCOPE_DEFAULT;
+}
+
 export type SessionListOrderingSection = 'active' | 'inactive' | 'sessions';
 export type SessionListOrderingSectionMode = 'activity' | 'single';
 export type SessionListOrderingGroupKind = NonNullable<Extract<SessionListIndexItem, { type: 'session' }>['groupKind']>;
@@ -25,6 +35,7 @@ export type SessionListOrderingTimestampSource = Readonly<{
 }>;
 
 export type SessionListSessionOrderingKey = Readonly<{
+    active: boolean;
     updated: SessionListUpdatedOrderingKey;
     createdAt: number;
     stableId: string;
@@ -69,6 +80,7 @@ export function buildSessionListSessionOrderingKey(params: Readonly<{
     row: SessionListRenderableSession | null | undefined;
 }>): SessionListSessionOrderingKey {
     return {
+        active: params.row?.active === true,
         updated: readSessionListUpdatedOrderingKey(params.row),
         createdAt: normalizePositiveTimestamp(params.row?.createdAt),
         stableId: normalizeSessionListKeyParts(params.item.serverId, params.item.sessionId).sessionKey
@@ -81,6 +93,12 @@ export function compareSessionListSessionOrderingKeys(
     b: SessionListSessionOrderingKey,
     orderingMode: SessionListOrderingModeV1,
 ): number {
+    // A running (active) chat is always shown before a finished (inactive) one,
+    // regardless of how recent the finished chat's last activity was.
+    if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+    }
+
     if (orderingMode === 'updated') {
         if (b.updated.bucket !== a.updated.bucket) return b.updated.bucket - a.updated.bucket;
         if (b.updated.createdAtSecondary !== a.updated.createdAtSecondary) {

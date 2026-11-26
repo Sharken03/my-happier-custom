@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiUpdateContainer } from '@/sync/api/types/apiTypes';
 import type { Session } from '@/sync/domains/state/storageTypes';
 import { storage } from '@/sync/domains/state/storage';
-import { handleUpdateContainer } from './socket';
+import { handleUpdateContainer, retireSessionSocketState } from './socket';
 
 const invalidateScmSpy = vi.hoisted(() => vi.fn());
 const invalidateScmMutationSpy = vi.hoisted(() => vi.fn());
@@ -76,6 +76,7 @@ describe('socket scm invalidation', () => {
         removeSessionEncryption: () => {},
       } as any,
       artifactDataKeys: new Map(),
+      retireSession: retireSessionSocketState,
       applySessions: vi.fn(),
       fetchSessions: vi.fn(),
       applyMessages: vi.fn(),
@@ -100,11 +101,14 @@ describe('socket scm invalidation', () => {
     expect(invalidateScmSpy).not.toHaveBeenCalled();
   });
 
-  it('routes mutable-tool socket scm invalidations through the mutation path', async () => {
+  it('leaves scm invalidation for tool results to the workspace mutation ingestion', async () => {
+    // The ingestion classifies each applied message and throttles unknown tools. A second
+    // invalidation from the socket path skipped that throttle and doubled the snapshots.
     const sessionId = 's1';
     storage.getState().applySessions([buildSession(sessionId)]);
-    handleNewMessageSocketUpdateSpy.mockImplementationOnce(async (params: { invalidateScmStatus: (sessionId: string) => void }) => {
-      params.invalidateScmStatus(sessionId);
+    let socketUpdateParams: Record<string, unknown> | null = null;
+    handleNewMessageSocketUpdateSpy.mockImplementationOnce(async (params: Record<string, unknown>) => {
+      socketUpdateParams = params;
     });
 
     const updateData: ApiUpdateContainer = {
@@ -133,6 +137,7 @@ describe('socket scm invalidation', () => {
         removeSessionEncryption: () => {},
       } as any,
       artifactDataKeys: new Map(),
+      retireSession: retireSessionSocketState,
       applySessions: vi.fn(),
       fetchSessions: vi.fn(),
       applyMessages: vi.fn(),
@@ -154,7 +159,10 @@ describe('socket scm invalidation', () => {
       log: { log: vi.fn() },
     });
 
-    expect(invalidateScmMutationSpy).toHaveBeenCalledWith(sessionId);
+    expect(socketUpdateParams).not.toBeNull();
+    expect(socketUpdateParams).not.toHaveProperty('invalidateScmStatus');
+    expect(socketUpdateParams).not.toHaveProperty('isMutableToolCall');
+    expect(invalidateScmMutationSpy).not.toHaveBeenCalled();
     expect(invalidateScmSpy).not.toHaveBeenCalled();
   });
 });

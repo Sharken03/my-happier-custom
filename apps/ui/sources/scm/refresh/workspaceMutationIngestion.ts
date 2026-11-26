@@ -10,6 +10,9 @@ export type WorkspaceMutationIngestionOptions = Readonly<{
     clearTimer: (handle: unknown) => void;
     invalidateKnownMutation: (sessionId: string, changedPaths: readonly string[]) => void;
     invalidateUnknownMutation: (sessionId: string) => void;
+    /** A finished tool that may have changed any file; falls back to invalidateUnknownMutation. */
+    invalidateCompletedUnknownMutation?: (sessionId: string) => void;
+    refreshOnToolDone?: () => boolean;
 }>;
 
 export type WorkspaceMutationIngestion = Readonly<{
@@ -23,9 +26,14 @@ export function createWorkspaceMutationIngestion(options: WorkspaceMutationInges
         now: options.now,
         setTimer: options.setTimer,
         clearTimer: options.clearTimer,
+        refreshOnToolDone: options.refreshOnToolDone,
         onInvalidate: (event) => {
             if (event.changedPaths.length > 0) {
                 options.invalidateKnownMutation(event.sessionId, event.changedPaths);
+                return;
+            }
+            if (event.hasUnknownMutations && event.fromCompletedTool && options.invalidateCompletedUnknownMutation) {
+                options.invalidateCompletedUnknownMutation(event.sessionId);
                 return;
             }
             if (event.hasUnknownMutations) {

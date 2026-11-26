@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Platform, View } from 'react-native';
 import { SessionView } from '@/components/sessions/shell/SessionView';
 import { SessionInvalidLinkFallback } from '@/components/sessions/shell/SessionInvalidLinkFallback';
+import { SessionRouteEntryGate } from '@/components/sessions/shell/surface/sessionRouteEntryPresentation';
 import { TranscriptSameSessionHandoffProvider } from '@/components/sessions/transcript/viewport/lifecycle/transcriptSameSessionHandoff';
 import type { AttachmentDraft } from '@/components/sessions/attachments/attachmentDraftModel';
 import { parseSessionPaneUrlState } from '@/components/sessions/panes/url/sessionPaneUrlState';
@@ -17,6 +18,7 @@ import { getTempData } from '@/utils/sessions/tempDataStore';
 import { resolveSessionRouteAuthRecoveryState } from '@/hooks/session/sessionRouteAuthRecovery';
 import { useSessionRouteServerScope } from '@/hooks/session/sessionRouteServerScope';
 import { useHydrateSessionForRoute } from '@/hooks/session/useHydrateSessionForRoute';
+import { useSessionRoutePreloadOnLeave } from '@/hooks/session/sessionRoutePreload';
 import { useActiveServerSnapshot } from '@/hooks/server/useActiveServerSnapshot';
 import { markSessionRouteEnteredForSessionUiTelemetry } from '@/sync/runtime/performance/sessionUiTelemetry';
 import {
@@ -24,6 +26,7 @@ import {
     readSessionLastMobileSurfaceFromMap,
     storage,
     useEndpointConnectivity,
+    useSetting,
     useSyncError,
 } from '@/sync/domains/state/storage';
 import { ActivitySpinner, HERO_SPINNER_SIZE } from '@/components/ui/feedback/ActivitySpinner';
@@ -72,7 +75,25 @@ function useInitialMobileSurfaceHint(
     return cacheRef.current?.persistedSurface ?? null;
 }
 
-export default React.memo(() => {
+function readSessionRouteIdParam(value: string | string[] | undefined): string {
+    return (typeof value === 'string'
+        ? value
+        : Array.isArray(value)
+            ? (value[0] ?? '')
+            : '').trim();
+}
+
+// Web keeps one stack entry per visit for Back/Forward; only the presented entry mounts the route.
+export default React.memo(function SessionRoute() {
+    const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+    return (
+        <SessionRouteEntryGate sessionId={readSessionRouteIdParam(id)}>
+            <SessionRouteContent />
+        </SessionRouteEntryGate>
+    );
+});
+
+function SessionRouteContent() {
     const params = useLocalSearchParams<{
         id?: string | string[];
         serverId?: string | string[];
@@ -92,12 +113,7 @@ export default React.memo(() => {
         jumpSeq: jumpSeqParam,
         recoveryDataId: recoveryDataIdParam,
     } = params;
-    const sessionId =
-        (typeof sessionIdParam === 'string'
-            ? sessionIdParam
-            : Array.isArray(sessionIdParam)
-                ? (sessionIdParam[0] ?? '')
-                : '').trim();
+    const sessionId = readSessionRouteIdParam(sessionIdParam);
     const jumpSeqRaw = typeof jumpSeqParam === 'string'
         ? jumpSeqParam
         : Array.isArray(jumpSeqParam)
@@ -147,6 +163,12 @@ export default React.memo(() => {
     React.useLayoutEffect(() => {
         markSessionRouteEnteredForSessionUiTelemetry({ sessionId });
     }, [sessionId]);
+
+    useSessionRoutePreloadOnLeave({
+        sessionId,
+        serverId: routeScope.serverId ?? null,
+        enabled: useSetting('sessionOpenPreloadV1') === true,
+    });
 
     const routeHydrationState = useHydrateSessionForRoute(
         sessionId,
@@ -223,4 +245,4 @@ export default React.memo(() => {
                 )}
         </TranscriptSameSessionHandoffProvider>
     );
-});
+}

@@ -11,6 +11,7 @@ import { createTempDir, removeTempDir } from '@/testkit/fs/tempDir';
 import { reloadConfiguration } from '@/configuration';
 import * as daemonControlClient from '@/daemon/controlClient';
 import { runPermissionModePromptLoop } from './runPermissionModePromptLoop';
+import { SessionControlApplyError } from './sessionControlApplyError';
 import { createPermissionModeQueueState } from './createPermissionModeQueueState';
 
 import { runStandardAcpProvider, type StandardAcpProviderConfig, type StandardAcpProviderRunOptions } from './runStandardAcpProvider';
@@ -263,6 +264,32 @@ function createHarness() {
 }
 
 describe('runStandardAcpProvider', () => {
+  it('tells the chat once when the provider rejects the selected model', async () => {
+    const harness = createHarness();
+    const metadata = { ...harness.session.getMetadataSnapshot(), modelOverrideV1: { v: 1, updatedAt: 10, modelId: 'nvidia/unknown-model' } };
+    harness.session.getMetadataSnapshot = () => metadata;
+    harness.session.updateMetadata = vi.fn(async () => undefined);
+    harness.runtime.setSessionModel = vi.fn(async () => {
+      throw SessionControlApplyError.definitive(new Error('Model not found: nvidia/unknown-model'));
+    });
+    harness.deps.runPermissionModePromptLoopFn = async (params: any) => {
+      const sync = params.createOverrideSynchronizer(() => true);
+      sync.syncFromMetadata();
+      await sync.flushPendingAfterStart();
+      sync.syncFromMetadata();
+      await sync.flushPendingAfterStart();
+      params.sendReady();
+    };
+
+    await runStandardAcpProvider(harness.opts, harness.config, harness.deps);
+
+    const notices = harness.session.sendSessionEvent.mock.calls
+      .map((call: unknown[]) => call[0] as { type?: string; message?: string })
+      .filter((event: { type?: string; message?: string }) => event.type === 'message' && event.message?.includes('nvidia/unknown-model'));
+    expect(notices).toHaveLength(1);
+    expect(notices[0].message).toContain('Model not found');
+  });
+
   it.each(['runtime', 'startup'] as const)('respects %s ownership when reporting tmux startup fallback', async (terminalHostOwner) => {
     const harness = createHarness();
     const home = await createTempDir('happier-provider-terminal-owner-');

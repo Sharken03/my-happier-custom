@@ -138,3 +138,35 @@ describe('modelOptions preflight', () => {
         expect(String(uncontested?.description).length).toBeGreaterThan(0);
     });
 });
+
+describe('modelOptions preflight price', () => {
+    it('carries the catalog prices onto the row so the picker can band them', () => {
+        const out = getModelOptionsForAgentTypeOrPreflight({
+            agentType: 'grok',
+            preflight: {
+                availableModels: [
+                    { id: 'paid', name: 'Paid', costInputPerMTok: 2, costOutputPerMTok: 6 },
+                    { id: 'free', name: 'Free', costInputPerMTok: 0, costOutputPerMTok: 0 },
+                    { id: 'unpriced', name: 'Unpriced' },
+                ],
+                supportsFreeform: false,
+            },
+        });
+
+        expect(out.find((option) => option.value === 'paid')).toMatchObject({ costInputPerMTok: 2, costOutputPerMTok: 6 });
+        expect(out.find((option) => option.value === 'free')).toMatchObject({ costInputPerMTok: 0, costOutputPerMTok: 0 });
+        expect(out.find((option) => option.value === 'unpriced')).not.toHaveProperty('costInputPerMTok');
+    });
+
+    it('drops a negative placeholder price instead of rendering it as a level', () => {
+        const out = getModelOptionsForAgentTypeOrPreflight({
+            agentType: 'grok',
+            preflight: {
+                availableModels: [{ id: 'auto', name: 'Auto', costInputPerMTok: -1000000, costOutputPerMTok: -1000000 }],
+                supportsFreeform: false,
+            },
+        });
+
+        expect(out.find((option) => option.value === 'auto')).not.toHaveProperty('costInputPerMTok');
+    });
+});

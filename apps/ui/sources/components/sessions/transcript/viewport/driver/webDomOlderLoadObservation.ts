@@ -1,4 +1,4 @@
-import { TRANSCRIPT_WEB_GENUINE_TOP_EPSILON_PX } from '@/components/sessions/transcript/_constants';
+import { resolveOlderPaginationScrollTrigger } from '@/components/sessions/transcript/pagination/olderPaginationMachine';
 import {
     getWebTranscriptDistanceFromBottom,
     isWebTranscriptScrollable,
@@ -21,18 +21,6 @@ export type WebDomOlderLoadObservationFacts = Readonly<{
     trigger: WebDomOlderLoadObservationRequestedTrigger;
 }>;
 
-export function resolveWebDomOlderLoadObservationTrigger(params: Readonly<{
-    requestedTrigger?: WebDomOlderLoadObservationTrigger;
-    scrollTop: number;
-}>): WebDomOlderLoadObservationTrigger {
-    const isGenuineTopFrame =
-        params.scrollTop >= 0 &&
-        params.scrollTop <= TRANSCRIPT_WEB_GENUINE_TOP_EPSILON_PX;
-    return isGenuineTopFrame
-        ? 'edge-reached'
-        : params.requestedTrigger ?? 'scroll';
-}
-
 export function resolveWebDomOlderLoadObservation(params: Readonly<{
     requestedTrigger?: WebDomOlderLoadObservationRequestedTrigger;
     target: unknown;
@@ -49,9 +37,9 @@ export function resolveWebDomOlderLoadObservation(params: Readonly<{
     const trigger =
         params.requestedTrigger === 'layout-committed'
             ? params.requestedTrigger
-            : resolveWebDomOlderLoadObservationTrigger({
+            : resolveOlderPaginationScrollTrigger({
                 requestedTrigger: params.requestedTrigger,
-                scrollTop: metrics.scrollTop,
+                offsetY: metrics.scrollTop,
             });
     const viewportGuardThresholdPx =
         Number.isFinite(params.viewportGuardThresholdPx)

@@ -2,17 +2,18 @@ import {
   appendLocalVoiceAgentContextUpdate,
   abortLocalVoiceTurn,
   getLocalVoiceState,
+  shouldHoldLocalVoiceCallWhileIdle,
   subscribeLocalVoiceState,
   stopLocalVoiceSession,
   toggleLocalVoiceTurn,
 } from '@/voice/local/localVoiceEngine';
-import { sendVoiceTextTurn } from '@/voice/local/sendVoiceTextTurn';
+import { prepareVoiceTextTurn } from '@/voice/local/sendVoiceTextTurn';
 import { storage } from '@/sync/domains/state/storage';
 import { VOICE_AGENT_GLOBAL_SESSION_ID } from '@/voice/agent/voiceAgentGlobalSessionId';
 import { voiceAgentSessions } from '@/voice/agent/voiceAgentSessions';
 import type { VoiceAdapterController, VoiceSessionMode, VoiceSessionSnapshot, VoiceSessionStatus } from '@/voice/session/types';
 import { voiceSessionBindingManager } from '@/voice/sessionBinding/voiceSessionBindingRuntime';
-import { createVoicePlaybackController } from '@/voice/runtime/VoicePlaybackController';
+import { localVoicePlaybackController } from '@/voice/runtime/VoicePlaybackController';
 
 function mapLocalStatus(status: any): { status: VoiceSessionStatus; mode: VoiceSessionMode } {
   switch (status) {
@@ -44,9 +45,13 @@ export function createLocalConversationVoiceAdapter(): VoiceAdapterController {
   const getSnapshot = (): VoiceSessionSnapshot => {
     const local = getLocalVoiceState();
     const mapped = (() => {
-      // Local voice keeps the sessionId set while the "call" is active, even when idle.
+      // Local voice keeps the sessionId set while the "call" is active, even when idle. Hands-free
+      // keeps listening between turns, so that is a real call; a dictation-mode call is not. The
+      // engine owns that decision, so both local adapters answer it the same way.
       if (local.status === 'idle' && local.sessionId) {
-        return { status: 'connected' as const, mode: 'idle' as const };
+        return shouldHoldLocalVoiceCallWhileIdle()
+          ? { status: 'connected' as const, mode: 'idle' as const }
+          : mapLocalStatus(local.status);
       }
       return mapLocalStatus(local.status);
     })();
@@ -98,24 +103,20 @@ export function createLocalConversationVoiceAdapter(): VoiceAdapterController {
     appendLocalVoiceAgentContextUpdate(resolveConversationSessionId(opts.sessionId), opts.update);
   };
 
-  const sendTextTurn: NonNullable<VoiceAdapterController['sendTextTurn']> = async (opts) => {
+  const prepareTextTurn: NonNullable<VoiceAdapterController['prepareTextTurn']> = (opts) => {
     const settings: any = storage.getState().settings;
     const config = settings?.voice?.adapters?.local_conversation ?? {};
-    if ((config?.conversationMode ?? 'direct_session') !== 'agent') {
-      throw new Error('voice_session_native_send_only');
-    }
-
-    await sendVoiceTextTurn({
+    const dispatch = prepareVoiceTextTurn({
       sessionId: opts.controlSessionId,
-      settings,
-      userText: opts.text,
-      playbackController: createVoicePlaybackController(),
+      playbackController: localVoicePlaybackController,
       voiceAgentSessions,
-      durableDispatch: {
-        localId: opts.localId,
-        handoffMode: opts.handoffMode,
-      },
     });
+    return async (durableDispatch) => {
+      if ((config?.conversationMode ?? 'direct_session') !== 'agent') {
+        throw new Error('voice_session_native_send_only');
+      }
+      await dispatch({ settings, userText: opts.text, durableDispatch });
+    };
   };
 
   return {
@@ -125,7 +126,7 @@ export function createLocalConversationVoiceAdapter(): VoiceAdapterController {
     toggle,
     interrupt,
     sendContextUpdate,
-    sendTextTurn,
+    prepareTextTurn,
     getSnapshot,
     subscribe: (listener) => subscribeLocalVoiceState(listener),
   };

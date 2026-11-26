@@ -72,6 +72,8 @@ export async function resolveEffectiveCodingPromptPlan(
     base: args.baseOverride === null ? '' : args.baseOverride,
     executionRunsFeatureEnabled: args.executionRunsFeatureEnabled === true,
     memoryRecallGuidanceEnabled,
+    // show_image needs native MCP tool results; the shell bridge returns text only.
+    showImageToolAvailable: (args.toolDelivery ?? 'native_mcp') === 'native_mcp',
   });
   const stackBlocks = await resolveCliPromptStackSystemAppendBlocks({
     surface: 'coding',

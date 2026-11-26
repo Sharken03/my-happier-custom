@@ -27,14 +27,15 @@ import {
 import { toggleFavoriteBackendTargetKey } from '@/sync/domains/sessionAuthoring/favoriteBackendTargets';
 import type { NewSessionAgentPickerViewV1 } from '@/sync/domains/settings/registry/account/accountSessionCreationSettingDefinitions';
 import {
+    buildFavoriteModelBackendIdentityForEntry,
     favoriteModelSelectionMatchesBackend,
     toggleFavoriteModelSelection,
-    type FavoriteModelBackendIdentity,
     type FavoriteModelSelectionV1,
 } from '@/sync/domains/models/favoriteModelSelections';
 import { resolveNewSessionConnectedServicesBindingsForAgent } from '@/components/sessions/new/modules/connectedServicesNewSessionBindings';
 import { stableJsonStringify } from '@/utils/json/stableJsonStringify';
 import { Icon } from '@/components/ui/icons/Icon';
+import { FavoriteModelsPickerIcon } from '@/components/sessions/agentPicker/FavoriteModelsPickerIcon';
 import {
     readNonBlankSessionControlIdentifier,
     readSessionControlValueId,
@@ -111,18 +112,6 @@ function areEngineSelectionsEqual(left: EngineSelectionLike, right: EngineSelect
 
 const ENGINE_FAVORITE_RAIL_ICON_SIZE = 14;
 
-function FavoriteModelsPickerIcon(props: Readonly<{ size?: number }>) {
-    const { theme } = useUnistyles();
-    return (
-        <Icon
-            name="star"
-            size={props.size ?? 12}
-            color={theme.dark ? theme.colors.text.primary : theme.colors.button.primary.background}
-            weight={theme.dark ? 'fill' : 'regular'}
-        />
-    );
-}
-
 function EngineFavoritePickerIcon(props: Readonly<{ favorite: boolean }>) {
     const { theme } = useUnistyles();
     const selectedColor = theme.dark ? theme.colors.text.primary : theme.colors.button.primary.background;
@@ -134,15 +123,6 @@ function EngineFavoritePickerIcon(props: Readonly<{ favorite: boolean }>) {
             weight={props.favorite ? 'fill' : 'regular'}
         />
     );
-}
-
-function buildFavoriteBackendIdentity(entry: ResolvedBackendCatalogEntry): FavoriteModelBackendIdentity {
-    return {
-        backendTargetKey: entry.targetKey,
-        providerAgentId: entry.providerAgentId,
-        builtInAgentId: entry.builtInAgentId,
-        configuredBackendId: entry.target.kind === 'configuredAcpBackend' ? entry.target.backendId : null,
-    };
 }
 
 function areShallowObjectsEqual<Value extends object>(left: Value, right: Value): boolean {
@@ -484,7 +464,7 @@ export function useNewSessionAgentPickerControls(rawParams: Readonly<{
         if (!params.setFavoriteModelSelections) return;
         params.setFavoriteModelSelections(toggleFavoriteModelSelection({
             favorites: params.favoriteModelSelections ?? [],
-            backend: buildFavoriteBackendIdentity(entry),
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
             modelId: model.modelId,
             modelLabel: model.modelLabel,
             backendLabel: entry.title,
@@ -552,7 +532,7 @@ export function useNewSessionAgentPickerControls(rawParams: Readonly<{
         ));
         const favoriteModelSelectionsForVisibleBackends = favoriteModelSelections.filter((favorite) => (
             favoriteBackendEntries.some((entry) => (
-                favoriteModelSelectionMatchesBackend(favorite, buildFavoriteBackendIdentity(entry))
+                favoriteModelSelectionMatchesBackend(favorite, buildFavoriteModelBackendIdentityForEntry(entry))
             ))
         ));
         const favoriteConnectedServicesByTargetKey = Object.fromEntries(

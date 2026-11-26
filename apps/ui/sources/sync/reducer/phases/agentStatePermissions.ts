@@ -1,3 +1,4 @@
+import { isAskUserQuestionToolName } from '@happier-dev/protocol';
 import { compareToolCalls } from '../../../utils/tools/toolComparison';
 import type { AgentState } from '../../domains/state/storageTypes';
 import type { ToolCall } from '../../domains/messages/messageTypes';
@@ -328,6 +329,22 @@ export function runAgentStatePermissionsPhase(params: Readonly<{
 
                         // Skip if permission already has date (came from tool result - preferred over agentState)
                         if (message.tool.permission?.date) {
+                            continue;
+                        }
+
+                        // An answered user-action request is terminal. Plan-mode/AskUserQuestion rows
+                        // never set `startedAt`, so the execution guard above cannot protect them; a
+                        // late cancel (coordinator dispose, session teardown, stale settlement) would
+                        // otherwise replace the answer and render "Permission canceled".
+                        const isUserAction = completed.kind === 'user_action'
+                            || message.tool.permission?.kind === 'user_action'
+                            || isAskUserQuestionToolName(completed.tool ?? '')
+                            || isAskUserQuestionToolName(message.tool.name);
+                        if (
+                            completed.status !== 'approved'
+                            && message.tool.permission?.status === 'approved'
+                            && isUserAction
+                        ) {
                             continue;
                         }
 

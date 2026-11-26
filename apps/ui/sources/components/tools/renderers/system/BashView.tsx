@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { View } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { ToolCall } from '@/sync/domains/messages/messageTypes';
 import { ToolSectionView } from '../../shell/presentation/ToolSectionView';
@@ -11,6 +12,7 @@ import { extractStdStreams, tailTextWithEllipsis } from '../../normalization/par
 import { CodeView } from '@/components/ui/media/CodeView';
 import { Text } from '@/components/ui/text/Text';
 import { t } from '@/text';
+import { ToolResultFormatToggle, useToolResultFormat } from '../../shell/views/ToolResultFormatToggle';
 
 export const BashView = React.memo((props: { tool: ToolCall; metadata: Metadata | null; detailLevel?: 'title' | 'summary' | 'full' }) => {
     const { input, result, state } = props.tool;
@@ -60,13 +62,20 @@ export const BashView = React.memo((props: { tool: ToolCall; metadata: Metadata 
         parsedStreams?.stderr
             ? (isFullView ? parsedStreams.stderr : tailTextWithEllipsis(parsedStreams.stderr, maxCompletedChars))
             : null;
+    // The full view offers a Format toggle when the finished stdout is JSON.
+    const format = useToolResultFormat(completedStdout, isFullView && state === 'completed');
 
     return (
         <>
+            {format.formatted !== null ? (
+                <View style={styles.formatToggle}>
+                    <ToolResultFormatToggle on={format.on} onToggle={format.toggle} />
+                </View>
+            ) : null}
             <ToolSectionView>
                 <CommandView 
                     command={command}
-                    stdout={state === 'running' ? streamingStdout : (state === 'completed' ? completedStdout : null)}
+                    stdout={state === 'running' ? streamingStdout : (state === 'completed' ? format.shown : null)}
                     stderr={state === 'running' ? streamingStderr : (state === 'completed' ? completedStderr : null)}
                     error={error}
                     hideEmptyOutput
@@ -83,7 +92,7 @@ export const BashView = React.memo((props: { tool: ToolCall; metadata: Metadata 
                     <Text style={styles.commandDiffHint} numberOfLines={3}>
                         {t('tools.bashView.commandDiffHint')}
                     </Text>
-                    <CodeView code={rawCommandTrimmed} />
+                    <CodeView code={rawCommandTrimmed} language="bash" />
                 </ToolSectionView>
             ) : null}
         </>
@@ -91,6 +100,9 @@ export const BashView = React.memo((props: { tool: ToolCall; metadata: Metadata 
 });
 
 const styles = StyleSheet.create((theme) => ({
+    formatToggle: {
+        marginHorizontal: 12,
+    },
     backgroundNotice: {
         marginTop: 6,
         marginHorizontal: 12,

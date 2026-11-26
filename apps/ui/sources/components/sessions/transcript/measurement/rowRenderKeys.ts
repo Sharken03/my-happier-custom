@@ -26,3 +26,39 @@ export function resolveFontScaleKey(): string {
         : 1;
     return `font:${Math.round(normalized * 100)}`;
 }
+
+/**
+ * The presentation part of a row height key: everything outside a row's own content that changes
+ * its painted height. A height measured in one chat font is not the height of that row in the
+ * other font, and a thinking row measured while hidden (1 px) is not its height as a row or card.
+ * The transcript markdown scales with the in-app text size (`useEnrichedMarkdownStyle`), and the
+ * code block wrap default decides whether long code lines wrap or scroll sideways. Allowed markdown
+ * image hosts turn an image line into a 16:9 box; the part is absent while that setting is off, so
+ * the keys of everyone else stay as they were. Images the agent shares (`show_image`) are image
+ * rows while that setting is on (the default) and tool rows while it is off; only "off" adds a part.
+ */
+export function resolveTranscriptRowPresentationKey(params: Readonly<{
+    chatFont: unknown;
+    thinkingDisplayMode: unknown;
+    thinkingInlineChrome: unknown;
+    uiFontScale: unknown;
+    wrapCodeBlocks: unknown;
+    markdownRemoteImageHosts?: readonly string[];
+    sharedImagesEnabled?: boolean;
+}>): string {
+    const chatFont = params.chatFont === 'dm-sans' ? 'dm-sans' : 'default';
+    const thinkingDisplayMode = params.thinkingDisplayMode === 'hidden' || params.thinkingDisplayMode === 'tool'
+        ? params.thinkingDisplayMode
+        : 'inline';
+    const thinkingInlineChrome = params.thinkingInlineChrome === 'card' ? 'card' : 'plain';
+    const uiFontScale = typeof params.uiFontScale === 'number' && Number.isFinite(params.uiFontScale)
+        ? params.uiFontScale
+        : 1;
+    const codeWrap = params.wrapCodeBlocks === true ? 'wrap' : 'scroll';
+    return `${resolveFontScaleKey()}|ui-font:${Math.round(uiFontScale * 100)}|chat-font:${chatFont}`
+        + `|thinking:${thinkingDisplayMode}:${thinkingInlineChrome}|code:${codeWrap}`
+        + (params.markdownRemoteImageHosts && params.markdownRemoteImageHosts.length > 0
+            ? `|md-images:${params.markdownRemoteImageHosts.join(',')}`
+            : '')
+        + (params.sharedImagesEnabled === false ? '|shared-images:off' : '');
+}

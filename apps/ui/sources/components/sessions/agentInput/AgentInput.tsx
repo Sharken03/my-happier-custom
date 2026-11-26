@@ -9,6 +9,7 @@ import {
     resolveLiveInputTextStatus,
 } from './liveInputState';
 import { isGlassComposerSurface } from './composerSurfaceStyle';
+import { COMPOSER_FILLED_BUTTON_HEIGHT, resolveComposerFilledButtonColors } from './composerFilledButtons';
 import { resolveComposerSelectionRestore } from './composerSelectionRestore';
 import { COMPOSER_SURFACE_RADIUS } from './composerContentInset';
 import { Typography } from '@/constants/Typography';
@@ -26,7 +27,7 @@ import {
 import { describeEffectivePermissionMode } from '@/sync/domains/permissions/describeEffectivePermissionMode';
 import { hapticsLight, hapticsError } from '@/components/ui/theme/haptics';
 import { type ShakeInstance } from '@/components/ui/feedback/Shaker';
-import { StatusDot } from '@/components/ui/status/StatusDot';
+import { ComposerStatusMark } from './components/ComposerStatusMark';
 import { useActiveSuggestions, type ActiveSuggestionsHandler } from '@/components/autocomplete/useActiveSuggestions';
 import { TextInputState, MultiTextInputHandle } from '@/components/ui/forms/MultiTextInput';
 import { applySuggestion } from '@/components/autocomplete/applySuggestion';
@@ -44,6 +45,7 @@ import {
 } from '@/sync/domains/state/storage';
 import { useUserMessageHistory } from '@/hooks/session/useUserMessageHistory';
 import { useHasHardwareKeyboard } from '@/hooks/ui/useHasHardwareKeyboard';
+import { useComposerKeepsFocusAfterSend } from './hooks/useComposerKeepsFocusAfterSend';
 import type { NewSessionAfterSendMode } from '@/sync/domains/settings/registry/account/accountSessionCreationSettingDefinitions';
 import { ComposerHistorySwipeArea, type ComposerHistoryDirection } from './ComposerHistorySwipeArea';
 import { AgentInputKeepKeyboardToggle } from './components/AgentInputKeepKeyboardToggle';
@@ -104,7 +106,7 @@ import { useTextInputCaretRect } from '@/hooks/ui/textInputCaretRect';
 import { createBackdropNativeStyle, createBackdropWebStyle } from '@/components/ui/overlays/createBackdropLayerStyle';
 import type { PermissionModePickerStyles } from './components/permissionModePickerStyles';
 import { AgentInputAttentionRequests } from './components/AgentInputPermissionRequests';
-import { AgentInputSubmitButton } from './components/AgentInputSubmitButton';
+import { AGENT_INPUT_SUBMIT_COLUMN_WIDTH, AgentInputSubmitButton } from './components/AgentInputSubmitButton';
 import {
     DEFAULT_OPTION_CHIP_CYCLE_MAX_OPTIONS,
     resolveChipOptionInteraction,
@@ -125,6 +127,8 @@ import {
     type SessionConfigOption,
     type SessionConfigOptionValueId,
 } from '@/sync/domains/sessionControl/configOptionsControl';
+import { readSessionConfigOptionOverridesState, readSessionModelsState } from '@/sync/domains/sessionControl/readSessionControlMetadata';
+import { resolveModelChipEffortLabel } from './controls/resolveModelChipEffortLabel';
 import type { PendingPermissionRequest } from '@/utils/sessions/sessionUtils';
 import type { OpenApprovalArtifactForSession } from '@/sync/domains/artifacts/approvalArtifacts';
 import { Text } from '@/components/ui/text/Text';
@@ -178,7 +182,10 @@ import {
 } from '@/keyboard/composer';
 import { useKeyboardShortcutHandlers } from '@/keyboard/KeyboardShortcutProvider';
 import type { KeyboardShortcutHandlers } from '@/keyboard/runtime';
+import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
+
 import { Icon, type IconName } from '@/components/ui/icons/Icon';
+import { VoiceBars } from '@/components/ui/status/VoiceBars';
 import type { StyleProp } from 'react-native';
 
 /**
@@ -214,6 +221,7 @@ const AGENT_INPUT_TEST_IDS = {
     newSessionInput: 'new-session-composer-input',
     newSessionSend: 'new-session-composer-send',
     connectionStatusText: 'agent-input-connection-status-text',
+    statusCost: 'agent-input-status-cost',
 } as const;
 
 function normalizeLayoutHeightPx(height: number): number {
@@ -275,6 +283,13 @@ interface AgentInputProps {
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
     isMicActive?: boolean;
+    /** Voice is actually capturing audio right now, as opposed to merely holding a call open. */
+    isMicRecording?: boolean;
+    /** Voice turns the captured audio into text: the microphone button shows a spinner. */
+    isMicBusy?: boolean;
+    /** Dictation mode: the microphone is one action per message. While a turn runs the composer
+     * button stops it instead of recording. */
+    dictationMode?: boolean;
     permissionMode?: PermissionMode;
     onPermissionModeChange?: (mode: PermissionMode) => void;
     onPermissionClick?: () => void;
@@ -313,6 +328,17 @@ interface AgentInputProps {
      * Intended for preflight (no-session) flows that dynamically probe models.
      */
     modelOptionsOverrideProbe?: OptionPickerProbeState;
+    /**
+     * The favorite model values of this Session's Agent, from the account-level
+     * favorites the New Session model list shares. Absent means the host keeps
+     * no favorites, so the picker offers no star.
+     */
+    favoriteModelValues?: ReadonlySet<string>;
+    /**
+     * Stars or unstars a model in those shared favorites. Absent leaves the picker
+     * read-only, as when the host has not proven it can own the Session's Agent.
+     */
+    onToggleFavoriteModel?: (model: Readonly<{ modelId: string; modelLabel: string }>) => void;
     metadata?: Metadata | null;
     /** Whether the existing session runtime is active. Omit for pre-session composers. */
     sessionActive?: boolean;
@@ -323,9 +349,13 @@ interface AgentInputProps {
         color: string;
         dotColor: string;
         isPulsing?: boolean;
+        /** The agent is working on a turn; the status mark can then show the writing quill. */
+        working?: boolean;
     };
     statusBadges?: ReadonlyArray<AgentInputStatusBadgeDescriptor>;
     statusTrailingActions?: React.ReactNode;
+    /** The chat's cost so far, already formatted; shown last on the status row. */
+    statusCostLabel?: string | null;
     /** Hosts with an editable permission chip may omit the repeated status-row label. */
     showStatusPermissionMode?: boolean;
     activeStatusBadgeKey?: string | null;
@@ -373,6 +403,8 @@ interface AgentInputProps {
     onMachineClick?: () => void;
     machinePopover?: AgentInputContentPopoverConfig;
     currentPath?: string | null;
+    /** Shortens the shown path to ~/... (the composer's folder line only). */
+    currentPathHomeDir?: string | null;
     onPathClick?: () => void;
     pathPopover?: AgentInputContentPopoverConfig;
     resumeSessionId?: string | null;
@@ -831,6 +863,13 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     statusDot: {
         marginRight: 6,
     },
+    statusQuill: {
+        marginRight: 4,
+    },
+    statusCost: {
+        marginLeft: 10,
+        color: theme.colors.text.secondary,
+    },
     statusTrailing: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -946,6 +985,8 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     pathRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        // The row under the send button stops before it, so a tap on send never opens the path picker.
+        paddingRight: AGENT_INPUT_SUBMIT_COLUMN_WIDTH,
     },
     actionButtonsLeft: {
         flexDirection: 'row',
@@ -960,6 +1001,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     actionButtonsSecondaryScroll: {
         alignSelf: 'stretch',
+        marginRight: AGENT_INPUT_SUBMIT_COLUMN_WIDTH,
         flexGrow: 0,
         flexShrink: 0,
         minHeight: 32,
@@ -1272,12 +1314,19 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     }), [afterSendShortcut, props.newSessionAfterSendMode, props.sendMenuModes, sendMenuShortcuts]);
     const micPressHandler = voiceEnabled ? props.onMicPress : undefined;
     const micActive = voiceEnabled && props.isMicActive === true;
+    const micRecording = voiceEnabled && props.isMicRecording === true;
     const [fileDragActive, setFileDragActive] = React.useState(false);
 
     const pendingPermissionRequests = props.permissionRequests ?? [];
     const pendingApprovalRequests = props.approvalRequests ?? [];
     const canApprovePermissions = props.canApprovePermissions ?? true;
     const permissionPromptSurface = useSetting('permissionPromptSurface');
+    const voiceSettingsForComposer = useSetting('voice');
+    const dictationModeEnabled = props.dictationMode ?? isDictationModeEnabled({ voice: voiceSettingsForComposer } as any);
+    // Setting composerAbortChipOnlyWithMicV1: the stop chip shows only while the send button holds the microphone.
+    const abortChipOnlyWithMic = useSetting('composerAbortChipOnlyWithMicV1') === true;
+    const showAbortChip = props.showAbortButton === true
+        && (!abortChipOnlyWithMic || (voiceEnabled && !dictationModeEnabled));
     const resolvedPermissionPromptSurface = resolvePermissionPromptSurface(permissionPromptSurface);
     const showComposerPermissionCards = resolvedPermissionPromptSurface === 'composer';
     const composerPermissionRequests = React.useMemo(
@@ -1400,9 +1449,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const sendActionDisabled = Boolean(props.disabled || props.isSendDisabled || props.isSending);
     const inputRef = React.useRef<MultiTextInputHandle>(null);
     const hasHardwareKeyboard = useHasHardwareKeyboard();
-    const keepFocusAfterSendSetting = useLocalSetting('composerKeepFocusAfterSend');
-    const keepFocusAfterSend = keepFocusAfterSendSetting === true
-        || (keepFocusAfterSendSetting == null && hasHardwareKeyboard);
+    const keepFocusAfterSend = useComposerKeepsFocusAfterSend();
     const showKeepKeyboardToggle = Boolean(props.sessionId) && !hasHardwareKeyboard;
     // History flicks cycle from an empty field and keep cycling while it shows a recalled message. The
     // person reaching into that message (focus, a caret move, an edit) ends it until the field is empty again.
@@ -1656,8 +1703,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             setLiveTextStatus(nextStatus);
             updateInputSelectionState(nextState.selection);
         }
-        if (props.sessionId && !keepFocusAfterSend) {
-            inputRef.current?.blur();
+        if (props.sessionId) {
+            // Clicking Send can move focus to the button before this handler runs.
+            // Restore it during the send gesture, never from a later background update.
+            if (keepFocusAfterSend) inputRef.current?.focus();
+            else inputRef.current?.blur();
         }
         messageHistory.reset();
         setHistoryFlicksArmed(false);
@@ -2227,9 +2277,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         && (typeof option.description !== 'string' || option.description.trim().length === 0)
                             ? t('agentInput.model.configureInCli')
                             : option.description,
+                    ...(typeof option.costInputPerMTok === 'number' ? { costInputPerMTok: option.costInputPerMTok } : {}),
+                    ...(typeof option.costOutputPerMTok === 'number' ? { costOutputPerMTok: option.costOutputPerMTok } : {}),
                     ...(option.modelOptions ? { modelOptions: option.modelOptions } : {}),
                 }))}
                 selectedModelId={effectiveModelPolicy.selectedModelId}
+                favoriteModelValues={props.favoriteModelValues}
+                onToggleFavoriteModel={props.onToggleFavoriteModel === undefined
+                    ? undefined
+                    : (option) => {
+                        props.onToggleFavoriteModel?.({
+                            modelId: option.value,
+                            modelLabel: option.label,
+                        });
+                    }}
                 modelSummary={appliedModelPresentation?.summary
                     ? `${appliedModelPresentation.summary} · ${modelApplyTiming}`
                     : modelApplyTiming}
@@ -2273,6 +2334,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         unifiedEnginePickerProbe,
         props.onSessionConfigOptionChange,
         props.onModelModeChange,
+        props.favoriteModelValues,
+        props.onToggleFavoriteModel,
         theme.colors.text.secondary,
     ]);
 
@@ -2513,6 +2576,25 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         if (!engineChipMarkAgentId) return t('status.unknown');
         return hasAgentPickerOptions ? selectedModelLabel : resolvedAgentLabel;
     }, [armedComposerTarget, engineChipMarkAgentId, hasAgentPickerOptions, resolvedAgentLabel, selectedModelLabel]);
+    const modelChipStyle = useSetting('agentInputModelChipStyle');
+    const engineChipDisplayLabel = React.useMemo(() => {
+        if (modelChipStyle !== 'modelAndEffort' || armedComposerTarget) return engineChipLabel;
+        const effortLabel = resolveModelChipEffortLabel({
+            modelsState: readSessionModelsState(props.metadata ?? null),
+            selectedModelId: effectiveModelPolicy.selectedModelId,
+            overrides: props.acpConfigOptionOverridesOverride?.overrides
+                ?? readSessionConfigOptionOverridesState(props.metadata ?? null)?.overrides
+                ?? null,
+        });
+        return effortLabel ? `${engineChipLabel} · ${effortLabel}` : engineChipLabel;
+    }, [
+        armedComposerTarget,
+        effectiveModelPolicy.selectedModelId,
+        engineChipLabel,
+        modelChipStyle,
+        props.acpConfigOptionOverridesOverride,
+        props.metadata,
+    ]);
     const hasRecipient = React.useMemo(() => {
         return (props.extraActionChips ?? []).some((chip) => chip.controlId === 'recipient');
     }, [props.extraActionChips]);
@@ -2567,25 +2649,42 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             opacity: 0.7,
         },
     }), []);
+    const filledButtons = useSetting('composerFilledButtonsV1') !== false;
+    // Filled buttons are lower than the outlined ones, so two wrapped rows of them do not touch.
+    const filledButtonStyle = React.useMemo(() => (filledButtons
+        ? {
+            backgroundColor: resolveComposerFilledButtonColors(theme.dark).fill,
+            height: COMPOSER_FILLED_BUTTON_HEIGHT,
+            paddingVertical: 4,
+            borderRadius: COMPOSER_FILLED_BUTTON_HEIGHT / 2,
+        }
+        : null), [filledButtons, theme.dark]);
+    const actionChipStyle = React.useMemo(() => [styles.actionChip, filledButtonStyle], [filledButtonStyle, styles.actionChip]);
+    // An icon-only button stays round at the lower height.
+    const actionButtonStyle = React.useMemo(() => [
+        styles.actionButton,
+        filledButtonStyle,
+        filledButtonStyle ? { paddingHorizontal: 6 } : null,
+    ], [filledButtonStyle, styles.actionButton]);
     const chipStyle = React.useCallback((pressed: boolean) => ([
-        styles.actionChip,
+        actionChipStyle,
         !showChipLabels ? actionChipTransientStyles.iconOnly : null,
         pressed ? actionChipTransientStyles.pressed : null,
     ]), [
         actionChipTransientStyles.iconOnly,
         actionChipTransientStyles.pressed,
         showChipLabels,
-        styles.actionChip,
+        actionChipStyle,
     ]);
     const chipStyleAutoHide = React.useCallback((pressed: boolean) => ([
-        styles.actionChip,
+        actionChipStyle,
         !showAutoHideChipLabels ? actionChipTransientStyles.iconOnly : null,
         pressed ? actionChipTransientStyles.pressed : null,
     ]), [
         actionChipTransientStyles.iconOnly,
         actionChipTransientStyles.pressed,
         showAutoHideChipLabels,
-        styles.actionChip,
+        actionChipStyle,
     ]);
 
     // Fade the chip rows out to the composer's own fill: the glass surface in glass
@@ -2774,7 +2873,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         chipStyleAutoHide,
         textStyle: styles.actionChipText,
         countTextStyle: styles.actionChipCountText,
-        actionButtonStyle: styles.actionButton,
+        actionButtonStyle,
         actionButtonPressedStyle: styles.actionButtonPressed,
         showPermissionChip,
         permissionChipAnchorRef,
@@ -2803,7 +2902,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hasAgentSelection: hasAgent,
         agentChipAnchorRef,
         agentLabel: resolvedAgentLabel,
-        engineLabel: engineChipLabel,
+        engineLabel: engineChipDisplayLabel,
         onAgentPress: handleAgentPress,
         onAgentIntent: props.onAgentPickerIntent,
         machineChipAnchorRef,
@@ -2818,7 +2917,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         resumeSessionId: props.resumeSessionId,
         resumeIsChecking: props.resumeIsChecking,
         onAbort: props.onAbort,
-        showAbortButton: props.showAbortButton,
+        showAbortButton: showAbortChip,
         isAborting,
         shakerRef,
         onAbortPress: handleAbortPress,
@@ -3156,6 +3255,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             {renderedActionControlNodes as any}
                         </View>
                     )}
+                    {micRecording ? (
+                        <View
+                            testID="session-composer-recording-indicator"
+                            style={{ alignSelf: 'center', marginRight: 8 }}
+                            accessibilityLabel={t('voiceSurface.recording')}
+                        >
+                            <VoiceBars isActive color={theme.colors.status.error} size="small" />
+                        </View>
+                    ) : null}
                     <AgentInputSubmitButton
                         testID={props.sessionId ? AGENT_INPUT_TEST_IDS.sessionSend : AGENT_INPUT_TEST_IDS.newSessionSend}
                         sessionId={props.sessionId}
@@ -3167,6 +3275,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         canStop={canStopFromComposer}
                         micPressHandler={micPressHandler}
                         micActive={micActive}
+                        micRecording={props.isMicRecording === true}
+                        micBusy={voiceEnabled && props.isMicBusy === true}
+                        dictationMode={dictationModeEnabled}
                         armedContinuationTarget={props.armedContinuationTarget ?? null}
                         onSend={handleSend}
                         sendMenuItems={sendMenuItems}
@@ -3188,7 +3299,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 styles={{
                                     pathRow: styles.pathRow,
                                     actionButtonsLeft: styles.actionButtonsLeftScrollInline,
-                                    actionChip: styles.actionChip,
+                                    actionChip: actionChipStyle,
                                     actionChipIconOnly: actionChipTransientStyles.iconOnly,
                                     actionChipPressed: actionChipTransientStyles.pressed,
                                     actionChipText: styles.actionChipText,
@@ -3198,6 +3309,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 showChipLabels={showChipLabels}
                                 iconColor={theme.colors.composer.chipTint}
                                 currentPath={props.currentPath}
+                                currentPathHomeDir={props.currentPathHomeDir}
                                 pathChipAnchorRef={pathChipAnchorRef}
                                 emptyPathLabel={t('newSession.selectPathTitle')}
                                 onPathClick={handlePathPress}
@@ -3218,7 +3330,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             styles={{
                                 pathRow: styles.pathRow,
                                 actionButtonsLeft: styles.actionButtonsLeft,
-                                actionChip: styles.actionChip,
+                                actionChip: actionChipStyle,
                                 actionChipIconOnly: actionChipTransientStyles.iconOnly,
                                 actionChipPressed: actionChipTransientStyles.pressed,
                                 actionChipText: styles.actionChipText,
@@ -3227,6 +3339,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             showChipLabels={showChipLabels}
                             iconColor={theme.colors.composer.chipTint}
                             currentPath={props.currentPath}
+                            currentPathHomeDir={props.currentPathHomeDir}
                             pathChipAnchorRef={pathChipAnchorRef}
                             emptyPathLabel={t('newSession.selectPathTitle')}
                             onPathClick={handlePathPress}
@@ -3369,16 +3482,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     testID="agent-input-command-menu"
                 />
                 {/* Connection status, context usage, and permission mode */}
-                {(props.connectionStatus || contextUsageState || props.providerUsageGauge || props.statusTrailingActions || showKeepKeyboardToggle || (props.statusBadges && props.statusBadges.length > 0)) && (
+                {(props.connectionStatus || contextUsageState || props.providerUsageGauge || props.statusTrailingActions || props.statusCostLabel || showKeepKeyboardToggle || (props.statusBadges && props.statusBadges.length > 0)) && (
                     <View style={styles.statusContainer}>
                         <View style={styles.statusRow}>
                             {props.connectionStatus && (
                                 <View style={styles.connectionStatusGroup}>
-                                    <StatusDot
-                                        color={props.connectionStatus.dotColor}
+                                    <ComposerStatusMark
+                                        working={props.connectionStatus.working === true}
                                         isPulsing={props.connectionStatus.isPulsing}
-                                        size={6}
-                                        style={styles.statusDot}
+                                        dotColor={props.connectionStatus.dotColor}
+                                        inkColor={props.connectionStatus.color}
+                                        dotStyle={styles.statusDot}
+                                        quillStyle={styles.statusQuill}
                                     />
                                     <Text
                                         testID={AGENT_INPUT_TEST_IDS.connectionStatusText}
@@ -3466,6 +3581,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     </>
                                 );
                             })()}
+                            {props.statusCostLabel ? (
+                                <Text
+                                    testID={AGENT_INPUT_TEST_IDS.statusCost}
+                                    style={[styles.statusText, styles.statusCost]}
+                                >
+                                    {props.statusCostLabel}
+                                </Text>
+                            ) : null}
                         </View>
                     </View>
                 )}

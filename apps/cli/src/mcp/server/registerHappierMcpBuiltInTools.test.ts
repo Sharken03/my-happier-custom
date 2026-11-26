@@ -76,6 +76,45 @@ describe('registerHappierMcpBuiltInTools', () => {
     expect(goalSetSchema?.safeParse?.({}).success).toBe(false);
   });
 
+  it('returns show_image content blocks before the JSON summary, and skips the tool without a handler', async () => {
+    const handlers = new Map<string, (args: unknown, extra?: unknown) => Promise<unknown>>();
+    const deps = {
+      changeTitle: async () => ({ success: true }),
+      startExecutionRun: async () => ({ ok: false as const, errorCode: 'unsupported', error: 'unsupported' }),
+      executeActionByToolName: async () => ({ ok: true as const, result: {} }),
+    };
+
+    const without = registerHappierMcpBuiltInTools({ registerTool: () => undefined }, {
+      sessionId: 'sess-current',
+      surface: 'session_agent',
+      deps,
+    });
+    expect(without.toolNames).not.toContain('show_image');
+
+    registerHappierMcpBuiltInTools({
+      registerTool: (name, _meta, handler) => handlers.set(name, handler),
+    }, {
+      sessionId: 'sess-current',
+      surface: 'session_agent',
+      deps: {
+        ...deps,
+        showImage: async () => ({
+          ok: true as const,
+          result: { shown: true, mimeType: 'image/png' },
+          content: [{ type: 'image' as const, data: 'AAAA', mimeType: 'image/png' }],
+        }),
+      },
+    });
+
+    expect(await handlers.get('show_image')?.({ path: 'chart.png' })).toEqual({
+      content: [
+        { type: 'image', data: 'AAAA', mimeType: 'image/png' },
+        { type: 'text', text: JSON.stringify({ shown: true, mimeType: 'image/png' }) },
+      ],
+      isError: false,
+    });
+  });
+
   it('derives approval origin metadata from MCP tool call context for session-agent tools', async () => {
     const handlers = new Map<string, (args: unknown, extra?: unknown) => Promise<unknown>>();
     const executeActionByToolName = vi.fn(async () => ({ ok: true as const, result: { sessions: [] } }));

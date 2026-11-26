@@ -1,6 +1,12 @@
+import {
+  TOOLS_SERVE_READY_TYPE,
+  TOOLS_SERVE_REQUEST_TYPE,
+  TOOLS_SERVE_RESULT_MAX_BYTES,
+  TOOLS_SERVE_RESULT_TYPE,
+} from '@/cli/commands/toolsServe';
 import { PI_BRIDGE_CONFIG_PATH_FLAG, PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE, PI_BRIDGE_USER_INPUT_MARKER_TYPE } from './piBridgeExtensionEnv';
 
-export const PI_BRIDGE_EXTENSION_VERSION = '5';
+export const PI_BRIDGE_EXTENSION_VERSION = '8';
 
 function jsString(value: string): string {
   return JSON.stringify(value);
@@ -11,15 +17,25 @@ export function buildPiBridgeExtensionSource(): string {
 // Generic adapter: the host-owned protected session manifest owns tool policy and prompt guidance.
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { Socket } from "node:net";
 
 const CONFIG_PATH_FLAG = ${jsString(PI_BRIDGE_CONFIG_PATH_FLAG)};
 const TOKEN_COUNT_MARKER_TYPE = ${jsString(PI_BRIDGE_TOKEN_COUNT_MARKER_TYPE)};
 const USER_INPUT_MARKER_TYPE = ${jsString(PI_BRIDGE_USER_INPUT_MARKER_TYPE)};
+const SESSION_TITLE_REMINDER_MESSAGE_TYPE = "happier-session-title-reminder";
 const BRIDGE_OUTPUT_MAX_BYTES = 1024 * 1024;
 const BRIDGE_OUTPUT_MAX_LINES = 4000;
 const TOOL_OUTPUT_MAX_BYTES = 50 * 1024;
 const TOOL_OUTPUT_MAX_LINES = 2000;
 const TOOL_OUTPUT_NOTICE_RESERVE_BYTES = 256;
+const SERVE_READY_TYPE = ${jsString(TOOLS_SERVE_READY_TYPE)};
+const SERVE_REQUEST_TYPE = ${jsString(TOOLS_SERVE_REQUEST_TYPE)};
+const SERVE_RESULT_TYPE = ${jsString(TOOLS_SERVE_RESULT_TYPE)};
+const SERVE_RESULT_MAX_BYTES = ${TOOLS_SERVE_RESULT_MAX_BYTES};
+// The host writes its ready line as soon as it attaches the pipe. A pipe that stays silent
+// this long is not served (a platform where the descriptor does not carry the pipe), and the
+// call goes to a "tools serve" process instead.
+const HOST_PIPE_READY_TIMEOUT_MS = 5000;
 
 function readFlagString(pi, name) {
   try {
@@ -53,7 +69,9 @@ function readSessionConfig(pi) {
       if (tool.call.actionId !== null && (typeof tool.call.actionId !== "string" || !tool.call.actionId.trim())) return null;
       directTools.push(tool);
     }
-    return { ...parsed, sessionId: parsed.sessionId.trim(), directTools };
+    // The host pipe is optional: a host that serves tool calls itself names its file descriptor.
+    const hostToolsFd = Number.isSafeInteger(parsed.hostToolsFd) && parsed.hostToolsFd > 2 ? parsed.hostToolsFd : null;
+    return { ...parsed, sessionId: parsed.sessionId.trim(), directTools, hostToolsFd };
   } catch {
     return null;
   }
@@ -106,7 +124,13 @@ function envelopeToToolResult(envelope) {
       ? envelope.data.output
       : (envelope.data ?? null);
     const projected = truncateToolOutput(JSON.stringify(output) ?? "null");
-    return { content: [{ type: "text", text: projected.content }], details: { truncation: projected } };
+    // Image blocks (show_image) go to Pi as image content, ahead of the JSON text.
+    const images = envelope.data && typeof envelope.data === "object" && Array.isArray(envelope.data.content)
+      ? envelope.data.content.filter((block) => block && block.type === "image"
+        && typeof block.data === "string" && typeof block.mimeType === "string")
+        .map((block) => ({ type: "image", data: block.data, mimeType: block.mimeType }))
+      : [];
+    return { content: [...images, { type: "text", text: projected.content }], details: { truncation: projected } };
   }
   const error = envelope.error && typeof envelope.error === "object" ? envelope.error : {};
   const parts = ["code=" + (typeof error.code === "string" && error.code ? error.code : "unknown")];
@@ -231,6 +255,173 @@ async function callHappierTool(config, toolName, args, toolCallId, signal, cwd) 
   return parseEnvelope(result.stdout);
 }
 
+// The host can serve tool calls itself on a pipe it opened for this process (hostToolsFd):
+// no extra process, and no start-up per call. Otherwise one long-lived "tools serve" process
+// per session pays the CLI start-up once; a process per call pays it on every call (about 4 s
+// on a phone). The serve process ends itself after a time without calls, and the next call
+// starts a new one. A host pipe that fails before its ready line is not tried again; the next
+// start spawns "tools serve". call() returns null when no server can answer (an older CLI exits
+// without the ready line, or the server ended during the call), and the caller then spawns
+// "tools call" for it.
+function createToolsServeClient(config) {
+  let current = null;
+  let unavailable = false;
+  let hostPipeFailed = config.hostToolsFd === null;
+  const openHostPipe = () => {
+    let socket;
+    try {
+      socket = new Socket({ fd: config.hostToolsFd, readable: true, writable: true });
+    } catch {
+      hostPipeFailed = true;
+      return null;
+    }
+    return {
+      host: true,
+      input: socket,
+      output: socket,
+      onEnd: (handler) => { socket.once("error", handler); socket.once("close", handler); },
+      close: () => { try { socket.destroy(); } catch {} },
+      ref: () => { socket.ref?.(); },
+      unref: () => { socket.unref?.(); },
+    };
+  };
+  const spawnServe = () => {
+    let child;
+    try {
+      child = spawn(config.launch.filePath, [...config.launch.argPrefix, "tools", "serve", "--session-id", config.sessionId], {
+        env: { ...process.env, ...config.launch.env },
+        shell: false,
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "ignore"],
+      });
+    } catch {
+      unavailable = true;
+      return null;
+    }
+    return {
+      host: false,
+      input: child.stdout,
+      output: child.stdin,
+      onEnd: (handler) => { child.stdin.on("error", handler); child.once("error", handler); child.once("close", handler); },
+      close: () => { try { child.kill("SIGTERM"); } catch {} },
+      ref: () => { child.ref?.(); child.stdin.ref?.(); child.stdout.ref?.(); },
+      // Pi must be able to exit while the serve process waits; Pi's exit closes its stdin and stops it.
+      unref: () => { child.unref?.(); child.stdin.unref?.(); child.stdout.unref?.(); },
+    };
+  };
+  const start = () => {
+    const io = (!hostPipeFailed ? openHostPipe() : null) ?? spawnServe();
+    if (!io) return null;
+    const server = { io, pending: new Map(), nextId: 1, alive: true, wasReady: false };
+    let markReady = () => {};
+    server.ready = new Promise((resolve) => { markReady = resolve; });
+    let buffer = "";
+    server.stop = () => {
+      if (!server.alive) return;
+      server.alive = false;
+      // A host pipe is used once: its descriptor is closed now. A serve process that never got
+      // ready means this CLI has no "tools serve".
+      if (io.host) {
+        hostPipeFailed = true;
+        if (!server.wasReady) {
+          try { process.stderr.write("happier tools bridge: host tool-call pipe unavailable; using tools serve\\n"); } catch {}
+        }
+      } else if (!server.wasReady) unavailable = true;
+      markReady(false);
+      if (current === server) current = null;
+      for (const finish of server.pending.values()) {
+        finish(null);
+      }
+      server.pending.clear();
+      io.close();
+    };
+    io.input.on("data", (data) => {
+      buffer += data.toString("utf8");
+      let index;
+      while ((index = buffer.indexOf("\\n")) !== -1) {
+        const line = buffer.slice(0, index).trim();
+        buffer = buffer.slice(index + 1);
+        if (!line.startsWith("{")) continue;
+        let message;
+        try { message = JSON.parse(line); } catch { continue; }
+        if (message && message.type === SERVE_READY_TYPE) {
+          server.wasReady = true;
+          markReady(true);
+        } else if (message && message.type === SERVE_RESULT_TYPE && server.pending.has(message.id)) {
+          const finish = server.pending.get(message.id);
+          server.pending.delete(message.id);
+          const envelope = message.envelope;
+          finish(envelope && typeof envelope === "object" && typeof envelope.ok === "boolean"
+            ? envelope
+            : { ok: false, error: { code: "bridge_invalid_output", message: "Happier tools serve returned an invalid result" } });
+        }
+      }
+      // A result line is at most SERVE_RESULT_MAX_BYTES; more without a newline is a broken stream.
+      if (Buffer.byteLength(buffer, "utf8") > SERVE_RESULT_MAX_BYTES + 1024) server.stop();
+    });
+    io.onEnd(() => server.stop());
+    if (io.host) {
+      const readyTimer = setTimeout(() => { if (!server.wasReady) server.stop(); }, HOST_PIPE_READY_TIMEOUT_MS);
+      readyTimer.unref?.();
+      server.ready.then(() => clearTimeout(readyTimer));
+    }
+    io.unref();
+    return server;
+  };
+  // A host pipe that ends before it is ready leaves the call to a "tools serve" process.
+  const readyServer = async () => {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!current && !unavailable) current = start();
+      const server = current;
+      if (!server) return null;
+      // A call waits for the ready line; keep the server referenced while it does.
+      server.io.ref();
+      const ready = await server.ready;
+      if (server.pending.size === 0) server.io.unref();
+      if (ready && server.alive) return server;
+      if (!server.io.host) return null;
+    }
+    return null;
+  };
+  return {
+    warm() {
+      if (!current && !unavailable) current = start();
+    },
+    async call(toolName, args, toolCallId, signal) {
+      const server = await readyServer();
+      if (!server) return null;
+      if (signal?.aborted) return { ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } };
+      return await new Promise((resolve) => {
+        const id = server.nextId++;
+        const onAbort = () => {
+          server.pending.delete(id);
+          if (server.pending.size === 0) server.io.unref();
+          resolve({ ok: false, error: { code: "bridge_cancelled", message: "Happier tool call was cancelled" } });
+        };
+        // An open call keeps the server referenced, so Pi waits for its result.
+        server.io.ref();
+        server.pending.set(id, (envelope) => {
+          signal?.removeEventListener?.("abort", onAbort);
+          if (server.pending.size === 0) server.io.unref();
+          resolve(envelope);
+        });
+        signal?.addEventListener?.("abort", onAbort, { once: true });
+        server.io.output.write(JSON.stringify({
+          type: SERVE_REQUEST_TYPE,
+          id,
+          tool: toolName,
+          args: args ?? {},
+          toolCallId: typeof toolCallId === "string" ? toolCallId.trim() : "",
+        }) + "\\n");
+      });
+    },
+    stop() {
+      current?.stop();
+      current = null;
+    },
+  };
+}
+
 function emitContextTelemetryMarker(ctx) {
   let usage = null;
   try { usage = typeof ctx?.getContextUsage === "function" ? ctx.getContextUsage() : null; } catch {}
@@ -253,6 +444,9 @@ export default function HappierPiToolsBridgeExtension(pi) {
     const config = readSessionConfig(pi);
     if (!config) return;
     registered = true;
+    const toolsServe = createToolsServeClient(config);
+    toolsServe.warm();
+    pi.on("session_shutdown", () => toolsServe.stop());
 
     // Observe submitted extension input at Pi's public input boundary, as the host does
     // for its own submissions. Later input handlers may transform or handle it; a handler
@@ -269,11 +463,39 @@ export default function HappierPiToolsBridgeExtension(pi) {
       if (message && typeof message === "object" && message.role === "assistant") emitContextTelemetryMarker(ctx);
     });
 
+    // Some models ignore the session-title section of the system prompt. The host resolves a
+    // reminder for a session that still needs a title; it goes out once, as a hidden message
+    // after the user message that starts a run, unless the model already set a title.
+    const reminderConfig = config.sessionTitleReminder && typeof config.sessionTitleReminder === "object" ? config.sessionTitleReminder : null;
+    const sessionTitleToolName = typeof reminderConfig?.toolName === "string" ? reminderConfig.toolName : "";
+    let sessionTitleReminder = typeof reminderConfig?.text === "string" ? reminderConfig.text.trim() : "";
+
+    // Pi's session name follows the Happier title, so tools that list Pi sessions show it.
+    const sessionNameConfig = config.sessionName && typeof config.sessionName === "object" ? config.sessionName : null;
+    const followTitle = (title) => {
+      const name = typeof title === "string" ? title.trim() : "";
+      if (name && typeof pi.setSessionName === "function" && pi.getSessionName?.() !== name) pi.setSessionName(name);
+    };
+    if (sessionNameConfig) followTitle(sessionNameConfig.title);
+
     pi.on("before_agent_start", async (event) => {
       const addition = config.promptAddition.trim();
-      if (!addition) return undefined;
-      const base = event && typeof event.systemPrompt === "string" ? event.systemPrompt.trim() : "";
-      return { systemPrompt: base ? base + "\\n\\n" + addition : addition };
+      const result = {};
+      const sections = event?.systemPromptOptions?.sections;
+      if (addition && sections && typeof sections === "object") {
+        // A returned systemPrompt replaces Pi's whole prompt, and Pi then rebuilds the prompt
+        // start on each change (an edited context file, a new title state), so a resumed chat
+        // loses its prompt cache. A section lets Pi send such a change as a patch at the end.
+        sections.happier = addition;
+      } else if (addition) {
+        const base = event && typeof event.systemPrompt === "string" ? event.systemPrompt.trim() : "";
+        result.systemPrompt = base ? base + "\\n\\n" + addition : addition;
+      }
+      if (sessionTitleReminder && event?.messageType !== "custom") {
+        result.message = { customType: SESSION_TITLE_REMINDER_MESSAGE_TYPE, content: sessionTitleReminder, display: false };
+        sessionTitleReminder = "";
+      }
+      return result.systemPrompt === undefined && result.message === undefined ? undefined : result;
     });
 
     for (const tool of config.directTools) {
@@ -283,11 +505,15 @@ export default function HappierPiToolsBridgeExtension(pi) {
         description: tool.description,
         parameters: tool.inputSchema,
         async execute(toolCallId, args, signal, _onUpdate, ctx) {
+          if (tool.name === sessionTitleToolName) sessionTitleReminder = "";
           const cwd = typeof ctx?.cwd === "string" && ctx.cwd.trim() ? ctx.cwd : process.cwd();
           const callArgs = tool.call.actionId === null
             ? args
             : { actionId: tool.call.actionId, input: args };
-          return envelopeToToolResult(await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
+          const served = await toolsServe.call(tool.call.toolName, callArgs, toolCallId, signal);
+          const result = envelopeToToolResult(served ?? await callHappierTool(config, tool.call.toolName, callArgs, toolCallId, signal, cwd));
+          if (tool.name === sessionNameConfig?.toolName) followTitle(args?.title);
+          return result;
         },
       });
     }

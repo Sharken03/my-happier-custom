@@ -466,6 +466,7 @@ export function buildSessionListRowModel(input: BuildSessionListRowModelInput): 
         compactMinimal: settings.compactMinimal,
         identityDisplay: settings.identityDisplay,
         activeColorMode: settings.activeColorMode,
+        highlightAttention: settings.highlightAttention === true,
         workingIndicatorMode: settings.workingIndicatorMode,
         hideInactiveSessions: settings.hideInactiveSessions,
     };

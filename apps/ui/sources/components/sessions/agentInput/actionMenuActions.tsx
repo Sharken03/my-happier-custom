@@ -31,6 +31,8 @@ export function buildAgentInputActionMenuActions(opts: {
     canStop?: boolean;
     onStop?: () => void;
     extraControlActions?: Partial<Record<AgentInputControlId, ActionListItem | ReadonlyArray<ActionListItem>>>;
+    /** Controls the user switched off (setting agentInputHiddenControls). */
+    hiddenControlIds?: readonly string[];
     dismiss: () => void;
     blurInput: () => void;
 }): ActionListItem[] {
@@ -46,6 +48,7 @@ export function buildAgentInputActionMenuActions(opts: {
     const orderedControlIds = resolveAgentInputControlLines({
         layout: 'collapsed',
         controlIds: Object.keys(controlActionsById) as AgentInputControlId[],
+        hiddenControlIds: opts.hiddenControlIds,
     }).collapsed;
 
     return [

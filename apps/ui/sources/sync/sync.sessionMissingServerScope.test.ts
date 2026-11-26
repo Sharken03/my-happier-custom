@@ -193,6 +193,56 @@ describe('sync.fetchMessages server-scoped known-session checks', () => {
         vi.clearAllMocks();
     });
 
+    it.each(['explicit', 'delete-session', 'session-share-revoked', 'remote-same-id'] as const)(
+        'retires session rows and active-server indexes with same-ID isolation: %s',
+        async (retirement) => {
+            const { sync } = await import('./sync');
+            sync.disconnectServer();
+            const activeServer = upsertServerProfile({ serverUrl: 'https://retirement-active.example', name: 'Retirement active' });
+            const remoteServer = upsertServerProfile({ serverUrl: 'https://retirement-remote.example', name: 'Retirement remote' });
+            setActiveServerId(activeServer.id, { scope: 'device' });
+            const sessionId = 'queued-retirement';
+            const internals = sync as unknown as {
+                credentials: { token: string };
+                encryption: Encryption;
+                activeServerSessionIds: Set<string>;
+                sessionDataKeys: Map<string, Uint8Array>;
+                sessionDataKeyEnvelopes: Map<string, string>;
+                handleUpdate: (update: unknown) => Promise<void>;
+            };
+            internals.credentials = { token: 'retirement-token' };
+            internals.encryption = await Encryption.create(new Uint8Array(32));
+            await internals.encryption.initializeSessions(new Map([[sessionId, null]]));
+            internals.activeServerSessionIds.add(sessionId);
+            internals.sessionDataKeys.set(sessionId, new Uint8Array([1]));
+            internals.sessionDataKeyEnvelopes.set(sessionId, 'envelope');
+            storage.getState().applySessions([{
+                ...createSession(sessionId), encryptionMode: 'plain', metadata: { path: '/original', host: 'host' },
+            }]);
+            try {
+                if (retirement === 'explicit' || retirement === 'remote-same-id') {
+                    sync.retireLocalSession(sessionId, retirement === 'remote-same-id' ? remoteServer.id : activeServer.id);
+                } else {
+                    await internals.handleUpdate({
+                        id: 'retirement-update', seq: 3, createdAt: Date.now(),
+                        body: retirement === 'delete-session'
+                            ? { t: retirement, sid: sessionId }
+                            : { t: retirement, sessionId, shareId: 'retirement-share' },
+                    });
+                }
+                const retained = retirement === 'remote-same-id';
+                expect(storage.getState().sessions[sessionId]?.seq).toBe(retained ? 0 : undefined);
+                expect(storage.getState().sessionListRenderables[sessionId]?.seq).toBe(retained ? 0 : undefined);
+                expect(internals.activeServerSessionIds.has(sessionId)).toBe(retained);
+                expect(internals.sessionDataKeys.has(sessionId)).toBe(retained);
+                expect(internals.sessionDataKeyEnvelopes.has(sessionId)).toBe(retained);
+                expect(internals.encryption.getSessionEncryption(sessionId) !== null).toBe(retained);
+            } finally {
+                sync.disconnectServer();
+            }
+        },
+    );
+
     it('does not publish an empty loaded transcript while the route owner is unresolved', async () => {
         const sessionId = 'route_owner_race';
         const { sync } = await import('./sync');
@@ -366,6 +416,48 @@ describe('sync.fetchMessages server-scoped known-session checks', () => {
         expect(storage.getState().sessionMessages[sessionId]?.isLoaded).toBe(true);
         const messagesById = storage.getState().sessionMessages[sessionId]?.messagesById ?? {};
         expect(Object.values(messagesById).some((message) => message.kind === 'user-text' && message.text === 'hello direct')).toBe(true);
+    });
+
+    it('applies an older direct session page only after the caller allows it', async () => {
+        const sessionId = 'direct_session_id';
+        resolvePreferredServerIdForSessionIdMock.mockReturnValue('server-owned');
+        storage.getState().applySessions([createDirectSession(sessionId)]);
+        machineDirectSessionTranscriptPageMock.mockResolvedValueOnce({
+            ok: true,
+            items: [{ id: 'direct-msg-2', createdAtMs: 2, raw: { role: 'user', content: { type: 'text', text: 'newer direct' } } }],
+            nextCursor: 'older-cursor-1',
+            hasMore: true,
+        });
+        machineDirectSessionTranscriptReadAfterMock.mockResolvedValueOnce({
+            ok: true,
+            items: [],
+            nextCursor: 'tail-cursor-1',
+            truncated: false,
+        });
+        const { sync } = await import('./sync');
+        (sync as any).encryption = { getSessionEncryption: () => null };
+        (sync as any).activeServerSessionIds = new Set<string>([sessionId]);
+        (sync as any).hasFetchedSessionsSnapshotForActiveServer = true;
+        await (sync as any).fetchMessages(sessionId);
+
+        machineDirectSessionTranscriptPageMock.mockResolvedValueOnce({
+            ok: true,
+            items: [{ id: 'direct-msg-1', createdAtMs: 1, raw: { role: 'user', content: { type: 'text', text: 'older direct' } } }],
+            nextCursor: null,
+            hasMore: false,
+        });
+        let allow: (() => void) | null = null;
+        const hasOlderRow = () => Object.values(storage.getState().sessionMessages[sessionId]?.messagesById ?? {})
+            .some((message) => message.kind === 'user-text' && message.text === 'older direct');
+        const load = sync.loadOlderMessages(sessionId, {
+            waitForApply: () => new Promise<void>((resolve) => { allow = resolve; }),
+        });
+        await vi.waitFor(() => expect(allow).not.toBeNull());
+        expect(hasOlderRow()).toBe(false);
+
+        allow!();
+        await expect(load).resolves.toMatchObject({ loaded: 1, status: 'no_more' });
+        expect(hasOlderRow()).toBe(true);
     });
 
     it('fetches persisted session messages through the preferred owner server when the owner is not active', async () => {
@@ -2465,7 +2557,7 @@ describe('sync.fetchMessages server-scoped known-session checks', () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(notifyActivityReadyMock).toHaveBeenCalledWith(sessionId, expect.any(Array));
+        expect(notifyActivityReadyMock).toHaveBeenCalledWith(sessionId, expect.any(Array), null);
     });
 
     it('emits activity notifications for pushed direct-session agent replies without requiring a ready event', async () => {

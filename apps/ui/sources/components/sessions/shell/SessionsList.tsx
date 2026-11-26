@@ -79,6 +79,7 @@ import {
 } from './row/sessionListVisibleRowStoreScopes';
 import { treeRowId } from './drop-resolution/treeRowId';
 import { SessionListViewMenuButton } from './sessionListViewMenu';
+import { SessionListVisibilityMenu } from './sessionListVisibilityMenu';
 import { buildNewSessionTempDataFromSessionConfiguration } from '@/components/sessions/authoring/draft/sessionConfigurationSeed';
 import { storeTempData } from '@/utils/sessions/tempDataStore';
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
@@ -112,7 +113,7 @@ import { SessionListHeaderControls } from './SessionListHeaderControls';
 import { useSessionListSearchTextByKey } from './useSessionListSearchTextByKey';
 import { useSessionListMemorySearchAugmentation } from './search/useSessionListMemorySearchAugmentation';
 import { useSessionListHeaderFilterRetention } from './search/useSessionListHeaderFilterRetention';
-import { isSessionListPrimaryHeaderKind } from './sessionListPrimaryHeader';
+import { isSessionListPrimaryHeaderKind, withSessionListControlsHeader } from './sessionListPrimaryHeader';
 import {
     getSessionListHeaderControlsAnchorKey,
     hasActiveSessionListHeaderFilters,
@@ -613,6 +614,8 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         hideInactiveSessions,
         setHideInactiveSessions,
+        sessionListVisibilityScope,
+        setSessionListVisibilityScope,
         rememberLastProjectSessionSelections,
         workspaceLabelsV1,
         setWorkspaceLabelsV1,
@@ -644,7 +647,9 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
     const sessionListAgentActivityCountEnabled = useSetting('sessionListAgentActivityCountEnabled');
     const sessionListIdentityDisplay = useSessionListIdentityDisplay();
     const sessionListActiveColorMode = useSetting('sessionListActiveColorModeV1');
+    const sessionListHighlightAttention = useSetting('sessionListHighlightAttention') === true;
     const sessionListSectionModeRaw = useSetting('sessionListSectionModeV1');
+    const sessionListShowArchivedLink = useSetting('showArchivedSessionsLink') !== false;
     const sessionReplayEnabled = useSetting('sessionReplayEnabled');
     const executionRunsEnabled = useFeatureEnabled('execution.runs');
     const forkActionContext = React.useMemo(() => ({
@@ -816,7 +821,11 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         activeSnapshot: activeDragSnapshot,
         liveViewItems: listItems as ReadonlyArray<SessionListViewItem>,
     });
-    const renderedListItems = frozenListProjection.viewItems;
+    const frozenViewItems = frozenListProjection.viewItems;
+    const renderedListItems = React.useMemo(
+        () => withSessionListControlsHeader(frozenViewItems, sessionListVisibilityScope),
+        [frozenViewItems, sessionListVisibilityScope],
+    );
     const rowStoreScopesRaw = React.useMemo(() => renderedListItems
         .filter((item): item is SessionListSessionItem => item.type === 'session')
         .map((item) => ({
@@ -936,6 +945,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
             compactMinimal,
             identityDisplay: sessionListIdentityDisplay,
             activeColorMode: normalizeActiveColorMode(sessionListActiveColorMode),
+            highlightAttention: sessionListHighlightAttention,
             workingIndicatorMode: normalizeWorkingIndicatorMode(sessionListWorkingIndicatorStyle),
             workingTextMode: 'static',
             backgroundWorkAttentionMode,
@@ -973,6 +983,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableSessionDisplayByKeyRecord,
         sessionListAgentActivityCountEnabled,
         sessionListActiveColorMode,
+        sessionListHighlightAttention,
         sessionListIdentityDisplay,
         sessionListWorkingIndicatorStyle,
         backgroundWorkAttentionMode,
@@ -991,6 +1002,12 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         if (!surfaceDataActiveRef.current) return;
         fireAndForget(sync.fetchMoreSessions(), { tag: 'SessionsList.fetchMoreSessions' });
     }, []);
+    // The main session list request leaves archived sessions out. The Archived scope loads them
+    // with the same request as the Archived Sessions screen.
+    React.useEffect(() => {
+        if (sessionListVisibilityScope === 'active' || !surfaceOwnership.dataActive) return;
+        fireAndForget(sync.fetchArchivedSessions(), { tag: 'SessionsList.fetchArchivedSessions' });
+    }, [sessionListVisibilityScope, surfaceOwnership.dataActive]);
     const handleRefreshSessions = React.useCallback(async () => {
         if (!surfaceDataActiveRef.current) return;
         if (refreshingSessionsRef.current) return;
@@ -1848,6 +1865,12 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 disabled={!folderActionsEnabled}
             />
         );
+        const visibilityMenu = (
+            <SessionListVisibilityMenu
+                value={sessionListVisibilityScope}
+                onChange={setSessionListVisibilityScope}
+            />
+        );
         return (
             <SessionListHeaderControls
                 allKnownTags={sessionTagsEnabled === true ? allKnownTags : EMPTY_SESSION_KEYS}
@@ -1858,6 +1881,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 onSearchQueryChange={setSearchQuery}
                 onSearchOpenChange={(open) => handleHeaderSearchOpenChange(anchorKey, open)}
                 searchTrailingAccessory={searchTrailingAccessory}
+                visibilityMenu={visibilityMenu}
                 viewMenu={menu}
             />
         );
@@ -1872,6 +1896,8 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         sessionTagsEnabled,
         folderActionsEnabled,
         hideInactiveSessions,
+        sessionListVisibilityScope,
+        setSessionListVisibilityScope,
         sessionListOrderingMode,
         sessionListSavedFolderSortMode,
         sessionFolderViewMode,
@@ -2083,6 +2109,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableDisplaySignature,
         rowLabelsSignature,
         sessionListActiveColorMode: rowPresentationSettings.activeColorMode,
+        sessionListHighlightAttention: rowPresentationSettings.highlightAttention === true,
         sessionListAgentActivityCountEnabled: rowPresentationSettings.agentActivityCountEnabled,
         sessionListHideInactiveSessions: rowPresentationSettings.hideInactiveSessions,
         sessionListIdentityDisplay: rowPresentationSettings.identityDisplay,
@@ -2125,6 +2152,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
         reachableDisplaySignature,
         rowLabelsSignature,
         rowPresentationSettings.activeColorMode,
+        rowPresentationSettings.highlightAttention,
         rowPresentationSettings.agentActivityCountEnabled,
         rowPresentationSettings.hideInactiveSessions,
         rowPresentationSettings.identityDisplay,
@@ -2262,6 +2290,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
     ), [folderBreadcrumbRootTitle, folderBreadcrumbs, handleClearSessionFolderFocus, handleSelectSessionFolderBreadcrumb, rowPresentationSettings.density]);
 
     const renderVirtualizedFooter = React.useCallback(() => {
+        if (!sessionListShowArchivedLink) return null;
         return (
             <ItemGroup style={styles.footerContainer}>
                 <Item
@@ -2273,7 +2302,7 @@ export const SessionsListContent = React.memo(function SessionsListContent(props
                 />
             </ItemGroup>
         );
-    }, [hideInactiveSessions, router, styles.footerContainer, theme.colors.text.secondary]);
+    }, [hideInactiveSessions, router, sessionListShowArchivedLink, styles.footerContainer, theme.colors.text.secondary]);
 
     const onEndReached = surfaceOwnership.dataActive ? handleLoadMoreSessions : undefined;
     const nativeRefreshControl = React.useMemo(() => {

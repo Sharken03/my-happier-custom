@@ -11,6 +11,8 @@ const setTranscriptMessageSelectionEnabled = vi.fn();
 const setTranscriptMessageSendToSessionEnabled = vi.fn();
 const setTranscriptMessageSendToSessionTemplate = vi.fn();
 const setTranscriptBulkCopyFormat = vi.fn();
+const setTranscriptToolCallsGroupOpenMode = vi.fn();
+const setTranscriptToolCallsGroupOpenModeWeb = vi.fn();
 
 installSessionSettingsCommonModuleMocks({
     storage: async (importOriginal) => {
@@ -33,6 +35,19 @@ installSessionSettingsCommonModuleMocks({
                     }
                     if (name === 'transcriptBulkCopyFormat') {
                         return ['markdown_labeled', setTranscriptBulkCopyFormat];
+                    }
+                    if (name === 'transcriptGroupToolCalls') {
+                        return [true, vi.fn()];
+                    }
+                    // The Tool calls group rows only render in the activity-feed chrome mode.
+                    if (name === 'toolViewTimelineChromeMode') {
+                        return ['activity_feed', vi.fn()];
+                    }
+                    if (name === 'transcriptToolCallsGroupOpenMode') {
+                        return ['sheet', setTranscriptToolCallsGroupOpenMode];
+                    }
+                    if (name === 'transcriptToolCallsGroupOpenModeWeb') {
+                        return ['list', setTranscriptToolCallsGroupOpenModeWeb];
                     }
                     return [null, vi.fn()];
                 },
@@ -78,6 +93,8 @@ describe('TranscriptSettingsView', () => {
         setTranscriptMessageSendToSessionEnabled.mockClear();
         setTranscriptMessageSendToSessionTemplate.mockClear();
         setTranscriptBulkCopyFormat.mockClear();
+        setTranscriptToolCallsGroupOpenMode.mockClear();
+        setTranscriptToolCallsGroupOpenModeWeb.mockClear();
     });
 
     it('renders message action controls in their own transcript settings group', async () => {
@@ -124,6 +141,26 @@ describe('TranscriptSettingsView', () => {
         expect(formatDropdown.props.items.map((item: any) => item.id)).toEqual(['markdown_labeled', 'plain']);
         formatDropdown.props.onSelect?.('plain');
         expect(setTranscriptBulkCopyFormat).toHaveBeenCalledWith('plain');
+    });
+
+    it('sets the app and the web tool call group mode from their own rows', async () => {
+        const { TranscriptSettingsView } = await import('./TranscriptSettingsView');
+        const screen = await renderSettingsView(React.createElement(TranscriptSettingsView));
+
+        const appRow = screen.findAll((node) => node.props?.itemTrigger?.title === 'settingsSession.transcript.toolCallsGroupOpenInSheetTitle')[0];
+        const webRow = screen.findAll((node) => node.props?.itemTrigger?.title === 'settingsSession.transcript.toolCallsGroupOpenInSheetWebTitle')[0];
+        expect(appRow).toBeTruthy();
+        expect(webRow).toBeTruthy();
+        expect(appRow?.props?.selectedId).toBe('sheet');
+        expect(webRow?.props?.selectedId).toBe('list');
+
+        appRow?.props?.onSelect?.('inline');
+        expect(setTranscriptToolCallsGroupOpenMode).toHaveBeenCalledWith('inline');
+        expect(setTranscriptToolCallsGroupOpenModeWeb).not.toHaveBeenCalled();
+
+        webRow?.props?.onSelect?.('sheet');
+        expect(setTranscriptToolCallsGroupOpenModeWeb).toHaveBeenCalledWith('sheet');
+        expect(setTranscriptToolCallsGroupOpenMode).toHaveBeenCalledTimes(1);
     });
 
     it('renders the message timestamp display dropdown in transcript layout settings', async () => {

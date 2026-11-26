@@ -20,6 +20,11 @@ import {
     type AppliedRuntimeStatus,
 } from '@/components/sessions/agentInput/appliedRuntimeMarker';
 import type { AgentInputChipPickerOption } from '@/components/sessions/agentInput/components/AgentInputChipPickerTypes';
+import {
+    buildFavoriteModelBackendIdentityForEntry,
+    toggleFavoriteModelSelection,
+    type FavoriteModelSelectionV1,
+} from '@/sync/domains/models/favoriteModelSelections';
 import { announceAccessibilityMessage } from '@/components/ui/accessibility/announceAccessibilityMessage';
 import { Icon } from '@/components/ui/icons/Icon';
 import { randomUUID } from '@/platform/randomUUID';
@@ -138,6 +143,14 @@ type UseInSessionAgentPickerControlsParams = Readonly<{
     entries: readonly ResolvedBackendCatalogEntry[];
     favoriteBackendTargetKeys?: ReadonlyArray<string>;
     /**
+     * The Account-level model favorites, shared with New Session's Favorites view.
+     * Each Agent's own model list reads them, and a star tapped here is read by
+     * every other surface of the same Account.
+     */
+    favoriteModelSelections?: readonly FavoriteModelSelectionV1[];
+    /** Writes the shared Account-level favorite model list. */
+    setFavoriteModelSelections?: (favorites: FavoriteModelSelectionV1[]) => void;
+    /**
      * The `sessions.agentSwitching` decision for this Session's server, resolved
      * by the canonical feature-decision runtime, which reads the server bit as
      * `readServerEnabledBit(...) === true` and applies the catalog's dependency
@@ -191,6 +204,8 @@ const CURRENT_AGENT_ACCESSIBILITY_LABEL_KEY = {
     lastReported: 'session.agentContinuation.currentAgentLastReportedAccessibilityLabel',
 } as const satisfies Record<AppliedRuntimeStatus, string>;
 
+const EMPTY_FAVORITE_MODEL_SELECTIONS: readonly FavoriteModelSelectionV1[] = Object.freeze([]);
+
 /** A target Agent starts at its own defaults, exactly as New Session starts it. */
 const DEFAULT_TARGET_SELECTION: SessionAgentPickerSelection = {
     modelId: 'default',
@@ -213,7 +228,7 @@ function buildTargetSelection(
         agentId: entry.providerAgentId,
         ...(entry.target.kind === 'configuredAcpBackend' ? { backendTarget: entry.target } : {}),
         ...(selection.modelId !== 'default' ? { modelId: selection.modelId } : {}),
-        ...(selection.sessionModeId !== null ? { acpSessionModeId: selection.sessionModeId } : {}),
+        ...(selection.sessionModeId ? { acpSessionModeId: selection.sessionModeId } : {}),
         ...(overrides ? { sessionConfigOptionOverrides: overrides } : {}),
     };
 }
@@ -650,6 +665,37 @@ export function useInSessionAgentPickerControls(
         return true;
     }, [armed, featureEnabled, persistArmedContinuation]);
 
+    // Every favorites read or write in this picker resolves an Agent's identity the
+    // same way, so a model starred here is the same favorite New Session reads back.
+    const favoriteModelSelections = params.favoriteModelSelections ?? EMPTY_FAVORITE_MODEL_SELECTIONS;
+    const setFavoriteModelSelections = params.setFavoriteModelSelections;
+    const resolveConnectedServicesForEntry = React.useCallback((entry: ResolvedBackendCatalogEntry) => (
+        resolveNewSessionConnectedServicesBindingsForAgent({
+            agentId: entry.providerAgentId,
+            agentCore: getAgentCore(entry.providerAgentId),
+            agentOptionState: null,
+            accountProfileConnectedServicesV2: params.detail.accountProfileConnectedServicesV2 ?? [],
+            settings: params.detail.settings,
+            connectedServicesFeatureEnabled: params.detail.connectedServicesFeatureEnabled === true,
+            accountGroupsFeatureEnabled: params.detail.accountGroupsFeatureEnabled === true,
+        }).connectedServicesBindingsPayload
+    ), [params.detail]);
+
+    const handleToggleFavoriteModel = React.useCallback((
+        entry: ResolvedBackendCatalogEntry,
+        model: Readonly<{ modelId: string; modelLabel: string }>,
+    ) => {
+        if (!setFavoriteModelSelections) return;
+        setFavoriteModelSelections(toggleFavoriteModelSelection({
+            favorites: favoriteModelSelections,
+            backend: buildFavoriteModelBackendIdentityForEntry(entry),
+            modelId: model.modelId,
+            modelLabel: model.modelLabel,
+            backendLabel: entry.title,
+            addedAtMs: Date.now(),
+        }));
+    }, [favoriteModelSelections, setFavoriteModelSelections]);
+
     // Restoring an arm is not rehydrating it. An armed choice is only meaningful
     // in the context it was made in, and persistence must not defeat the scope
     // that protects it: the gate has to still be open, the Session has to still
@@ -884,16 +930,14 @@ export function useInSessionAgentPickerControls(
                         capabilityServerId: params.detail.capabilityServerId,
                         cwd: params.detail.cwd,
                         profileId: params.detail.profileId ?? null,
-                        connectedServices: resolveNewSessionConnectedServicesBindingsForAgent({
-                            agentId: entry.providerAgentId,
-                            agentCore: getAgentCore(entry.providerAgentId),
-                            agentOptionState: null,
-                            accountProfileConnectedServicesV2: params.detail.accountProfileConnectedServicesV2 ?? [],
-                            settings: params.detail.settings,
-                            connectedServicesFeatureEnabled: params.detail.connectedServicesFeatureEnabled === true,
-                            accountGroupsFeatureEnabled: params.detail.accountGroupsFeatureEnabled === true,
-                        }).connectedServicesBindingsPayload,
+                        connectedServices: resolveConnectedServicesForEntry(entry),
                         settings: params.detail.settings,
+                        // The same favorites the Favorites view and New Session star,
+                        // so this Agent's own model list marks them too.
+                        favoriteModelSelections,
+                        onToggleFavoriteModel: setFavoriteModelSelections
+                            ? (model) => handleToggleFavoriteModel(entry, model)
+                            : undefined,
                         // The same disclosure, told truthfully for this Session:
                         // an empty transcript has no conversation to carry, so the
                         // line keeps only the half that still holds.
@@ -934,13 +978,17 @@ export function useInSessionAgentPickerControls(
     }, [
         armedTargetKey,
         currentAgentId,
+        favoriteModelSelections,
         featureEnabled,
+        handleToggleFavoriteModel,
         params.detail,
         params.favoriteBackendTargetKeys,
         armExactSelection,
         railOffersRows,
         readTargetSelection,
+        resolveConnectedServicesForEntry,
         retainedSubmissionArm,
+        setFavoriteModelSelections,
         targetEntries,
         targetRows,
     ]);

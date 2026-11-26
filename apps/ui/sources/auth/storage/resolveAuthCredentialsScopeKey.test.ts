@@ -1,4 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const hashCalls = vi.hoisted(() => ({ count: 0 }));
+vi.mock('@noble/hashes/sha2', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@noble/hashes/sha2')>();
+    return {
+        ...actual,
+        sha256: (input: Uint8Array) => {
+            hashCalls.count += 1;
+            return actual.sha256(input);
+        },
+    };
+});
 
 import { resolveAuthCredentialsScopeKey } from './resolveAuthCredentialsScopeKey';
 
@@ -41,5 +53,19 @@ describe('resolveAuthCredentialsScopeKey', () => {
                 machineKey: `${credentials.encryption.machineKey}_changed`,
             },
         })).not.toBe(scopeKey);
+    });
+
+    it('hashes a credentials object once, however often its scope key is read', () => {
+        const credentials = {
+            token: 'TOKEN_READ_ON_EVERY_RENDER',
+            encryption: { publicKey: 'PUBLIC_KEY', machineKey: 'MACHINE_KEY' },
+        } as const;
+
+        const first = resolveAuthCredentialsScopeKey(credentials);
+        const hashesForFirstRead = hashCalls.count;
+        expect(resolveAuthCredentialsScopeKey(credentials)).toBe(first);
+        expect(resolveAuthCredentialsScopeKey(credentials)).toBe(first);
+
+        expect(hashCalls.count).toBe(hashesForFirstRead);
     });
 });

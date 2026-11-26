@@ -5,6 +5,9 @@ import { useIsFocused } from '@react-navigation/native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SessionGettingStartedGuidance } from '@/components/sessions/guidance/SessionGettingStartedGuidance';
 import { useSessionListStorageKind } from '@/components/sessions/model/useSessionListStorageKind';
+import { MAX_START_DATA_PREWARMS, useSessionRoutePreloadAtStart, readLastOpenedSessionRoute } from '@/hooks/session/sessionRoutePreload';
+import { resolveSessionPreloadTargets } from '@/hooks/session/resolveTopSessionPreloadTarget';
+import { useIsDataReady, useSetting } from '@/sync/domains/state/storage';
 import { SessionsListStorageChrome } from '@/components/sessions/shell/SessionsListStorageChrome';
 import {
     useVisibleSessionListPaneState,
@@ -28,6 +31,7 @@ import {
     useSessionListPaneSourceScopeKey,
 } from '@/components/sessions/shell/surface/sessionListPaneRetention';
 import { useNewSessionDraftProjections } from '@/components/sessions/shell/NewSessionDraftsSection';
+import { normalizeSessionListVisibilityScope } from '@/sync/domains/session/listing/sessionListOrderingRules';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -216,7 +220,39 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
     const displayPaneState = retainedDisplayPaneState
         ?? (paneStateMatchesStorageKind && paneStateMatchesSource ? paneState : EMPTY_SESSIONS_LIST_PANE_STATE);
     const { sessionListViewData, visibleSessionCount, hasHiddenInactiveSessions } = displayPaneState;
+    // Setting sessionOpenPreloadV1: preload the chat at the top of the drawn list (pinned and
+    // attention bands included, because this is the data the list renders), as soon as the list has
+    // one. It fires at once instead of after a 2 s wait: measured on the 8T, a tap inside that
+    // window cancelled the wait and paid the full ~1.5 s open anyway. Dropping the wait also moved
+    // the one-per-app-start call here, from the route, where it targeted only the chat last opened.
+    const preloadEnabled = useSetting('sessionOpenPreloadV1') === true;
+    // The top row is preloaded as a hidden route; the next MAX_START_DATA_PREWARMS rows get only
+    // their data (session and transcript), so a tap on them skips both loading spinners.
+    const sessionPreloadTargets = React.useMemo(
+        () => resolveSessionPreloadTargets(sessionListViewData, 1 + MAX_START_DATA_PREWARMS),
+        [sessionListViewData],
+    );
+    // Read once, lazily: a useRef initializer argument would re-read persisted state on every render.
+    const [lastOpenedTarget] = React.useState(() => readLastOpenedSessionRoute());
+    // The list can show before the sync bootstrap has its credentials and a fresh session list
+    // (isDataReady). A prewarm that starts then gets a retryable result and gives up, and the hidden
+    // route freezes before its session loads. Measured on a phone: the top chat and the next rows
+    // still opened as slowly as unwarmed chats, also 25 s after start. So the start preload waits.
+    const syncDataReady = useIsDataReady();
+    // An open chat keeps this wrapper mounted behind it; isFocused plus the route's session id says
+    // whether the list is the surface the reader is on.
+    useSessionRoutePreloadAtStart({
+        target: sessionPreloadTargets[0] ?? lastOpenedTarget,
+        dataPrewarmTargets: sessionPreloadTargets.slice(1),
+        ready: preloadEnabled
+            && syncDataReady
+            && sessionListViewData !== null
+            && isFocused
+            && !routeActiveSessionId,
+    });
     const styles = stylesheet;
+    // An empty Archived scope still renders the list, so its header keeps the visibility menu.
+    const sessionListVisibilityScope = normalizeSessionListVisibilityScope(useSetting('sessionListVisibilityScope'));
     const storageChrome = (
         <SessionsListStorageChrome
             directSessionsEnabled={directSessionsEnabled}
@@ -252,7 +288,11 @@ const SessionsListWrapperContent = React.memo((props: { pathname: string; surfac
                 </View>
             </View>
         );
-    } else if (visibleSessionCount === 0 && newSessionDrafts.length === 0) {
+    } else if (
+        visibleSessionCount === 0
+        && newSessionDrafts.length === 0
+        && sessionListVisibilityScope === 'active'
+    ) {
         content = (
             <View style={styles.container}>
                 {storageChrome}

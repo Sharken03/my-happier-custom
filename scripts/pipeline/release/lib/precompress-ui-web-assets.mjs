@@ -78,6 +78,8 @@ export async function precompressUiWebAssets({ dir, encodings } = {}) {
     throw new Error(`[release] UI web precompression directory is missing: ${root}`);
   }
   const enabledEncodings = new Set(normalizeEncodings(encodings));
+  // Quality 11 takes ~3 min for a 43 MB bundle; 9 takes ~10 s for a 12 % larger .br file.
+  const brotliQuality = Number(process.env.HAPPIER_UI_WEB_BROTLI_QUALITY) || 11;
 
   const files = await collectCompressibleFiles(root);
   let brotliFiles = 0;
@@ -87,7 +89,7 @@ export async function precompressUiWebAssets({ dir, encodings } = {}) {
     if (enabledEncodings.has('br')) {
       const brotliBytes = await brotliCompressAsync(bytes, {
         params: {
-          [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
+          [zlibConstants.BROTLI_PARAM_QUALITY]: brotliQuality,
         },
       });
       if (await writeBeneficialSidecar({

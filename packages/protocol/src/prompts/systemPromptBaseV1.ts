@@ -23,6 +23,12 @@ export const HAPPIER_BASE_SYSTEM_PROMPT_SESSION_TITLE_ONGOING_V1 = trimIdent(`
 
 export const HAPPIER_BASE_SYSTEM_PROMPT_SESSION_TITLE_V1 = HAPPIER_BASE_SYSTEM_PROMPT_SESSION_TITLE_ONGOING_V1;
 
+export const HAPPIER_BASE_SYSTEM_PROMPT_SHOW_IMAGE_V1 = trimIdent(`
+  # Showing images
+
+  To show the user an image file (for example a chart or a screenshot), call the show_image tool with its path instead of only describing the path. Prefer "mcp__happier__show_image" when available.
+`);
+
 export const HAPPIER_BASE_SYSTEM_PROMPT_OPTIONS_V1 = trimIdent(`
   # Options
 
@@ -65,6 +71,8 @@ export const HAPPIER_BASE_SYSTEM_PROMPT_LINKED_WORKSPACE_FILES_V1 = trimIdent(`
 export function buildHappierBaseSystemPromptV1(args?: Readonly<{
   settings?: Record<string, unknown> | null | undefined;
   sessionTitleToolAvailable?: boolean;
+  /** False where show_image cannot reach the user, for example over the shell bridge. */
+  showImageToolAvailable?: boolean;
   sessionMetadata?: unknown;
 }>): string {
   const blocks: string[] = [];
@@ -74,6 +82,9 @@ export function buildHappierBaseSystemPromptV1(args?: Readonly<{
     blocks.push(HAPPIER_BASE_SYSTEM_PROMPT_SESSION_TITLE_INITIAL_V1);
   } else if (titleToolAvailable && sessionTitleUpdatesMode === 'ongoing') {
     blocks.push(HAPPIER_BASE_SYSTEM_PROMPT_SESSION_TITLE_ONGOING_V1);
+  }
+  if (args?.showImageToolAvailable !== false && isSessionHappierToolsEnabled(args?.sessionMetadata)) {
+    blocks.push(HAPPIER_BASE_SYSTEM_PROMPT_SHOW_IMAGE_V1);
   }
   if (isCodingPromptResponseOptionsEnabled(args?.settings)) {
     blocks.push(HAPPIER_BASE_SYSTEM_PROMPT_OPTIONS_V1);

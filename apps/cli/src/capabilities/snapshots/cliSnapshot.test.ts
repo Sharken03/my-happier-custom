@@ -26,6 +26,7 @@ const SCOPED_ENV_KEYS = [
   'HAPPIER_NODE_PATH',
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',
+  'CLAUDE_CONFIG_DIR',
 ] as const;
 
 type ScopedEnvKey = (typeof SCOPED_ENV_KEYS)[number];
@@ -66,6 +67,8 @@ describe('detectCliSnapshotOnDaemonPath', () => {
     setEnv('USERPROFILE', homeDir);
     setEnv('LOCALAPPDATA', join(homeDir, 'AppData', 'Local'));
     setEnv('HAPPIER_HOME_DIR', homeDir);
+    // Claude reads its files from CLAUDE_CONFIG_DIR before HOME; keep the tests on their own home.
+    setEnv('CLAUDE_CONFIG_DIR', undefined);
     setEnv('PATH', join(workDir, 'empty-path'));
     mkdirSync(process.env.PATH!, { recursive: true });
     setEnv('HAPPIER_BACKEND_CLI_SOURCE_PREFERENCES_JSON', undefined);

@@ -22,6 +22,38 @@ export function isPidAliveBySignal(pid: number): boolean {
   return probePidAliveBySignal(pid);
 }
 
+function signalProbeIsDenied(pid: number, signalPid: (pid: number) => void): boolean {
+  try {
+    signalPid(pid);
+    return false;
+  } catch (error) {
+    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+    return code === 'EPERM';
+  }
+}
+
+/**
+ * Run state of a PID that a lock or tracked session records as this user's session runner.
+ *
+ * Session runners run under the daemon's own UID, so signal 0 to a live runner always succeeds.
+ * On POSIX, EPERM means the PID belongs to another user: the runner is gone and the PID was
+ * reused (Android gives freed PIDs to other app UIDs, whose /proc entries and `ps` rows are
+ * hidden). Such a PID cannot be our runner, so it is reported `dead`. Other probe failures keep
+ * the fail-closed `readProcessRunState` result.
+ */
+export async function readSessionRunnerProcessRunState(pid: number, deps?: Readonly<{
+  signalPid?: (pid: number) => void;
+  platform?: NodeJS.Platform;
+  readRunState?: (pid: number) => Promise<ProcessRunState>;
+}>): Promise<ProcessRunState> {
+  const platform = deps?.platform ?? process.platform;
+  const signalPid = deps?.signalPid ?? ((target: number) => { process.kill(target, 0); });
+  if (platform !== 'win32' && Number.isFinite(pid) && pid > 0 && signalProbeIsDenied(pid, signalPid)) {
+    return 'dead';
+  }
+  return await (deps?.readRunState ?? readProcessRunState)(pid);
+}
+
 function classifyPosixStateChar(stateOutput: string): ProcessRunState | null {
   const stateChar = stateOutput.trim().charAt(0);
   if (!stateChar) return null;

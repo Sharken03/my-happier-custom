@@ -55,6 +55,7 @@ import type {
     TranscriptListRendererProps,
     TranscriptListShellRef,
 } from './types';
+import { isLegendContentOverflowing } from '@/components/sessions/transcript/scroll/initialFillUntilUserMessage';
 
 const LEGEND_LIST_STYLE = { flex: 1, minHeight: 0 } as const;
 // Compile-time constant: only its identity churned, and it is read on every Legend render.
@@ -2556,6 +2557,7 @@ function LegendListTranscriptRendererInner<TItem>(
         notifyViewportInput,
         computeVisibleIndices: () => readVisibleSourceIndexRange() ?? { startIndex: 0, endIndex: 0 },
         readVisibleSourceIndexRange,
+        readNativeContentOverflow: () => isLegendContentOverflowing(legendListRef.current?.getState()),
         getAbsoluteLastScrollOffset: () => {
             return legendListRef.current?.getState().scroll ?? 0;
         },

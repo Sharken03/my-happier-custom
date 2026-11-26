@@ -61,6 +61,8 @@ export const InteractionManager = {
 } as const;
 export const Keyboard = {
     addListener: () => ({ remove: () => {} }),
+    // Sheets dismiss the keyboard before they open; the stub must not throw.
+    dismiss: () => {},
 } as const;
 export const Linking = {
     canOpenURL: async () => true,
@@ -123,7 +125,9 @@ type AnimationStub = { start: (cb?: (result: { finished: boolean }) => void) => 
 export const Animated = {
     Value: AnimatedValue as any,
     createAnimatedComponent: (component: any) => component,
-    timing: (_value: any, _config: any) => ({
+    timing: (_value: any, config: any) => ({
+        // Kept so tests can read the easing a native-driven timing was given.
+        config,
         start: (cb?: any) => {
             cb?.({ finished: true });
         },

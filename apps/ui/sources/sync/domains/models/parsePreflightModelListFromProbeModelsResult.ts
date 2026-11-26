@@ -22,6 +22,12 @@ export function parsePreflightModelListFromProbeModelsResult(raw: unknown): Pref
                 ...(typeof m.contextWindowTokens === 'number' && Number.isFinite(m.contextWindowTokens) && m.contextWindowTokens > 0
                     ? { contextWindowTokens: Math.trunc(m.contextWindowTokens) }
                     : {}),
+                ...(typeof m.costInputPerMTok === 'number' && Number.isFinite(m.costInputPerMTok) && m.costInputPerMTok >= 0
+                    ? { costInputPerMTok: m.costInputPerMTok }
+                    : {}),
+                ...(typeof m.costOutputPerMTok === 'number' && Number.isFinite(m.costOutputPerMTok) && m.costOutputPerMTok >= 0
+                    ? { costOutputPerMTok: m.costOutputPerMTok }
+                    : {}),
                 ...(Array.isArray(m.modelOptions) && m.modelOptions.length > 0
                     ? { modelOptions: m.modelOptions as readonly SessionConfigOption[] }
                     : {}),

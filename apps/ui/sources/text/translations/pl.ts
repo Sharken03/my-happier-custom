@@ -177,6 +177,9 @@ const settingsAppearanceTranslationExtension = {
       darkModern: 'Dark Modern',
       catppuccinLatte: 'Catppuccin Latte',
       githubLight: 'GitHub Light',
+      claudeCode: 'Claude Dark',
+      claudeCodeDarker: 'Claude Darker',
+      claudeCodeLight: 'Claude Light',
     },
     readOnlyPreset: 'Read-only preset',
     clonePreset: 'Clone preset',
@@ -794,6 +797,7 @@ export const pl: TranslationStructure = {
     details: "Szczegóły",
     fieldStatus: "Stan",
     fieldAction: "Akcja",
+    fieldFailureReason: "Przyczyna niepowodzenia",
     approve: "Zatwierdź",
     reject: "Odrzuć",
     loadError: "Nie udało się wczytać zatwierdzenia.",
@@ -1376,6 +1380,7 @@ export const pl: TranslationStructure = {
 	    thisComputerRelayConnected: 'Połączono',
 	    thisComputerRelayOffline: 'Niedostępny',
 	    thisComputerRelayNeedsAttention: 'Wymaga uwagi',
+	    recoveryBanner: { reconnecting: "Ponowne łączenie…", reconnected: "Połączono ponownie" },
 	    thisComputerSetUpFor: ({ relay }: { relay: string }) => `Skonfigurowano dla ${relay}`,
 	    labels: {
 	      server: "Serwer",
@@ -2591,7 +2596,7 @@ export const pl: TranslationStructure = {
           renewal: "Odnowienie",
           renewalOn: "Włączone",
           renewalOff: "Wyłączone",
-          renewalUnknown: "Nieznane",
+          active: "Aktywna",
           renews: ({ date }: { date: string }) => `Odnowienie: ${date}`,
           ends: ({ date }: { date: string }) => `Koniec: ${date}`,
           renewsInDays: ({ days }: { days: number }) => `Odnowienie za ${days} dni`,
@@ -2757,6 +2762,12 @@ export const pl: TranslationStructure = {
       refreshA11y: "Odśwież użycie i limity",
       usageCaption: "Użycie",
       resetsCaption: "Resety limitu",
+      credits: {
+        title: "Kredyty",
+        balance: ({ balance }: { balance: string }) => `${balance} kredytów`,
+        spent: "Brak",
+        includedUsed: "Limity w planie wykorzystane · kredyty dostępne",
+      },
       usedDetail: ({ used, limit }: { used: string; limit: string }) => `${used}/${limit} użyte`,
       capacity: ({ percent }: { percent: number }) => `${percent}% pojemności`,
       memberEnabledLabel: "Włączone w puli",
@@ -3515,6 +3526,7 @@ export const pl: TranslationStructure = {
       backendPromptMessage: "Wpisz identyfikator backendu",
       instructionsPlaceholder: "Instrukcje wiadomości commitu",
     },
+    changedFilesRefresh: { title: "Zmienione pliki", footer: "Lista zmienionych plików odświeża się także po zakończeniu narzędzia, które może zmieniać pliki, nie tylko przy jego starcie.", refreshOnToolDone: { title: "Odśwież po zakończeniu narzędzia" } },
     commitAttribution: {
       title: "Atrybucja commitu",
       footer:
@@ -3628,7 +3640,7 @@ export const pl: TranslationStructure = {
     trayOpenInHappier: 'Otwórz w Happier',
     traySettings: 'Ustawienia…',
     trayStartAtLogin: 'Uruchamiaj przy logowaniu',
-    trayStopAndQuit: 'Zatrzymaj usługi w tle i zakończ',
+    trayStopAndQuit: 'Zamknij Happier (zatrzymaj usługi w tle)',
     trayStart: 'Uruchom',
     trayRestart: 'Uruchom ponownie',
     trayStop: 'Zatrzymaj',
@@ -4637,6 +4649,10 @@ export const pl: TranslationStructure = {
     feedback: "Informacje zwrotne",
     haptics: "Wibracje dotykowe",
     hapticsDescription: "Używaj wibracji przy działaniach i zmianie kolejności na tym urządzeniu.",
+    permissionHaptics: "Wibruj przy prośbach o zgodę",
+    permissionHapticsDescription: "Wibruj, gdy agent prosi o Twoją zgodę.",
+    connectionBanner: "Baner połączenia",
+    connectionBannerDescription: "Pokazuj krótki komunikat u góry, gdy połączenie z serwerem jest przywracane.",
     backdropBlur: "Rozmycie tła",
     backdropBlurDescription:
       "Używaj rozmycia tła za modalami i menu. Wyłącz, aby poprawić wydajność przeglądarki.",
@@ -4891,6 +4907,8 @@ export const pl: TranslationStructure = {
       expMemorySearch: "Wyszukiwanie pamięci",
       expMemorySearchSubtitle:
         "Włącz ekrany i ustawienia lokalnego wyszukiwania pamięci",
+      expMcpServers: "Serwery MCP",
+      expMcpServersSubtitle: "Pokaż chip MCP i ustawienia serwerów MCP",
     expSessionsDirect: "Sesje bezpośrednie",
     expSessionsDirectSubtitle: "Wyświetlaj i otwieraj na pasku bocznym bezpośrednie sesje dostawcy",
     expSessionsFolders: "Foldery sesji",
@@ -4920,6 +4938,8 @@ export const pl: TranslationStructure = {
       commandPaletteDisabled: "Szybki dostęp do poleceń wyłączony",
       hideInactiveSessions: "Ukryj nieaktywne sesje",
       hideInactiveSessionsSubtitle: "Wyświetlaj tylko aktywne czaty na liście",
+      showArchivedSessionsLink: "Pokaż łącze do archiwum",
+      showArchivedSessionsLinkSubtitle: "Pokaż łącze do zarchiwizowanych i nieaktywnych sesji na dole listy",
       hiddenInactiveSessionsEmptyStateTitle: "Brak aktywnych sesji w tej chwili",
       hiddenInactiveSessionsEmptyStateSubtitle: "Nieaktywne sesje są ukryte na tej liście",
       hiddenInactiveSessionsSectionTitle: "Nieaktywne sesje",
@@ -5251,6 +5271,7 @@ export const pl: TranslationStructure = {
       customPathTitle: "Niestandardowa ścieżka",
       truncatedDirectoryInfo: ({ count }: { count: number }) => `Pokazano pierwsze ${count} elementy`,
       recentTitle: "Ostatnie",
+      newChatOwnFolder: "Nowy czat (własny folder)",
       favoritesTitle: "Ulubione",
       suggestedTitle: "Sugerowane",
       allTitle: "Wszystkie",
@@ -5594,6 +5615,25 @@ export const pl: TranslationStructure = {
     },
     toolCalls: "Wywołania narzędzi",
     toolCallsCollapsedPreviewMore: ({ count }: { count: number }) => `+${count} więcej…`,
+    toolCallsSheetVerb: ({ kind, running, toolName }: { kind: string; running: boolean; toolName: string }) => {
+        if (kind === 'commands') return running ? 'Running' : 'Ran';
+        if (kind === 'reads') return running ? 'Reading' : 'Read';
+        if (kind === 'searches') return running ? 'Searching' : 'Searched';
+        if (kind === 'edits') return running ? 'Editing' : 'Edited';
+        if (kind === 'web') return running ? 'Fetching' : 'Fetched';
+        if (kind === 'agents') return running ? 'Running agent' : 'Ran agent';
+        return toolName;
+    },
+    toolCallsSummary: {
+        separator: ', ',
+        commands: ({ count }: { count: number }) => `polecenia: ${count}`,
+        reads: ({ count }: { count: number }) => `odczytane pliki: ${count}`,
+        searches: ({ count }: { count: number }) => `wyszukiwania: ${count}`,
+        edits: ({ count }: { count: number }) => `zmienione pliki: ${count}`,
+        web: ({ count }: { count: number }) => `strony WWW: ${count}`,
+        agents: ({ count }: { count: number }) => `agenci: ${count}`,
+        other: ({ count }: { count: number }) => `narzędzia: ${count}`,
+    },
     agentContinuation: {
       currentAgentAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Prowadzi tę sesję.`,
       currentAgentLastUsedAccessibilityLabel: ({ agent }: { agent: string }) => `${agent}. Ostatnio używany przez tę sesję.`,
@@ -6340,6 +6380,7 @@ export const pl: TranslationStructure = {
   },
 
   voiceSurface: {
+    recording: "Nagrywanie…",
     start: "Uruchom",
     stop: "Zatrzymaj",
     selectSessionToStart: "Wybierz sesje, aby uruchomic glos",
@@ -7248,6 +7289,8 @@ export const pl: TranslationStructure = {
     payloadTruncated: "Duży ładunek skrócony ze względu na wydajność.",
     showFullPayload: "Pokaż pełny ładunek",
     showLessPayload: "Pokaż mniej",
+    formatJson: "Format",
+    showRaw: "Raw",
   },
 
   tools: {
@@ -7462,7 +7505,7 @@ export const pl: TranslationStructure = {
         dismiss: 'Odrzuć pytanie',
         dismissed: 'Pytanie odrzucone',
         submissionFailures: {
-            unconfirmed: "Odpowiedzi wysłano do Claude, ale nadal czekamy na potwierdzenie. Spróbuj ponownie, aby sprawdzić, lub otwórz terminal Claude.",
+            unconfirmed: "Happier nie mógł potwierdzić Twojej odpowiedzi. Spróbuj ponownie lub otwórz terminal Claude, aby ją sprawdzić.",
             update: "Zaktualizuj Happier CLI i spróbuj ponownie.",
             reconnect: "Połącz ponownie tę sesję i spróbuj jeszcze raz.",
             retry: "Nie udało się przyjąć odpowiedzi. Sprawdź ją i spróbuj ponownie.",
@@ -7734,6 +7777,10 @@ export const pl: TranslationStructure = {
     attributionLegendDirectOnly: "direct = z operacji tej sesji",
     inferredSuppressed: ({ count }: { count: number }) =>
       `${count} inferred file${count === 1 ? "" : "s"} kept in repository-only changes.`,
+    otherRepositoriesTitle: "Inne repozytoria",
+    outsideGitTitle: "Poza git",
+    externalChangeNotInWorkingTree: "Teraz niezmienione w drzewie roboczym (zatwierdzone lub cofnięte): to zmiana agenta.",
+    externalChangeNoDiff: "Brak diffu: wywołanie narzędzia przez agenta nie zawierało zmienionego tekstu.",
     noSessionAttributedChanges:
       "Obecnie nie wykryto zmian przypisanych do sesji.",
     noLatestTurnChanges:
@@ -7868,11 +7915,20 @@ export const pl: TranslationStructure = {
         binaryFile: "Plik binarny",
         videoPreview: 'Podgląd wideo',
         imagePreviewTooLarge: "Podgląd obrazu jest zbyt duży, aby go wyświetlić",
+        imageViewer: {
+            position: ({ current, total }: { current: number; total: number }) => `${current} z ${total}`,
+            share: 'Udostępnij obraz',
+            save: 'Zapisz obraz',
+            edit: 'Oznacz obraz',
+            undo: 'Cofnij',
+            penColor: 'Kolor pisaka',
+        },
         sessionMedia: {
           generatedImageA11y: ({ name }: { name: string }) => `Otwórz wygenerowany obraz ${name}`,
           attachmentImageA11y: ({ name }: { name: string }) => `Otwórz załączony obraz ${name}`,
           toolArtifactImageA11y: ({ name }: { name: string }) => `Otwórz obraz artefaktu narzędzia ${name}`,
           imageUnavailable: 'Obraz jest niedostępny',
+          imageCountA11y: ({ count }: { count: number }) => count === 1 ? '1 obraz' : `Obrazy: ${count}`,
         },
         cannotDisplayBinary: "Nie można wyświetlić zawartości pliku binarnego",
         diff: "Różnice",
@@ -8350,6 +8406,8 @@ export const pl: TranslationStructure = {
     },
 
 settingsSession: {
+    composerButtons: {"title": "Przyciski edytora", "footer": "Wyłącz przyciski, których nie używasz. Znikają też z zwiniętego menu.", "controls": {"engine": "Agent i model", "mode": "Tryb sesji", "goal": "Cel", "permission": "Uprawnienia", "profile": "Profil", "env": "Zmienne środowiskowe", "server": "Serwer", "connectedServices": "Konta (CLI Auth)", "mcp": "Serwery MCP", "checkout": "Gałąź i worktree", "automation": "Automatyzacja", "attachments": "Załącz pliki", "linkedFiles": "Połącz pliki (@)", "files": "Pliki", "reviewComments": "Komentarze do przeglądu", "storage": "Przechowywanie transkrypcji", "providerOption": "Opcje dostawcy", "shortcuts": "Skróty", "machine": "Maszyna", "path": "Folder", "resume": "Wznów"}},
+    modelChip: {"title": "Chip modelu", "footer": "Jak edytor nazywa model, który uruchomi się następnie.", "agentAndModelTitle": "Ikona agenta i model", "agentAndModelSubtitle": "Ikona agenta z nazwą modelu.", "modelAndEffortTitle": "Model i wysiłek", "modelAndEffortSubtitle": "Nazwa modelu i jego wysiłek rozumowania, bez ikony (jak w aplikacji Claude).", "compactTitle": "Kompaktowa lista modeli", "compactSubtitle": "Bez wierszy stanu i dostawcy pod każdym modelem. Oznacz model gwiazdką, aby był pierwszy.", "alphabeticalTitle": "Sortuj modele według nazwy", "alphabeticalSubtitle": "Pokazuje modele w kolejności alfabetycznej. Modele z gwiazdką są na początku, również alfabetycznie.", "layoutTitle": "Układ wyboru modelu", "layoutSubtitle": "Wybierz, jak wyświetlać wybór modelu: karty (siatka) lub lista (kompaktowa).", "layoutOptions": {"carded": "Karty (siatka)", "compact": "Lista (kompaktowa)"}},
     terminalHostTitle: 'Host terminala dla nowych sesji',
     terminalHostNone: 'Bez hosta terminala',
     newSessionAfterSend: { title: "Po wysłaniu", footer: "Wybierz, co ma się dziać po wysłaniu z edytora nowej sesji. Przytrzymaj Wyślij, aby dla jednej wiadomości wybrać drugą opcję.", openTitle: "Otwórz sesję", openSubtitle: "Przejdź do sesji, gdy tylko się rozpocznie.", startAnotherTitle: "Zostań i rozpocznij kolejną", startAnotherSubtitle: "Kontynuuj uruchamianie w tle i otwórz nowy szkic." },
@@ -8441,6 +8499,8 @@ settingsSession: {
 	          activeColorAttentionOnlySubtitle: 'Używaj aktywnego koloru tylko dla sesji wymagających Twojej uwagi.',
 	          activeColorAllActiveTitle: 'Wszystkie aktywne sesje',
 	          activeColorAllActiveSubtitle: 'Używaj aktywnego koloru dla każdej aktywnej i połączonej sesji.',
+	          highlightAttentionTitle: "Wyróżniaj sesje z nowościami",
+	          highlightAttentionSubtitle: "Wiersz z nową odpowiedzią, prośbą lub błędem ma ciemny, pogrubiony tytuł, także gdy agent jest offline.",
 	          folderSortModeTitle: 'Kolejność folderów',
 	          folderSortModeSubtitle: 'Wybierz, jak foldery i sesje współdzielą listę.',
 	          folderSortModeFoldersFirstTitle: 'Najpierw foldery',
@@ -8528,6 +8588,8 @@ settingsSession: {
       inputBehavior: {
           keepFocusTitle: "Zachowaj fokus w edytorze po wysłaniu",
           keepFocusSubtitle: "Pozostań w polu wiadomości, aby od razu pisać następną.",
+          typeToFocusTitle: "Pisz z dowolnego miejsca",
+          typeToFocusSubtitle: "Zacznij pisać poza polem tekstowym, aby przejść do pola wiadomości.",
           title: 'Zachowanie wprowadzania',
           footer: 'Skonfiguruj wysyłanie klawiszem Enter i zachowanie historii wiadomości.',
           enterToSendEnabledNativeSubtitle: 'Naciśnij Enter, aby wysłać',
@@ -8640,6 +8702,8 @@ settingsSession: {
         customResumePromptPlaceholder: "Kontynuuj od miejsca, w którym skończyłeś.",
       },
       providerUsageGauge: {
+          numberTitle: "Liczba w środku pierścieni",
+          numberSubtitle: "Wybierz limit dla liczby w pierścieniach. Jeśli jest niedostępny, używany jest najbardziej ograniczający limit.",
         title: "Użycie dostawcy",
         footer:
           "Wybierz wskaźniki edytora dla wszystkich kont. Uwzględniają limity użycia wybrane w każdej puli. Ulubione dodają wskaźniki aktywnego konta.",
@@ -8754,6 +8818,8 @@ settingsSession: {
         messageActions: {
           groupTitle: 'Akcje wiadomości',
           groupFooter: 'Skonfiguruj zaznaczanie wiadomości i akcje przekazywania w transkrypcie.',
+          copyOnly: { title: "Tylko kopiowanie", subtitle: "Twoje wiadomości: przytrzymaj, aby kopiować wiadomość lub zaznaczyć tekst. Odpowiedzi: jedna ikona kopiowania. Ukrywa przypinanie, rozgałęzianie i zaznaczanie." },
+          messageMenu: { copy: "Kopiuj wiadomość", selectText: "Zaznacz tekst" },
           selectionEnabled: {
             title: 'Włącz zaznaczanie wiadomości',
             subtitle: 'Pokaż ikonę zaznaczania pod wiadomościami, aby kopiować lub przekazywać je zbiorczo',
@@ -8775,6 +8841,13 @@ settingsSession: {
             plain: 'Zwykły tekst',
           },
         },
+        markdownImages: {
+            groupTitle: "Obrazy w odpowiedziach",
+            groupFooter: "Pokazuj obrazy markdown z zaufanych hostów. Obrazy z innych hostów pozostają ukryte. Każdy obraz jest pobierany z hosta po otwarciu czatu.",
+            enabled: { title: "Pokazuj obrazy z dozwolonych hostów", subtitle: "Linia odpowiedzi, która jest tylko obrazem, jest pokazywana jako obraz" },
+            sharedImages: { title: "Pokazuj obrazy udostępniane przez agenta", subtitle: "Obraz pokazany przez agenta zajmuje całą szerokość czatu" },
+            hosts: { title: "Dozwolone hosty", subtitle: "Jeden host w linii, np. happy.example.org. Pokazywane są tylko linki https z tych dokładnych hostów." },
+        },
         layout: {
           linearTitle: "Liniowy",
           linearSubtitle: "Pokaż wiadomości jako płaską listę.",
@@ -8787,9 +8860,16 @@ settingsSession: {
         toolCallsGroupBackgroundTitle: "Tło grup wywołań",
         toolCallsGroupBackgroundSubtitle:
           "Pokaż tło za grupami wywołań w trybie feed narzędzi.",
+        toolCallsGroupBottomCollapseTitle: 'Zwijanie na dole',
+        toolCallsGroupBottomCollapseSubtitle: 'Pokazuje przycisk zwijania na dole rozwiniętej grupy wywołań narzędzi.',
+        toolCallsGroupOpenInSheetTitle: 'Open tool call groups',
+        toolCallsGroupOpenInSheetWebTitle: 'Open tool call groups (web)',
+        toolCallsGroupOpenInSheetSubtitle: 'Show a group of Tool calls as one line. Tap it to open the calls in a sheet.',
         toolAppearanceTitle: "Wygląd narzędzi",
         toolAppearanceSubtitle:
           "Dostosuj wygląd narzędzi w transkrypcie.",
+        workingQuill: { title: "Pióro podczas pracy", subtitle: "Gdy agent pracuje, w wierszu stanu pióro pisze na stronie zamiast pulsującej kropki." },
+        userBubbleNarrow: { title: "Wąskie dymki wiadomości", subtitle: "Twoje wiadomości zajmują najwyżej 80% szerokości i są po prawej, jak w aplikacji Claude." },
         motionTitle: "Animacje",
         motionFooter: "Kontroluj animacje w transkrypcie.",
         motionPickerTitle: "Animacje",
@@ -8814,6 +8894,14 @@ settingsSession: {
           jumpToBottomButtonNewActivityLabel: ({ count }: { count: number }) => `${count} ${count === 1 ? "nowy element aktywności" : "nowe elementy aktywności"}, skocz na dół`,
           jumpToBottomSubtitle:
             "Pokaż przycisk, gdy przewiniesz w górę i pojawi się nowa aktywność.",
+          jumpToBottomShowCountTitle: 'Pokaż liczbę nowych elementów',
+          jumpToBottomShowCountSubtitle: 'Liczba na przycisku przewijania na dół',
+          jumpToBottomPositionTitle: "Pozycja przycisku przejścia na dół",
+          jumpToBottomPositionBottomCenter: "Na dole na środku",
+          jumpToBottomPositionBottomRight: "Na dole po prawej",
+          chatFontTitle: "Czcionka czatu",
+          chatFontDefault: "Standardowa (Inter)",
+          chatFontDmSans: "DM Sans",
             advancedScrollTitle: "Zaawansowane przewijanie…",
           advancedScrollSubtitle: "Dostosuj progi i liczniki.",
           advancedTitle: "Zaawansowane…",
@@ -9616,6 +9704,12 @@ settingsSession: {
       conversationModeSubtitle:
         "Bezpośrednio do sesji lub agent głosowy z jawnym commitem",
       conversation: {
+        dictationMode: {
+          title: "Tryb dyktowania",
+          footer: "Mikrofon to jedna akcja na wiadomość; przycisk kompozytora zatrzymuje trwającą odpowiedź.",
+          enableTitle: "Włącz tryb dyktowania",
+          enableSubtitle: "Kompozytor zatrzymuje trwającą odpowiedź zamiast nagrywać.",
+        },
         mode: {
           voiceAgentSubtitle:
             "Użyj agenta głosowego (jawny commit, kontrola narzędzi).",
@@ -10992,6 +11086,9 @@ settingsSession: {
     switchedToMode: ({ mode }: { mode: string }) =>
       `Przełączono na tryb ${mode}`,
     discarded: "Odrzucono",
+    readAloudA11y: "Odczytaj na głos",
+    stopReadAloudA11y: "Zatrzymaj czytanie na głos",
+    readAloudFailed: "Nie udało się odczytać tej wiadomości na głos. Sprawdź ustawienia głosu.",
     recoveredHistory: "Odzyskana historia",
     unknownEvent: "Nieznane zdarzenie",
     contextCompactionStarted: "Kompaktowanie kontekstu...",
@@ -11119,6 +11216,13 @@ settingsSession: {
       codeCopied: "Kod skopiowany",
       copyFailed: "Błąd kopiowania",
       mermaidRenderFailed: "Nie udało się wyświetlić diagramu mermaid",
+      table: {
+          open: "Otwórz tabelę",
+          copyCsv: "Kopiuj jako CSV",
+          copyMarkdown: "Kopiuj jako Markdown",
+          csvLabel: "CSV",
+          viewerTitle: "Tabela",
+      },
       diffLabel: "Różnice",
       codeLabel: "Kod",
 

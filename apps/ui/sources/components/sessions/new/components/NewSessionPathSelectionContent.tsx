@@ -26,6 +26,7 @@ import {
 } from '@/components/sessions/new/hooks/favoriteDirectoriesToggle';
 import type { PathTargetPlatform } from '@/utils/path/browseSegments';
 
+import { chatFolderParent, newChatFolderPath } from '@/utils/sessions/newChatFolder';
 import { PathSelectionList } from './PathSelectionList';
 import type { PathSelectionInitialSuggestionMode } from './createPathSelectionInputBehavior';
 
@@ -45,6 +46,11 @@ export type NewSessionPathSelectionContentProps = Readonly<{
     onChangeDraftSelectedPath?: (path: string) => void;
     recentPaths: ReadonlyArray<string>;
     favoriteDirectories: ReadonlyArray<string>;
+    /**
+     * The machine's chats folder (machine metadata chatsDir). When set, the picker offers a new chat
+     * folder of its own at the top and leaves other chats' folders out of the recent list.
+     */
+    chatsDir?: string | null;
     machineId: string | null;
     serverId?: string | null;
     /** Machine platform (NEVER `navigator.platform`). Defaults to 'auto'. */
@@ -118,6 +124,8 @@ export function NewSessionPathSelectionContent(props: NewSessionPathSelectionCon
         const seenRecentPaths = new Set<string>();
         return props.recentPaths
             .filter((p) => typeof p === 'string' && p.trim().length > 0)
+            // Each chat has a folder of its own; listing them buries the project folders.
+            .filter((path) => !props.chatsDir || chatFolderParent(path) === null)
             .filter((path) => {
                 const comparisonKey = resolveDirectoryFavoriteComparisonKey(path, props.machineHomeDir);
                 if (favoriteAbsolutePaths.has(comparisonKey)) return false;
@@ -126,7 +134,14 @@ export function NewSessionPathSelectionContent(props: NewSessionPathSelectionCon
                 return true;
             })
             .map((p, index) => ({ path: p, lastUsedAt: seed - index }));
-    }, [favoriteAbsolutePaths, props.machineHomeDir, props.recentPaths]);
+    }, [favoriteAbsolutePaths, props.chatsDir, props.machineHomeDir, props.recentPaths]);
+
+    // The chat's own new folder: the selected one when it already is one, otherwise a fresh name.
+    const chatsDir = props.chatsDir?.trim() || null;
+    const newChatPath = React.useMemo(() => {
+        if (!chatsDir) return null;
+        return chatFolderParent(props.selectedPath) !== null ? props.selectedPath : newChatFolderPath(chatsDir, new Date());
+    }, [chatsDir, props.selectedPath]);
 
     // R6 Fix 2: do NOT wrap the path picker in an ItemList. The SelectionList
     // primitive owns its outer popover chrome (background, radius, max-height);
@@ -164,6 +179,7 @@ export function NewSessionPathSelectionContent(props: NewSessionPathSelectionCon
                 initialSuggestionMode={props.initialSuggestionMode}
                 favorites={favorites}
                 recents={recents}
+                newChatPath={newChatPath}
                 machineHomeDir={props.machineHomeDir}
                 machineId={props.machineId}
                 serverId={props.serverId ?? null}

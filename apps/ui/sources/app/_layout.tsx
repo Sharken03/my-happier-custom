@@ -514,6 +514,11 @@ async function loadFonts() {
             'Inter-Italic': require('@/assets/fonts/Inter-Italic.ttf'),
             'Inter-SemiBold': require('@/assets/fonts/Inter-SemiBold.ttf'),
 
+            // DM Sans family (chat font option)
+            'DMSans-Regular': require('@/assets/fonts/DMSans-Regular.ttf'),
+            'DMSans-Italic': require('@/assets/fonts/DMSans-Italic.ttf'),
+            'DMSans-SemiBold': require('@/assets/fonts/DMSans-SemiBold.ttf'),
+
             // IBM Plex Mono family
             'IBMPlexMono-Regular': require('@/assets/fonts/IBMPlexMono-Regular.ttf'),
             'IBMPlexMono-Italic': require('@/assets/fonts/IBMPlexMono-Italic.ttf'),

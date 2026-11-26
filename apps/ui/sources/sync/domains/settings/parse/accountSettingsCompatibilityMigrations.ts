@@ -6,7 +6,10 @@ import { AGENT_IDS, getAgentCore } from '@/agents/registry/registryCore';
 import { CLAUDE_PERMISSION_MODES, CODEX_LIKE_PERMISSION_MODES, isPermissionMode, type PermissionMode } from '@/sync/domains/permissions/permissionTypes';
 
 import { SessionTmuxMachineOverrideSchema } from '../registry/account/accountRuntimeSettingDefinitions';
-import { TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES } from '../registry/account/accountTranscriptToolSettingDefinitions';
+import {
+    TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES,
+    TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES,
+} from '../registry/account/accountTranscriptToolSettingDefinitions';
 import { migrateAccountFeatureToggles } from './accountSettingsFeatureToggleMigration';
 import { normalizeAccountSettingsServerSelection } from './accountSettingsServerSelectionNormalization';
 
@@ -116,6 +119,15 @@ export function applyAccountSettingsCompatibilityMigrations<TSettings extends Re
         }
     } else if (!(TRANSCRIPT_MESSAGE_TIMESTAMP_DISPLAY_MODE_VALUES as readonly unknown[]).includes(next.transcriptMessageTimestampDisplayMode)) {
         next.transcriptMessageTimestampDisplayMode = 'hover_web_hidden_mobile';
+    }
+
+    // 8T fork: the web client got its own Tool calls group mode next to the app's. An account that
+    // chose a mode before the split keeps the same mode on the web client, not the 'inline' default.
+    if (!Object.prototype.hasOwnProperty.call(input, 'transcriptToolCallsGroupOpenModeWeb')) {
+        const legacyOpenMode = z.enum(TRANSCRIPT_TOOL_CALLS_GROUP_OPEN_MODE_VALUES).safeParse(next.transcriptToolCallsGroupOpenMode);
+        if (legacyOpenMode.success) {
+            next.transcriptToolCallsGroupOpenModeWeb = legacyOpenMode.data;
+        }
     }
 
     if (next.transcriptListImplementation === 'flatlist_legacy') {

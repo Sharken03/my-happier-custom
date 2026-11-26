@@ -783,7 +783,7 @@ const IGNORED_UNTRANSLATED_KEY_PREFIXES = [
 ];
 const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>> = {
     fr: {
-        'settingsAppearance.themeProfiles.': 27,
+        'settingsAppearance.themeProfiles.': 29,
         'settingsKeyboard.': 2,
         'settingsSession.sessionCreation.': 2,
         'settingsSession.promptPersonalization.': 0,
@@ -793,7 +793,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 8,
     },
     ru: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -802,7 +802,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     pl: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -811,7 +811,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     es: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 2,
         'settingsSession.promptPersonalization.': 15,
@@ -820,7 +820,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     it: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -829,7 +829,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     pt: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -838,7 +838,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     ca: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 2,
         'settingsSession.promptPersonalization.': 15,
@@ -847,7 +847,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     'zh-Hans': {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -856,7 +856,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     'zh-Hant': {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -865,7 +865,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     ja: {
-        'settingsAppearance.themeProfiles.': 106,
+        'settingsAppearance.themeProfiles.': 109,
         'settingsKeyboard.': 21,
         'settingsSession.sessionCreation.': 1,
         'settingsSession.promptPersonalization.': 15,
@@ -874,7 +874,7 @@ const UNTRANSLATED_PREFIX_BASELINE_COUNTS: Record<string, Record<string, number>
         'sessionsList.': 22,
     },
     de: {
-        'settingsAppearance.themeProfiles.': 29,
+        'settingsAppearance.themeProfiles.': 32,
         'settingsKeyboard.': 1,
         'settingsSession.sessionCreation.': 2,
         'settingsSession.promptPersonalization.': 0,

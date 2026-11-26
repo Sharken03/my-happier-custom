@@ -3,12 +3,15 @@ import { View, useWindowDimensions, InteractionManager } from 'react-native';
 import { useLaunchSelectionMachines, useSessionRecentPathEntries, storage, useSetting, useSettingMutable, useSettings } from '@/sync/domains/state/storage';
 import { settingsDefaults } from '@/sync/domains/settings/settings';
 import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
+import { useVoiceSessionSnapshot, voiceSessionManager } from '@/voice/session/voiceSession';
+import { isDictationModeEnabled } from '@/voice/local/localVoiceSettings';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useHeaderHeight } from '@/utils/platform/responsive';
 import { useChromeSafeAreaInsets } from '@/components/ui/layout/useChromeSafeAreaInsets';
 import { Modal } from '@/modal';
 import { sync } from '@/sync/sync';
+import { machinePreviewEnv } from '@/sync/ops';
 import { getTempData, type NewSessionData } from '@/utils/sessions/tempDataStore';
 import { fireAndForget } from '@/utils/system/fireAndForget';
 import { tryShowDaemonUnavailableAlertForRpcError } from '@/utils/errors/daemonUnavailableAlert';
@@ -142,6 +145,7 @@ import {
     writeSessionDraftLocalSupplement,
 } from '@/sync/ops/sessionDrafts/sessionDraftRepository';
 import { resolveNewSessionDraftRouteIdentity } from '@/components/sessions/new/navigation/newSessionDraftRouteIdentity';
+import { sortFavoriteModelSelectionsByUse } from '@/sync/domains/models/favoriteModelSelections';
 import {
     useNewSessionDraftHostSnapshot,
     useNewSessionDraftPromptProjection,
@@ -297,6 +301,35 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     const [secretBindingsByProfileId, setSecretBindingsByProfileId] = useSettingMutable('secretBindingsByProfileId');
     const sessionDefaultPermissionModeByTargetKey = useSetting('sessionDefaultPermissionModeByTargetKey');
     const settings = useSettings() ?? settingsDefaults;
+
+    // Voice state for the new-session composer. A new session has no sessionId until it is
+    // created, so voice recording uses a stable temporary session id; the transcript is placed
+    // into the prompt field instead of being sent as a voice turn.
+    const voice = settings.voice as any;
+    const voiceProviderId = voice?.providerId ?? 'off';
+    const voiceSnap = useVoiceSessionSnapshot();
+    const isLocalVoiceProvider = voiceProviderId === 'local_direct' || voiceProviderId === 'local_conversation';
+    const dictationModeEnabled = isDictationModeEnabled({ voice });
+    const NEW_SESSION_VOICE_SESSION_ID = 'new-session';
+
+    const handleMicrophonePress = React.useCallback(async () => {
+        await voiceSessionManager.toggle(NEW_SESSION_VOICE_SESSION_ID);
+    }, []);
+
+    const micButtonState = React.useMemo(
+        () => ({
+            onMicPress:
+                voiceProviderId !== 'off' || voiceSnap.status !== 'disconnected'
+                    ? handleMicrophonePress
+                    : undefined,
+            isMicActive: isLocalVoiceProvider && dictationModeEnabled
+                ? voiceSnap.status !== 'disconnected' && voiceSnap.status !== 'error'
+                : voiceSnap.status !== 'disconnected',
+            isRecording: voiceSnap.status !== 'disconnected' && voiceSnap.mode === 'listening',
+        }),
+        [handleMicrophonePress, voiceProviderId, isLocalVoiceProvider, voiceSnap.status, voiceSnap.mode, voice],
+    );
+
     const accountProfile = useAccountProfile();
     const activeServerSource = useNewSessionActiveServerSource();
     const draftScope = useActiveServerAccountScope();
@@ -382,7 +415,11 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     const [favoriteDirectories, setFavoriteDirectories] = useSettingMutable('favoriteDirectories');
     const [favoriteMachines, setFavoriteMachines] = useSettingMutable('favoriteMachines');
     const [favoriteProfileIds, setFavoriteProfileIds] = useSettingMutable('favoriteProfiles');
-    const [favoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [storedFavoriteModelSelections, setFavoriteModelSelections] = useSettingMutable('favoriteModelSelectionsV1');
+    const [favoriteModelsSortByUse] = useSettingMutable('favoriteModelsSortByUseV1');
+    const favoriteModelSelections = React.useMemo(() => (
+        favoriteModelsSortByUse ? sortFavoriteModelSelectionsByUse(storedFavoriteModelSelections) : storedFavoriteModelSelections
+    ), [favoriteModelsSortByUse, storedFavoriteModelSelections]);
     const [favoriteBackendTargetKeys, setFavoriteBackendTargetKeys] = useSettingMutable('favoriteBackendTargetKeysV1');
     const [lastNewSessionAgentPickerView, setLastNewSessionAgentPickerView] = useSettingMutable('lastNewSessionAgentPickerViewV1');
     const [dismissedCLIWarnings, setDismissedCLIWarnings] = useSettingMutable('dismissedCLIWarnings');
@@ -907,6 +944,17 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
     // Path selection
     //
 
+    // The daemon prewarms a session runner when the app previews the spawn environment. The
+    // first keystroke shows that a new session is likely, so it asks for a preview of no keys;
+    // the environment presence probe above caches its own preview for minutes.
+    const prewarmTargetRef = React.useRef({ machineId: selectedMachineId, serverId: capabilityServerId });
+    prewarmTargetRef.current = { machineId: selectedMachineId, serverId: capabilityServerId };
+    const requestRunnerPrewarm = React.useCallback(() => {
+        const { machineId: targetMachineId, serverId } = prewarmTargetRef.current;
+        if (!targetMachineId) return;
+        void machinePreviewEnv(targetMachineId, { keys: [] }, { serverId });
+    }, []);
+
     const {
         promptStore,
         setSessionPrompt,
@@ -931,6 +979,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         persistedDraftEntryIntent: scopedPersistedDraft?.entryIntent,
         hydratedTempAuthoringDraft,
         hydratedPersistedAuthoringDraft: hydratedPersistedContentAuthoringDraft,
+        onFirstUserEdit: requestRunnerPrewarm,
     });
     const [isCreatingLocally, setIsCreating] = React.useState(false);
     const accountActionOperations = useAllActionOperations(draftScope?.accountId ?? '');
@@ -1261,6 +1310,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         selectedMachineId: selectedMachine?.id ?? null,
         selectedMachineHomeDir: selectedMachine?.metadata?.homeDir ?? null,
         selectedMachinePlatform: selectedMachine?.metadata?.platform ?? null,
+        selectedMachineChatsDir: selectedMachine?.metadata?.chatsDir ?? null,
         selectedPath,
         targetServerId: targetServerId ?? null,
     }), [
@@ -1269,6 +1319,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         selectedMachine?.id,
         selectedMachine?.metadata?.homeDir,
         selectedMachine?.metadata?.platform,
+        selectedMachine?.metadata?.chatsDir,
         selectedPath,
         targetServerId,
     ]);
@@ -1286,6 +1337,7 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
                 onChangeDraftSelectedPath={setDraftSelectedPath}
                 recentPaths={recentPaths}
                 favoriteDirectories={favoriteDirectories}
+                chatsDir={selectedMachine?.metadata?.chatsDir ?? null}
                 onToggleFavoriteDirectory={handleToggleFavoriteDirectory}
                 machineId={selectedMachine?.id ?? null}
                 serverId={targetServerId ?? null}
@@ -2063,6 +2115,10 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         agentInputExtraActionChips,
         attachmentFlowId: effectiveAttachmentFlowId,
         resumePersistedLaunchKey,
+        onMicPress: micButtonState.onMicPress,
+        isMicActive: micButtonState.isMicActive,
+        isMicRecording: micButtonState.isRecording,
+        dictationMode: dictationModeEnabled,
     });
 
     const { profilePopover } = React.useMemo(() => {
@@ -2140,6 +2196,10 @@ export function useNewSessionScreenModel(params?: Readonly<{ draftId?: string; o
         targetServerId,
         attachmentFlowId: effectiveAttachmentFlowId,
         resumePersistedLaunchKey,
+        onMicPress: micButtonState.onMicPress,
+        isMicActive: micButtonState.isMicActive,
+        isMicRecording: micButtonState.isRecording,
+        dictationMode: dictationModeEnabled,
     });
 
     const variantModel = buildNewSessionScreenVariantModel({

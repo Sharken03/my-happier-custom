@@ -7,7 +7,20 @@ function fingerprintCredentialPart(value: string): string {
     return `sha256:${bytesToHex(sha256(utf8ToBytes(value)))}`;
 }
 
+// Screens read the scope key on every render, and the hashes run in JavaScript (about 10 ms per key
+// on a phone). Credentials objects are read-only, so one key per object is safe. The WeakMap holds
+// no credential material after the object is released.
+const scopeKeyByCredentials = new WeakMap<AuthCredentials, string>();
+
 export function resolveAuthCredentialsScopeKey(credentials: AuthCredentials): string {
+    const cached = scopeKeyByCredentials.get(credentials);
+    if (cached !== undefined) return cached;
+    const scopeKey = buildAuthCredentialsScopeKey(credentials);
+    scopeKeyByCredentials.set(credentials, scopeKey);
+    return scopeKey;
+}
+
+function buildAuthCredentialsScopeKey(credentials: AuthCredentials): string {
     if (isLegacyAuthCredentials(credentials)) {
         return [
             'legacy',
